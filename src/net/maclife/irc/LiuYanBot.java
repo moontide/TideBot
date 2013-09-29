@@ -13,7 +13,8 @@ public class LiuYanBot extends PircBot
 	public static final String DEFAULT_TIME_FORMAT_STRING = "yyyy-MM-dd a KK:mm:ss Z EEEE";
 	public static final DateFormat DEFAULT_TIME_FORMAT = new SimpleDateFormat (DEFAULT_TIME_FORMAT_STRING);
 	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault ();
-	public static final int MAX_RESPONSE_LINES = 7;	// 最大响应行数
+	public static final int MAX_RESPONSE_LINES = 7;	// 最大响应行数 (可由参数调整)
+	public static final int MAX_RESPONSE_LINES_LIMIT = 20;	// 最大响应行数 (真的不能大于该行数)
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 8;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
 
 	public LiuYanBot ()
@@ -21,6 +22,12 @@ public class LiuYanBot extends PircBot
 		setName ("LiuYanBot");
 	}
 
+	boolean isUserInWhiteList (String u)
+	{
+		if (u==null || u.isEmpty())
+			return false;
+		return u.equalsIgnoreCase ("LiuYan");
+	}
 	public void onPrivateMessage (String sender, String login, String hostname, String message)
 	{
 		//onMessage (null, sender, login, hostname, message);
@@ -43,6 +50,7 @@ public class LiuYanBot extends PircBot
 				&& !StringUtils.startsWithIgnoreCase(message, "TimeZones") && !StringUtils.startsWithIgnoreCase(message, "JavaTimeZones")
 				&& !StringUtils.startsWithIgnoreCase(message, "Locales") && !StringUtils.startsWithIgnoreCase(message, "JavaLocales")
 				&& !StringUtils.startsWithIgnoreCase(message, "exec") && !StringUtils.startsWithIgnoreCase(message, "cmd")
+				&& !StringUtils.startsWithIgnoreCase(message, "parseCmd")
 				&& !StringUtils.startsWithIgnoreCase(message, "env")
 				&& !StringUtils.startsWithIgnoreCase(message, "properties")
 				)
@@ -57,6 +65,8 @@ public class LiuYanBot extends PircBot
 			List<String> listEnv=null;
 			String[] args = message.split (" +", 2);
 			botcmd = args[0];
+			boolean opt_output_username = true;
+			int opt_max_response_lines = MAX_RESPONSE_LINES;
 			if (args[0].contains("."))
 			{
 				int iFirstDotIndex = args[0].indexOf(".");
@@ -65,9 +75,36 @@ public class LiuYanBot extends PircBot
 				String[] arrayEnv = sEnv.split ("[\\.]+");
 				if (arrayEnv.length > 0)
 				{
-					listEnv = new ArrayList<String> ();
 					for (String env : arrayEnv)
-						listEnv.add (env);
+					{
+						if (! env.isEmpty())
+						{
+							// 全局参数选项
+							if (env.equalsIgnoreCase("nou"))	// do not output user name 响应时，不输出用户名
+							{
+								opt_output_username = false;
+								continue;
+							}
+							else if (env.matches("\\d+"))	// 最多输出多少行。当该用户不是管理员时，仍然受到内置的行数限制
+							{
+								try
+								{
+									opt_max_response_lines = Integer.parseInt (env);
+									if (! isUserInWhiteList(sender) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
+										opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
+								}
+								catch (Exception e)
+								{
+									e.printStackTrace ();
+								}
+								continue;
+							}
+							
+							if (listEnv==null)
+								listEnv = new ArrayList<String> ();
+							listEnv.add (env);
+						}
+					}
 				}
 			}
 			if (args.length >= 2)
@@ -77,40 +114,49 @@ System.out.println (listEnv);
 System.out.println (params);
 
 			if (botcmd.equalsIgnoreCase("help"))
-				ProcessHelp (channel, sender, listEnv, params);
+				ProcessHelp (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("time"))
-				ProcessCommand_Time (channel, sender, listEnv, params);
+				ProcessCommand_Time (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("locales") || botcmd.equalsIgnoreCase("javalocales"))
-				ProcessCommand_Locales (channel, sender, listEnv, params);
+				ProcessCommand_Locales (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("timezones") || botcmd.equalsIgnoreCase("javatimezones"))
-				ProcessCommand_TimeZones (channel, sender, listEnv, params);
+				ProcessCommand_TimeZones (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("exec") || botcmd.equalsIgnoreCase("cmd"))
-				ProcessCommand_Exec (channel, sender, listEnv, params);
+				ProcessCommand_Exec (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("parseCmd"))
+				ProcessCommand_ParseCommand (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("env"))
-				ProcessCommand_Environment (channel, sender, listEnv, params);
+				ProcessCommand_Environment (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("properties"))
-				ProcessCommand_Properties (channel, sender, listEnv, params);
+				ProcessCommand_Properties (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (channel, sender, "出错：" + e);
+			SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "出错：" + e);
 		}
 	}
 	
-	void SendMessage (String channel, String user, String msg)
+	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
 	{
 		if (channel!=null)
-			sendMessage (channel, user + ": " + msg);
+		{
+			if (opt_output_username)
+				sendMessage (channel, user + ": " + msg);
+			else
+				sendMessage (channel, msg);
+		}
 		else
 			sendMessage (user, msg);
 	}
 	
-	void ProcessHelp (String channel, String sender, List<String> listCmdEnv, String params)
+	void ProcessHelp (String channel, String sender, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
 		SendMessage (
 			channel,
 			sender,
+			opt_output_username,
+			opt_max_response_lines,
 			"本bot命令说明: " +
 				Colors.GREEN + "time" + Colors.NORMAL + " --显示当前时间; " + 
 				Colors.GREEN + "exec" + Colors.NORMAL + " 或 " + Colors.GREEN + "cmd" + Colors.NORMAL + " --执行命令; " +
@@ -118,7 +164,7 @@ System.out.println (params);
 				"exec 用法: exec <命令> [命令参数]... --注: 这不是 shell, shell 中类似变量取值($var)、管道符(|)、重定向(><)、通配符(*?) 等语法都不支持. " +
 				""
 			);
-		SendMessage (channel, sender, "每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间，超时自动杀死. ");
+		SendMessage (channel, sender, opt_output_username, opt_max_response_lines, "每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间，超时自动杀死. ");
 	}
 	
 	/**
@@ -127,7 +173,7 @@ System.out.println (params);
 	 * 时区：如： Asia/Shanghai, 或自定义时区ID，如： GMT+08:00, GMT+8, GMT-02:00, GMT-2:10
 	 * 格式：如： yyyy-MM-dd HH:mm:ss Z
 	 */
-	void ProcessCommand_Time (String ch, String u, List<String> listCmdEnv, String params)
+	void ProcessCommand_Time (String ch, String u, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
 		String sLang = null, sCountry = null, sLocaleVariant=null;
 		String sTimeZoneID = null;
@@ -137,7 +183,7 @@ System.out.println (params);
 		TimeZone tz = null;
 		Locale l = null;
 
-		if (listCmdEnv!=null)
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
 		{
 			String sLocale = listCmdEnv.get (0);
 			String[] arrayLocale = sLocale.split ("[-_]+", 3);
@@ -181,6 +227,8 @@ System.out.println (params);
 		SendMessage (
 			ch,
 			u,
+			opt_output_username,
+			opt_max_response_lines,
 			"[" + Colors.GREEN + sTime + Colors.NORMAL +
 			"], [" + Colors.YELLOW + (tz==null  ?
 					(l==null ? DEFAULT_TIME_ZONE.getDisplayName() : DEFAULT_TIME_ZONE.getDisplayName(l)) :
@@ -194,7 +242,7 @@ System.out.println (params);
 	/**
 	 * 列出时区
 	 */
-	void ProcessCommand_TimeZones (String ch, String u, List<String> listCmdEnv, String params)
+	void ProcessCommand_TimeZones (String ch, String u, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -241,14 +289,14 @@ System.out.println (sb);
 System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
-			SendMessage (ch, u, s.toString());
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
 		}
 	}
 	
 	/**
 	 * 列出语言/区域
 	 */
-	void ProcessCommand_Locales (String ch, String u, List<String> listCmdEnv, String params)
+	void ProcessCommand_Locales (String ch, String u, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -296,14 +344,14 @@ System.out.println (sb);
 System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
-			SendMessage (ch, u, s.toString());
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
 		}
 	}
 	
 	/**
 	 * 列出系统环境变量
 	 */
-	void ProcessCommand_Environment (String ch, String u, List<String> listCmdEnv, String params)
+	void ProcessCommand_Environment (String ch, String u, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -356,14 +404,14 @@ System.out.println (sb);
 System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
-			SendMessage (ch, u, s.toString());
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
 		}
 	}
 	
 	/**
 	 * 列出系统属性
 	 */
-	void ProcessCommand_Properties (String ch, String u, List<String> listCmdEnv, String params)
+	void ProcessCommand_Properties (String ch, String u, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -415,8 +463,34 @@ System.out.println (sb);
 System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
-			SendMessage (ch, u, s.toString());
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
 		}
+	}
+
+	/**
+	 * 解析命令行
+	 */
+	void ProcessCommand_ParseCommand (String ch, String u, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
+	{
+		if (params==null)
+		{
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "请在后面加上要解析的命令行");
+			return;
+		}
+		List<String> listTokens = splitCommandLine (params);
+
+		StringBuilder sb = new StringBuilder ();
+		sb.append ("共 " + listTokens.size() + " 个命令参数: ");
+		int n = 0;
+		for (String s : listTokens)
+		{
+			n ++;
+			sb.append (n);
+			sb.append (":[");
+			sb.append (s);
+			sb.append ("] ");
+		}
+		SendMessage (ch, u, opt_output_username, opt_max_response_lines, sb.toString());
 	}
 
 	/**
@@ -426,18 +500,20 @@ System.out.println (sb);
 	 * @param listCmdEnv 通常是 语言.字符集 两项
 	 * @param params
 	 */
-	void ProcessCommand_Exec (String ch, String u, List<String> listCmdEnv, String params)
+	void ProcessCommand_Exec (String ch, String u, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
+		if (params==null)
+		{
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "请在后面加上要执行的命令");
+			return;
+		}
+		splitCommandLine (params);
 		CommandLine cmdline = CommandLine.parse (params);
 System.out.println (cmdline.getExecutable());
 for (String p : cmdline.getArguments())
 {
 	System.out.println (p);
 }
-		if (cmdline.getExecutable().isEmpty())
-		{
-			SendMessage (ch, u, "请在后面加上要执行的命令");
-		}
 		/*
 		 * 常见破坏方式
 		 * wget 外网上的脚本，执行该脚本(fork炸弹等) ，应对方法：检查URL域名？
@@ -449,8 +525,8 @@ for (String p : cmdline.getArguments())
 		 * 
 		 * kill 0，使bot程序退出，	应对方法：
 		 */
-		else if (
-				(cmdline.getExecutable().equalsIgnoreCase("rm") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/rm")
+		if ((
+				cmdline.getExecutable().equalsIgnoreCase("rm") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/rm")
 				|| cmdline.getExecutable().equalsIgnoreCase("dd") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/dd")
 				|| cmdline.getExecutable().equalsIgnoreCase("kill") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/kill")
 				|| cmdline.getExecutable().equalsIgnoreCase("killall") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/killall")
@@ -463,15 +539,16 @@ for (String p : cmdline.getArguments())
 				|| cmdline.getExecutable().equalsIgnoreCase("sh") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/sh")
 				|| cmdline.getExecutable().equalsIgnoreCase("dash") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/dash")
 				|| cmdline.getExecutable().equalsIgnoreCase("ln") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/ln")
-
+	
 				|| cmdline.getExecutable().equalsIgnoreCase("poweroff") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/poweroff")
 				|| cmdline.getExecutable().equalsIgnoreCase("halt") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/halt")
 				|| cmdline.getExecutable().equalsIgnoreCase("reboot") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/reboot")
-)
-				&& !u.equalsIgnoreCase("LiuYan")
-				)
+				|| cmdline.getExecutable().equalsIgnoreCase("shutdown") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/shutdown")
+			)
+			&& !isUserInWhiteList(u)
+		)
 		{
-			SendMessage (ch, u, "***");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "***");
 			return;
 		}
 		
@@ -486,7 +563,7 @@ for (String p : cmdline.getArguments())
 		Executor exec = new DefaultExecutor ();
 		OutputStream os =
 				//new ByteArrayOutputStream ();
-				new OutputStreamToIRCMessage (ch, u);
+				new OutputStreamToIRCMessage (ch, u, opt_output_username, opt_max_response_lines);
 		exec.setStreamHandler (new PumpStreamHandler(os, os));
 		ExecuteWatchdog watchdog = new ExecuteWatchdog (WATCH_DOG_TIMEOUT_LENGTH*1000);
 		exec.setWatchdog (watchdog);
@@ -515,7 +592,7 @@ for (String p : cmdline.getArguments())
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, u, "出错：" + e);
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "出错：" + e);
 		}
 		/*
 		String output = os.toString ();
@@ -546,23 +623,27 @@ for (String p : cmdline.getArguments())
 	{
 		String channel;
 		String sender;
+		boolean opt_output_username;
+		int opt_max_response_lines;
 		int lineCounter = 0;
-		public OutputStreamToIRCMessage (String channel, String sender)
+		public OutputStreamToIRCMessage (String channel, String sender, boolean opt_output_username, int opt_max_response_lines)
 		{
 			this.channel = channel;
 			this.sender = sender;
+			this.opt_output_username = opt_output_username;
+			this.opt_max_response_lines = opt_max_response_lines;
 		}
 		@Override
 		protected void processLine (String line, int level)
 		{
 			lineCounter ++;
-			if (lineCounter > MAX_RESPONSE_LINES)
+			if (lineCounter > opt_max_response_lines)	// MAX_RESPONSE_LINES
 				return;
 				
-			SendMessage (channel, sender, line);
-			if (lineCounter == MAX_RESPONSE_LINES)
+			SendMessage (channel, sender, opt_output_username, opt_max_response_lines, line);
+			if (lineCounter == opt_max_response_lines)	// MAX_RESPONSE_LINES
 			{
-				SendMessage (channel, sender, "[已达到响应行数限制，剩余的行将被忽略]");
+				SendMessage (channel, sender, opt_output_username, opt_max_response_lines, "[已达到响应行数限制，剩余的行将被忽略]");
 			}
 		}
 	}
@@ -570,6 +651,167 @@ for (String p : cmdline.getArguments())
 	boolean CheckExecSafety (CommandLine cmdline, StringBuilder sb)
 	{
 		return false;
+	}
+	
+	void ExecShell ()
+	{
+		//
+	}
+	
+	public static boolean isQuoteChar (char ch)
+	{
+		return ch=='"' || ch=='\'';
+	}
+	public static boolean isQuoteSeparator (char ch, char previous)
+	{
+		return isQuoteChar(ch) && previous!='\\';
+	}
+	public static boolean isQuoteEnd (char ch, char previous, char quoteChar)
+	{
+		return ch==quoteChar && previous!='\\';
+	}
+	public static boolean isWhitespace(char ch)
+	{
+		return ch==' ' || ch=='	';
+	}
+	public static boolean isEscapeChar(char ch)
+	{
+		return ch=='\\';
+	}
+	public static List<String> splitCommandLine (String cmdline)
+	{
+		return splitCommandLine (cmdline, true);
+	}
+	public static List<String> splitCommandLine (String cmdline, boolean unquoted)
+	{
+		if (cmdline==null || cmdline.isEmpty())
+			return null;
+
+		// quote state
+		//final byte QUOTE_STATE_NORMAL = 0;
+		//final byte QUTOE_STATE_IN_QUOTE = 1;
+
+		boolean token_state_in_token = false;
+		boolean quote_state_in_quote = false;
+
+		char quoteChar = 0;
+		char[] arrayCmdLine = cmdline.toCharArray ();
+		int iTokenStart = 0, iTokenEnd = 0;
+		int iQuoteStart = 0, iQuoteEnd = 0;
+		StringBuilder token = new StringBuilder ();
+		String subToken = null;
+		List<String> listTokens = new ArrayList<String> ();
+		for (int i=0; i<arrayCmdLine.length; i++)
+		{
+			char thisChar = arrayCmdLine[i];
+			char previousChar = (i==0 ? 0 : arrayCmdLine[i-1]);
+System.out.print ("字符"+ (i+1)+ "[" + thisChar + "]:");			
+			if (!token_state_in_token && !quote_state_in_quote)
+			{
+				if (!isWhitespace(thisChar))
+				{
+System.out.print ("进入token,");
+					token_state_in_token = true;
+					iTokenStart = i;
+				}
+				if (isQuoteSeparator(thisChar, previousChar))
+				{
+System.out.print ("进入quote,进入子token,");
+					quote_state_in_quote = true;
+					iQuoteStart = i;
+					quoteChar = thisChar;
+				}
+			}
+			else if (!token_state_in_token && quote_state_in_quote)
+			{
+				// 不可能发生：在引号内必定在 token 内
+System.err.println ("不在 token 内，却在引号中，不可能");
+			}
+
+			else if (token_state_in_token && !quote_state_in_quote)
+			{
+				if (isWhitespace(thisChar))
+				{
+System.out.print ("结束token,");
+					token_state_in_token = !token_state_in_token;
+					if (!isQuoteChar(previousChar))	// 如果前面不是引号结束的，就需要自己处理剩余的
+					{
+						iTokenEnd = i;
+						subToken = cmdline.substring (iTokenStart, iTokenEnd);
+						token.append (subToken);
+					}
+System.out.print (token);
+					listTokens.add (token.toString());
+					token = new StringBuilder ();
+
+				}
+				if (isQuoteSeparator(thisChar, previousChar))	// aa"(此处)bb"cc
+				{
+System.out.print ("结束子token,");
+					iTokenEnd = i;
+					subToken = cmdline.substring (iTokenStart, iTokenEnd);
+					token.append (subToken);
+					iTokenStart = i + 1;
+System.out.print (subToken);
+System.out.print (",开始quote,开始子token,");
+					quote_state_in_quote = !quote_state_in_quote;
+					iQuoteStart = i;
+					quoteChar = thisChar;
+				}
+			}
+			else if (token_state_in_token && quote_state_in_quote)
+			{
+				if (isQuoteEnd (thisChar, previousChar, quoteChar))
+				{
+System.out.print ("结束子token 结束quote,");
+					quote_state_in_quote = !quote_state_in_quote;
+					iQuoteEnd = i;
+					if (unquoted)	// 不把引号包含进去
+						subToken = cmdline.substring (iQuoteStart+1, iQuoteEnd);
+					else	// 把引号也包含进去
+						subToken = cmdline.substring (iQuoteStart, iQuoteEnd+1);
+
+System.out.print (subToken);
+					iTokenStart = i + 1;
+					token.append (subToken);
+				}
+			}
+			System.out.println ();
+		}
+		
+		if (token_state_in_token)
+		{	// 结束
+			if (quote_state_in_quote)
+			{	// 给出警告，或错误
+System.out.println ("警告：引号未关闭");
+				token_state_in_token = !token_state_in_token;
+				quote_state_in_quote = !quote_state_in_quote;
+				iQuoteEnd = arrayCmdLine.length;
+				if (unquoted)
+					token.append (cmdline.substring (iQuoteStart+1, iQuoteEnd));	// 不把引号包含进去
+				else
+				{
+					token.append (cmdline.substring (iQuoteStart, iQuoteEnd+1));	// 把引号也包含进去
+					token.append (quoteChar);	// 把缺失的引号补充进去
+				}
+			}
+			else
+			{
+				token_state_in_token = !token_state_in_token;
+				iTokenEnd = arrayCmdLine.length;
+
+				token.append (cmdline.substring (iTokenStart, iTokenEnd));
+			}
+System.out.println ("全部结束");
+
+			listTokens.add (token.toString());
+		}
+System.out.println (listTokens);
+
+		assert !token_state_in_token;
+		assert !quote_state_in_quote;
+
+		return listTokens;
 	}
 	
 	// 发送长消息，自动分割多条信息
@@ -585,5 +827,7 @@ for (String p : cmdline.getArguments())
 		bot.connect ("irc.freenode.net");
 		bot.joinChannel ("#linuxba");
 		bot.joinChannel ("#LiuYanBot");
+		
+		//LiuYanBot.splitCommandLine ("  \" echo \" \" [test\\\" ]\"a[\" test']  ");
 	}
 }
