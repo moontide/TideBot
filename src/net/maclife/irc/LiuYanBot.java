@@ -3,6 +3,7 @@ package net.maclife.irc;
 import java.io.*;
 import java.text.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 import org.apache.commons.lang3.*;
 import org.apache.commons.exec.*;
@@ -16,7 +17,26 @@ public class LiuYanBot extends PircBot
 	public static final int MAX_RESPONSE_LINES = 7;	// 最大响应行数 (可由参数调整)
 	public static final int MAX_RESPONSE_LINES_LIMIT = 20;	// 最大响应行数 (真的不能大于该行数)
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 8;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
+	
+	Comparator antiFloodComparitor = new AntiFloodComparator ();
+	Map<String, Map<String, Object>> antiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
+	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
+	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 3;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
+	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
 
+	class AntiFloodComparator implements Comparator<Map<String, Object>>
+	{
+		@Override
+		public int compare (Map<String, Object> o1, Map<String, Object> o2)
+		{
+			return (long)o1.get("灌水计数器") > (long)o1.get("灌水计数器") ? 1 :
+				((long)o1.get("灌水计数器") < (long)o1.get("灌水计数器") ? -1 :
+					((long)o1.get("最后活动时间") > (long)o1.get("最后活动时间") ? 1 :
+						((long)o1.get("最后活动时间") < (long)o1.get("最后活动时间") ? -1 : 0)
+					)
+				);
+		}
+	}
 	public LiuYanBot ()
 	{
 		setName ("LiuYanBot");
@@ -33,6 +53,57 @@ public class LiuYanBot extends PircBot
 		//onMessage (null, sender, login, hostname, message);
 	}
 
+	boolean isFlooding (String channel, String sender, String login, String hostname, String message)
+	{
+		boolean isFlooding = false;
+		Map<String, Object> mapUserInfo = (Map<String, Object>) antiFloodRecord.get (sender);
+		if (mapUserInfo==null)
+		{
+			mapUserInfo = new HashMap<String, Object> ();
+			antiFloodRecord.put (sender, mapUserInfo);
+			mapUserInfo.put ("最后活动时间", 0L);
+			mapUserInfo.put ("灌水计数器", 0L);
+			mapUserInfo.put ("总灌水计数器", 0L);
+			mapUserInfo.put ("上次是否灌水", false);
+		}
+
+		long 最后活动时间 = (long)mapUserInfo.get ("最后活动时间");
+		long now = System.currentTimeMillis();
+		long 时间间隔_秒 = (now - 最后活动时间)/1000;
+		long 时间间隔_小时 = 时间间隔_秒/3600;	// 在判断灌水时长时，每个小时减去 1 秒（灌水次数不自动消退，只是在计算“判断灌水时长”时长时减去 1）
+
+		boolean 上次是否灌水 = (boolean)mapUserInfo.get ("上次是否灌水");
+		long 灌水计数器 = (long)mapUserInfo.get ("灌水计数器");
+		long 总灌水计数器 = (long)mapUserInfo.get ("总灌水计数器");
+		long 灌水判断时长 = (灌水计数器>时间间隔_小时 ? 灌水计数器-时间间隔_小时 : 0) + DEFAULT_ANTI_FLOOD_INTERVAL;
+//System.out.println ("当前时间="+new java.sql.Time(now) + ",最后活动时间=" + new java.sql.Time(最后活动时间) + ", 时间间隔="+时间间隔_秒+"秒("+时间间隔_小时+"小时)");
+//System.out.println ("灌水计数器="+灌水计数器+",灌水判断时长="+灌水判断时长+"秒");
+		if (时间间隔_秒 >= 灌水判断时长)
+		{
+			灌水计数器 --;
+			if (灌水计数器 <= 0)
+				灌水计数器 = 0;
+			else
+			{
+				// 假定其身后的用户是倾向于”变好“，该 bot 的消息是不是造成
+				SendMessage (channel, sender, true, 1, "[防洪] 谢谢，对您的灌水惩罚减刑 1 次，目前 = " + 灌水计数器 + " 次，请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
+			}
+		}
+		else
+		{
+			isFlooding = true;
+			灌水计数器 ++;
+			总灌水计数器 ++;
+			if (!上次是否灌水)
+				SendMessage (channel, sender, true, 1, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
+		}
+		mapUserInfo.put ("最后活动时间", now);
+		mapUserInfo.put ("灌水计数器", 灌水计数器);
+		mapUserInfo.put ("总灌水计数器", 总灌水计数器);
+		mapUserInfo.put ("上次是否灌水", isFlooding);
+
+		return isFlooding;
+	}
 	public void onMessage (String channel, String sender, String login, String hostname, String message)
 	{
 		// 如果是直接对 Bot 说话，则把机器人用户名去掉
@@ -57,6 +128,13 @@ public class LiuYanBot extends PircBot
 				&& !StringUtils.startsWithIgnoreCase(message, "properties")
 				)
 			{
+				return;
+			}
+			
+			// Anti-Flood 防止灌水
+			if (isFlooding(channel, sender, login, hostname, message))
+			{
+				// 发送消息提示该用户，但别造成自己被跟着 flood 起来
 				return;
 			}
 
@@ -603,7 +681,7 @@ for (String p : cmdline.getArguments())
 		/*
 		 * 执行
 		 */
-		Executor exec = new DefaultExecutor ();
+		org.apache.commons.exec.Executor exec = new DefaultExecutor ();
 		OutputStream os =
 				//new ByteArrayOutputStream ();
 				new OutputStreamToIRCMessage (ch, u, opt_output_username, opt_max_response_lines);
@@ -870,7 +948,7 @@ System.out.println (listTokens);
 		bot.connect ("irc.freenode.net");
 		bot.joinChannel ("#linuxba");
 		bot.joinChannel ("#LiuYanBot");
-		
+
 		//LiuYanBot.splitCommandLine ("  \" echo \" \" [test\\\" ]\"a[\" test']  ");
 	}
 }
