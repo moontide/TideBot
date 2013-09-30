@@ -47,6 +47,8 @@ public class LiuYanBot extends PircBot
 			if (
 				!StringUtils.startsWithIgnoreCase(message, "help")
 				&& !StringUtils.startsWithIgnoreCase(message, "time")
+				&& !StringUtils.startsWithIgnoreCase(message, "action")
+				&& !StringUtils.startsWithIgnoreCase(message, "notice")
 				&& !StringUtils.startsWithIgnoreCase(message, "TimeZones") && !StringUtils.startsWithIgnoreCase(message, "JavaTimeZones")
 				&& !StringUtils.startsWithIgnoreCase(message, "Locales") && !StringUtils.startsWithIgnoreCase(message, "JavaLocales")
 				&& !StringUtils.startsWithIgnoreCase(message, "exec") && !StringUtils.startsWithIgnoreCase(message, "cmd")
@@ -114,7 +116,11 @@ System.out.println (listEnv);
 System.out.println (params);
 
 			if (botcmd.equalsIgnoreCase("help"))
-				ProcessHelp (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
+				ProcessCommand_Help (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("action"))
+				ProcessCommand_ActionNotice ("action", channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("notice"))
+				ProcessCommand_ActionNotice ("notice", channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("time"))
 				ProcessCommand_Time (channel, sender, opt_output_username, opt_max_response_lines, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("locales") || botcmd.equalsIgnoreCase("javalocales"))
@@ -150,7 +156,7 @@ System.out.println (params);
 			sendMessage (user, msg);
 	}
 	
-	void ProcessHelp (String channel, String sender, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
+	void ProcessCommand_Help (String channel, String sender, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
 	{
 		SendMessage (
 			channel,
@@ -165,6 +171,43 @@ System.out.println (params);
 				""
 			);
 		SendMessage (channel, sender, opt_output_username, opt_max_response_lines, "每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间，超时自动杀死. ");
+	}
+	
+	void ProcessCommand_ActionNotice (String cmd, String channel, String sender, boolean opt_output_username, int opt_max_response_lines, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			SendMessage (channel, sender, opt_output_username, opt_max_response_lines, "用法：" + cmd + "[.target|.目标] [目标(#频道或昵称，该参数仅仅在开启 .target 选项时才需要)] <动作消息>");
+			return;
+		}
+		boolean targetParameterOn = false;
+		if (listCmdEnv!=null)
+		{
+			for (String env : listCmdEnv)
+				if (env.equalsIgnoreCase("target") || env.equalsIgnoreCase("目标"))
+					targetParameterOn = true;
+		}
+
+		String target = channel, msg = null;
+
+		if (targetParameterOn)
+		{
+			String[] args = params.split (" ", 2);
+			if (args.length != 2 || args[0].isEmpty() || args[1].isEmpty())
+			{
+				SendMessage (channel, sender, opt_output_username, opt_max_response_lines, "参数不完整。");
+				return;
+			}
+			target = args[0];
+			msg = args[1];
+		}
+		else
+			msg = params;
+
+		if (cmd.equalsIgnoreCase("action"))
+			sendAction (target, msg);
+		else if (cmd.equalsIgnoreCase("notice"))
+			sendNotice (target, msg);
 	}
 	
 	/**
@@ -504,7 +547,7 @@ System.out.println (sb);
 	{
 		if (params==null)
 		{
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "请在后面加上要执行的命令");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: cmd|exec <命令> [命令参数]...");
 			return;
 		}
 		splitCommandLine (params);
