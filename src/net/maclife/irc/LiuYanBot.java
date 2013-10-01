@@ -23,6 +23,7 @@ public class LiuYanBot extends PircBot
 	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 3;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
+	Random rand = new Random ();
 
 	class AntiFloodComparator implements Comparator<Map<String, Object>>
 	{
@@ -72,20 +73,20 @@ public class LiuYanBot extends PircBot
 			mapUserInfo = new HashMap<String, Object> ();
 			antiFloodRecord.put (sender, mapUserInfo);
 			mapUserInfo.put ("最后活动时间", 0L);
-			mapUserInfo.put ("灌水计数器", 0L);
-			mapUserInfo.put ("总灌水计数器", 0L);
+			mapUserInfo.put ("灌水计数器", 0);
+			mapUserInfo.put ("总灌水计数器", 0);
 			mapUserInfo.put ("上次是否灌水", false);
 		}
 
 		long 最后活动时间 = (long)mapUserInfo.get ("最后活动时间");
 		long now = System.currentTimeMillis();
-		long 时间间隔_秒 = (now - 最后活动时间)/1000;
-		long 时间间隔_小时 = 时间间隔_秒/3600;	// 在判断灌水时长时，每个小时减去 1 秒（灌水次数不自动消退，只是在计算“判断灌水时长”时长时减去 1）
+		int 时间间隔_秒 = (int)((now - 最后活动时间)/1000);
+		int 时间间隔_小时 = 时间间隔_秒/3600;	// 在判断灌水时长时，每个小时减去 1 秒（灌水次数不自动消退，只是在计算“判断灌水时长”时长时减去 1）
 
 		boolean 上次是否灌水 = (boolean)mapUserInfo.get ("上次是否灌水");
-		long 灌水计数器 = (long)mapUserInfo.get ("灌水计数器");
-		long 总灌水计数器 = (long)mapUserInfo.get ("总灌水计数器");
-		long 灌水判断时长 = (灌水计数器>时间间隔_小时 ? 灌水计数器-时间间隔_小时 : 0) + DEFAULT_ANTI_FLOOD_INTERVAL;
+		int 灌水计数器 = (int)mapUserInfo.get ("灌水计数器");
+		int 总灌水计数器 = (int)mapUserInfo.get ("总灌水计数器");
+		int 灌水判断时长 = (灌水计数器>时间间隔_小时 ? 灌水计数器-时间间隔_小时 : 0) + DEFAULT_ANTI_FLOOD_INTERVAL;
 //System.out.println ("当前时间="+new java.sql.Time(now) + ",最后活动时间=" + new java.sql.Time(最后活动时间) + ", 时间间隔="+时间间隔_秒+"秒("+时间间隔_小时+"小时)");
 //System.out.println ("灌水计数器="+灌水计数器+",灌水判断时长="+灌水判断时长+"秒");
 		if (时间间隔_秒 >= 灌水判断时长)
@@ -104,7 +105,13 @@ public class LiuYanBot extends PircBot
 			isFlooding = true;
 			灌水计数器 ++;
 			总灌水计数器 ++;
-			if (!上次是否灌水)
+
+			boolean 用户灌水时是否回复 = false;
+			rand.setSeed (now);
+			int nRandom = rand.nextInt (灌水计数器);
+			用户灌水时是否回复 = (nRandom <= 1);	// 1/灌水计数器 的几率回复一次
+
+			if (!上次是否灌水 || 用户灌水时是否回复)
 				SendMessage (channel, sender, true, 1, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
 		}
 		mapUserInfo.put ("最后活动时间", now);
@@ -256,7 +263,7 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines,
-				"本bot命令格式: <命令>[.选项]... [命令参数]...    命令列表: help time timezones locales action notice cmd/exec parsecmd env properties, 可用 help [命令]... 查看详细用法. " +
+				"本bot命令格式: <命令>[.选项]... [命令参数]...    命令列表:  " + Colors.GREEN + "help time cmd exec parsecmd action notice timezones javatimezones locales javalocales env properties" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. " +
 				"    选项有全局和命令私有两种, 全局选项: \"nou\"--不输出用户名, 纯数字--修改响应行数(不超过20). 全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
 				);
 			return;
@@ -264,27 +271,28 @@ public class LiuYanBot extends PircBot
 		String[] args = params.split (" +");
 		System.out.println (Arrays.toString (args));
 
-		if (isCommandMatch (args, "time"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "time" + Colors.NORMAL + "[.Java语言区域] [Java时区(区分大小写)] [Java时间格式]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
-		if (isCommandMatch (args, "action"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "action" + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <动作消息>    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
-		if (isCommandMatch (args, "notice"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "notice" + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <通知消息>    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
-		if (isCommandMatch (args, "parsecmd"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "notice" + Colors.NORMAL + " <命令> [命令参数]...    -- 分析要执行的命令. ");
-		if (isCommandMatch (args, "cmd") || isCommandMatch (args, "exec"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "cmd" + Colors.NORMAL + "|" + Colors.GREEN +  "exec" + Colors.NORMAL + "[.Linux语言区域[.Linux字符集](相当于 LANG 环境变量)] <命令> [命令参数]...    -- 执行系统命令. 注意: 这不是 shell, shell 中类似变量取值($var)、管道符(|)、重定向(><)、通配符(*?)、内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+		String cmd;
+		cmd = "time"; if (isCommandMatch (args, cmd))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.Java语言区域] [Java时区(区分大小写)] [Java时间格式]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
+		cmd = "action"; if (isCommandMatch (args, cmd))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <动作消息>    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+		cmd = "notice"; if (isCommandMatch (args, cmd))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <通知消息>    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+		cmd = "parsecmd"; if (isCommandMatch (args, cmd))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " <命令> [命令参数]...    -- 分析要执行的命令");
+		cmd = "cmd"; if (isCommandMatch (args, cmd) || isCommandMatch (args, "exec"))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "exec" + Colors.NORMAL + "[.Linux语言区域[.Linux字符集]] <命令> [命令参数]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, shell 中类似变量取值($var)、管道符(|)、重定向(><)、通配符(*?)、内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 
-		if (isCommandMatch (args, "locales") || isCommandMatch (args, "javalocales"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "locales" + Colors.NORMAL + "|" + Colors.GREEN +  "javalocales" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
-		if (isCommandMatch (args, "timezones") || isCommandMatch (args, "javatimezones"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "timezones" + Colors.NORMAL + "|" + Colors.GREEN +  "javatimezones" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
-		if (isCommandMatch (args, "env"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "env" + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
-		if (isCommandMatch (args, "properties"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "properties" + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
-		if (isCommandMatch (args, "help"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  "help" + Colors.NORMAL + " [命令]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
+		cmd = "locales"; if (isCommandMatch (args, "locales") || isCommandMatch (args, "javalocales"))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "javalocales" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
+		cmd = "timezones"; if (isCommandMatch (args, "timezones") || isCommandMatch (args, "javatimezones"))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "javatimezones" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
+		cmd = "env"; if (isCommandMatch (args, "env"))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
+		cmd = "properties"; if (isCommandMatch (args, "properties"))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
+		cmd = "help"; if (isCommandMatch (args, "help"))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [命令]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
 	}
 
 	void ProcessCommand_ActionNotice (String channel, String sender, boolean opt_output_username, int opt_max_response_lines, String botcmd, List<String> listCmdEnv, String params)
@@ -303,6 +311,8 @@ public class LiuYanBot extends PircBot
 		}
 
 		String target = channel, msg = null;
+		if (channel==null)
+			target = sender;
 
 		if (targetParameterOn)
 		{
@@ -317,6 +327,8 @@ public class LiuYanBot extends PircBot
 		}
 		else
 			msg = params;
+
+		msg = msg + " <- " + sender;
 
 		if (botcmd.equalsIgnoreCase("action"))
 			sendAction (target, msg);
@@ -434,7 +446,7 @@ public class LiuYanBot extends PircBot
 			if (sb.toString().getBytes().length > 420)	// 由于每个时区的 ID 比较长，所以，多预留一些控件
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
-System.out.println (sb);
+//System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
 				n = 0;
@@ -443,7 +455,7 @@ System.out.println (sb);
 		}
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个");
-System.out.println (sb);
+//System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
@@ -489,7 +501,7 @@ System.out.println (sb);
 			if (sb.toString().getBytes().length > 430)
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
-System.out.println (sb);
+//System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
 				n = 0;
@@ -498,7 +510,7 @@ System.out.println (sb);
 		}
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个");
-System.out.println (sb);
+//System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
@@ -549,7 +561,7 @@ System.out.println (sb);
 			if (sb.toString().getBytes().length > 430)
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
-System.out.println (sb);
+//System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
 				n = 0;
@@ -558,7 +570,7 @@ System.out.println (sb);
 		}
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个");
-System.out.println (sb);
+//System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
@@ -608,7 +620,7 @@ System.out.println (sb);
 			if (sb.toString().getBytes().length > 430)
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
-System.out.println (sb);
+//System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
 				n = 0;
@@ -617,7 +629,7 @@ System.out.println (sb);
 		}
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个");
-System.out.println (sb);
+//System.out.println (sb);
 		for (StringBuilder s : listMessages)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
@@ -661,10 +673,22 @@ System.out.println (sb);
 	{
 		if (params==null)
 		{
+			ProcessCommand_Help (ch, u, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
 			return;
 		}
-		splitCommandLine (params);
-		CommandLine cmdline = CommandLine.parse (params);
+		if (ch==null)
+		{
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, botcmd + " 命令不支持通过私信执行，请在频道中执行");
+			return;
+		}
+		CommandLine cmdline = null;
+		List<String> args = splitCommandLine (params);
+		if (args.size() == 0)
+			return;
+		//CommandLine.parse (params);
+		cmdline = new CommandLine (args.get(0));
+		for (int i=1; i<args.size(); i++)
+			cmdline.addArgument (args.get(i), false);
 //	System.out.println (cmdline.getExecutable());
 //for (String p : cmdline.getArguments())
 //	System.out.println (p);
@@ -977,12 +1001,85 @@ System.out.println (sb);
 
 	public static void main (String[] args) throws IOException, IrcException
 	{
+		String server = "irc.freenode.net";
+		String nick = "LiuYanBot";
+		String channels = "#linuxba,#LiuYanBot";
+		String[] arrayChannels;
+		String encoding = "UTF-8";
+//System.out.println (Arrays.toString(args));
+
+		if (args.length==0)
+		{
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-e 字符集编码]");
+		}
+		else
+		{
+			int i=0;
+			for (i=0; i<args.length; i++)
+			{
+				String arg = args[i];
+				if (arg.startsWith("-") || arg.startsWith("/"))
+				{
+					arg = arg.substring (1);
+					if (arg.equalsIgnoreCase("s"))
+					{
+						if (i == args.length-1)
+						{
+							System.err.println ("需要指定 IRC 服务器地址");
+							return;
+						}
+						server = args[i+1];
+						i ++;
+					}
+					else if (arg.equalsIgnoreCase("u"))
+					{
+						if (i == args.length-1)
+						{
+							System.err.println ("需要指定昵称");
+							return;
+						}
+						nick = args[i+1];
+						i ++;
+					}
+					else if (arg.equalsIgnoreCase("c"))
+					{
+						if (i == args.length-1)
+						{
+							System.err.println ("需要指定要加入的频道列表，多个频道用 ',' 分割");
+							return;
+						}
+						channels = args[i+1];
+						i ++;
+					}
+					else if (arg.equalsIgnoreCase("e"))
+					{
+						if (i == args.length-1)
+						{
+							System.err.println ("需要指定要服务器字符集编码");
+							return;
+						}
+						encoding = args[i+1];
+						i ++;
+					}
+				}
+			}
+		}
+
 		PircBot bot = new LiuYanBot ();
 		bot.setVerbose (true);
-		bot.connect ("irc.freenode.net");
-		bot.joinChannel ("#linuxba");
-		bot.joinChannel ("#LiuYanBot");
+		bot.setAutoNickChange (true);
+		bot.setEncoding (encoding);
 
-		//LiuYanBot.splitCommandLine ("  \" echo \" \" [test\\\" ]\"a[\" test']  ");
+		bot.connect (server);
+		bot.changeNick (nick);
+		arrayChannels = channels.split ("[,;/]+");
+		for (String ch : arrayChannels)
+		{
+			if (ch==null || ch.isEmpty())
+				continue;
+			if (!ch.startsWith("#"))
+				ch = "#" + ch;
+			bot.joinChannel (ch);
+		}
 	}
 }
