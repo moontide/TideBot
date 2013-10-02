@@ -1,12 +1,17 @@
 package net.maclife.irc;
 
 import java.io.*;
+import java.net.*;
 import java.text.*;
 import java.util.*;
 import java.util.concurrent.*;
 
 import org.apache.commons.lang3.*;
 import org.apache.commons.exec.*;
+
+import com.maxmind.geoip2.*;
+import com.maxmind.geoip2.model.*;
+
 import org.jibble.pircbot.*;
 
 public class LiuYanBot extends PircBot
@@ -25,6 +30,9 @@ public class LiuYanBot extends PircBot
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
 	Random rand = new Random ();
 
+	String geoIP2DatabaseFileName = null;
+	DatabaseReader geoIP2DatabaseReader = null;
+
 	class AntiFloodComparator implements Comparator<Map<String, Object>>
 	{
 		@Override
@@ -42,6 +50,19 @@ public class LiuYanBot extends PircBot
 	public LiuYanBot ()
 	{
 		setName ("LiuYanBot");
+	}
+
+	public void setGeoIPDatabaseFileName (String fn)
+	{
+		geoIP2DatabaseFileName = fn;
+		try
+		{
+			geoIP2DatabaseReader = new DatabaseReader(new File(geoIP2DatabaseFileName));
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
 	}
 
 	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
@@ -151,6 +172,7 @@ public class LiuYanBot extends PircBot
 				&& !StringUtils.startsWithIgnoreCase(message, "parseCmd")
 				&& !StringUtils.startsWithIgnoreCase(message, "env")
 				&& !StringUtils.startsWithIgnoreCase(message, "properties")
+				&& !StringUtils.startsWithIgnoreCase(message, "geoip")
 				)
 			{
 				return;
@@ -237,6 +259,8 @@ public class LiuYanBot extends PircBot
 				ProcessCommand_Environment (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("properties"))
 				ProcessCommand_Properties (channel, sender, opt_output_username, opt_max_response_lines,botcmd,  listEnv, params);
+			else if (botcmd.equalsIgnoreCase("geoip"))
+				ProcessCommand_GeoIP (channel, sender, opt_output_username, opt_max_response_lines,botcmd,  listEnv, params);
 			else if (botcmd.equalsIgnoreCase("help"))
 				ProcessCommand_Help (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else //if (botcmd.equalsIgnoreCase("help"))
@@ -272,26 +296,29 @@ public class LiuYanBot extends PircBot
 		System.out.println (Arrays.toString (args));
 
 		String cmd;
-		cmd = "time"; if (isCommandMatch (args, cmd))
+		cmd = "time";           if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.Java语言区域] [Java时区(区分大小写)] [Java时间格式]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
-		cmd = "action"; if (isCommandMatch (args, cmd))
+		cmd = "action";         if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <动作消息>    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
-		cmd = "notice"; if (isCommandMatch (args, cmd))
+		cmd = "notice";         if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <通知消息>    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
-		cmd = "parsecmd"; if (isCommandMatch (args, cmd))
+		cmd = "parsecmd";       if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " <命令> [命令参数]...    -- 分析要执行的命令");
-		cmd = "cmd"; if (isCommandMatch (args, cmd) || isCommandMatch (args, "exec"))
+		cmd = "cmd";            if (isCommandMatch (args, cmd) || isCommandMatch (args, "exec"))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "exec" + Colors.NORMAL + "[.Linux语言区域[.Linux字符集]] <命令> [命令参数]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, shell 中类似变量取值($var)、管道符(|)、重定向(><)、通配符(*?)、内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 
-		cmd = "locales"; if (isCommandMatch (args, "locales") || isCommandMatch (args, "javalocales"))
+		cmd = "locales";        if (isCommandMatch (args, cmd) || isCommandMatch (args, "javalocales"))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "javalocales" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
-		cmd = "timezones"; if (isCommandMatch (args, "timezones") || isCommandMatch (args, "javatimezones"))
+		cmd = "timezones";      if (isCommandMatch (args, cmd) || isCommandMatch (args, "javatimezones"))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "javatimezones" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
-		cmd = "env"; if (isCommandMatch (args, "env"))
+		cmd = "env";            if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
-		cmd = "properties"; if (isCommandMatch (args, "properties"))
+		cmd = "properties";     if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
-		cmd = "help"; if (isCommandMatch (args, "help"))
+		cmd = "geoip";          if (isCommandMatch (args, cmd))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.GeoIP语言代码] [IP地址]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
+
+		cmd = "help";           if (isCommandMatch (args, "help"))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [命令]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
 	}
 
@@ -633,6 +660,72 @@ public class LiuYanBot extends PircBot
 		for (StringBuilder s : listMessages)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, s.toString());
+		}
+	}
+
+	/**
+	 * 查询 IP 地址所在地 (GeoIP2)
+	 */
+	void ProcessCommand_GeoIP (String ch, String u, boolean opt_output_username, int opt_max_response_lines, String botcmd, List<String> listCmdEnv, String params)
+	{
+		if (params==null)
+		{
+			ProcessCommand_Help (ch, u, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
+			return;
+		}
+		if (geoIP2DatabaseReader==null)
+		{
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, " 没有 IP 数据库");
+			return;
+		}
+		String lang = null;	// GeoIP 所支持的语言见 http://dev.maxmind.com/geoip/geoip2/web-services/，目前有 de, en, es, fr, ja, pt-BR, ru, zh-CN
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		{
+			lang = listCmdEnv.get(0);
+		}
+		String[] ips = null;
+		if (params!=null)
+			ips = params.split (" +");
+
+		City model = null;
+		for (String ip : ips)
+		{
+			try
+			{
+				InetAddress netaddr = InetAddress.getByName (ip);
+				model = geoIP2DatabaseReader.city (netaddr);
+				String continent=null, country=null, province=null, city=null;
+				double latitude=0, longitude=0;
+
+				latitude = model.getLocation().getLatitude();
+				longitude = model.getLocation().getLongitude();
+				if (lang==null)
+				{
+					//continent = model.getContinent().getName();
+					//country = model.getCountry().getName();
+					//city = model.getCity().getName();
+					lang = "zh-CN";
+				}
+				//else
+				{
+					continent = model.getContinent().getNames().get(lang);
+					country = model.getCountry().getNames().get(lang);
+					city = model.getCity().getNames().get(lang);
+					province = model.getMostSpecificSubdivision().getNames().get(lang);
+				}
+				if (continent==null) continent = "";
+				if (country==null) country = "";
+				if (city==null) city = "";
+				if (province==null) province = "";
+				//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
+				SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + "    " + continent + " " + country + " " + province  + " " + city + ""
+						+ " 经度=" + longitude + ", 纬度=" + latitude);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace ();
+				SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 查询出错：" + e);
+			}
 		}
 	}
 
@@ -1006,6 +1099,7 @@ public class LiuYanBot extends PircBot
 		String channels = "#linuxba,#LiuYanBot";
 		String[] arrayChannels;
 		String encoding = "UTF-8";
+		String geoIPDB = null;
 //System.out.println (Arrays.toString(args));
 
 		if (args.length==0)
@@ -1055,20 +1149,32 @@ public class LiuYanBot extends PircBot
 					{
 						if (i == args.length-1)
 						{
-							System.err.println ("需要指定要服务器字符集编码");
+							System.err.println ("需要指定服务器字符集编码");
 							return;
 						}
 						encoding = args[i+1];
+						i ++;
+					}
+					else if (arg.equalsIgnoreCase("geoipdb"))
+					{
+						if (i == args.length-1)
+						{
+							System.err.println ("需要指定 GeoIP2 数据库文件路径");
+							return;
+						}
+						geoIPDB = args[i+1];
 						i ++;
 					}
 				}
 			}
 		}
 
-		PircBot bot = new LiuYanBot ();
+		LiuYanBot bot = new LiuYanBot ();
 		bot.setVerbose (true);
 		bot.setAutoNickChange (true);
 		bot.setEncoding (encoding);
+		if (geoIPDB!=null)
+			bot.setGeoIPDatabaseFileName(geoIPDB);
 
 		bot.connect (server);
 		bot.changeNick (nick);
