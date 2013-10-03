@@ -51,6 +51,10 @@ public class LiuYanBot extends PircBot
 	{
 		setName ("LiuYanBot");
 	}
+	public void SetName (String n)
+	{
+		setName (n);
+	}
 
 	public void setGeoIPDatabaseFileName (String fn)
 	{
@@ -141,6 +145,103 @@ public class LiuYanBot extends PircBot
 		mapUserInfo.put ("上次是否灌水", isFlooding);
 
 		return isFlooding;
+	}
+
+	public String GeoIPCountryCodeToLang (String countryCode, String defaultLang)
+	{
+		if (countryCode==null||countryCode.isEmpty())
+			return defaultLang;
+		if (countryCode.equalsIgnoreCase("CN") || countryCode.equalsIgnoreCase("TW") || countryCode.equalsIgnoreCase("HK") || countryCode.equalsIgnoreCase("NO"))	// 中 台 港 澳
+			return "zh-CN";
+		else if (countryCode.equalsIgnoreCase("DE"))
+			return "de";
+		else if (countryCode.equalsIgnoreCase("BR"))
+			return "pt-BR";
+		else if (countryCode.equalsIgnoreCase("FR"))
+			return "fr";
+		else if (countryCode.equalsIgnoreCase("RU"))
+			return "ru";
+		else if (countryCode.equalsIgnoreCase("JP"))
+			return "ja";
+		else if (countryCode.equalsIgnoreCase("ES") || countryCode.equalsIgnoreCase("MX"))
+			return "es";
+		else if (countryCode.equalsIgnoreCase("US") || countryCode.equalsIgnoreCase("UK") || countryCode.equalsIgnoreCase("CA"))
+			return "en";
+		return defaultLang;
+	}
+
+	@Override
+	public void onJoin (String ch, String u, String login, String hostname)
+	{
+		if (u.equalsIgnoreCase(this.getName()))
+			return;
+		if (geoIP2DatabaseReader==null)
+			return;
+
+/*
+		final String DEFAULT_GEOIP_LANG = "zh-CN";	// ISO: CN
+		String userLang = DEFAULT_GEOIP_LANG;
+
+		City city = null;
+		CityIspOrg isp = null;
+		try
+		{
+			InetAddress netaddr = InetAddress.getByName (hostname);
+			city = geoIP2DatabaseReader.city (netaddr);
+			//isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
+
+			//double latitude=0, longitude=0;
+			//latitude = model.getLocation().getLatitude();
+			//longitude = model.getLocation().getLongitude();
+
+			String sContinent=null, sCountry=null, sProvince=null, sCity=null, sCountry_iso_code=null, sISPName=null;
+			String sContinent_userLocale=null, sCountry_userLocale=null, sProvince_userLocale=null, sCity_userLocale=null, sISPName_userLocale;
+			sCountry_iso_code = city.getCountry().getIsoCode();
+
+			sContinent = city.getContinent().getNames().get(DEFAULT_GEOIP_LANG);
+			sCountry = city.getCountry().getNames().get(DEFAULT_GEOIP_LANG);
+			sProvince = city.getMostSpecificSubdivision().getNames().get(DEFAULT_GEOIP_LANG);
+			sCity = city.getCity().getNames().get(DEFAULT_GEOIP_LANG);
+			//sISPName = isp.getNames().get(lang);
+			sISPName = city.getTraits().getIsp();
+
+			if (! sCountry_iso_code.equalsIgnoreCase("CN"))
+			{
+				userLang = GeoIPCountryCodeToLang (sCountry_iso_code, DEFAULT_GEOIP_LANG);
+				if (!userLang.equalsIgnoreCase(DEFAULT_GEOIP_LANG))
+				{
+					sContinent_userLocale = city.getContinent().getNames().get(userLang);
+					sCountry_userLocale = city.getCountry().getNames().get(userLang);
+					sProvince_userLocale = city.getMostSpecificSubdivision().getNames().get(userLang);
+					sCity_userLocale = city.getCity().getNames().get(userLang);
+				}
+			}
+
+			if (sContinent==null) sContinent = "";
+			if (sCountry==null) sCountry = "";
+			if (sProvince==null) sProvince = "";
+			if (sCity==null) sCity = "";
+			if (sISPName==null) sISPName = "";
+			if (sContinent_userLocale==null) sContinent_userLocale = "";
+			if (sCountry_userLocale==null) sCountry_userLocale = "";
+			if (sProvince_userLocale==null) sProvince_userLocale = "";
+			if (sCity_userLocale==null) sCity_userLocale = "";
+			//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
+			if (userLang.equalsIgnoreCase(DEFAULT_GEOIP_LANG))
+				SendMessage (ch, u, false, 1, "欢迎来自 " + sCountry + sProvince + sCity + sISPName + " 的 " + u);
+			else
+				SendMessage (ch, u, false, 1, "欢迎来自 " + sCountry +
+						(sProvince.isEmpty() ? "" : " " + sProvince)  +
+						(sCity.isEmpty() ? "" : " " + sCity) +
+						" (" + sCountry_userLocale +
+						(sProvince_userLocale.isEmpty() ? "" : " " +  sProvince_userLocale) +
+						(sCity_userLocale.isEmpty() ? "" : " " + sCity_userLocale) + ") " + sISPName + " 的 " + u);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+*/
 	}
 
 	@Override
@@ -678,48 +779,50 @@ public class LiuYanBot extends PircBot
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, " 没有 IP 数据库");
 			return;
 		}
-		String lang = null;	// GeoIP 所支持的语言见 http://dev.maxmind.com/geoip/geoip2/web-services/，目前有 de, en, es, fr, ja, pt-BR, ru, zh-CN
+		String lang = "zh-CN";	// GeoIP 所支持的语言见 http://dev.maxmind.com/geoip/geoip2/web-services/，目前有 de, en, es, fr, ja, pt-BR, ru, zh-CN
 		if (listCmdEnv!=null && listCmdEnv.size()>0)
-		{
 			lang = listCmdEnv.get(0);
-		}
+
 		String[] ips = null;
 		if (params!=null)
 			ips = params.split (" +");
 
-		City model = null;
+		City city = null;
+		CityIspOrg isp = null;
 		for (String ip : ips)
 		{
 			try
 			{
 				InetAddress netaddr = InetAddress.getByName (ip);
-				model = geoIP2DatabaseReader.city (netaddr);
-				String continent=null, country=null, province=null, city=null;
+				city = geoIP2DatabaseReader.city (netaddr);
+				isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
+
+				String sContinent=null, sCountry=null, sProvince=null, sCity=null, sCountry_iso_code=null, sISPName=null;
 				double latitude=0, longitude=0;
 
-				latitude = model.getLocation().getLatitude();
-				longitude = model.getLocation().getLongitude();
-				if (lang==null)
-				{
-					//continent = model.getContinent().getName();
-					//country = model.getCountry().getName();
-					//city = model.getCity().getName();
-					lang = "zh-CN";
-				}
-				//else
-				{
-					continent = model.getContinent().getNames().get(lang);
-					country = model.getCountry().getNames().get(lang);
-					city = model.getCity().getNames().get(lang);
-					province = model.getMostSpecificSubdivision().getNames().get(lang);
-				}
-				if (continent==null) continent = "";
-				if (country==null) country = "";
-				if (city==null) city = "";
-				if (province==null) province = "";
+				latitude = city.getLocation().getLatitude();
+				longitude = city.getLocation().getLongitude();
+
+				sCountry_iso_code = city.getCountry().getIsoCode();
+				sContinent = city.getContinent().getNames().get(lang);
+				sCountry = city.getCountry().getNames().get(lang);
+				sProvince = city.getMostSpecificSubdivision().getNames().get(lang);
+				sCity = city.getCity().getNames().get(lang);
+				sISPName = isp.getTraits().getIsp();
+				//sISPName = city.getTraits().getIsp();
+
+				if (sContinent==null) sContinent = "";
+				if (sCountry==null) sCountry = "";
+				if (sCity==null) sCity = "";
+				if (sProvince==null) sProvince = "";
 				//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
-				SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + "    " + continent + " " + country + " " + province  + " " + city + ""
-						+ " 经度=" + longitude + ", 纬度=" + latitude);
+				SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + "    " +
+						sContinent + " " +
+						sCountry + " " +
+						(sProvince.isEmpty() ? "" : " " + sProvince)  +
+						(sCity.isEmpty() ? "" : " " + sCity) +
+						(sISPName==null?"" : " " + sISPName) +
+						" 经度=" + longitude + ", 纬度=" + latitude);
 			}
 			catch (Exception e)
 			{
@@ -816,11 +919,15 @@ public class LiuYanBot extends PircBot
 				|| cmdline.getExecutable().equalsIgnoreCase("halt") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/halt")
 				|| cmdline.getExecutable().equalsIgnoreCase("reboot") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/reboot")
 				|| cmdline.getExecutable().equalsIgnoreCase("shutdown") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/shutdown")
+
+				|| cmdline.getExecutable().equalsIgnoreCase("python") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/python")
+				|| cmdline.getExecutable().equalsIgnoreCase("perl") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/perl")
+				|| cmdline.getExecutable().equalsIgnoreCase("java") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/java")
 			)
 			&& !isUserInWhiteList(u)
 		)
 		{
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "***");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "命令已禁用");
 			return;
 		}
 
@@ -1095,8 +1202,8 @@ public class LiuYanBot extends PircBot
 	public static void main (String[] args) throws IOException, IrcException
 	{
 		String server = "irc.freenode.net";
-		String nick = "LiuYanBot";
-		String channels = "#linuxba,#LiuYanBot";
+		String nick = "FedoraBot";
+		String channels = "#linuxba,#LiuYanBot,fedora-zh,ubuntu-cn";
 		String[] arrayChannels;
 		String encoding = "UTF-8";
 		String geoIPDB = null;
@@ -1170,6 +1277,7 @@ public class LiuYanBot extends PircBot
 		}
 
 		LiuYanBot bot = new LiuYanBot ();
+		bot.setName (nick);
 		bot.setVerbose (true);
 		bot.setAutoNickChange (true);
 		bot.setEncoding (encoding);
