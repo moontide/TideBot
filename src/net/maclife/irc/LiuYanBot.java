@@ -5,6 +5,7 @@ import java.net.*;
 import java.text.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.*;
 
 import org.apache.commons.lang3.*;
 import org.apache.commons.exec.*;
@@ -29,6 +30,109 @@ public class LiuYanBot extends PircBot
 	public static final String CSI_SGR_REGEXP = ".*" + CSI_SGR_REGEXP_First + ".*";
 	public static final String CSI_EL_REGEXP_First = CSI_REGEXP + "([012])?K";
 	public static final String CSI_EL_REGEXP = ".*" + CSI_EL_REGEXP_First + ".*";
+	Pattern CSI_SGR_PATTERN = Pattern.compile (CSI_SGR_REGEXP);
+	Pattern CSI_SGR_PATTERN_First = Pattern.compile (CSI_SGR_REGEXP_First);
+	Pattern CSI_EL_PATTERN = Pattern.compile (CSI_EL_REGEXP);
+	Pattern CSI_EL_PATTERN_First = Pattern.compile (CSI_EL_REGEXP_First);
+
+	String[] XTERM_256_TO_IRC_16_COLORS = {
+		// 传统 16 色
+		// 0-7
+		Colors.BLACK, Colors.RED, Colors.DARK_GREEN, Colors.OLIVE, Colors.DARK_BLUE, Colors.PURPLE, Colors.TEAL, Colors.LIGHT_GRAY,
+		// 8-15
+		Colors.DARK_GRAY, Colors.RED, Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.MAGENTA, Colors.CYAN, Colors.LIGHT_GRAY,
+
+		// 216 色立方体
+		// 16-21
+		Colors.BLACK, Colors.BLACK, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE,
+		// 22-27
+		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE,
+		// 28-33
+		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE,
+		// 34-39
+		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.CYAN,
+		// 40-45
+		Colors.GREEN, Colors.GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.CYAN, Colors.CYAN,
+		// 46-51
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.DARK_BLUE, Colors.CYAN, Colors.CYAN,
+
+		// 52-57
+		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 58-63
+		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 64-69
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		// 70-75
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		// 76-81
+		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		// 82-87
+		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.CYAN,
+
+		// 88-93
+		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 94-99
+		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 100-105
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 106-111
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 112-117
+		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 118-123
+		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.TEAL,
+
+		// 124-129
+		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 130-135
+		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 136-141
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 142-147
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 148-153
+		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 154-159
+		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
+
+		// 160-165
+		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
+		// 166-171
+		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 172-177
+		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 178-183
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 184-189
+		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 190-195
+		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
+
+		// 196-201
+		Colors.RED, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
+		// 202-207
+		Colors.BROWN, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 208-213
+		Colors.OLIVE, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 214-219
+		Colors.OLIVE, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		// 220-225
+		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.PURPLE, Colors.PURPLE,
+		// 226-231
+		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.WHITE, Colors.WHITE,
+
+		// 24 个灰度阶梯
+		Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK,
+		Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY,
+		Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY,
+		Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE,
+	};
+
+	public static final String COLOR_BOT_COMMAND = Colors.GREEN;
+	public static final String COLOR_COMMAND = Colors.GREEN;
+	public static final String COLOR_COMMAND_OPTION = Colors.TEAL;
+	public static final String COLOR_COMMAND_LITERAL_OPTION = Colors.CYAN;	// 指具体选项名
+	public static final String COLOR_COMMAND_PARAMETER = Colors.BLUE;
 
 	Comparator antiFloodComparitor = new AntiFloodComparator ();
 	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
@@ -405,8 +509,11 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines,
-				"本bot命令格式: <命令>[.选项]... [命令参数]...    命令列表:  " + Colors.GREEN + "Help Time Cmd Exec ParseCmd Action Notice GeoIP TimeZones JavaTimeZones Locales JavaLocales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. " +
-				"    选项有全局和命令私有两种, 全局选项: \"nou\"--不输出用户名, \"esc\"--转换 ANSI Escape 序列, 纯数字--修改响应行数(不超过20). 全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
+				"本bot命令格式: <" + COLOR_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    命令列表:  " + COLOR_COMMAND + "Help Time Cmd Exec ParseCmd Action Notice GeoIP TimeZones JavaTimeZones Locales JavaLocales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. " +
+				""
+					);
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines,
+				"    选项有全局选项和命令私有两种, 全局选项有: \"" + COLOR_COMMAND_LITERAL_OPTION + "nou" + Colors.NORMAL + "\"--不输出用户名 (NO Username), \"" + COLOR_COMMAND_LITERAL_OPTION + "esc" + Colors.NORMAL + "\"--将 ANSI Escape 序列转换为 IRC Escape 序列(ESCape), " + COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过20). 全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
 				);
 			return;
 		}
@@ -415,31 +522,31 @@ public class LiuYanBot extends PircBot
 
 		String cmd;
 		cmd = "time";           if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.Java语言区域] [Java时区(区分大小写)] [Java时间格式]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		cmd = "action";         if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <动作消息>    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_LITERAL_OPTION + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_LITERAL_OPTION + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "动作消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
 		cmd = "notice";         if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.target|.目标] [目标(#频道或昵称)] <通知消息>    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_LITERAL_OPTION + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_LITERAL_OPTION + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "通知消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
 		cmd = "parsecmd";       if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " <命令> [命令参数]...    -- 分析要执行的命令");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析要执行的命令");
 		cmd = "cmd";            if (isCommandMatch (args, cmd) || isCommandMatch (args, "exec"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "exec" + Colors.NORMAL + "[.Linux语言区域[.Linux字符集]] <命令> [命令参数]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, shell 中类似变量取值($var)、管道符(|)、重定向(><)、通配符(*?)、内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Linux语言区域" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Linux字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, shell 中类似变量取值($var)、管道符(|)、重定向(><)、通配符(*?)、内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 
 		cmd = "locales";        if (isCommandMatch (args, cmd) || isCommandMatch (args, "javalocales"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "javalocales" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
 		cmd = "timezones";      if (isCommandMatch (args, cmd) || isCommandMatch (args, "javatimezones"))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "|" + Colors.GREEN +  "javatimezones" + Colors.NORMAL + " [过滤字]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "javatimezones" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
 		cmd = "env";            if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
 		cmd = "properties";     if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
 		cmd = "geoip";          if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.GeoIP语言代码] [IP地址]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".GeoIP语言代码]" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IP地址" + Colors.NORMAL + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
 		cmd = "version";          if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
 
 		cmd = "help";           if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [命令]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
 	}
 
 	void ProcessCommand_ActionNotice (String channel, String sender, boolean opt_output_username, int opt_max_response_lines, String botcmd, List<String> listCmdEnv, String params)
@@ -1106,16 +1213,31 @@ System.out.println ("有 CSI 序列 SGR 参数");
 				String irc_escape_sequence = "";
 				//String ansi_escape_sequence;
 				String sgr_parameters;
-				sgr_parameters = line.replaceFirst (CSI_SGR_REGEXP, "$1");
-				//iCSI_Start = line.indexOf (CSI);
-				//iCSI_End = line.indexOf ("m", iCSI_Start);
+				String sIRC_FG = "";	// ANSI 字符颜色
+				String sIRC_BG = "";	// ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
+				Matcher matcher = CSI_SGR_PATTERN_First.matcher (line);
+				if (!matcher.find())
+				{
+					continue;
+				}
+
+System.out.println ("matched group=");
+				String sGroup = matcher.group();
+HexDump(sGroup);
+				iCSI_Start = matcher.regionStart ();
+				iCSI_End = matcher.regionEnd ();
+System.out.println ("regexp iCSI_Start="+iCSI_Start + ", iCSI_End=" + iCSI_End);
+				//sgr_parameters = line.replaceFirst (CSI_SGR_REGEXP, "$1");
+				sgr_parameters = sGroup.substring (2, sGroup.length()-1);
+				iCSI_Start = line.indexOf (CSI);
+				iCSI_End = line.indexOf ("m", iCSI_Start);
+System.out.println ("indexOf iCSI_Start="+iCSI_Start + ", iCSI_End=" + iCSI_End);
 				//sgr_parameters = line.substring (iCSI_Start+2, iCSI_End);
 System.out.println ("SGR 所有参数: " + sgr_parameters);
 				String[] arraySGR = sgr_parameters.split (";");
-				String sIRC_FG = "";	// ANSI 字符颜色
-				String sIRC_BG = "";	// ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
-				for (String sgrParam : arraySGR)
+				for (int i=0; i<arraySGR.length; i++)
 				{
+					String sgrParam = arraySGR[i];
 System.out.println ("SGR 参数: " + sgrParam);
 					if (sgrParam.isEmpty())
 					{
@@ -1136,7 +1258,10 @@ System.out.println ("SGR 参数: " + sgrParam);
 						case 1:	// 粗体/高亮
 							irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
 							break;
-						case 7:	// 前景背景色反转
+						case 7:	// Image: Negative 前景背景色反转 inverse or reverse; swap foreground and background (reverse video)
+							irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
+							break;
+						case 27:	// Image: Positive 前景背景色正常
 							irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
 							break;
 						case 4:	// 单下划线
@@ -1169,6 +1294,10 @@ System.out.println ("SGR 参数: " + sgrParam);
 							break;
 						case 38:	// xterm-256 前景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
 							//sIRC_FG = ;
+							assert i<arraySGR.length-2;
+							assert arraySGR[i+1].equals("5");
+							sIRC_FG = XTERM_256_TO_IRC_16_COLORS[Integer.parseInt(arraySGR[i+2])%256];
+							i += 2;
 							break;
 
 						case 40:	// 黑色
@@ -1196,15 +1325,24 @@ System.out.println ("SGR 参数: " + sgrParam);
 							sIRC_BG = Colors.WHITE;
 							break;
 						case 48:	// xterm-256 背景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
-							//sIRC_FG = ;
+							//sIRC_BG = ;
+							assert i<arraySGR.length-2;
+							assert arraySGR[i+1].equals("5");
+							sIRC_BG = XTERM_256_TO_IRC_16_COLORS[Integer.parseInt(arraySGR[i+2])%256];
+							i += 2;
 							break;
 						default:
 							break;
 					}
 				}
 
-				if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())
+				if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())		// 只有前景色
 					irc_escape_sequence = irc_escape_sequence + sIRC_FG;
+				else if (sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())	// 只有背景色
+				{
+					sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
+					irc_escape_sequence = irc_escape_sequence + "\u0003," + sIRC_BG;
+				}
 				else if (!sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())
 				{
 					sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
