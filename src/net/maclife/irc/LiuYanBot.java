@@ -23,8 +23,15 @@ public class LiuYanBot extends PircBot
 	public static final int MAX_RESPONSE_LINES_LIMIT = 20;	// 最大响应行数 (真的不能大于该行数)
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 8;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
 
+	public static final String CSI = "\u001B[";	// CSI n 'm' 	SGR - Select Graphic Rendition
+	public static final String CSI_REGEXP = "\\e\\[";	// 用于使用规则表达式时
+	public static final String CSI_SGR_REGEXP_First = CSI_REGEXP + "([\\d;]+)?m";
+	public static final String CSI_SGR_REGEXP = ".*" + CSI_SGR_REGEXP_First + ".*";
+	public static final String CSI_EL_REGEXP_First = CSI_REGEXP + "([012])?K";
+	public static final String CSI_EL_REGEXP = ".*" + CSI_EL_REGEXP_First + ".*";
+
 	Comparator antiFloodComparitor = new AntiFloodComparator ();
-	Map<String, Map<String, Object>> antiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
+	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
 	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 3;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
@@ -38,10 +45,10 @@ public class LiuYanBot extends PircBot
 		@Override
 		public int compare (Map<String, Object> o1, Map<String, Object> o2)
 		{
-			return (long)o1.get("灌水计数器") > (long)o1.get("灌水计数器") ? 1 :
-				((long)o1.get("灌水计数器") < (long)o1.get("灌水计数器") ? -1 :
-					((long)o1.get("最后活动时间") > (long)o1.get("最后活动时间") ? 1 :
-						((long)o1.get("最后活动时间") < (long)o1.get("最后活动时间") ? -1 : 0)
+			return (long)o1.get("灌水计数器") > (long)o2.get("灌水计数器") ? 1 :
+				((long)o1.get("灌水计数器") < (long)o2.get("灌水计数器") ? -1 :
+					((long)o1.get("最后活动时间") > (long)o2.get("最后活动时间") ? 1 :
+						((long)o1.get("最后活动时间") < (long)o2.get("最后活动时间") ? -1 : 0)
 					)
 				);
 		}
@@ -82,21 +89,21 @@ public class LiuYanBot extends PircBot
 			sendMessage (user, msg);
 	}
 
-	boolean isUserInWhiteList (String u)
+	boolean isUserInWhiteList (String user, String nick)
 	{
-		if (u==null || u.isEmpty())
+		if (user==null || user.isEmpty())
 			return false;
-		return u.equalsIgnoreCase ("LiuYan");
+		return user.equalsIgnoreCase ("~LiuYan") || user.equalsIgnoreCase ("~biergaizi");
 	}
 
 	boolean isFlooding (String channel, String sender, String login, String hostname, String message)
 	{
 		boolean isFlooding = false;
-		Map<String, Object> mapUserInfo = antiFloodRecord.get (sender);
+		Map<String, Object> mapUserInfo = mapAntiFloodRecord.get (sender);
 		if (mapUserInfo==null)
 		{
 			mapUserInfo = new HashMap<String, Object> ();
-			antiFloodRecord.put (sender, mapUserInfo);
+			mapAntiFloodRecord.put (sender, mapUserInfo);
 			mapUserInfo.put ("最后活动时间", 0L);
 			mapUserInfo.put ("灌水计数器", 0);
 			mapUserInfo.put ("总灌水计数器", 0);
@@ -151,7 +158,7 @@ public class LiuYanBot extends PircBot
 	{
 		if (countryCode==null||countryCode.isEmpty())
 			return defaultLang;
-		if (countryCode.equalsIgnoreCase("CN") || countryCode.equalsIgnoreCase("TW") || countryCode.equalsIgnoreCase("HK") || countryCode.equalsIgnoreCase("NO"))	// 中 台 港 澳
+		if (countryCode.equalsIgnoreCase("CN") || countryCode.equalsIgnoreCase("TW") || countryCode.equalsIgnoreCase("HK") || countryCode.equalsIgnoreCase("MO"))	// 中 台 港 澳
 			return "zh-CN";
 		else if (countryCode.equalsIgnoreCase("DE"))
 			return "de";
@@ -253,6 +260,7 @@ public class LiuYanBot extends PircBot
 	@Override
 	public void onMessage (String channel, String sender, String login, String hostname, String message)
 	{
+		//System.out.println ("ch="+channel +",sender="+sender +",login="+login +",hostname="+hostname);
 		// 如果是直接对 Bot 说话，则把机器人用户名去掉
 		if (StringUtils.startsWithIgnoreCase(message, getName()+":") || StringUtils.startsWithIgnoreCase(message, getName()+","))
 		{
@@ -274,6 +282,7 @@ public class LiuYanBot extends PircBot
 				&& !StringUtils.startsWithIgnoreCase(message, "env")
 				&& !StringUtils.startsWithIgnoreCase(message, "properties")
 				&& !StringUtils.startsWithIgnoreCase(message, "geoip")
+				&& !StringUtils.startsWithIgnoreCase(message, "version")
 				)
 			{
 				return;
@@ -294,6 +303,7 @@ public class LiuYanBot extends PircBot
 			String[] args = message.split (" +", 2);
 			botcmd = args[0];
 			boolean opt_output_username = true;
+			boolean opt_ansi_escape_to_irc_escape = false;
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
 			if (args[0].contains("."))
 			{
@@ -313,12 +323,17 @@ public class LiuYanBot extends PircBot
 								opt_output_username = false;
 								continue;
 							}
+							else if (env.equalsIgnoreCase("esc") || env.equalsIgnoreCase("escape"))	// 转换 ANSI Escape 序列到 IRC Escape 序列
+							{
+								opt_ansi_escape_to_irc_escape = true;
+								continue;
+							}
 							else if (env.matches("\\d+"))	// 最多输出多少行。当该用户不是管理员时，仍然受到内置的行数限制
 							{
 								try
 								{
 									opt_max_response_lines = Integer.parseInt (env);
-									if (! isUserInWhiteList(sender) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
+									if (! isUserInWhiteList(login, sender) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
 										opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 								}
 								catch (Exception e)
@@ -343,7 +358,7 @@ public class LiuYanBot extends PircBot
 
 			if (false) {}
 			else if (botcmd.equalsIgnoreCase("cmd") || botcmd.equalsIgnoreCase("exec"))
-				ProcessCommand_Exec (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
+				ProcessCommand_Exec (channel, sender, login, opt_output_username, opt_ansi_escape_to_irc_escape, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("parseCmd"))
 				ProcessCommand_ParseCommand (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("time"))
@@ -364,6 +379,8 @@ public class LiuYanBot extends PircBot
 				ProcessCommand_GeoIP (channel, sender, opt_output_username, opt_max_response_lines,botcmd,  listEnv, params);
 			else if (botcmd.equalsIgnoreCase("help"))
 				ProcessCommand_Help (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("version"))
+				ProcessCommand_Version (channel, sender, opt_output_username, opt_max_response_lines,botcmd,  listEnv, params);
 			else //if (botcmd.equalsIgnoreCase("help"))
 				ProcessCommand_Help (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, null);
 		}
@@ -388,13 +405,13 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines,
-				"本bot命令格式: <命令>[.选项]... [命令参数]...    命令列表:  " + Colors.GREEN + "help time cmd exec parsecmd action notice timezones javatimezones locales javalocales env properties" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. " +
-				"    选项有全局和命令私有两种, 全局选项: \"nou\"--不输出用户名, 纯数字--修改响应行数(不超过20). 全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
+				"本bot命令格式: <命令>[.选项]... [命令参数]...    命令列表:  " + Colors.GREEN + "Help Time Cmd Exec ParseCmd Action Notice GeoIP TimeZones JavaTimeZones Locales JavaLocales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. " +
+				"    选项有全局和命令私有两种, 全局选项: \"nou\"--不输出用户名, \"esc\"--转换 ANSI Escape 序列, 纯数字--修改响应行数(不超过20). 全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
 				);
 			return;
 		}
 		String[] args = params.split (" +");
-		System.out.println (Arrays.toString (args));
+		//System.out.println (Arrays.toString (args));
 
 		String cmd;
 		cmd = "time";           if (isCommandMatch (args, cmd))
@@ -418,8 +435,10 @@ public class LiuYanBot extends PircBot
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [过滤字]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
 		cmd = "geoip";          if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "[.GeoIP语言代码] [IP地址]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
+		cmd = "version";          if (isCommandMatch (args, cmd))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
 
-		cmd = "help";           if (isCommandMatch (args, "help"))
+		cmd = "help";           if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + Colors.GREEN +  cmd + Colors.NORMAL + " [命令]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
 	}
 
@@ -833,6 +852,14 @@ public class LiuYanBot extends PircBot
 	}
 
 	/**
+	 * 显示 bot 版本
+	 */
+	void ProcessCommand_Version (String ch, String u, boolean opt_output_username, int opt_max_response_lines, String botcmd, List<String> listCmdEnv, String params)
+	{
+		SendMessage (ch, u, opt_output_username, opt_max_response_lines, getVersion());
+	}
+
+	/**
 	 * 解析命令行
 	 */
 	void ProcessCommand_ParseCommand (String ch, String u, boolean opt_output_username, int opt_max_response_lines, String botcmd, List<String> listCmdEnv, String params)
@@ -861,20 +888,20 @@ public class LiuYanBot extends PircBot
 	/**
 	 * 执行命令
 	 * @param ch
-	 * @param u
+	 * @param nick
 	 * @param listCmdEnv 通常是 语言.字符集 两项
 	 * @param params
 	 */
-	void ProcessCommand_Exec (String ch, String u, boolean opt_output_username, int opt_max_response_lines, String botcmd,  List<String> listCmdEnv, String params)
+	void ProcessCommand_Exec (String ch, String nick, String user, boolean opt_output_username, boolean opt_ansi_escape_to_irc_escape, int opt_max_response_lines, String botcmd,  List<String> listCmdEnv, String params)
 	{
 		if (params==null)
 		{
-			ProcessCommand_Help (ch, u, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
 			return;
 		}
 		if (ch==null)
 		{
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, botcmd + " 命令不支持通过私信执行，请在频道中执行");
+			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, botcmd + " 命令不支持通过私信执行，请在频道中执行");
 			return;
 		}
 		CommandLine cmdline = null;
@@ -894,6 +921,8 @@ public class LiuYanBot extends PircBot
 		 * wget 外网上的脚本，执行该脚本(fork炸弹等) ，应对方法：检查URL域名？
 		 *
 		 * bash -c '任意脚本'	，应对方法：解析 bash 参数，禁止 -c 执行？
+		 * python -c
+		 * awk/gawk 调用 System 函数
 		 *
 		 * cp /bin/rm 任意名字, 执行  任意名字 -rf /，	应对方法：禁止 cp /bin 里的内容？要是从网上下载 rm 呢？
 		 * 解析 rm 参数，禁止递归调用？
@@ -923,11 +952,13 @@ public class LiuYanBot extends PircBot
 				|| cmdline.getExecutable().equalsIgnoreCase("python") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/python")
 				|| cmdline.getExecutable().equalsIgnoreCase("perl") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/perl")
 				|| cmdline.getExecutable().equalsIgnoreCase("java") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/java")
+
+				|| cmdline.getExecutable().equalsIgnoreCase("env") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/env")
 			)
-			&& !isUserInWhiteList(u)
+			&& !isUserInWhiteList(user, nick)
 		)
 		{
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "命令已禁用");
+			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, cmdline.getExecutable() + " 命令已禁用");
 			return;
 		}
 
@@ -942,7 +973,7 @@ public class LiuYanBot extends PircBot
 		org.apache.commons.exec.Executor exec = new DefaultExecutor ();
 		OutputStream os =
 				//new ByteArrayOutputStream ();
-				new OutputStreamToIRCMessage (ch, u, opt_output_username, opt_max_response_lines);
+				new OutputStreamToIRCMessage (ch, nick, opt_output_username, opt_ansi_escape_to_irc_escape, opt_max_response_lines);
 		exec.setStreamHandler (new PumpStreamHandler(os, os));
 		ExecuteWatchdog watchdog = new ExecuteWatchdog (WATCH_DOG_TIMEOUT_LENGTH*1000);
 		exec.setWatchdog (watchdog);
@@ -971,7 +1002,7 @@ public class LiuYanBot extends PircBot
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "出错：" + e);
+			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, "出错：" + e);
 		}
 		/*
 		String output = os.toString ();
@@ -1003,28 +1034,199 @@ public class LiuYanBot extends PircBot
 		String channel;
 		String sender;
 		boolean opt_output_username;
+		boolean opt_ansi_escape_to_irc_escape;
 		int opt_max_response_lines;
 		int lineCounter = 0;
-		public OutputStreamToIRCMessage (String channel, String sender, boolean opt_output_username, int opt_max_response_lines)
+		public OutputStreamToIRCMessage (String channel, String sender, boolean opt_output_username, boolean opt_ansi_escape_to_irc_escape, int opt_max_response_lines)
 		{
 			this.channel = channel;
 			this.sender = sender;
 			this.opt_output_username = opt_output_username;
+			this.opt_ansi_escape_to_irc_escape = opt_ansi_escape_to_irc_escape;
 			this.opt_max_response_lines = opt_max_response_lines;
 		}
 		@Override
 		protected void processLine (String line, int level)
 		{
+			if (!opt_output_username && line.isEmpty())	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
+				return;
+
 			lineCounter ++;
 			if (lineCounter > opt_max_response_lines)	// MAX_RESPONSE_LINES
 				return;
+//
+if (opt_ansi_escape_to_irc_escape)
+{
+	line = AnsiEscapeToIrcEscape (line);
+}
 
 			SendMessage (channel, sender, opt_output_username, opt_max_response_lines, line);
 			if (lineCounter == opt_max_response_lines)	// MAX_RESPONSE_LINES
-			{
 				SendMessage (channel, sender, opt_output_username, opt_max_response_lines, "[已达到响应行数限制，剩余的行将被忽略]");
+		}
+	}
+
+	void HexDump (String s)
+	{
+		System.out.println (s);
+		byte[] lineBytes = s.getBytes();
+		for (byte b : lineBytes)
+		{
+			System.out.print (String.format("%02X ", b&0xFF));
+		}
+		System.out.println ();
+	}
+	/**
+	 * 把 ANSI Escape 转换为 IRC 的 Escape，通常只处理颜色
+	 * @param line 原带有 ANSI Escape 序列的字符串
+	 * @return 带有 IRC Escape 序列的字符串
+	 */
+	String AnsiEscapeToIrcEscape (String line)
+	{
+		HexDump (line);
+		//
+		int iCSI_Start = 0;
+		int iCSI_End = 0;
+		/*
+		char[] arrayChars = line.toCharArray ();
+		for (int i=0; i<arrayChars.length; i++)
+		{
+			if (arrayChars[i]==0x1b && i!=arrayChars.length-1 && arrayChars[i+1]=='[')
+			{
+				iCSI_Start = i;
 			}
 		}
+		*/
+
+		if (line.matches(CSI_SGR_REGEXP))
+		{	// CSI n 'm' 序列: SGR – Select Graphic Rendition
+System.out.println ("有 CSI 序列 SGR 参数");
+			while (line.matches(CSI_SGR_REGEXP))
+			{
+				String irc_escape_sequence = "";
+				//String ansi_escape_sequence;
+				String sgr_parameters;
+				sgr_parameters = line.replaceFirst (CSI_SGR_REGEXP, "$1");
+				//iCSI_Start = line.indexOf (CSI);
+				//iCSI_End = line.indexOf ("m", iCSI_Start);
+				//sgr_parameters = line.substring (iCSI_Start+2, iCSI_End);
+System.out.println ("SGR 所有参数: " + sgr_parameters);
+				String[] arraySGR = sgr_parameters.split (";");
+				String sIRC_FG = "";	// ANSI 字符颜色
+				String sIRC_BG = "";	// ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
+				for (String sgrParam : arraySGR)
+				{
+System.out.println ("SGR 参数: " + sgrParam);
+					if (sgrParam.isEmpty())
+					{
+						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
+						continue;
+					}
+					int nSGRParam = 0;
+					try {
+						nSGRParam = Integer.parseInt (sgrParam);
+					} catch (Exception e) {
+						e.printStackTrace ();
+					}
+					switch (nSGRParam)
+					{
+						case 0:	// 关闭
+							irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
+							break;
+						case 1:	// 粗体/高亮
+							irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
+							break;
+						case 7:	// 前景背景色反转
+							irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
+							break;
+						case 4:	// 单下划线
+						case 21:	// 双下划线
+							irc_escape_sequence = irc_escape_sequence + Colors.UNDERLINE;
+							break;
+						case 30:	// 黑色
+							sIRC_FG = Colors.BLACK;
+							break;
+						case 31:	// 深红色 / 浅红色
+							sIRC_FG = Colors.RED;
+							break;
+						case 32:	// 深绿色 / 浅绿
+							sIRC_FG = Colors.GREEN;
+							break;
+						case 33:	// 深黄色(棕色) / 浅黄
+							sIRC_FG = Colors.OLIVE;
+							break;
+						case 34:	// 深蓝色 / 浅蓝
+							sIRC_FG = Colors.DARK_BLUE;
+							break;
+						case 35:	// 紫色 / 粉红
+							sIRC_FG = Colors.PURPLE;
+							break;
+						case 36:	// 青色
+							sIRC_FG = Colors.CYAN;
+							break;
+						case 37:	// 浅灰 / 白色
+							sIRC_FG = Colors.WHITE;
+							break;
+						case 38:	// xterm-256 前景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
+							//sIRC_FG = ;
+							break;
+
+						case 40:	// 黑色
+							sIRC_BG = Colors.BLACK;
+							break;
+						case 41:	// 深红色 / 浅红色
+							sIRC_BG = Colors.RED;
+							break;
+						case 42:	// 深绿色 / 浅绿
+							sIRC_BG = Colors.GREEN;
+							break;
+						case 43:	// 深黄色(棕色) / 浅黄
+							sIRC_BG = Colors.OLIVE;
+							break;
+						case 44:	// 深蓝色 / 浅蓝
+							sIRC_BG = Colors.DARK_BLUE;
+							break;
+						case 45:	// 紫色 / 粉红
+							sIRC_BG = Colors.PURPLE;
+							break;
+						case 46:	// 青色
+							sIRC_BG = Colors.CYAN;
+							break;
+						case 47:	// 浅灰 / 白色
+							sIRC_BG = Colors.WHITE;
+							break;
+						case 48:	// xterm-256 背景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
+							//sIRC_FG = ;
+							break;
+						default:
+							break;
+					}
+				}
+
+				if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())
+					irc_escape_sequence = irc_escape_sequence + sIRC_FG;
+				else if (!sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())
+				{
+					sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
+					irc_escape_sequence = irc_escape_sequence + sIRC_FG + "," + sIRC_BG;
+				}
+
+System.out.println ("irc_escape_sequence: " + irc_escape_sequence);
+				line = line.replaceFirst (CSI_SGR_REGEXP_First, irc_escape_sequence);
+HexDump (line);
+			}
+		}
+		//else
+		if (line.matches(CSI_EL_REGEXP))
+		{	// CSI n 'K' 序列: EL - Erase in Line
+System.out.println ("有 CSI 序列 EL 参数");
+			while (line.matches(CSI_EL_REGEXP))
+			{
+				line = line.replaceAll (CSI_EL_REGEXP_First, "");
+HexDump (line);
+			}
+		}
+		return line;
 	}
 
 	boolean CheckExecSafety (CommandLine cmdline, StringBuilder sb)
