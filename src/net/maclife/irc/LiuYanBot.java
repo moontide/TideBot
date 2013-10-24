@@ -8,6 +8,7 @@ import java.util.concurrent.*;
 import java.util.regex.*;
 
 import org.apache.commons.lang3.*;
+import org.apache.commons.io.*;
 import org.apache.commons.exec.*;
 
 import com.maxmind.geoip2.*;
@@ -23,6 +24,8 @@ public class LiuYanBot extends PircBot
 	public static final int MAX_RESPONSE_LINES = 7;	// 最大响应行数 (可由参数调整)
 	public static final int MAX_RESPONSE_LINES_LIMIT = 20;	// 最大响应行数 (真的不能大于该行数)
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 8;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
+
+	java.util.concurrent.Executor executor = Executors.newFixedThreadPool (10);
 
 	public static final String CSI = "\u001B[";	// CSI n 'm' 	SGR - Select Graphic Rendition
 	public static final String CSI_REGEXP = "\\e\\[";	// 用于使用规则表达式时
@@ -407,53 +410,62 @@ public class LiuYanBot extends PircBot
 			String[] args = message.split (" +", 2);
 			botcmd = args[0];
 			boolean opt_output_username = true;
+			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
+			Map<String, Object> mapGlobalEnv = new HashMap ();
 			if (args[0].contains("."))
 			{
 				int iFirstDotIndex = args[0].indexOf(".");
 				botcmd = args[0].substring (0, iFirstDotIndex);
 				String sEnv = args[0].substring (iFirstDotIndex + 1);
 				String[] arrayEnv = sEnv.split ("[\\.]+");
-				if (arrayEnv.length > 0)
+				for (String env : arrayEnv)
 				{
-					for (String env : arrayEnv)
-					{
-						if (! env.isEmpty())
-						{
-							// 全局参数选项
-							if (env.equalsIgnoreCase("nou"))	// do not output user name 响应时，不输出用户名
-							{
-								opt_output_username = false;
-								continue;
-							}
-							else if (env.equalsIgnoreCase("esc") || env.equalsIgnoreCase("escape"))	// 转换 ANSI Escape 序列到 IRC Escape 序列
-							{
-								opt_ansi_escape_to_irc_escape = true;
-								continue;
-							}
-							else if (env.matches("\\d+"))	// 最多输出多少行。当该用户不是管理员时，仍然受到内置的行数限制
-							{
-								try
-								{
-									opt_max_response_lines = Integer.parseInt (env);
-									if (! isUserInWhiteList(login, sender) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
-										opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
-								}
-								catch (Exception e)
-								{
-									e.printStackTrace ();
-								}
-								continue;
-							}
+					if (env.isEmpty())
+						continue;
 
-							if (listEnv==null)
-								listEnv = new ArrayList<String> ();
-							listEnv.add (env);
-						}
+					// 全局参数选项
+					if (env.equalsIgnoreCase("nou"))	// do not output user name 响应时，不输出用户名
+					{
+						opt_output_username = false;
+						continue;
 					}
+					else if (env.equalsIgnoreCase("err") || env.equalsIgnoreCase("stderr"))	// 输出 stderr
+					{
+						opt_output_stderr = true;
+						continue;
+					}
+					else if (env.equalsIgnoreCase("esc") || env.equalsIgnoreCase("escape"))	// 转换 ANSI Escape 序列到 IRC Escape 序列
+					{
+						opt_ansi_escape_to_irc_escape = true;
+						continue;
+					}
+					else if (env.matches("\\d+"))	// 最多输出多少行。当该用户不是管理员时，仍然受到内置的行数限制
+					{
+						try
+						{
+							opt_max_response_lines = Integer.parseInt (env);
+							if (! isUserInWhiteList(login, sender) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
+								opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
+						}
+						catch (Exception e)
+						{
+							e.printStackTrace ();
+						}
+						continue;
+					}
+
+					if (listEnv==null)
+						listEnv = new ArrayList<String> ();
+					listEnv.add (env);
 				}
 			}
+			mapGlobalEnv.put ("opt_output_username", opt_output_username);
+			mapGlobalEnv.put ("opt_output_stderr", opt_output_stderr);
+			mapGlobalEnv.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
+			mapGlobalEnv.put ("opt_max_response_lines", opt_max_response_lines);
+
 			if (args.length >= 2)
 				params = args[1];
 //System.out.println (botcmd);
@@ -462,7 +474,9 @@ public class LiuYanBot extends PircBot
 
 			if (false) {}
 			else if (botcmd.equalsIgnoreCase("cmd") || botcmd.equalsIgnoreCase("exec"))
-				ProcessCommand_Exec (channel, sender, login, opt_output_username, opt_ansi_escape_to_irc_escape, opt_max_response_lines, botcmd, listEnv, params);
+				ProcessCommand_Exec (channel, sender, login, botcmd, mapGlobalEnv, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("cmd2"))
+				ExecuteCommand (channel, sender, login, botcmd, mapGlobalEnv, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("parseCmd"))
 				ProcessCommand_ParseCommand (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("time"))
@@ -513,7 +527,12 @@ public class LiuYanBot extends PircBot
 				""
 					);
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines,
-				"    选项有全局选项和命令私有两种, 全局选项有: \"" + COLOR_COMMAND_LITERAL_OPTION + "nou" + Colors.NORMAL + "\"--不输出用户名 (NO Username), \"" + COLOR_COMMAND_LITERAL_OPTION + "esc" + Colors.NORMAL + "\"--将 ANSI Escape 序列转换为 IRC Escape 序列(ESCape), " + COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过20). 全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
+				"    选项有全局选项和命令私有两种, 全局选项有: " +
+				"\"" + COLOR_COMMAND_LITERAL_OPTION + "nou" + Colors.NORMAL + "\"--不输出用户名 (NO Username), " +
+				"\"" + COLOR_COMMAND_LITERAL_OPTION + "esc" + Colors.NORMAL + "\"|\"" + COLOR_COMMAND_LITERAL_OPTION + "escape" + Colors.NORMAL + "\"--将 ANSI Escape 序列转换为 IRC Escape 序列(ESCape), " +
+				"\"" + COLOR_COMMAND_LITERAL_OPTION + "err" + Colors.NORMAL + "\"|\"" + COLOR_COMMAND_LITERAL_OPTION + "stderr" + Colors.NORMAL + "\"--输出 stderr, \"" +
+				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过" + MAX_RESPONSE_LINES_LIMIT + "). " +
+				"全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
 				);
 			return;
 		}
@@ -697,7 +716,7 @@ public class LiuYanBot extends PircBot
 				sb.append (" ");
 			}
 
-			if (sb.toString().getBytes().length > 420)	// 由于每个时区的 ID 比较长，所以，多预留一些控件
+			if (sb.toString().getBytes().length > 420)	// 由于每个时区的 ID 比较长，所以，多预留一些空间
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
 //System.out.println (sb);
@@ -999,8 +1018,11 @@ public class LiuYanBot extends PircBot
 	 * @param listCmdEnv 通常是 语言.字符集 两项
 	 * @param params
 	 */
-	void ProcessCommand_Exec (String ch, String nick, String user, boolean opt_output_username, boolean opt_ansi_escape_to_irc_escape, int opt_max_response_lines, String botcmd,  List<String> listCmdEnv, String params)
+	void ProcessCommand_Exec (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalEnv, List<String> listCmdEnv, String params)
 	{
+		boolean opt_output_username = (boolean)mapGlobalEnv.get("opt_output_username");
+		boolean opt_output_stderr = (boolean)mapGlobalEnv.get("opt_output_stderr");
+		int opt_max_response_lines = (int)mapGlobalEnv.get("opt_max_response_lines");
 		if (params==null)
 		{
 			ProcessCommand_Help (ch, nick, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
@@ -1036,34 +1058,7 @@ public class LiuYanBot extends PircBot
 		 *
 		 * kill 0，使bot程序退出，	应对方法：
 		 */
-		if ((
-				cmdline.getExecutable().equalsIgnoreCase("rm") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/rm")
-				|| cmdline.getExecutable().equalsIgnoreCase("dd") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/dd")
-				|| cmdline.getExecutable().equalsIgnoreCase("kill") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/kill")
-				|| cmdline.getExecutable().equalsIgnoreCase("killall") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/killall")
-				|| cmdline.getExecutable().equalsIgnoreCase("killall5") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/killall5")
-				|| cmdline.getExecutable().equalsIgnoreCase("pkill") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/pkill")
-				|| cmdline.getExecutable().equalsIgnoreCase("skill") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/skill")
-				|| cmdline.getExecutable().equalsIgnoreCase("chmod") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/chmod")
-				|| cmdline.getExecutable().equalsIgnoreCase("cp") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/cp")
-				|| cmdline.getExecutable().equalsIgnoreCase("bash") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/bash")
-				|| cmdline.getExecutable().equalsIgnoreCase("sh") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/sh")
-				|| cmdline.getExecutable().equalsIgnoreCase("dash") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/dash")
-				|| cmdline.getExecutable().equalsIgnoreCase("ln") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/ln")
-
-				|| cmdline.getExecutable().equalsIgnoreCase("poweroff") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/poweroff")
-				|| cmdline.getExecutable().equalsIgnoreCase("halt") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/halt")
-				|| cmdline.getExecutable().equalsIgnoreCase("reboot") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/reboot")
-				|| cmdline.getExecutable().equalsIgnoreCase("shutdown") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/shutdown")
-
-				|| cmdline.getExecutable().equalsIgnoreCase("python") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/python")
-				|| cmdline.getExecutable().equalsIgnoreCase("perl") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/perl")
-				|| cmdline.getExecutable().equalsIgnoreCase("java") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/java")
-
-				|| cmdline.getExecutable().equalsIgnoreCase("env") || StringUtils.endsWithIgnoreCase(cmdline.getExecutable(), "/env")
-			)
-			&& !isUserInWhiteList(user, nick)
-		)
+		if (! CheckExecuteSafety(cmdline.getExecutable(), ch, user, nick))
 		{
 			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, cmdline.getExecutable() + " 命令已禁用");
 			return;
@@ -1080,8 +1075,11 @@ public class LiuYanBot extends PircBot
 		org.apache.commons.exec.Executor exec = new DefaultExecutor ();
 		OutputStream os =
 				//new ByteArrayOutputStream ();
-				new OutputStreamToIRCMessage (ch, nick, opt_output_username, opt_ansi_escape_to_irc_escape, opt_max_response_lines);
-		exec.setStreamHandler (new PumpStreamHandler(os, os));
+				new OutputStreamToIRCMessage (ch, nick, mapGlobalEnv);
+		if (opt_output_stderr)
+			exec.setStreamHandler (new PumpStreamHandler(os, os));
+		else
+			exec.setStreamHandler (new PumpStreamHandler(os));
 		ExecuteWatchdog watchdog = new ExecuteWatchdog (WATCH_DOG_TIMEOUT_LENGTH*1000);
 		exec.setWatchdog (watchdog);
 		try
@@ -1104,7 +1102,7 @@ public class LiuYanBot extends PircBot
 			}
 
 			exec.execute (cmdline, env);
-			System.out.println ("execute 结束");
+System.out.println ("execute 结束");
 		}
 		catch (Exception e)
 		{
@@ -1136,6 +1134,43 @@ public class LiuYanBot extends PircBot
 		*/
 	}
 
+	boolean CheckExecuteSafety (String cmd, String ch, String u, String nick)
+	{
+		if (
+			(cmd.equalsIgnoreCase("rm") || StringUtils.endsWithIgnoreCase(cmd, "/rm")
+			|| cmd.equalsIgnoreCase("dd") || StringUtils.endsWithIgnoreCase(cmd, "/dd")
+			|| cmd.equalsIgnoreCase("kill") || StringUtils.endsWithIgnoreCase(cmd, "/kill")
+			|| cmd.equalsIgnoreCase("killall") || StringUtils.endsWithIgnoreCase(cmd, "/killall")
+			|| cmd.equalsIgnoreCase("killall5") || StringUtils.endsWithIgnoreCase(cmd, "/killall5")
+			|| cmd.equalsIgnoreCase("pkill") || StringUtils.endsWithIgnoreCase(cmd, "/pkill")
+			|| cmd.equalsIgnoreCase("skill") || StringUtils.endsWithIgnoreCase(cmd, "/skill")
+			|| cmd.equalsIgnoreCase("chmod") || StringUtils.endsWithIgnoreCase(cmd, "/chmod")
+			|| cmd.equalsIgnoreCase("cp") || StringUtils.endsWithIgnoreCase(cmd, "/cp")
+			|| cmd.equalsIgnoreCase("bash") || StringUtils.endsWithIgnoreCase(cmd, "/bash")
+			|| cmd.equalsIgnoreCase("sh") || StringUtils.endsWithIgnoreCase(cmd, "/sh")
+			|| cmd.equalsIgnoreCase("dash") || StringUtils.endsWithIgnoreCase(cmd, "/dash")
+
+			|| cmd.equalsIgnoreCase("ln") || StringUtils.endsWithIgnoreCase(cmd, "/ln")
+			|| cmd.equalsIgnoreCase("link") || StringUtils.endsWithIgnoreCase(cmd, "/link")
+
+			|| cmd.equalsIgnoreCase("poweroff") || StringUtils.endsWithIgnoreCase(cmd, "/poweroff")
+			|| cmd.equalsIgnoreCase("halt") || StringUtils.endsWithIgnoreCase(cmd, "/halt")
+			|| cmd.equalsIgnoreCase("reboot") || StringUtils.endsWithIgnoreCase(cmd, "/reboot")
+			|| cmd.equalsIgnoreCase("shutdown") || StringUtils.endsWithIgnoreCase(cmd, "/shutdown")
+
+			|| cmd.equalsIgnoreCase("python") || StringUtils.endsWithIgnoreCase(cmd, "/python")
+			|| cmd.equalsIgnoreCase("perl") || StringUtils.endsWithIgnoreCase(cmd, "/perl")
+			|| cmd.equalsIgnoreCase("java") || StringUtils.endsWithIgnoreCase(cmd, "/java")
+
+			|| cmd.equalsIgnoreCase("env") || StringUtils.endsWithIgnoreCase(cmd, "/env")
+			|| cmd.equalsIgnoreCase("watch") || StringUtils.endsWithIgnoreCase(cmd, "/watch")
+			|| cmd.equalsIgnoreCase("nohup") || StringUtils.endsWithIgnoreCase(cmd, "/nohup")
+		)
+		&& !isUserInWhiteList(u, nick))
+			return false;
+		return true;
+	}
+
 	class OutputStreamToIRCMessage extends LogOutputStream
 	{
 		String channel;
@@ -1143,14 +1178,16 @@ public class LiuYanBot extends PircBot
 		boolean opt_output_username;
 		boolean opt_ansi_escape_to_irc_escape;
 		int opt_max_response_lines;
+		Map<String, Object> options;
 		int lineCounter = 0;
-		public OutputStreamToIRCMessage (String channel, String sender, boolean opt_output_username, boolean opt_ansi_escape_to_irc_escape, int opt_max_response_lines)
+		public OutputStreamToIRCMessage (String channel, String sender, Map<String, Object> mapOptions)	//boolean opt_output_username, boolean opt_ansi_escape_to_irc_escape, int opt_max_response_lines
 		{
 			this.channel = channel;
 			this.sender = sender;
-			this.opt_output_username = opt_output_username;
-			this.opt_ansi_escape_to_irc_escape = opt_ansi_escape_to_irc_escape;
-			this.opt_max_response_lines = opt_max_response_lines;
+			this.options = mapOptions;
+			this.opt_output_username = (boolean)options.get("opt_output_username");
+			this.opt_ansi_escape_to_irc_escape = (boolean)options.get("opt_ansi_escape_to_irc_escape");
+			this.opt_max_response_lines = (int)options.get("opt_max_response_lines");
 		}
 		@Override
 		protected void processLine (String line, int level)
@@ -1190,7 +1227,7 @@ if (opt_ansi_escape_to_irc_escape)
 	 */
 	String AnsiEscapeToIrcEscape (String line)
 	{
-		HexDump (line);
+//HexDump (line);
 		//
 		int iCSI_Start = 0;
 		int iCSI_End = 0;
@@ -1207,12 +1244,13 @@ if (opt_ansi_escape_to_irc_escape)
 
 		if (line.matches(CSI_SGR_REGEXP))
 		{	// CSI n 'm' 序列: SGR – Select Graphic Rendition
-System.out.println ("有 CSI 序列 SGR 参数");
+//System.out.println ("有 CSI 序列 SGR 参数");
 			while (line.matches(CSI_SGR_REGEXP))
 			{
 				String irc_escape_sequence = "";
 				//String ansi_escape_sequence;
 				String sgr_parameters;
+				boolean bold = false;
 				String sIRC_FG = "";	// ANSI 字符颜色
 				String sIRC_BG = "";	// ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
 				Matcher matcher = CSI_SGR_PATTERN_First.matcher (line);
@@ -1221,24 +1259,24 @@ System.out.println ("有 CSI 序列 SGR 参数");
 					continue;
 				}
 
-System.out.println ("matched group=");
+//System.out.println ("matched group=");
 				String sGroup = matcher.group();
-HexDump(sGroup);
+//HexDump(sGroup);
 				iCSI_Start = matcher.regionStart ();
 				iCSI_End = matcher.regionEnd ();
-System.out.println ("regexp iCSI_Start="+iCSI_Start + ", iCSI_End=" + iCSI_End);
+//System.out.println ("regexp iCSI_Start="+iCSI_Start + ", iCSI_End=" + iCSI_End);
 				//sgr_parameters = line.replaceFirst (CSI_SGR_REGEXP, "$1");
 				sgr_parameters = sGroup.substring (2, sGroup.length()-1);
 				iCSI_Start = line.indexOf (CSI);
 				iCSI_End = line.indexOf ("m", iCSI_Start);
-System.out.println ("indexOf iCSI_Start="+iCSI_Start + ", iCSI_End=" + iCSI_End);
+//System.out.println ("indexOf iCSI_Start="+iCSI_Start + ", iCSI_End=" + iCSI_End);
 				//sgr_parameters = line.substring (iCSI_Start+2, iCSI_End);
-System.out.println ("SGR 所有参数: " + sgr_parameters);
+//System.out.println ("SGR 所有参数: " + sgr_parameters);
 				String[] arraySGR = sgr_parameters.split (";");
 				for (int i=0; i<arraySGR.length; i++)
 				{
 					String sgrParam = arraySGR[i];
-System.out.println ("SGR 参数: " + sgrParam);
+//System.out.println ("SGR 参数: " + sgrParam);
 					if (sgrParam.isEmpty())
 					{
 						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
@@ -1255,7 +1293,8 @@ System.out.println ("SGR 参数: " + sgrParam);
 						case 0:	// 关闭
 							irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
 							break;
-						case 1:	// 粗体/高亮
+						case 1:	// 粗体/高亮 （注意： bold 属性必须在前景色/背景色的前面，如 1;30;41，否则，无法生效）
+							bold = true;
 							irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
 							break;
 						case 7:	// Image: Negative 前景背景色反转 inverse or reverse; swap foreground and background (reverse video)
@@ -1269,66 +1308,74 @@ System.out.println ("SGR 参数: " + sgrParam);
 							irc_escape_sequence = irc_escape_sequence + Colors.UNDERLINE;
 							break;
 						case 30:	// 黑色
-							sIRC_FG = Colors.BLACK;
+							sIRC_FG = bold ? Colors.DARK_GRAY : Colors.BLACK;
 							break;
 						case 31:	// 深红色 / 浅红色
-							sIRC_FG = Colors.RED;
+							sIRC_FG = bold ? Colors.RED : Colors.BROWN;
 							break;
 						case 32:	// 深绿色 / 浅绿
-							sIRC_FG = Colors.GREEN;
+							sIRC_FG = bold ? Colors.GREEN : Colors.DARK_GREEN;
 							break;
 						case 33:	// 深黄色(棕色) / 浅黄
-							sIRC_FG = Colors.OLIVE;
+							sIRC_FG = bold ? Colors.YELLOW : Colors.OLIVE;
 							break;
 						case 34:	// 深蓝色 / 浅蓝
-							sIRC_FG = Colors.DARK_BLUE;
+							sIRC_FG = bold ? Colors.BLUE : Colors.DARK_BLUE;
 							break;
 						case 35:	// 紫色 / 粉红
-							sIRC_FG = Colors.PURPLE;
+							sIRC_FG = bold ? Colors.MAGENTA : Colors.PURPLE;
 							break;
 						case 36:	// 青色
-							sIRC_FG = Colors.CYAN;
+							sIRC_FG = bold ? Colors.CYAN : Colors.TEAL;
 							break;
 						case 37:	// 浅灰 / 白色
-							sIRC_FG = Colors.WHITE;
+							sIRC_FG = bold ? Colors.WHITE : Colors.LIGHT_GRAY;
 							break;
 						case 38:	// xterm-256 前景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
 							//sIRC_FG = ;
 							assert i<arraySGR.length-2;
 							assert arraySGR[i+1].equals("5");
-							sIRC_FG = XTERM_256_TO_IRC_16_COLORS[Integer.parseInt(arraySGR[i+2])%256];
+							try {
+								sIRC_FG = XTERM_256_TO_IRC_16_COLORS[Integer.parseInt(arraySGR[i+2])%256];
+							} catch (NumberFormatException e) {
+								e.printStackTrace ();
+							}
 							i += 2;
 							break;
 
 						case 40:	// 黑色
-							sIRC_BG = Colors.BLACK;
+							sIRC_BG = bold ? Colors.DARK_GRAY : Colors.BLACK;
 							break;
 						case 41:	// 深红色 / 浅红色
-							sIRC_BG = Colors.RED;
+							sIRC_BG = bold ? Colors.RED : Colors.BROWN;
 							break;
 						case 42:	// 深绿色 / 浅绿
-							sIRC_BG = Colors.GREEN;
+							sIRC_BG = bold ? Colors.GREEN : Colors.DARK_GREEN;
 							break;
 						case 43:	// 深黄色(棕色) / 浅黄
-							sIRC_BG = Colors.OLIVE;
+							sIRC_BG = bold ? Colors.YELLOW : Colors.OLIVE;
 							break;
 						case 44:	// 深蓝色 / 浅蓝
-							sIRC_BG = Colors.DARK_BLUE;
+							sIRC_BG = bold ? Colors.BLUE : Colors.DARK_BLUE;
 							break;
 						case 45:	// 紫色 / 粉红
-							sIRC_BG = Colors.PURPLE;
+							sIRC_BG = bold ? Colors.MAGENTA : Colors.PURPLE;
 							break;
 						case 46:	// 青色
-							sIRC_BG = Colors.CYAN;
+							sIRC_BG = bold ? Colors.CYAN : Colors.TEAL;
 							break;
 						case 47:	// 浅灰 / 白色
-							sIRC_BG = Colors.WHITE;
+							sIRC_BG = bold ? Colors.WHITE : Colors.LIGHT_GRAY;
 							break;
 						case 48:	// xterm-256 背景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
 							//sIRC_BG = ;
 							assert i<arraySGR.length-2;
 							assert arraySGR[i+1].equals("5");
-							sIRC_BG = XTERM_256_TO_IRC_16_COLORS[Integer.parseInt(arraySGR[i+2])%256];
+							try {
+								sIRC_BG = XTERM_256_TO_IRC_16_COLORS[Integer.parseInt(arraySGR[i+2])%256];
+							} catch (NumberFormatException e) {
+								e.printStackTrace ();
+							}
 							i += 2;
 							break;
 						default:
@@ -1349,32 +1396,320 @@ System.out.println ("SGR 参数: " + sgrParam);
 					irc_escape_sequence = irc_escape_sequence + sIRC_FG + "," + sIRC_BG;
 				}
 
-System.out.println ("irc_escape_sequence: " + irc_escape_sequence);
+//System.out.println ("irc_escape_sequence: " + irc_escape_sequence);
 				line = line.replaceFirst (CSI_SGR_REGEXP_First, irc_escape_sequence);
-HexDump (line);
+//HexDump (line);
 			}
 		}
 		//else
 		if (line.matches(CSI_EL_REGEXP))
 		{	// CSI n 'K' 序列: EL - Erase in Line
-System.out.println ("有 CSI 序列 EL 参数");
+//System.out.println ("有 CSI 序列 EL 参数");
 			while (line.matches(CSI_EL_REGEXP))
 			{
 				line = line.replaceAll (CSI_EL_REGEXP_First, "");
-HexDump (line);
+//HexDump (line);
 			}
 		}
 		return line;
 	}
 
-	boolean CheckExecSafety (CommandLine cmdline, StringBuilder sb)
+	void ExecuteCommand (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalEnv, List<String> listCmdEnv, String params)
 	{
-		return false;
-	}
+		boolean opt_output_username = (boolean)mapGlobalEnv.get("opt_output_username");
+		boolean opt_output_stderr = (boolean)mapGlobalEnv.get("opt_output_stderr");
+		int opt_max_response_lines = (int)mapGlobalEnv.get("opt_max_response_lines");
+		if (params==null)
+		{
+			ProcessCommand_Help (ch, nick, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
+			return;
+		}
+		if (ch==null)
+		{
+			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, botcmd + " 命令不支持通过私信执行，请在频道中执行");
+			return;
+		}
+		if (!isUserInWhiteList(user, nick))
+		{
+			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, botcmd + " 该命令暂时不公开支持");
+			return;
+		}
 
-	void ExecShell ()
+		List<String> listCommandLineArgs = splitCommandLine (params);
+		if (listCommandLineArgs.size() == 0)
+			return;
+
+		List<Map<String, Object>> listCommands = new ArrayList<Map<String, Object>> ();
+		Map<String, Object> mapCommand = new HashMap<String, Object> ();
+		List<String> listCommandArgs = new ArrayList<String> ();
+		mapCommand.put ("commandargs", listCommandArgs);
+		listCommands.add (mapCommand);
+		for (int i=0; i<listCommandLineArgs.size(); i++)
+		{
+			String arg = listCommandLineArgs.get (i);
+			//listCommands;
+
+// http://www.mathinfo.u-picardie.fr/asch/f/MeCS/courseware/users/help/general/unix/redirection.html
+// Bourne Shell Family
+// ===================
+// >      Redirect standard output
+// 2>     Redirect standard error
+// 2>&1   Redirect standard error to standard output
+// <      Redirect standard input
+// |      Pipe standard output to another command
+// >>     Append to standard output
+// 2>&1|  Pipe standard output and standard error to another command
+
+			if (arg.equals("|"))	// 管道
+			{
+				if (i==listCommandLineArgs.size()-1)
+					throw new RuntimeException ("管道需要连接两个应用程序，你需要输入第二个应用程序");
+
+				mapCommand.put ("isPipeOutput", true);
+				mapCommand.put ("barrier", new CyclicBarrier(2));
+
+				mapCommand = new HashMap<String, Object> ();
+				mapCommand.put ("isPipeInput", true);
+				listCommandArgs = new ArrayList<String> ();
+				//listCommandArgs.add (arg);
+				mapCommand.put ("commandargs", listCommandArgs);
+				listCommands.add (mapCommand);
+				continue;
+			}
+			else if (arg.equals(">") || arg.equals(">>"))	// 重定向到文件/输出到文件
+			{
+				if (i==listCommandLineArgs.size()-1)
+					throw new RuntimeException ("缺少要重定向输出到的文件参数");
+
+				String sFileName = listCommandLineArgs.get(i+1);
+				File f = new File (sFileName);
+				mapCommand.put ("isRedirectOutput", true);
+				mapCommand.put ("isAppendOutput", arg.equals(">>"));
+				mapCommand.put ("redirectFile", f);
+				continue;
+			}
+			else if (arg.equals("<"))	// 输入自文件
+			{
+				if (i==listCommandLineArgs.size()-1)
+					throw new RuntimeException ("缺少要重定向输入自的文件参数");
+
+				String sFileName = listCommandLineArgs.get(i+1);
+				File f = new File (sFileName);
+				if (!f.exists())
+					throw new RuntimeException ("输入文件 [" + sFileName + "] 不存在");
+
+				mapCommand.put ("isRedirectInput", true);
+				mapCommand.put ("redirectFile", f);
+				continue;
+			}
+			listCommandArgs.add (arg);
+			if (listCommandArgs.size()==1)
+			{
+				mapCommand.put ("program", listCommandArgs.get(0));
+
+				if (! CheckExecuteSafety((String)mapCommand.get ("program"), ch, user, nick))
+				{
+					SendMessage (ch, nick, opt_output_username, opt_max_response_lines, mapCommand.get ("program") + " 命令已禁用");
+					return;
+				}
+			}
+		}
+
+		System.out.println (listCommands);
+
+		try
+		{
+			for (int i=0; i<listCommands.size(); i++)
+			{
+				mapCommand = listCommands.get (i);
+				CommandRunner runner = new CommandRunner (
+						ch,
+						nick,
+						mapCommand,
+						mapGlobalEnv,
+						i==0?null:listCommands.get (i-1),
+						i==listCommands.size()-1?null:listCommands.get (i+1)
+					);
+System.out.println ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"));
+				executor.execute (runner);
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+	}
+	class CommandRunner implements Runnable
 	{
-		//
+		Map<String, Object> command = null;	// 命令
+		String program = null;
+		List<String> commandArgs = null;	// 命令及其参数列表
+		Map<String, Object> globalEnv = null;	// bot 命令全局选项
+
+		boolean opt_output_username = true;
+		boolean opt_output_stderr = false;
+		boolean opt_ansi_escape_to_irc_escape;
+		int opt_max_response_lines = 0;
+
+		Map<String, Object> previousCommand = null;	// 上个命令
+		Map<String, Object> nextCommand = null;	// 下个命令
+
+		public OutputStream out = null;
+		public InputStream in = null;
+		public InputStream err = null;
+
+		String channel;
+		String sender;
+		int lineCounter = 0;
+
+		public CommandRunner (String channel, String sender, Map<String, Object> mapCommand, Map<String, Object> mapGlobalEnv, Map<String, Object> mapPreviousCommand, Map<String, Object> mapNextCommand)
+		{
+			this.channel = channel;
+			this.sender = sender;
+
+			command = mapCommand;
+			commandArgs = (List<String>)mapCommand.get ("commandargs");
+			program = (String)command.get ("program");
+			globalEnv = mapGlobalEnv;
+
+			opt_output_username = (boolean)globalEnv.get("opt_output_username");
+			opt_output_stderr = (boolean)globalEnv.get("opt_output_stderr");
+			opt_max_response_lines = (int)globalEnv.get("opt_max_response_lines");
+			opt_ansi_escape_to_irc_escape = (boolean)globalEnv.get("opt_ansi_escape_to_irc_escape");
+
+			previousCommand = mapPreviousCommand;
+			nextCommand = mapNextCommand;
+		}
+		@Override
+		public void run ()
+		{
+System.out.println ("Thread ID = " + Thread.currentThread().getId());
+			boolean isPipeOut = false;
+			boolean isPipeIn = false;
+			boolean isRedirectOut = false;
+			boolean isRedirectIn = false;
+			ProcessBuilder pb = new ProcessBuilder (commandArgs);
+			pb.redirectErrorStream (opt_output_stderr);
+			if (command.get("isPipeOutput")!=null && (boolean)command.get("isPipeOutput"))
+			{
+				isPipeOut = true;
+				assert (boolean)nextCommand.get("isPipeInput");
+			}
+			if (command.get("isPipeInput")!=null && (boolean)command.get("isPipeInput"))
+			{
+				isPipeIn = true;
+				assert (boolean)previousCommand.get("isPipeOutput");
+			}
+			if (command.get("isRedirectOutput")!=null && (boolean)command.get("isRedirectOutput"))
+			{
+				isRedirectOut = true;
+				if ((boolean)command.get("isAppendOutput"))
+					pb.redirectInput (ProcessBuilder.Redirect.appendTo ((File)command.get("redirectFile")));
+				else
+					pb.redirectInput (ProcessBuilder.Redirect.to ((File)command.get("redirectFile")));
+			}
+			if (command.get("isRedirectInput")!=null && (boolean)command.get("isRedirectInput"))
+			{
+				isRedirectIn = true;
+				pb.redirectInput (ProcessBuilder.Redirect.from ((File)command.get("redirectFile")));
+			}
+
+			//pb.redirectOutput (ProcessBuilder.Redirect.INHERIT);
+			try
+			{
+System.out.println ("准备启动 " + program);
+				Process p = pb.start ();
+				out = p.getOutputStream ();
+				in = p.getInputStream ();
+				err = p.getErrorStream ();
+				command.put ("out", out);
+				command.put ("in", in);
+				command.put ("err", err);
+
+				if (isPipeIn)
+				{	// 管道输入
+System.out.println (program + " 需要用从上个命令管道输入，通知上个命令 " + previousCommand.get("program") + " 同步");
+					((CyclicBarrier)previousCommand.get("barrier")).await ();	// 等待与上个命令同步
+//					InputStream previousIn = (InputStream)previousCommand.get("in");
+//System.out.println (program + " 开始从管道输入……");
+//					long n = IOUtils.copyLarge (previousIn, out);
+//System.out.println (program + " 管道输入结束, 输入了 " + n + " 字节");
+				}
+				if (isPipeOut)
+				{
+System.out.println (program + " 需要用管道输出到下个命令，等待下个命令 " + nextCommand.get("program") + " 同步…… ");
+					((CyclicBarrier)command.get("barrier")).await ();	// 等待与下个命令同步
+System.out.println (program + " 开始从管道输出……");
+					OutputStream nextOut = (OutputStream)nextCommand.get("out");
+					long n = IOUtils.copyLarge (in, nextOut);
+					in.close ();
+					nextOut.flush ();
+					nextOut.close ();
+System.out.println (program + " 管道输出结束, 输出了 " + n + " 字节");
+				}
+
+				if (!isPipeOut && !isRedirectOut)
+				{	// 需要把 stdout stderr 吃掉，否则进程不会结束
+					int nLine = 0;
+					String line = null;
+					BufferedReader br = new BufferedReader (new InputStreamReader(in));
+System.out.println (program + " 开始读取 stdout 流……");
+					while ((line = br.readLine()) != null)
+					{
+						nLine ++;
+						System.out.println ("" + nLine + ": " + line);
+
+						if (!opt_output_username && line.isEmpty())	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
+						{
+							continue;
+						}
+
+						lineCounter ++;
+						if (lineCounter > opt_max_response_lines)	// MAX_RESPONSE_LINES
+							continue;;
+
+						if (opt_ansi_escape_to_irc_escape)
+							line = AnsiEscapeToIrcEscape (line);
+
+						SendMessage (channel, sender, opt_output_username, opt_max_response_lines, line);
+						if (lineCounter == opt_max_response_lines)	// MAX_RESPONSE_LINES
+							SendMessage (channel, sender, opt_output_username, opt_max_response_lines, "[已达到响应行数限制，剩余的行将被忽略]");
+					}
+					System.out.println (program + " stdout 读取完毕");
+
+					if (lineCounter==0)
+						SendMessage (channel, sender, opt_output_username, opt_max_response_lines, program + " 命令没有输出");
+
+					//if (!opt_output_stderr)
+					{
+						br = new BufferedReader (new InputStreamReader(err));
+System.out.println (program + " 开始读取 stderr 流……");
+						while ((line = br.readLine()) != null)
+						{
+							System.out.println (line);
+						}
+						System.out.println (program + " stderr 读取完毕");
+					}
+				}
+
+				System.out.println (program + " 等待其执行结束……");
+				int rc = p.waitFor ();
+				System.out.println (program + " 执行结束, 返回值=" + rc);
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace ();
+			}
+			catch (InterruptedException e)
+			{
+				e.printStackTrace ();
+			}
+			catch (BrokenBarrierException e)
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public static boolean isQuoteChar (char ch)
@@ -1495,7 +1830,7 @@ HexDump (line);
 					token.append (subToken);
 				}
 			}
-			System.out.println ();
+//System.out.println ();
 		}
 
 		if (token_state_in_token)
