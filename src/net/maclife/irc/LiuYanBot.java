@@ -16,6 +16,8 @@ import com.maxmind.geoip2.model.*;
 
 import org.jibble.pircbot.*;
 
+import com.temesoft.google.pr.*;
+
 public class LiuYanBot extends PircBot
 {
 	public static final String DEFAULT_TIME_FORMAT_STRING = "yyyy-MM-dd a KK:mm:ss Z EEEE";
@@ -389,6 +391,7 @@ public class LiuYanBot extends PircBot
 				&& !StringUtils.startsWithIgnoreCase(message, "env")
 				&& !StringUtils.startsWithIgnoreCase(message, "properties")
 				&& !StringUtils.startsWithIgnoreCase(message, "geoip")
+				&& !StringUtils.startsWithIgnoreCase(message, "pr") && !StringUtils.startsWithIgnoreCase(message, "PageRank")
 				&& !StringUtils.startsWithIgnoreCase(message, "version")
 				)
 			{
@@ -413,7 +416,9 @@ public class LiuYanBot extends PircBot
 			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
-			Map<String, Object> mapGlobalEnv = new HashMap ();
+			Map<String, Object> mapGlobalOptions = new HashMap ();
+			Map<String, String> mapUserEnv = new HashMap ();	// 用户在 全局参数 里指定的环境变量
+			mapGlobalOptions.put ("env", mapUserEnv);
 			if (args[0].contains("."))
 			{
 				int iFirstDotIndex = args[0].indexOf(".");
@@ -441,6 +446,14 @@ public class LiuYanBot extends PircBot
 						opt_ansi_escape_to_irc_escape = true;
 						continue;
 					}
+					else if (env.contains("="))	// 执行环境变量，如 LINES=40 COLUMNS=120 等，注意，环境变量的数值不能包含小数点，因为这是全局参数的分隔符。所以，对于 LANG=zh_CN.UTF-8 之类的环境变量，需要当成命令局部参数处理
+					{
+						String[] env_var = env.split ("=", 2);
+						if (!env_var[0].isEmpty())
+							mapUserEnv.put (env_var[0], env_var[1]);
+
+						continue;
+					}
 					else if (env.matches("\\d+"))	// 最多输出多少行。当该用户不是管理员时，仍然受到内置的行数限制
 					{
 						try
@@ -461,10 +474,10 @@ public class LiuYanBot extends PircBot
 					listEnv.add (env);
 				}
 			}
-			mapGlobalEnv.put ("opt_output_username", opt_output_username);
-			mapGlobalEnv.put ("opt_output_stderr", opt_output_stderr);
-			mapGlobalEnv.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
-			mapGlobalEnv.put ("opt_max_response_lines", opt_max_response_lines);
+			mapGlobalOptions.put ("opt_output_username", opt_output_username);
+			mapGlobalOptions.put ("opt_output_stderr", opt_output_stderr);
+			mapGlobalOptions.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
+			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
 
 			if (args.length >= 2)
 				params = args[1];
@@ -474,9 +487,9 @@ public class LiuYanBot extends PircBot
 
 			if (false) {}
 			else if (botcmd.equalsIgnoreCase("cmd") || botcmd.equalsIgnoreCase("exec"))
-				ProcessCommand_Exec (channel, sender, login, botcmd, mapGlobalEnv, listEnv, params);
+				ProcessCommand_Exec (channel, sender, login, botcmd, mapGlobalOptions, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("cmd2"))
-				ExecuteCommand (channel, sender, login, botcmd, mapGlobalEnv, listEnv, params);
+				ExecuteCommand (channel, sender, login, botcmd, mapGlobalOptions, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("parseCmd"))
 				ProcessCommand_ParseCommand (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("time"))
@@ -492,13 +505,15 @@ public class LiuYanBot extends PircBot
 			else if (botcmd.equalsIgnoreCase("env"))
 				ProcessCommand_Environment (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("properties"))
-				ProcessCommand_Properties (channel, sender, opt_output_username, opt_max_response_lines,botcmd,  listEnv, params);
+				ProcessCommand_Properties (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("geoip"))
-				ProcessCommand_GeoIP (channel, sender, opt_output_username, opt_max_response_lines,botcmd,  listEnv, params);
+				ProcessCommand_GeoIP (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("PageRank") || botcmd.equalsIgnoreCase("pr"))
+				ProcessCommand_GooglePageRank (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("help"))
 				ProcessCommand_Help (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("version"))
-				ProcessCommand_Version (channel, sender, opt_output_username, opt_max_response_lines,botcmd,  listEnv, params);
+				ProcessCommand_Version (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, params);
 			else //if (botcmd.equalsIgnoreCase("help"))
 				ProcessCommand_Help (channel, sender, opt_output_username, opt_max_response_lines, botcmd, listEnv, null);
 		}
@@ -523,14 +538,14 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines,
-				"本bot命令格式: <" + COLOR_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    命令列表:  " + COLOR_COMMAND + "Help Time Cmd Exec ParseCmd Action Notice GeoIP TimeZones JavaTimeZones Locales JavaLocales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. " +
+				"本bot命令格式: <" + COLOR_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    命令列表:  " + COLOR_COMMAND + "Help Time Cmd Exec ParseCmd Action Notice GeoIP PageRank TimeZones JavaTimeZones Locales JavaLocales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. " +
 				""
 					);
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines,
 				"    选项有全局选项和命令私有两种, 全局选项有: " +
 				"\"" + COLOR_COMMAND_LITERAL_OPTION + "nou" + Colors.NORMAL + "\"--不输出用户名 (NO Username), " +
 				"\"" + COLOR_COMMAND_LITERAL_OPTION + "esc" + Colors.NORMAL + "\"|\"" + COLOR_COMMAND_LITERAL_OPTION + "escape" + Colors.NORMAL + "\"--将 ANSI Escape 序列转换为 IRC Escape 序列(ESCape), " +
-				"\"" + COLOR_COMMAND_LITERAL_OPTION + "err" + Colors.NORMAL + "\"|\"" + COLOR_COMMAND_LITERAL_OPTION + "stderr" + Colors.NORMAL + "\"--输出 stderr, \"" +
+				"\"" + COLOR_COMMAND_LITERAL_OPTION + "err" + Colors.NORMAL + "\"|\"" + COLOR_COMMAND_LITERAL_OPTION + "stderr" + Colors.NORMAL + "\"--输出 stderr, " +
 				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过" + MAX_RESPONSE_LINES_LIMIT + "). " +
 				"全局选项出现顺序无关紧要, 私有选项需要按命令要求的顺序出现"
 				);
@@ -561,6 +576,9 @@ public class LiuYanBot extends PircBot
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
 		cmd = "geoip";          if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".GeoIP语言代码]" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IP地址" + Colors.NORMAL + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
+		cmd = "pagerank";      if (isCommandMatch (args, cmd) || isCommandMatch (args, "pr"))
+			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "pr" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "网址" + Colors.NORMAL + ">    -- 从 Google 获取网页的 PageRank (网页排名等级)");
+
 		cmd = "version";          if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, opt_output_username, opt_max_response_lines, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
 
@@ -601,7 +619,8 @@ public class LiuYanBot extends PircBot
 		else
 			msg = params;
 
-		msg = msg + " <- " + sender;
+		if (!target.equals(channel))
+			msg = msg + " (发自 " + sender + (channel==null?" 的私信":", 频道: "+channel) + ")";
 
 		if (botcmd.equalsIgnoreCase("action"))
 			sendAction (target, msg);
@@ -972,8 +991,61 @@ public class LiuYanBot extends PircBot
 			catch (Exception e)
 			{
 				e.printStackTrace ();
-				SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 查询出错：" + e);
+				SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 查询出错: " + e);
 			}
+		}
+	}
+
+	void ProcessCommand_GooglePageRank (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
+		boolean opt_output_stderr = (boolean)mapGlobalOptions.get("opt_output_stderr");
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
+			return;
+		}
+
+		try
+		{
+			int nPageRank = new PageRankService().getPR (params);
+			if (nPageRank ==-1)
+				SendMessage (ch, nick, opt_output_username, opt_max_response_lines, "PageRank 信息不可用，或者出现内部错误");
+			else
+			{
+				String sColor = null;
+				switch (nPageRank)
+				{
+					case 9:
+					case 10:
+						sColor = Colors.BOLD + Colors.GREEN;
+						break;
+					case 7:
+					case 8:
+						sColor = Colors.BOLD + Colors.DARK_GREEN;
+						break;
+					case 5:
+					case 6:
+						sColor = Colors.CYAN;
+						break;
+					case 3:
+					case 4:
+						sColor = Colors.TEAL;
+						break;
+					case 1:
+					case 2:
+					default:
+						sColor = Colors.DARK_BLUE;
+						break;
+				}
+				SendMessage (ch, nick, opt_output_username, opt_max_response_lines, "PageRank = " + sColor + nPageRank + Colors.NORMAL);
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, "查询出错: " + e);
 		}
 	}
 
@@ -1018,11 +1090,11 @@ public class LiuYanBot extends PircBot
 	 * @param listCmdEnv 通常是 语言.字符集 两项
 	 * @param params
 	 */
-	void ProcessCommand_Exec (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalEnv, List<String> listCmdEnv, String params)
+	void ProcessCommand_Exec (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		boolean opt_output_username = (boolean)mapGlobalEnv.get("opt_output_username");
-		boolean opt_output_stderr = (boolean)mapGlobalEnv.get("opt_output_stderr");
-		int opt_max_response_lines = (int)mapGlobalEnv.get("opt_max_response_lines");
+		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
+		boolean opt_output_stderr = (boolean)mapGlobalOptions.get("opt_output_stderr");
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		if (params==null)
 		{
 			ProcessCommand_Help (ch, nick, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
@@ -1075,7 +1147,7 @@ public class LiuYanBot extends PircBot
 		org.apache.commons.exec.Executor exec = new DefaultExecutor ();
 		OutputStream os =
 				//new ByteArrayOutputStream ();
-				new OutputStreamToIRCMessage (ch, nick, mapGlobalEnv);
+				new OutputStreamToIRCMessage (ch, nick, mapGlobalOptions);
 		if (opt_output_stderr)
 			exec.setStreamHandler (new PumpStreamHandler(os, os));
 		else
@@ -1088,6 +1160,8 @@ public class LiuYanBot extends PircBot
 			env.putAll (System.getenv ());	// System.getenv() 出来的环境变量不允许修改
 			env.put ("COLUMNS", "160");	// 设置“屏幕”宽度，也许仅仅在 linux 有效
 			env.put ("LINES", "25");	// 设置“屏幕”高度，也许仅仅在 linux 有效
+			if (mapGlobalOptions.get("env")!=null)
+				env.putAll ((Map<String, String>)mapGlobalOptions.get("env"));
 
 			if (listCmdEnv!=null)
 			{
@@ -1221,7 +1295,7 @@ if (opt_ansi_escape_to_irc_escape)
 		System.out.println ();
 	}
 	/**
-	 * 把 ANSI Escape 转换为 IRC 的 Escape，通常只处理颜色
+	 * 把 ANSI Escape sequence 转换为 IRC Escape sequence，通常只处理颜色部分，即： CSI n 'm'
 	 * @param line 原带有 ANSI Escape 序列的字符串
 	 * @return 带有 IRC Escape 序列的字符串
 	 */
@@ -1414,11 +1488,11 @@ if (opt_ansi_escape_to_irc_escape)
 		return line;
 	}
 
-	void ExecuteCommand (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalEnv, List<String> listCmdEnv, String params)
+	void ExecuteCommand (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		boolean opt_output_username = (boolean)mapGlobalEnv.get("opt_output_username");
-		boolean opt_output_stderr = (boolean)mapGlobalEnv.get("opt_output_stderr");
-		int opt_max_response_lines = (int)mapGlobalEnv.get("opt_max_response_lines");
+		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
+		boolean opt_output_stderr = (boolean)mapGlobalOptions.get("opt_output_stderr");
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		if (params==null)
 		{
 			ProcessCommand_Help (ch, nick, opt_output_username, opt_max_response_lines, botcmd, listCmdEnv, botcmd);
@@ -1486,6 +1560,7 @@ if (opt_ansi_escape_to_irc_escape)
 				mapCommand.put ("isRedirectOutput", true);
 				mapCommand.put ("isAppendOutput", arg.equals(">>"));
 				mapCommand.put ("redirectFile", f);
+				i++;
 				continue;
 			}
 			else if (arg.equals("<"))	// 输入自文件
@@ -1500,6 +1575,7 @@ if (opt_ansi_escape_to_irc_escape)
 
 				mapCommand.put ("isRedirectInput", true);
 				mapCommand.put ("redirectFile", f);
+				i++;
 				continue;
 			}
 			listCommandArgs.add (arg);
@@ -1526,7 +1602,8 @@ if (opt_ansi_escape_to_irc_escape)
 						ch,
 						nick,
 						mapCommand,
-						mapGlobalEnv,
+						mapGlobalOptions,
+						listCmdEnv,
 						i==0?null:listCommands.get (i-1),
 						i==listCommands.size()-1?null:listCommands.get (i+1)
 					);
@@ -1544,7 +1621,8 @@ System.out.println ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"))
 		Map<String, Object> command = null;	// 命令
 		String program = null;
 		List<String> commandArgs = null;	// 命令及其参数列表
-		Map<String, Object> globalEnv = null;	// bot 命令全局选项
+		Map<String, Object> globalOpts = null;	// bot 命令全局选项
+		List<String> cmdEnv = null;	// bot 命令局部参数
 
 		boolean opt_output_username = true;
 		boolean opt_output_stderr = false;
@@ -1562,7 +1640,7 @@ System.out.println ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"))
 		String sender;
 		int lineCounter = 0;
 
-		public CommandRunner (String channel, String sender, Map<String, Object> mapCommand, Map<String, Object> mapGlobalEnv, Map<String, Object> mapPreviousCommand, Map<String, Object> mapNextCommand)
+		public CommandRunner (String channel, String sender, Map<String, Object> mapCommand, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, Map<String, Object> mapPreviousCommand, Map<String, Object> mapNextCommand)
 		{
 			this.channel = channel;
 			this.sender = sender;
@@ -1570,12 +1648,12 @@ System.out.println ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"))
 			command = mapCommand;
 			commandArgs = (List<String>)mapCommand.get ("commandargs");
 			program = (String)command.get ("program");
-			globalEnv = mapGlobalEnv;
+			globalOpts = mapGlobalOptions;
 
-			opt_output_username = (boolean)globalEnv.get("opt_output_username");
-			opt_output_stderr = (boolean)globalEnv.get("opt_output_stderr");
-			opt_max_response_lines = (int)globalEnv.get("opt_max_response_lines");
-			opt_ansi_escape_to_irc_escape = (boolean)globalEnv.get("opt_ansi_escape_to_irc_escape");
+			opt_output_username = (boolean)globalOpts.get("opt_output_username");
+			opt_output_stderr = (boolean)globalOpts.get("opt_output_stderr");
+			opt_max_response_lines = (int)globalOpts.get("opt_max_response_lines");
+			opt_ansi_escape_to_irc_escape = (boolean)globalOpts.get("opt_ansi_escape_to_irc_escape");
 
 			previousCommand = mapPreviousCommand;
 			nextCommand = mapNextCommand;
@@ -1589,6 +1667,28 @@ System.out.println ("Thread ID = " + Thread.currentThread().getId());
 			boolean isRedirectOut = false;
 			boolean isRedirectIn = false;
 			ProcessBuilder pb = new ProcessBuilder (commandArgs);
+
+			Map<String, String> env = pb.environment ();
+
+			if (cmdEnv!=null)
+			{
+				String lang = cmdEnv.get (0);
+				if (cmdEnv.size() >= 2)
+					lang = lang + "." + cmdEnv.get (1);
+				else
+					lang = lang + ".UTF-8";
+
+				env.put ("LANG", lang);
+				env.put ("LC_MESSAGES", lang);
+			}
+
+			if (globalOpts.get("env")!=null)
+			{
+//System.out.println (env_var[0] + " = " +  env_var[1]);
+System.out.println ("传入的环境变量: " + globalOpts.get("env"));
+				env.putAll ((Map<String, String>)globalOpts.get("env"));
+			}
+
 			pb.redirectErrorStream (opt_output_stderr);
 			if (command.get("isPipeOutput")!=null && (boolean)command.get("isPipeOutput"))
 			{
@@ -1604,9 +1704,9 @@ System.out.println ("Thread ID = " + Thread.currentThread().getId());
 			{
 				isRedirectOut = true;
 				if ((boolean)command.get("isAppendOutput"))
-					pb.redirectInput (ProcessBuilder.Redirect.appendTo ((File)command.get("redirectFile")));
+					pb.redirectOutput (ProcessBuilder.Redirect.appendTo ((File)command.get("redirectFile")));
 				else
-					pb.redirectInput (ProcessBuilder.Redirect.to ((File)command.get("redirectFile")));
+					pb.redirectOutput (ProcessBuilder.Redirect.to ((File)command.get("redirectFile")));
 			}
 			if (command.get("isRedirectInput")!=null && (boolean)command.get("isRedirectInput"))
 			{
@@ -1695,6 +1795,15 @@ System.out.println (program + " 开始读取 stderr 流……");
 				System.out.println (program + " 等待其执行结束……");
 				int rc = p.waitFor ();
 				System.out.println (program + " 执行结束, 返回值=" + rc);
+				if (rc==0 && lineCounter==0)
+				{
+					// 正常结束，但没有 stdout 输出，需要给出提示
+				}
+				//else if (rc!=0 && )
+				{
+					// 非正常结束，有 stdout 输出, 不处理？
+					// 非正常结束，无 stdout 输出, 有/无 stderr 输出，输出 stdout ?
+				}
 			}
 			catch (IOException e)
 			{
