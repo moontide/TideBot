@@ -125,21 +125,25 @@ public class LiuYanBot extends PircBot
 
 	//Pattern VT220_SCS_PATTERN_Replace = Pattern.compile (VT220_SCS_REGEXP_Replace);
 
+	Pattern IRC_COLOR_SEQUENCE_PATTERN_Replace = Pattern.compile ("\\d{1,2}(,\\d{1,2})?");	// 0x03 之后的字符串
+	public static final String COLOR_DARK_RED = Colors.BROWN;
+	public static final String COLOR_ORANGE = Colors.OLIVE;
+	public static final String COLOR_DARK_CYAN = Colors.TEAL;
 	String[][] ANSI_16_TO_IRC_16_COLORS = {
 		// {普通属性颜色, 带高亮属性的颜色,}
 		{Colors.BLACK, Colors.DARK_GRAY,},	// 黑色 / 深灰
-		{Colors.BROWN, Colors.RED,},	// 深红色 / 浅红色
-		{Colors.DARK_GREEN, Colors.GREEN,},	// 深绿色 / 浅绿
-		{Colors.OLIVE, Colors.YELLOW,},	// 深黄色(橄榄色) / 浅黄
+		{COLOR_DARK_RED, Colors.RED,},	// 深红 / 浅红
+		{Colors.DARK_GREEN, Colors.GREEN,},	// 深绿 / 浅绿
+		{COLOR_ORANGE, Colors.YELLOW,},	// 深黄(橄榄色,橙色) / 浅黄
 		{Colors.DARK_BLUE, Colors.BLUE,},	// 深蓝 / 浅蓝
 		{Colors.PURPLE, Colors.MAGENTA,},	// 紫色 / 粉红
-		{Colors.TEAL, Colors.CYAN,},	// 青色
+		{COLOR_DARK_CYAN, Colors.CYAN,},	// 青色
 		{Colors.LIGHT_GRAY, Colors.WHITE,},	// 浅灰 / 白色
 	};
 	String[] XTERM_256_TO_IRC_16_COLORS = {
 		// 传统 16 色
 		// 0-7
-		Colors.BLACK, Colors.BROWN, Colors.DARK_GREEN, Colors.OLIVE, Colors.DARK_BLUE, Colors.PURPLE, Colors.TEAL, Colors.LIGHT_GRAY,
+		Colors.BLACK, COLOR_DARK_RED, Colors.DARK_GREEN, COLOR_ORANGE, Colors.DARK_BLUE, Colors.PURPLE, COLOR_DARK_CYAN, Colors.LIGHT_GRAY,
 		// 8-15
 		Colors.DARK_GRAY, Colors.RED, Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.MAGENTA, Colors.CYAN, Colors.WHITE,
 
@@ -158,65 +162,65 @@ public class LiuYanBot extends PircBot
 		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.DARK_BLUE, Colors.CYAN, Colors.CYAN,
 
 		// 52-57
-		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 58-63
-		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 64-69
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
 		// 70-75
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
 		// 76-81
-		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
 		// 82-87
-		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.CYAN,
+		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.CYAN,
 
 		// 88-93
-		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 94-99
-		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 100-105
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 106-111
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 112-117
-		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 118-123
-		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.TEAL,
+		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, COLOR_DARK_CYAN,
 
 		// 124-129
-		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 130-135
-		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 136-141
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 142-147
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 148-153
-		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 154-159
-		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
+		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
 
 		// 160-165
-		Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
+		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
 		// 166-171
-		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 172-177
-		Colors.OLIVE, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 178-183
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 184-189
-		Colors.DARK_GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 190-195
-		Colors.GREEN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
+		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
 
 		// 196-201
-		Colors.RED, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
+		Colors.RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
 		// 202-207
-		Colors.BROWN, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 208-213
-		Colors.OLIVE, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 214-219
-		Colors.OLIVE, Colors.BROWN, Colors.BROWN, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
 		// 220-225
 		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.PURPLE, Colors.PURPLE,
 		// 226-231
@@ -231,7 +235,7 @@ public class LiuYanBot extends PircBot
 
 	public static final String COLOR_BOT_COMMAND = Colors.GREEN;
 	public static final String COLOR_COMMAND = Colors.GREEN;
-	public static final String COLOR_COMMAND_OPTION = Colors.TEAL;
+	public static final String COLOR_COMMAND_OPTION = COLOR_DARK_CYAN;
 	public static final String COLOR_COMMAND_LITERAL_OPTION = Colors.CYAN;	// 指具体选项值
 	public static final String COLOR_COMMAND_OPTION_VALUE = Colors.PURPLE;
 	public static final String COLOR_COMMAND_PARAMETER = Colors.BLUE;
@@ -1150,7 +1154,7 @@ public class LiuYanBot extends PircBot
 						break;
 					case 3:
 					case 4:
-						sColor = Colors.TEAL;
+						sColor = COLOR_DARK_CYAN;
 						break;
 					case 1:
 					case 2:
@@ -1365,6 +1369,43 @@ System.out.println ("execute 结束");
 		return true;
 	}
 
+	void CheckCommandSecurity (List<String> listCommandArgs)
+	{
+		String cmd = listCommandArgs.get (0);
+		//
+		boolean hasArguments = false;
+		if (cmd.equalsIgnoreCase("find"))
+		{
+			for (String arg : listCommandArgs)
+			{
+				hasArguments = true;
+				if (arg.equalsIgnoreCase ("-exec"))
+				{
+					System.out.println ("禁止使用 -exec");
+				}
+			}
+		}
+		else if (cmd.equalsIgnoreCase("bash") || cmd.equalsIgnoreCase("sh"))
+		{
+
+		}
+		else if (cmd.equalsIgnoreCase("dd"))
+		{
+			for (String arg : listCommandArgs)
+			{
+				hasArguments = true;
+				if (arg.startsWith ("-exec"))
+				{
+					System.out.println ("禁止使用 -exec");
+				}
+			}
+			if (!hasArguments)
+			{
+				System.out.println ("从 IRC 中执行 dd 命令需要输入参数");
+			}
+		}
+	}
+
 	class OutputStreamToIRCMessage extends LogOutputStream
 	{
 		String channel;
@@ -1404,11 +1445,15 @@ System.out.println ("execute 结束");
 
 	void HexDump (String s)
 	{
-System.out.println (s);
+//System.out.println (s);
 		byte[] lineBytes = s.getBytes();
 		for (byte b : lineBytes)
 		{
-			System.out.print (String.format("%02X ", b&0xFF));
+			int b2 = b&0xFF;
+			if (b2 >= ' ' && b2<= '~')	// 0x20 - 0x7E
+				System.out.print (String.format("%02X[%c] ", b&0xFF, b2));
+			else
+				System.out.print (String.format("%02X ", b&0xFF));
 		}
 		System.out.println ();
 	}
@@ -1420,7 +1465,7 @@ System.out.println (s);
 	 */
 	String AnsiEscapeToIrcEscape (String line, int nLineNO)
 	{
-HexDump (line);
+//HexDump (line);
 		int i = 0;
 		Matcher matcher = null;
 		int iStart = 0;
@@ -1442,7 +1487,7 @@ HexDump (line);
 //System.out.println ("matched group=");
 			String ansi_escape_sequence = matcher.group();
 //System.out.println (ansi_escape_sequence);
-			//sgr_parameters = line.replaceFirst (CSI_SGR_REGEXP, "$1");
+//HexDump (ansi_escape_sequence);
 			sgr_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
 //System.out.println ("SGR 所有参数: " + sgr_parameters);
 			String[] arraySGR = sgr_parameters.split (";");
@@ -1468,15 +1513,16 @@ HexDump (line);
 					case 49:	// 默认背景色
 						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
 						break;
-					case 1:	// 粗体/高亮 （注意： bold 属性必须在前景色/背景色的前面，如 1;30;41，否则，无法生效）
+					case 1:	// 粗体/高亮
 						iBold = 1;
 						irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
 						break;
 					case 7:	// Image: Negative 前景背景色反转 inverse or reverse; swap foreground and background (reverse video)
 						irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
 						break;
-					case 27:	// Image: Positive 前景背景色正常
-						irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
+					case 27:	// Image: Positive 前景背景色正常。由于 IRC 没有这一项，所以，应该替换为 Colors.NORMAL 或者 再次翻转(反反得正)
+						//irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
+						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
 						break;
 					case 4:	// 单下划线
 					case 21:	// 双下划线
@@ -1510,7 +1556,7 @@ HexDump (line);
 							int iColorIndex = Integer.parseInt (arraySGR[i+2]) % 256;
 							if (nSGRParam==38)
 								sIRC_FG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
-							else	//if (nSGRParam==48)
+							else if (nSGRParam==48)
 								sIRC_BG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
 						} catch (NumberFormatException e) {
 							e.printStackTrace ();
@@ -1522,25 +1568,27 @@ HexDump (line);
 				}
 			}
 
+			// 如果有 16 色的颜色，则会覆盖 256 色的颜色
 			if (nFG!=-1)
 				sIRC_FG = ANSI_16_TO_IRC_16_COLORS [nFG-30][iBold];
 			if (nBG!=-1)
 				sIRC_BG = ANSI_16_TO_IRC_16_COLORS [nBG-40][iBold];
 
-			if (nFG!=-1 && nBG==-1)		// 只有前景色
+			if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())		// 只有前景色
 				irc_escape_sequence = irc_escape_sequence + sIRC_FG;
-			else if (nFG==-1 && nBG!=-1)	// 只有背景色
+			else if (sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())	// 只有背景色
 			{
 				sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
 				irc_escape_sequence = irc_escape_sequence + "\u0003," + sIRC_BG;
 			}
-			else if (nFG!=-1 && nBG!=-1)
+			else if (!sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())
 			{
 				sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
 				irc_escape_sequence = irc_escape_sequence + sIRC_FG + "," + sIRC_BG;
 			}
 
-//System.out.println ("irc_escape_sequence: " + irc_escape_sequence);
+//System.out.println ("irc_escape_sequence: ");	// + irc_escape_sequence);
+//HexDump (irc_escape_sequence);
 			line = line.replaceFirst (CSI_SGR_REGEXP_Replace, irc_escape_sequence);
 			matcher.reset (line);
 //HexDump (line);
@@ -1552,7 +1600,7 @@ HexDump (line);
 
 		line = line.replaceAll (XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace, "");
 
-HexDump (line);
+//HexDump (line);
 		nCurrentRowNO = nLineNO;
 		// 处理 htop 输出的 VPA 控制序列：行号跳转…… 此实在蛋疼，现只考虑 VPA 序列中的行号只有一个的情况，如果有多个 VPA 并且 VPA 行号每次都需要换行的话，就容易引起混乱。
 		matcher = CSI_VPA_PATTERN_Replace.matcher (line);
@@ -1566,7 +1614,7 @@ HexDump (line);
 			String ansi_escape_sequence = matcher.group();
 //HexDump(ansi_escape_sequence);
 			vpa_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
-System.out.println ("VPA 所有参数: " + vpa_parameters);
+//System.out.println ("VPA 所有参数: " + vpa_parameters);
 			sRowNO = vpa_parameters;
 			if (!sRowNO.isEmpty())
 				nRowNO = Integer.parseInt (sRowNO);
@@ -1578,7 +1626,7 @@ System.out.println ("VPA 所有参数: " + vpa_parameters);
 				for (i=0; i<(nRowNO-nCurrentRowNO); i++)
 					sLineFeeds = sLineFeeds + "\n";
 
-System.out.println ("指定的行号与传入的行号相差: " + (nRowNO-nCurrentRowNO) + " 行");
+//System.out.println ("指定的行号与传入的行号相差: " + (nRowNO-nCurrentRowNO) + " 行");
 
 				line = line.replaceFirst (CSI_VPA_REGEXP_Replace, sLineFeeds);
 			}
@@ -1587,7 +1635,7 @@ System.out.println ("指定的行号与传入的行号相差: " + (nRowNO-nCurre
 
 			matcher.reset (line);
 		}
-HexDump (line);
+//HexDump (line);
 
 		// 剔除其他控制序列字符串后，最后再处理光标定位……
 		// 设置光标位置，这个无法在 irc 中实现，现在只是简单的替换为空格或者换行。htop 的转换结果会不尽人意
@@ -1610,14 +1658,26 @@ HexDump (line);
 				char c = line.charAt(i);
 				if (c=='\n')
 				{
-System.out.println ("在 " + i + " 处有换行符");
+//System.out.println ("在 " + i + " 处有换行符");
 					nCurrentRowNO ++;
 					nCurrentColumnNO = 1;
+				}
+				else if (c==0x03)	// 前面已经替换后的 IRC 颜色序列
+				{
+					i++;
+					//"\\d{1,2}(,\\d{1,2})?"
+					Matcher matcher2 = IRC_COLOR_SEQUENCE_PATTERN_Replace.matcher (line.substring(i));
+					if (matcher2.find())
+					{
+						//String group = matcher2.group();
+						//i += group.length();
+						i += matcher2.end() - matcher2.start();
+					}
 				}
 				else if (!Character.isISOControl(c))
 					nCurrentColumnNO ++;
 			}
-System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentRowNO + "行" + nCurrentColumnNO + "列]");
+//System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentRowNO + "行" + nCurrentColumnNO + "列]");
 //HexDump(ansi_escape_sequence);
 			cup_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
 //System.out.println ("CUP 所有参数: " + cup_parameters);
@@ -1642,17 +1702,17 @@ System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹�
 				for (i=1; i<nColumnNO; i++)	// 换行后，直接把列号数量的空格补充。 缺陷：如果在屏幕上此位置前已经有内容，则这样处理的结果与屏幕显示的肯定不一致
 					sb.append (" ");
 
-System.out.println ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
+//System.out.println ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
 				line = line.replaceFirst (CSI_CUP_REGEXP_Replace, sb.toString());
 				nCurrentRowNO += (nRowNO-nCurrentRowNO);
 				nCurrentColumnNO = 1;
 			}
 			else if (nRowNO == nCurrentRowNO)
 			{
-System.out.println ("指定跳转的行号 = 传入的行号");
+//System.out.println ("指定跳转的行号 = 传入的行号");
 				if (nColumnNO > nCurrentColumnNO)
 				{	// 如果列号比当前列号大，则补充空格
-System.out.println ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
+//System.out.println ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
 					StringBuilder sb = new StringBuilder ();
 					sb.append (line.substring (0, iStart));
 					for (i=0; i<(nColumnNO-nCurrentColumnNO); i++)
@@ -1664,19 +1724,19 @@ System.out.println ("  指定的列号 " + nColumnNO + " > 计算的列号 " + n
 				}
 				else
 				{
-System.out.println ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
+//System.out.println ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
 					line = line.replaceFirst (CSI_CUP_REGEXP_Replace, "");
 				}
 			}
 			else //if (nRowNO < nCurrentRowNO)
 			{
-System.out.println ("指定跳转的行号 < 传入的行号");
+//System.out.println ("指定跳转的行号 < 传入的行号");
 				line = line.replaceFirst (CSI_CUP_REGEXP_Replace, "");
 			}
 
 			matcher.reset (line);
 		}
-HexDump (line);
+//HexDump (line);
 
 		return line;
 	}
@@ -1695,11 +1755,6 @@ HexDump (line);
 			SendMessage (ch, nick, opt_output_username, opt_max_response_lines, botcmd + " 命令不支持通过私信执行，请在频道中执行");
 			return;
 		}
-		//if (!isUserInWhiteList(user, nick))
-		//{
-		//	SendMessage (ch, nick, opt_output_username, opt_max_response_lines, botcmd + " 该命令暂时不公开支持");
-		//	return;
-		//}
 
 		List<String> listCommandLineArgs = splitCommandLine (params);
 		if (listCommandLineArgs.size() == 0)
@@ -1713,7 +1768,6 @@ HexDump (line);
 		for (int i=0; i<listCommandLineArgs.size(); i++)
 		{
 			String arg = listCommandLineArgs.get (i);
-			//listCommands;
 
 // http://www.mathinfo.u-picardie.fr/asch/f/MeCS/courseware/users/help/general/unix/redirection.html
 // Bourne Shell Family
@@ -1783,8 +1837,7 @@ HexDump (line);
 			}
 		}
 
-		System.out.println (listCommands);
-
+System.out.println (listCommands);
 		try
 		{
 			for (int i=0; i<listCommands.size(); i++)
@@ -1886,8 +1939,7 @@ System.out.println (program + " Thread ID = " + Thread.currentThread().getId());
 
 			if (globalOpts.get("env")!=null)
 			{
-//System.out.println (env_var[0] + " = " +  env_var[1]);
-System.out.println (program + " 传入的环境变量: " + globalOpts.get("env"));
+//System.out.println (program + " 传入的环境变量: " + globalOpts.get("env"));
 				env.putAll ((Map<String, String>)globalOpts.get("env"));
 			}
 
@@ -1936,10 +1988,6 @@ System.out.println (program + " 启动");
 				{	// 管道输入
 System.out.println (program + " 需要用从上个命令管道输入，通知上个命令 " + previousCommand.get("program") + " 同步");
 					((CyclicBarrier)previousCommand.get("barrier")).await ();	// 等待与上个命令同步
-//					previousIn = (InputStream)previousCommand.get("in");
-//System.out.println (program + " 开始从管道输入……");
-//					long n = IOUtils.copyLarge (previousIn, out);
-//System.out.println (program + " 管道输入结束, 输入了 " + n + " 字节");
 				}
 				if (isPipeOut)
 				{
@@ -1979,7 +2027,6 @@ System.out.println (program + " 管道输出结束, 输出了 " + n + " 字节")
 					BufferedReader br = new BufferedReader (new InputStreamReader(in));
 System.out.println (program + " 开始读取 stdout 流……");
 
-
 		otherLines:	while ((line = br.readLine()) != null)
 					{
 						lineCounterIncludingEmptyLines ++;
@@ -2013,7 +2060,7 @@ System.out.println (program + " 开始读取 stdout 流……");
 							}
 						}
 					}
-					System.out.println (program + " stdout 读取完毕");
+System.out.println (program + " stdout 读取完毕");
 
 					if (lineCounter==0)
 						SendMessage (channel, sender, opt_output_username, opt_max_response_lines, program + " 命令没有输出");
@@ -2024,23 +2071,18 @@ System.out.println (program + " 开始读取 stdout 流……");
 System.out.println (program + " 开始读取 stderr 流……");
 						while ((line = br.readLine()) != null)
 						{
-							System.out.println (line);
+							//System.out.println (line);
 						}
-						System.out.println (program + " stderr 读取完毕");
+System.out.println (program + " stderr 读取完毕");
 					}
 				}
 
-				System.out.println (program + " 等待其执行结束……");
+System.out.println (program + " 等待其执行结束……");
 				int rc = p.waitFor ();
 				nEndTime = System.currentTimeMillis();
-				System.out.println (program + " 执行结束, 返回值=" + rc);
+System.out.println (program + " 执行结束, 返回值=" + rc);
 				if (rc==0)
 				{
-					// 正常结束，但没有 stdout 输出，需要给出提示
-					if (lineCounter==0)
-					{
-
-					}
 					if ((nEndTime - nStartTime)/1000 > WATCH_DOG_TIMEOUT_LENGTH)
 						SendMessage (channel, sender, opt_output_username, opt_max_response_lines, program + " 耗时 " + GetRunTimeString(nStartTime, nEndTime));
 				}
@@ -2051,18 +2093,6 @@ System.out.println (program + " 开始读取 stderr 流……");
 					SendMessage (channel, sender, opt_output_username, opt_max_response_lines, program + " 返回代码 = " + rc);
 				}
 			}
-			//catch (IOException e)
-			//{
-			//	e.printStackTrace ();
-			//}
-			//catch (InterruptedException e)
-			//{
-			//	e.printStackTrace ();
-			//}
-			//catch (BrokenBarrierException e)
-			//{
-			//	e.printStackTrace();
-			//}
 			catch (Exception e)
 			{
 				nEndTime = System.currentTimeMillis();
