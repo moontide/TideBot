@@ -701,9 +701,9 @@ public class LiuYanBot extends PircBot
 		cmd = "parsecmd";       if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析要执行的命令");
 		cmd = "cmd";            if (isCommandMatch (args, cmd) || isCommandMatch (args, "exec"))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Linux语言区域" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Linux字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, shell 中类似变量取值($var) 管道(|) 重定向(><) 通配符(*?) 内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, shell 中类似变量取值($var) 管道(|) 重定向(><) 通配符(*?) 内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 		cmd = "cmd2";            if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Linux语言区域" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Linux字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 与 cmd 命令相同，但增加了对管道的支持，管道符(|) 前后必须用空格分开: cmd1 | cmd2");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 与 cmd 命令相同，但增加了对管道的支持，管道符(|) 前后必须用空格分开: cmd1 | cmd2");
 
 		cmd = "locales";        if (isCommandMatch (args, cmd) || isCommandMatch (args, "javalocales"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
@@ -1304,7 +1304,7 @@ public class LiuYanBot extends PircBot
 	{
 		boolean opt_output_stderr = (boolean)mapGlobalOptions.get("opt_output_stderr");
 		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		if (params==null)
+		if (params==null || params.isEmpty())
 		{
 			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -1316,7 +1316,7 @@ public class LiuYanBot extends PircBot
 		}
 		CommandLine cmdline = null;
 		List<String> args = splitCommandLine (params);
-		if (args.size() == 0)
+		if (args==null || args.size() == 0)
 			return;
 		//CommandLine.parse (params);
 		cmdline = new CommandLine (args.get(0));
@@ -1611,9 +1611,11 @@ System.out.println ("execute 结束");
 						iBold = 0;
 						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
 						break;
+					case 21:	// 关闭高亮 或者 双下划线
+						iBold = 0;
 					case 1:	// 粗体/高亮
 						iBold = 1;
-						//irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
+						irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
 						break;
 					case 7:	// Image: Negative 前景背景色反转 inverse or reverse; swap foreground and background (reverse video)
 						irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
@@ -1623,7 +1625,6 @@ System.out.println ("execute 结束");
 						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
 						break;
 					case 4:	// 单下划线
-					case 21:	// 双下划线
 						irc_escape_sequence = irc_escape_sequence + Colors.UNDERLINE;
 						break;
 					case 30:	// 黑色
@@ -1762,15 +1763,15 @@ System.out.println ("execute 结束");
 			iEnd = matcher.end ();
 //System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentRowNO + "行" + nCurrentColumnNO + "列]");
 //HexDump(ansi_escape_sequence);
-System.out.println ("光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
+//System.out.println ("光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
 			cursor_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
-System.out.println ("光标移动 所有参数: " + cursor_parameters);
+//System.out.println ("光标移动 所有参数: " + cursor_parameters);
 			for (i=0; i<iStart; i++)
 			{
 				char c = line.charAt(i);
 				if (c=='\n')
 				{
-System.out.println ("在 " + i + " 处有换行符");
+//System.out.println ("在 " + i + " 处有换行符");
 					nCurrentRowNO ++;
 					nCurrentColumnNO = 1;
 				}
@@ -1846,17 +1847,17 @@ System.out.println ("在 " + i + " 处有换行符");
 				for (i=1; i<nColumnNO; i++)	// 换行后，直接把列号数量的空格补充。 缺陷：如果在屏幕上此位置前已经有内容，则这样处理的结果与屏幕显示的肯定不一致
 					sb.append (" ");
 
-System.out.println ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
+//System.out.println ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
 				line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, sb.toString());
 				nCurrentRowNO += (nRowNO-nCurrentRowNO);
 				nCurrentColumnNO = 1;
 			}
 			else if (nRowNO == nCurrentRowNO)
 			{
-System.out.println ("指定跳转的行号 = 传入的行号");
+//System.out.println ("指定跳转的行号 = 传入的行号");
 				if (nColumnNO > nCurrentColumnNO)
 				{	// 如果列号比当前列号大，则补充空格
-System.out.println ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
+//System.out.println ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
 					StringBuilder sb = new StringBuilder ();
 					sb.append (line.substring (0, iStart));
 					for (i=0; i<(nColumnNO-nCurrentColumnNO); i++)
@@ -1868,13 +1869,13 @@ System.out.println ("  指定的列号 " + nColumnNO + " > 计算的列号 " + n
 				}
 				else
 				{
-System.out.println ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
+//System.out.println ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
 					line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, "");
 				}
 			}
 			else //if (nRowNO < nCurrentRowNO)
 			{
-System.out.println ("指定跳转的行号 < 传入的行号");
+//System.out.println ("指定跳转的行号 < 传入的行号");
 				line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, "");
 			}
 
@@ -1887,7 +1888,7 @@ System.out.println ("指定跳转的行号 < 传入的行号");
 
 	void ExecuteCommand (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params==null)
+		if (params==null || params.isEmpty())
 		{
 			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -1899,7 +1900,7 @@ System.out.println ("指定跳转的行号 < 传入的行号");
 		}
 
 		List<String> listCommandLineArgs = splitCommandLine (params);
-		if (listCommandLineArgs.size() == 0)
+		if (listCommandLineArgs==null || listCommandLineArgs.size() == 0)
 			return;
 
 		List<Map<String, Object>> listCommands = new ArrayList<Map<String, Object>> ();
@@ -1924,7 +1925,7 @@ System.out.println ("指定跳转的行号 < 传入的行号");
 
 			if (arg.equals("|"))	// 管道
 			{
-				if (i==listCommandLineArgs.size()-1)
+				if (i==0 || i==listCommandLineArgs.size()-1)
 					throw new RuntimeException ("管道需要连接两个应用程序，你需要输入第二个应用程序");
 
 				mapCommand.put ("isPipeOutput", true);
