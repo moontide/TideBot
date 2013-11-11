@@ -2040,16 +2040,16 @@ System.out.println ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"))
 			this.sender = sender;
 
 			command = mapCommand;
-			commandArgs = (List<String>)mapCommand.get ("commandargs");
-			program = (String)command.get ("program");
+				commandArgs = (List<String>)mapCommand.get ("commandargs");
+				program = (String)command.get ("program");
 			globalOpts = mapGlobalOptions;
+				opt_output_username = (boolean)globalOpts.get("opt_output_username");
+				opt_output_stderr = (boolean)globalOpts.get("opt_output_stderr");
+				opt_max_response_lines = (int)globalOpts.get("opt_max_response_lines");
+				opt_ansi_escape_to_irc_escape = (boolean)globalOpts.get("opt_ansi_escape_to_irc_escape");
+				opt_timeout_length_seconds = (int)globalOpts.get("opt_timeout_length_seconds");
 
-			opt_output_username = (boolean)globalOpts.get("opt_output_username");
-			opt_output_stderr = (boolean)globalOpts.get("opt_output_stderr");
-			opt_max_response_lines = (int)globalOpts.get("opt_max_response_lines");
-			opt_ansi_escape_to_irc_escape = (boolean)globalOpts.get("opt_ansi_escape_to_irc_escape");
-			opt_timeout_length_seconds = (int)globalOpts.get("opt_timeout_length_seconds");
-
+			cmdEnv = listCmdEnv;
 			previousCommand = mapPreviousCommand;
 			nextCommand = mapNextCommand;
 		}
