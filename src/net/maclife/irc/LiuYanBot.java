@@ -5,6 +5,7 @@ import java.net.*;
 import java.text.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.logging.*;
 import java.util.regex.*;
 
 import org.apache.commons.lang3.*;
@@ -20,6 +21,7 @@ import com.temesoft.google.pr.*;
 
 public class LiuYanBot extends PircBot
 {
+	Logger logger = Logger.getLogger (this.getClass().getName());
 	public static final String DEFAULT_TIME_FORMAT_STRING = "yyyy-MM-dd a KK:mm:ss Z EEEE";
 	public static final DateFormat DEFAULT_TIME_FORMAT = new SimpleDateFormat (DEFAULT_TIME_FORMAT_STRING);
 	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault ();
@@ -31,8 +33,10 @@ public class LiuYanBot extends PircBot
 	java.util.concurrent.Executor executor = Executors.newFixedThreadPool (15);
 
 	// http://en.wikipedia.org/wiki/ANSI_escape_code#CSI_codes
-	public static final String CSI = "\u001B[";
-	public static final String CSI_REGEXP = "\\e\\[";	// 用于使用规则表达式时
+	public static final String ESC = "\u001B";
+	public static final String CSI = ESC + "[";
+	public static final String ESC_REGEXP = "\\e";	// 用于使用规则表达式时
+	public static final String CSI_REGEXP = ESC_REGEXP + "\\[";	// 用于使用规则表达式时
 /*
 	public static final String CSI_CUU_REGEXP_Replace = CSI_REGEXP + "(\\d+)?A";	// CSI n 'A' 	CUU - Cursor Up
 	public static final String CSI_CUU_REGEXP = ".*" + CSI_CUU_REGEXP_Replace + ".*";
@@ -109,11 +113,11 @@ public class LiuYanBot extends PircBot
 	//public static final String VT220_SCS_DECSpecialGraphics_REGEXP_Replace = "\u001B[\\(,\\)\\-\\*\\.+/]\\<";
 	//public static final String VT220_SCS_DECSupplemental_REGEXP_Replace = "\u001B[\\(,\\)\\-\\*\\.+/]0";
 
-	public static final String VT220_SCS_REGEXP_Replace = "\u001B[\\(,\\)\\-\\*\\.+/][B\\<0]";
-	public static final String VT220_SCS_REGEXP = ".*" + VT220_SCS_REGEXP_Replace + ".*";
+	public static final String VT220_SCS_REGEXP_Replace = ESC_REGEXP + "[\\(,\\)\\-\\*\\.+/][B\\<0]";
+	//public static final String VT220_SCS_REGEXP = ".*" + VT220_SCS_REGEXP_Replace + ".*";
 
-	public static final String XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace = "\u001B[=\\>]";
-	public static final String XTERM_VT100_TwoCharEscapeSequences_REGEXP = ".*" + XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace + ".*";
+	public static final String XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace = ESC_REGEXP + "[=\\>]";
+	//public static final String XTERM_VT100_TwoCharEscapeSequences_REGEXP = ".*" + XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace + ".*";
 
 	//Pattern CSI_SGR_PATTERN = Pattern.compile (CSI_SGR_REGEXP);
 	Pattern CSI_SGR_PATTERN_Replace = Pattern.compile (CSI_SGR_REGEXP_Replace);
@@ -127,6 +131,13 @@ public class LiuYanBot extends PircBot
 	//Pattern CSI_CursorControlAndOthers_PATTERN_Replace = Pattern.compile (CSI_CursorControlAndOthers_REGEXP);
 
 	//Pattern VT220_SCS_PATTERN_Replace = Pattern.compile (VT220_SCS_REGEXP_Replace);
+
+	char[] ASCII_ControlCharacters = {
+		'␀', '␁', '␂', '␃', '␄', '␅', '␆', '␇',
+		'␈', '␉', '␊', '␋', '␌', '␍', '␎', '␏',
+		'␐', '␑', '␒', '␓', '␔', '␕', '␖', '␗',
+		'␘', '␙', '␚', '␛', '␜', '␝', '␞', '␟',
+	};
 
 	Pattern IRC_COLOR_SEQUENCE_PATTERN_Replace = Pattern.compile ("\\d{1,2}(,\\d{1,2})?");	// 0x03 之后的字符串
 	public static final String COLOR_DARK_RED = Colors.BROWN;
@@ -505,6 +516,7 @@ public class LiuYanBot extends PircBot
 				&& !StringUtils.startsWithIgnoreCase(message, "urldecode")
 				&& !StringUtils.startsWithIgnoreCase(message, "urlencode")
 				&& !StringUtils.startsWithIgnoreCase(message, "httphead")
+				&& !StringUtils.startsWithIgnoreCase(message, "/set")
 				&& !StringUtils.startsWithIgnoreCase(message, "version")
 				)
 			{
@@ -648,6 +660,10 @@ public class LiuYanBot extends PircBot
 				ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
 			else if (botcmd.equalsIgnoreCase("version"))
 				ProcessCommand_Version (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("raw"))
+				ProcessCommand_SendRaw (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
+			else if (botcmd.equalsIgnoreCase("/set"))
+				ProcessCommand_Set (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
 			//else //if (botcmd.equalsIgnoreCase("help"))
 			//	ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listEnv, null);
 		}
@@ -769,6 +785,36 @@ public class LiuYanBot extends PircBot
 			sendAction (target, msg);
 		else if (botcmd.equalsIgnoreCase("notice"))
 			sendNotice (target, msg);
+	}
+
+	void ProcessCommand_SendRaw (String channel, String sender, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		sendRawLine (params);
+	}
+
+	void ProcessCommand_Set (String channel, String sender, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		String[] arrayParams = null;
+		if (params!=null && !params.isEmpty())
+			arrayParams = params.split (" +", 2);
+		if (arrayParams == null || arrayParams.length<2)
+		{
+			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		String param = arrayParams[0];
+		String value = arrayParams[1];
+
+		if (param.equalsIgnoreCase ("loglevel"))	// 日志级别
+		{
+			logger.setLevel (Level.parse(value.toUpperCase()));
+			System.out.println ("日志级别已改为: " + logger.getLevel ());
+		}
 	}
 
 	/**
@@ -1205,7 +1251,16 @@ public class LiuYanBot extends PircBot
 			if (botcmd.equalsIgnoreCase("urlencode"))
 				sResult = sCharset==null ? URLEncoder.encode (params) : URLEncoder.encode (params, sCharset);
 			else
+			{
 				sResult = sCharset==null ? URLDecoder.decode (params) : URLDecoder.decode (params, sCharset);
+				// 解码后都结果可能包含回车换行符或其他任意字符，需要特别处理
+				if (sResult.contains("\r\n"))
+					sResult = sResult.replaceAll ("\\r\\n", "␍␊");
+				if (sResult.contains("\n"))
+					sResult = sResult.replaceAll ("\\n", "␊");
+				if (sResult.contains("\r"))
+					sResult = sResult.replaceAll ("\\r", "␍");
+			}
 			SendMessage (ch, nick, mapGlobalOptions, sResult);
 		}
 		catch (Exception e)
@@ -1540,22 +1595,65 @@ System.out.println ("execute 结束");
 		}
 	}
 
+	static final int HEX_DUMP_BYTES_PER_LINE = 16;
+	static final int HEX_DUMP_BYTES_PER_HALF_LINE = HEX_DUMP_BYTES_PER_LINE / 2;
 	void HexDump (String s)
 	{
 //System.out.println (s);
+		StringBuilder sb = new StringBuilder ();
+		StringBuilder sb_ascii = new StringBuilder ();
 		byte[] lineBytes = s.getBytes();
+		int i=0;
 		for (byte b : lineBytes)
 		{
+			i++;
 			int b2 = b&0xFF;
+			sb.append (String.format("%02X ", b&0xFF));
 			if (b2 >= ' ' && b2<= '~')	// 0x20 - 0x7E
-				System.out.print (String.format("%02X[%c] ", b&0xFF, b2));
+				sb_ascii.append ((char)b2);
+			else if (b2 == 0x7F)
+				sb_ascii.append ((char)b2);
+			else if (b2 >= 0 && b2 <= 0x1F)
+				sb_ascii.append (ASCII_ControlCharacters[b2]);
 			else
-				System.out.print (String.format("%02X ", b&0xFF));
+				sb_ascii.append (".");
+
+			if (i%HEX_DUMP_BYTES_PER_HALF_LINE ==0)
+			{
+				sb.append (" ");
+				//sb_ascii.append (" ");
+			}
+			if (i%HEX_DUMP_BYTES_PER_LINE==0)
+			{
+				sb.append (sb_ascii);
+				sb_ascii.setLength (0);
+				sb.append ("\n");
+			}
 		}
-		System.out.println ();
+		if (sb_ascii.length() > 0)
+		{
+			int j = i%HEX_DUMP_BYTES_PER_LINE;
+			for (int k=0; k<HEX_DUMP_BYTES_PER_LINE - j; k++)	// 补足最后一行的空格，以对齐显示
+				sb.append ("   ");
+
+			sb.append (" ");
+			if (j<=HEX_DUMP_BYTES_PER_HALF_LINE)
+				sb.append (" ");
+			sb.append (sb_ascii);
+			//sb_ascii.setLength (0);
+			//sb.append ("\n");
+		}
+		System.out.println (sb);
 	}
 	/**
-	 * 把 ANSI Escape sequence 转换为 IRC Escape sequence，通常只处理颜色部分，即： CSI n 'm'
+	 * 把 ANSI Escape sequence 转换为 IRC Escape sequence.
+	 * <p>
+	 * <ul>
+	 * <li>最常用的颜色转义序列，即： CSI n 'm'</li>
+	 * <li>光标移动转义序列，但只处理光标前进、向下的移动，不处理回退、向上的移动</li>
+	 * <li>其他的转义序列，全部清空</li>
+	 * </ul>
+	 * </p>
 	 * @param line 原带有 ANSI Escape 序列的字符串
 	 * @param nLineNO 从 1 开始计数的行号，主要用在计算光标移动的控制序列转换
 	 * @return 带有 IRC Escape 序列的字符串
@@ -1581,17 +1679,17 @@ System.out.println ("execute 结束");
 			String sIRC_BG = "";	// ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
 			int nBG = -1;
 
-//System.out.println ("matched group=");
+//logger.fine ("matched group=");
 			String ansi_escape_sequence = matcher.group();
 //System.out.println (ansi_escape_sequence);
 //HexDump (ansi_escape_sequence);
 			sgr_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
-//System.out.println ("SGR 所有参数: " + sgr_parameters);
+//logger.fine ("SGR 所有参数: " + sgr_parameters);
 			String[] arraySGR = sgr_parameters.split (";");
 			for (i=0; i<arraySGR.length; i++)
 			{
 				String sgrParam = arraySGR[i];
-//System.out.println ("SGR 参数 " + (i+1) + ": " + sgrParam);
+//logger.finer ("SGR 参数 " + (i+1) + ": " + sgrParam);
 				if (sgrParam.isEmpty())
 				{
 					irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
@@ -1667,7 +1765,7 @@ System.out.println ("execute 结束");
 				}
 			}
 
-			// 如果有 16 色的颜色，则会覆盖 256 色的颜色
+			// 如果这个 SGR 同时含有 16色、256色（虽然从未看到过），则 16 色的颜色设置会覆盖 256 色的颜色设置
 			if (nFG!=-1)
 				sIRC_FG = ANSI_16_TO_IRC_16_COLORS [nFG-30][iBold];
 			if (nBG!=-1)
@@ -1686,9 +1784,9 @@ System.out.println ("execute 结束");
 				irc_escape_sequence = irc_escape_sequence + sIRC_FG + "," + sIRC_BG;
 			}
 
-//System.out.println ("irc_escape_sequence: ");	// + irc_escape_sequence);
+//logger.fine ("irc_escape_sequence: ");	// + irc_escape_sequence);
 //HexDump (irc_escape_sequence);
-			line = line.replaceFirst (CSI_SGR_REGEXP_Replace, irc_escape_sequence);
+			line = matcher.replaceFirst (irc_escape_sequence);
 			matcher.reset (line);
 //HexDump (line);
 		}
@@ -1699,45 +1797,7 @@ System.out.println ("execute 结束");
 
 		line = line.replaceAll (XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace, "");
 
-		/*
 //HexDump (line);
-		nCurrentRowNO = nLineNO;
-		// 处理 htop 输出的 VPA 控制序列：行号跳转…… 此实在蛋疼，现只考虑 VPA 序列中的行号只有一个的情况，如果有多个 VPA 并且 VPA 行号每次都需要换行的话，就容易引起混乱。
-		matcher = CSI_VPA_PATTERN_Replace.matcher (line);
-		while (matcher.find())
-		{
-			String vpa_parameters;
-			String sRowNO = "";	// 行号
-			int nRowNO = 1;
-
-//System.out.println ("matched group=");
-			String ansi_escape_sequence = matcher.group();
-//HexDump(ansi_escape_sequence);
-			vpa_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
-//System.out.println ("VPA 所有参数: " + vpa_parameters);
-			sRowNO = vpa_parameters;
-			if (!sRowNO.isEmpty())
-				nRowNO = Integer.parseInt (sRowNO);
-
-			// 设置光标行号
-			if (nRowNO > nCurrentRowNO)
-			{	// 光标跳到 nRowNO 行，当前列，这里只替换为差异行数的换行符
-				String sLineFeeds = "";
-				for (i=0; i<(nRowNO-nCurrentRowNO); i++)
-					sLineFeeds = sLineFeeds + "\n";
-
-//System.out.println ("指定的行号与传入的行号相差: " + (nRowNO-nCurrentRowNO) + " 行");
-
-				line = line.replaceFirst (CSI_VPA_REGEXP_Replace, sLineFeeds);
-			}
-			else
-				line = line.replaceFirst (CSI_VPA_REGEXP_Replace, "");
-
-			matcher.reset (line);
-		}
-//HexDump (line);
-		//*/
-
 		// 剔除其他控制序列字符串后，最后再处理光标定位……
 		// 设置光标位置，这个无法在 irc 中实现，现在只是简单的替换为空格或者换行。htop 的转换结果会不尽人意
 		matcher = CSI_CursorMoving_PATTERN_Replace.matcher (line);
@@ -1750,46 +1810,61 @@ System.out.println ("execute 结束");
 			int nRowNO = 1;
 			String sColumnNO = "";	// 列号
 			int nColumnNO = 1;
+			int nDelta = 1;
 
 			String ansi_escape_sequence = matcher.group();
 			char chCursorCommand = ansi_escape_sequence.charAt (ansi_escape_sequence.length()-1);
 			if (chCursorCommand=='A' || chCursorCommand=='D' || chCursorCommand=='F')
 			{
-				line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, "");
+				line = matcher.replaceFirst ("");
 				matcher.reset (line);
+				logger.fine ("光标向上 或 向左回退，忽略之");
 				continue;
 			}
 			iStart = matcher.start ();
 			iEnd = matcher.end ();
 //System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentRowNO + "行" + nCurrentColumnNO + "列]");
 //HexDump(ansi_escape_sequence);
-//System.out.println ("光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
+logger.fine ("光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
 			cursor_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
 //System.out.println ("光标移动 所有参数: " + cursor_parameters);
+
+logger.fine ("先计算当前行号、列号……");
 			for (i=0; i<iStart; i++)
 			{
 				char c = line.charAt(i);
+////System.out.print (String.format("%X ", (int)c));
 				if (c=='\n')
 				{
-//System.out.println ("在 " + i + " 处有换行符");
+////logger.finer ("在 " + i + " 处有换行符");
 					nCurrentRowNO ++;
 					nCurrentColumnNO = 1;
 				}
 				else if (c==0x03)	// 前面已经替换后的 IRC 颜色序列
 				{
 					i++;
-					//"\\d{1,2}(,\\d{1,2})?"
 					Matcher matcher2 = IRC_COLOR_SEQUENCE_PATTERN_Replace.matcher (line.substring(i));
 					if (matcher2.find())
 					{
 						//String group = matcher2.group();
 						//i += group.length();
-						i += matcher2.end() - matcher2.start();
+////logger.finer ("在 " + i + " 处有 IRC 转义序列");
+						i += matcher2.end() - matcher2.start() - 1;	// 忽略列号计数
 					}
 				}
+				else if (c==0x02 || c==0x0F || c==0x16 || c==0x1F)	// 前面已经替换后的其他 IRC 序列
+				{
+
+				}
 				else if (!Character.isISOControl(c))
+				{
 					nCurrentColumnNO ++;
+////System.out.print ("(" + nCurrentColumnNO + ")");
+				}
 			}
+////System.out.println ();
+logger.fine ("当前行号列号: " + nCurrentRowNO + " 行, " + nCurrentColumnNO + " 列");
+
 			switch (chCursorCommand)
 			{
 				//case 'A':	// 向上
@@ -1800,27 +1875,47 @@ System.out.println ("execute 结束");
 				//	matcher.reset (line);
 				//	continue;
 				case 'B':	// 向下
-				case 'd':	//
 					nColumnNO = nCurrentColumnNO;
 					if (!cursor_parameters.isEmpty())
-						nRowNO = nCurrentRowNO + Integer.parseInt (cursor_parameters);
+						nDelta = Integer.parseInt (cursor_parameters);
+
+					nRowNO = nCurrentRowNO + nDelta;
+					logger.fine ("光标向下 " + nDelta + " 行");
+					break;
+				case 'd':	// 光标绝对行号
+					nColumnNO = nCurrentColumnNO;
+					if (!cursor_parameters.isEmpty())
+						nRowNO = Integer.parseInt (cursor_parameters);
+
+					logger.fine ("光标跳至 " + nRowNO + " 行");
+					break;
 				case 'E':	// 向下，光标移动到最前
 					//nColumnNO = 1;
 					if (!cursor_parameters.isEmpty())
-						nRowNO = nCurrentRowNO + Integer.parseInt (cursor_parameters);
+						nDelta = Integer.parseInt (cursor_parameters);
+
+					nRowNO = nCurrentRowNO + nDelta;
+					logger.fine ("光标向下 " + nDelta + " 行, 并移动到行首");
 					break;
 				case 'G':	// 光标水平绝对位置
 					nRowNO = nCurrentRowNO;
 					if (!cursor_parameters.isEmpty())
 						nColumnNO = Integer.parseInt (cursor_parameters);
 
+					logger.fine ("光标水平移动到第 " + nColumnNO + " 列");
 					if (nColumnNO < nCurrentColumnNO)
+					{
 						nColumnNO = nCurrentColumnNO;
+						logger.fine ("    光标水平移动方向是回退方向的，忽略之");
+					}
 					break;
 				case 'C':	// 向右/前进
 					nRowNO = nCurrentRowNO;
 					if (!cursor_parameters.isEmpty())
-						nColumnNO = nCurrentColumnNO + Integer.parseInt (cursor_parameters);
+						nDelta = Integer.parseInt (cursor_parameters);
+
+					nColumnNO = nCurrentColumnNO + nDelta;
+					logger.fine ("光标向右 " + nDelta + " 列");
 					break;
 				case 'H':	// 指定位置
 					if (!cursor_parameters.isEmpty())
@@ -1834,6 +1929,7 @@ System.out.println ("execute 结束");
 						nRowNO = Integer.parseInt (sRowNO);
 					if (!sColumnNO.isEmpty())
 						nColumnNO = Integer.parseInt (sColumnNO);
+					logger.fine ("光标定位到: " + nRowNO + " 行, " + nColumnNO + " 列");
 					break;
 			}
 
@@ -1847,17 +1943,17 @@ System.out.println ("execute 结束");
 				for (i=1; i<nColumnNO; i++)	// 换行后，直接把列号数量的空格补充。 缺陷：如果在屏幕上此位置前已经有内容，则这样处理的结果与屏幕显示的肯定不一致
 					sb.append (" ");
 
-//System.out.println ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
-				line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, sb.toString());
+				logger.fine ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
+				line = matcher.replaceFirst (sb.toString());
 				nCurrentRowNO += (nRowNO-nCurrentRowNO);
 				nCurrentColumnNO = 1;
 			}
 			else if (nRowNO == nCurrentRowNO)
 			{
-//System.out.println ("指定跳转的行号 = 传入的行号");
+				logger.fine ("指定跳转的行号 = 传入的行号");
 				if (nColumnNO > nCurrentColumnNO)
 				{	// 如果列号比当前列号大，则补充空格
-//System.out.println ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
+					logger.fine ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
 					StringBuilder sb = new StringBuilder ();
 					sb.append (line.substring (0, iStart));
 					for (i=0; i<(nColumnNO-nCurrentColumnNO); i++)
@@ -1869,14 +1965,14 @@ System.out.println ("execute 结束");
 				}
 				else
 				{
-//System.out.println ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
-					line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, "");
+					logger.fine ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
+					line = matcher.replaceFirst ("");
 				}
 			}
 			else //if (nRowNO < nCurrentRowNO)
 			{
-//System.out.println ("指定跳转的行号 < 传入的行号");
-				line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, "");
+				logger.fine ("指定跳转的行号 < 传入的行号");
+				line = matcher.replaceFirst ("");
 			}
 
 			matcher.reset (line);
@@ -2187,7 +2283,7 @@ System.out.println (program + " 开始读取 stdout 流……");
 
 						if (!line.contains ("\n"))
 							SendMessage (channel, sender, globalOpts, line);
-						else	// 这里包含的换行符可能是 AnsiEscapeToIrcEscape 转换时遇到 CSI n;m 'H' (设置光标位置) 而导致的换行，蛋疼的 htop 输出
+						else	// 这里包含的换行符可能是 AnsiEscapeToIrcEscape 转换时遇到 CSI n;m 'H' (设置光标位置)、CSI n 'd' (行跳转) 等光标移动转义序列 而导致的换行 (比如: htop 的输出)
 						{
 							String[] arrayLines = line.split ("\n");
 							for (String newLine : arrayLines)
