@@ -21,7 +21,7 @@ import com.temesoft.google.pr.*;
 
 public class LiuYanBot extends PircBot
 {
-	Logger logger = Logger.getLogger (this.getClass().getName());
+	static Logger logger = Logger.getLogger (LiuYanBot.class.getName());
 	public static final String DEFAULT_TIME_FORMAT_STRING = "yyyy-MM-dd a KK:mm:ss Z EEEE";
 	public static final DateFormat DEFAULT_TIME_FORMAT = new SimpleDateFormat (DEFAULT_TIME_FORMAT_STRING);
 	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault ();
@@ -349,8 +349,8 @@ public class LiuYanBot extends PircBot
 		int 灌水计数器 = (int)mapUserInfo.get ("灌水计数器");
 		int 总灌水计数器 = (int)mapUserInfo.get ("总灌水计数器");
 		int 灌水判断时长 = (灌水计数器>时间间隔_小时 ? 灌水计数器-时间间隔_小时 : 0) + DEFAULT_ANTI_FLOOD_INTERVAL;
-//System.out.println ("当前时间="+new java.sql.Time(now) + ",最后活动时间=" + new java.sql.Time(最后活动时间) + ", 时间间隔="+时间间隔_秒+"秒("+时间间隔_小时+"小时)");
-//System.out.println ("灌水计数器="+灌水计数器+",灌水判断时长="+灌水判断时长+"秒");
+		logger.finer ("当前时间="+new java.sql.Time(now) + ",最后活动时间=" + new java.sql.Time(最后活动时间) + ", 时间间隔="+时间间隔_秒+"秒("+时间间隔_小时+"小时)");
+		logger.finer ("灌水计数器="+灌水计数器+",灌水判断时长="+灌水判断时长+"秒");
 		if (时间间隔_秒 >= 灌水判断时长)
 		{
 			灌水计数器 --;
@@ -516,6 +516,7 @@ public class LiuYanBot extends PircBot
 				&& !StringUtils.startsWithIgnoreCase(message, "urldecode")
 				&& !StringUtils.startsWithIgnoreCase(message, "urlencode")
 				&& !StringUtils.startsWithIgnoreCase(message, "httphead")
+				&& !StringUtils.startsWithIgnoreCase(message, "raw")
 				&& !StringUtils.startsWithIgnoreCase(message, "/set")
 				&& !StringUtils.startsWithIgnoreCase(message, "version")
 				)
@@ -794,6 +795,7 @@ public class LiuYanBot extends PircBot
 			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+		logger.fine (params);
 		sendRawLine (params);
 	}
 
@@ -802,17 +804,22 @@ public class LiuYanBot extends PircBot
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
 			arrayParams = params.split (" +", 2);
-		if (arrayParams == null || arrayParams.length<2)
+		if (arrayParams == null || arrayParams.length<1)
 		{
 			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String param = arrayParams[0];
-		String value = arrayParams[1];
+		String value = null;
+		if (arrayParams.length >= 2)
+			value = arrayParams[1];
 
 		if (param.equalsIgnoreCase ("loglevel"))	// 日志级别
 		{
-			logger.setLevel (Level.parse(value.toUpperCase()));
+			if (value==null)
+				logger.setLevel (null);	// 继承上级 logger 的日志级别
+			else
+				logger.setLevel (Level.parse(value.toUpperCase()));
 			System.out.println ("日志级别已改为: " + logger.getLevel ());
 		}
 	}
@@ -1440,7 +1447,7 @@ public class LiuYanBot extends PircBot
 			}
 
 			exec.execute (cmdline, env);
-System.out.println ("execute 结束");
+			logger.info ("execute 结束");
 		}
 		catch (Exception e)
 		{
@@ -1643,7 +1650,7 @@ System.out.println ("execute 结束");
 			//sb_ascii.setLength (0);
 			//sb.append ("\n");
 		}
-		System.out.println (sb);
+		logger.fine (sb.toString());
 	}
 	/**
 	 * 把 ANSI Escape sequence 转换为 IRC Escape sequence.
@@ -1679,17 +1686,17 @@ System.out.println ("execute 结束");
 			String sIRC_BG = "";	// ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
 			int nBG = -1;
 
-//logger.fine ("matched group=");
+			//logger.fine ("matched group=");
 			String ansi_escape_sequence = matcher.group();
 //System.out.println (ansi_escape_sequence);
-//HexDump (ansi_escape_sequence);
+			//HexDump (ansi_escape_sequence);
 			sgr_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
-//logger.fine ("SGR 所有参数: " + sgr_parameters);
+			logger.fine ("SGR 所有参数: " + sgr_parameters);
 			String[] arraySGR = sgr_parameters.split (";");
 			for (i=0; i<arraySGR.length; i++)
 			{
 				String sgrParam = arraySGR[i];
-//logger.finer ("SGR 参数 " + (i+1) + ": " + sgrParam);
+				logger.finer ("SGR 参数 " + (i+1) + ": " + sgrParam);
 				if (sgrParam.isEmpty())
 				{
 					irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
@@ -1818,25 +1825,25 @@ System.out.println ("execute 结束");
 			{
 				line = matcher.replaceFirst ("");
 				matcher.reset (line);
-				logger.fine ("光标向上 或 向左回退，忽略之");
+				logger.fine ("光标向上 或 向左回退，不处理，忽略之");
 				continue;
 			}
 			iStart = matcher.start ();
 			iEnd = matcher.end ();
 //System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentRowNO + "行" + nCurrentColumnNO + "列]");
 //HexDump(ansi_escape_sequence);
-logger.fine ("光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
+			logger.fine ("光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
 			cursor_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
 //System.out.println ("光标移动 所有参数: " + cursor_parameters);
 
-logger.fine ("先计算当前行号、列号……");
+			logger.fine ("先计算当前行号、列号……");
 			for (i=0; i<iStart; i++)
 			{
 				char c = line.charAt(i);
 ////System.out.print (String.format("%X ", (int)c));
 				if (c=='\n')
 				{
-////logger.finer ("在 " + i + " 处有换行符");
+					logger.finer ("在 " + i + " 处有换行符");
 					nCurrentRowNO ++;
 					nCurrentColumnNO = 1;
 				}
@@ -1846,16 +1853,13 @@ logger.fine ("先计算当前行号、列号……");
 					Matcher matcher2 = IRC_COLOR_SEQUENCE_PATTERN_Replace.matcher (line.substring(i));
 					if (matcher2.find())
 					{
-						//String group = matcher2.group();
-						//i += group.length();
-////logger.finer ("在 " + i + " 处有 IRC 转义序列");
+						logger.finer ("在 " + i + " 处有 IRC 转义序列");
 						i += matcher2.end() - matcher2.start() - 1;	// 忽略列号计数
 					}
 				}
-				else if (c==0x02 || c==0x0F || c==0x16 || c==0x1F)	// 前面已经替换后的其他 IRC 序列
-				{
-
-				}
+				//else if (c==0x02 || c==0x0F || c==0x16 || c==0x1F)	// 前面已经替换后的其他 IRC 序列
+				//{
+				//}
 				else if (!Character.isISOControl(c))
 				{
 					nCurrentColumnNO ++;
@@ -1863,7 +1867,7 @@ logger.fine ("先计算当前行号、列号……");
 				}
 			}
 ////System.out.println ();
-logger.fine ("当前行号列号: " + nCurrentRowNO + " 行, " + nCurrentColumnNO + " 列");
+			logger.fine ("当前行号列号: " + nCurrentRowNO + " 行, " + nCurrentColumnNO + " 列");
 
 			switch (chCursorCommand)
 			{
@@ -1977,8 +1981,8 @@ logger.fine ("当前行号列号: " + nCurrentRowNO + " 行, " + nCurrentColumnN
 
 			matcher.reset (line);
 		}
-//HexDump (line);
 
+		HexDump (line);
 		return line;
 	}
 
@@ -2076,7 +2080,7 @@ logger.fine ("当前行号列号: " + nCurrentRowNO + " 行, " + nCurrentColumnN
 			}
 		}
 
-System.out.println (listCommands);
+		logger.info (listCommands.toString());
 		try
 		{
 			for (int i=0; i<listCommands.size(); i++)
@@ -2091,7 +2095,7 @@ System.out.println (listCommands);
 						i==0?null:listCommands.get (i-1),
 						i==listCommands.size()-1?null:listCommands.get (i+1)
 					);
-System.out.println ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"));
+				logger.fine ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"));
 				executor.execute (runner);
 			}
 		}
@@ -2152,7 +2156,7 @@ System.out.println ("执行命令 " + (i+1) + ": " + mapCommand.get ("program"))
 		@Override
 		public void run ()
 		{
-System.out.println (program + " Thread ID = " + Thread.currentThread().getId());
+			logger.fine (program + " Thread ID = " + Thread.currentThread().getId());
 			boolean isPipeOut = false;
 			boolean isPipeIn = false;
 			boolean isRedirectOut = false;
@@ -2210,7 +2214,7 @@ System.out.println (program + " Thread ID = " + Thread.currentThread().getId());
 			//pb.redirectOutput (ProcessBuilder.Redirect.INHERIT);
 			try
 			{
-System.out.println (program + " 启动");
+				logger.info (program + " 启动");
 				ExecuteWatchdog watchdog = new ExecuteWatchdog (opt_timeout_length_seconds*1000);
 				nStartTime = System.currentTimeMillis();
 				Process p = pb.start ();
@@ -2225,12 +2229,12 @@ System.out.println (program + " 启动");
 
 				if (isPipeIn)
 				{	// 管道输入
-System.out.println (program + " 需要用从上个命令管道输入，通知上个命令 " + previousCommand.get("program") + " 同步");
+					logger.finer (program + " 需要用从上个命令管道输入，通知上个命令 " + previousCommand.get("program") + " 同步");
 					((CyclicBarrier)previousCommand.get("barrier")).await ();	// 等待与上个命令同步
 				}
 				if (isPipeOut)
 				{
-System.out.println (program + " 需要用管道输出到下个命令，等待下个命令 " + nextCommand.get("program") + " 同步…… ");
+					logger.finer (program + " 需要用管道输出到下个命令，等待下个命令 " + nextCommand.get("program") + " 同步…… ");
 					((CyclicBarrier)command.get("barrier")).await ();	// 等待与下个命令同步
 					nextOut = (OutputStream)nextCommand.get("out");
 					// 为管道输入/输出单独开启一个线程，避免类似 ping yes 这样永不结束的程序让下家得不到它的输出
@@ -2238,8 +2242,8 @@ System.out.println (program + " 需要用管道输出到下个命令，等待下
 						@Override
 						public void run ()
 						{
-System.out.println ("Piping thread ID = " + Thread.currentThread().getId());
-System.out.println (program + " 开始从管道输出……");
+							logger.fine ("Piping thread ID = " + Thread.currentThread().getId());
+							logger.finer (program + " 开始从管道输出……");
 							long n = 0;
 							try
 							{
@@ -2255,7 +2259,7 @@ System.out.println (program + " 开始从管道输出……");
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-System.out.println (program + " 管道输出结束, 输出了 " + n + " 字节");
+							logger.finer (program + " 管道输出结束, 输出了 " + n + " 字节");
 						}
 					});
 				}
@@ -2264,7 +2268,7 @@ System.out.println (program + " 管道输出结束, 输出了 " + n + " 字节")
 				{	// 需要把 stdout stderr 吃掉，否则进程不会结束
 					String line = null;
 					BufferedReader br = new BufferedReader (new InputStreamReader(in));
-System.out.println (program + " 开始读取 stdout 流……");
+					logger.finer (program + " 开始读取 stdout 流……");
 
 		otherLines:	while ((line = br.readLine()) != null)
 					{
@@ -2299,7 +2303,7 @@ System.out.println (program + " 开始读取 stdout 流……");
 							}
 						}
 					}
-System.out.println (program + " stdout 读取完毕");
+					logger.finer (program + " stdout 读取完毕");
 
 					if (lineCounter==0)
 						SendMessage (channel, sender, globalOpts, program + " 命令没有输出");
@@ -2307,19 +2311,19 @@ System.out.println (program + " stdout 读取完毕");
 					//if (!opt_output_stderr)
 					{
 						br = new BufferedReader (new InputStreamReader(err));
-System.out.println (program + " 开始读取 stderr 流……");
+						logger.finer (program + " 开始读取 stderr 流……");
 						while ((line = br.readLine()) != null)
 						{
 							//System.out.println (line);
 						}
-System.out.println (program + " stderr 读取完毕");
+						logger.finer (program + " stderr 读取完毕");
 					}
 				}
 
-System.out.println (program + " 等待其执行结束……");
+				logger.finer (program + " 等待其执行结束……");
 				int rc = p.waitFor ();
 				nEndTime = System.currentTimeMillis();
-System.out.println (program + " 执行结束, 返回值=" + rc);
+				logger.info (program + " 执行结束, 返回值=" + rc);
 				if (rc==0)
 				{
 					if ((nEndTime - nStartTime)/1000 > WATCH_DOG_TIMEOUT_LENGTH)
@@ -2512,7 +2516,6 @@ System.out.println (program + " 执行结束, 返回值=" + rc);
 		String[] arrayChannels;
 		String encoding = "UTF-8";
 		String geoIPDB = null;
-//System.out.println (Arrays.toString(args));
 
 		if (args.length==0)
 			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-e 字符集编码]");
