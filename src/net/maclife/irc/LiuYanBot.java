@@ -2,6 +2,7 @@ package net.maclife.irc;
 
 import java.io.*;
 import java.net.*;
+import java.nio.charset.*;
 import java.text.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -30,7 +31,34 @@ public class LiuYanBot extends PircBot
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 15;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
 	public static final int WATCH_DOG_TIMEOUT_LENGTH_LIMIT = 300;
 
+	public final Charset JVM_CHARSET = Charset.defaultCharset();
+	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
+
 	java.util.concurrent.Executor executor = Executors.newFixedThreadPool (15);
+
+	static String BOT_COMMAND_PREFIX = "";	//""   " "   "/"   "`"   "!"   "#"   "$"   "~"   "@"
+	static final String[][] BOT_COMMAND_NAMES =
+	{
+		{"help", },
+		{"time", },
+		{"action", },
+		{"notice", },
+		{"TimeZones", "JavaTimeZones", },
+		{"Locales", "JavaLocales", },
+		{"cmd", "exec", },
+		{"cmd2", },
+		{"parseCmd", },
+		{"env", },
+		{"properties", },
+		{"geoip", },
+		{"PageRank", "pr", },
+		{"urldecode", },
+		{"urlencode", },
+		{"httphead", },
+		{"raw", },
+		{"/set", },
+		{"version", },
+	};
 
 	// http://en.wikipedia.org/wiki/ANSI_escape_code#CSI_codes
 	public static final String ESC = "\u001B";
@@ -163,82 +191,82 @@ public class LiuYanBot extends PircBot
 
 		// 216 色立方体
 		// 16-21
-		Colors.BLACK, Colors.BLACK, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE,
+		Colors.BLACK, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 22-27
-		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE,
+		Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 28-33
-		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE,
+		Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 34-39
-		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.CYAN,
+		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.BLUE, Colors.BLUE,
 		// 40-45
-		Colors.GREEN, Colors.GREEN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.CYAN, Colors.CYAN,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
 		// 46-51
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.DARK_BLUE, Colors.CYAN, Colors.CYAN,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
 
 		// 52-57
-		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, Colors.PURPLE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 58-63
-		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, Colors.DARK_GRAY, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 64-69
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 70-75
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.BLUE, Colors.BLUE,
 		// 76-81
-		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.BLUE,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
 		// 82-87
-		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.CYAN,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
 
 		// 88-93
-		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 94-99
-		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 100-105
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_ORANGE, Colors.DARK_GRAY, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
 		// 106-111
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.BLUE, Colors.BLUE,
 		// 112-117
-		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
 		// 118-123
-		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, COLOR_DARK_CYAN,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
 
 		// 124-129
-		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.BLUE, Colors.BLUE,
 		// 130-135
-		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.BLUE, Colors.BLUE,
 		// 136-141
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.BLUE, Colors.BLUE,
 		// 142-147
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		COLOR_ORANGE, COLOR_ORANGE, COLOR_ORANGE, Colors.LIGHT_GRAY, Colors.BLUE, Colors.BLUE,
 		// 148-153
-		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
 		// 154-159
-		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
 
 		// 160-165
-		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
 		// 166-171
-		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
 		// 172-177
-		COLOR_ORANGE, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
 		// 178-183
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
 		// 184-189
-		Colors.DARK_GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.LIGHT_GRAY, Colors.BLUE,
 		// 190-195
-		Colors.GREEN, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE, Colors.LIGHT_GRAY,
+		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
 
 		// 196-201
-		Colors.RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.MAGENTA, Colors.MAGENTA,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
 		// 202-207
-		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
 		// 208-213
-		COLOR_ORANGE, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
 		// 214-219
-		COLOR_ORANGE, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.PURPLE, Colors.PURPLE,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
 		// 220-225
-		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.PURPLE, Colors.PURPLE,
+		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
 		// 226-231
-		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.WHITE, Colors.WHITE,
+		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.WHITE,
 
 		// 24 个灰度阶梯
 		Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK,
@@ -247,12 +275,17 @@ public class LiuYanBot extends PircBot
 		Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE,
 	};
 
-	public static final String COLOR_BOT_COMMAND = Colors.GREEN;
-	public static final String COLOR_COMMAND = Colors.GREEN;
+	public static final String COLOR_BOT_COMMAND = Colors.DARK_GREEN;
+	public static final String COLOR_COMMAND = Colors.DARK_GREEN;
+	public static final String COLOR_COMMAND_INSTANCE = Colors.GREEN;
+	public static final String COLOR_COMMAND_PREFIX = COLOR_DARK_RED;
+	public static final String COLOR_COMMAND_PREFIX_INSTANCE = Colors.RED;
 	public static final String COLOR_COMMAND_OPTION = COLOR_DARK_CYAN;
-	public static final String COLOR_COMMAND_LITERAL_OPTION = Colors.CYAN;	// 指具体选项值
+	public static final String COLOR_COMMAND_OPTION_INSTANCE = Colors.CYAN;	// 指具体选项值
 	public static final String COLOR_COMMAND_OPTION_VALUE = Colors.PURPLE;
+	public static final String COLOR_COMMAND_OPTION_VALUE_INSTANCE = Colors.MAGENTA;
 	public static final String COLOR_COMMAND_PARAMETER = Colors.BLUE;
+	public static final String COLOR_COMMAND_PARAMETER_INSTANCE = Colors.BLUE;
 
 	Comparator antiFloodComparitor = new AntiFloodComparator ();
 	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
@@ -281,6 +314,10 @@ public class LiuYanBot extends PircBot
 	public LiuYanBot ()
 	{
 		setName ("LiuYanBot");
+
+		String botcmd_prefix = System.getProperty ("botcmd.prefix");
+		if (botcmd_prefix!=null && !botcmd_prefix.isEmpty ())
+			BOT_COMMAND_PREFIX = botcmd_prefix;
 	}
 	public void SetName (String n)
 	{
@@ -304,6 +341,7 @@ public class LiuYanBot extends PircBot
 	{
 		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		//String opt_charset = (String)mapGlobalOptions.get("opt_charset");
 		SendMessage (channel, user, opt_output_username, opt_max_response_lines, msg);
 	}
 	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
@@ -373,6 +411,7 @@ public class LiuYanBot extends PircBot
 			int nRandom = rand.nextInt (灌水计数器);
 			用户灌水时是否回复 = (nRandom <= 1);	// 1/灌水计数器 的几率回复一次
 
+			// 发送消息提示该用户，但别造成自己被跟着 flood 起来
 			if (!上次是否灌水 || 用户灌水时是否回复)
 				SendMessage (channel, sender, true, 1, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
 		}
@@ -490,66 +529,55 @@ public class LiuYanBot extends PircBot
 	@Override
 	public void onMessage (String channel, String sender, String login, String hostname, String message)
 	{
+		boolean isSayingToMe = false;	// 是否是指名道姓的对我说
 		//System.out.println ("ch="+channel +",sender="+sender +",login="+login +",hostname="+hostname);
-		// 如果是直接对 Bot 说话，则把机器人用户名去掉
+		// 如果是指名道姓的直接对 Bot 说话，则把机器人用户名去掉
 		if (StringUtils.startsWithIgnoreCase(message, getName()+":") || StringUtils.startsWithIgnoreCase(message, getName()+","))
 		{
+			isSayingToMe = true;
 			message = message.substring (getName().length() + 1);	// : 后面的内容
 			message = message.trim ();
 		}
 		try
 		{
-			// 轻量级的判断
-			if (
-				!StringUtils.startsWithIgnoreCase(message, "help")
-				&& !StringUtils.startsWithIgnoreCase(message, "time")
-				&& !StringUtils.startsWithIgnoreCase(message, "action")
-				&& !StringUtils.startsWithIgnoreCase(message, "notice")
-				&& !StringUtils.startsWithIgnoreCase(message, "TimeZones") && !StringUtils.startsWithIgnoreCase(message, "JavaTimeZones")
-				&& !StringUtils.startsWithIgnoreCase(message, "Locales") && !StringUtils.startsWithIgnoreCase(message, "JavaLocales")
-				&& !StringUtils.startsWithIgnoreCase(message, "exec") && !StringUtils.startsWithIgnoreCase(message, "cmd")
-				&& !StringUtils.startsWithIgnoreCase(message, "parseCmd")
-				&& !StringUtils.startsWithIgnoreCase(message, "env")
-				&& !StringUtils.startsWithIgnoreCase(message, "properties")
-				&& !StringUtils.startsWithIgnoreCase(message, "geoip")
-				&& !StringUtils.startsWithIgnoreCase(message, "pr") && !StringUtils.startsWithIgnoreCase(message, "PageRank")
-				&& !StringUtils.startsWithIgnoreCase(message, "urldecode")
-				&& !StringUtils.startsWithIgnoreCase(message, "urlencode")
-				&& !StringUtils.startsWithIgnoreCase(message, "httphead")
-				&& !StringUtils.startsWithIgnoreCase(message, "raw")
-				&& !StringUtils.startsWithIgnoreCase(message, "/set")
-				&& !StringUtils.startsWithIgnoreCase(message, "version")
-				)
+			String botCmd;
+			botCmd = getBotCommand (message);
+			if (botCmd == null)
 			{
+				if (isSayingToMe)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
+				{
+					SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommand("help") + " 命令显示帮助信息");
+					//ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listEnv, null);
+				}
 				return;
 			}
 
-			// Anti-Flood 防止灌水
+			// Anti-Flood 防止灌水、滥用
 			if (isFlooding(channel, sender, login, hostname, message))
-			{
-				// 发送消息提示该用户，但别造成自己被跟着 flood 起来
 				return;
-			}
 
 			// 统一命令格式处理，得到 bot 命令、bot 命令环境参数、其他参数
 			// bot命令[.语言等环境变量]... [参数]...
 			//  语言
-			String botcmd, params=null;
+			String botCmdAlias, params=null;
 			List<String> listEnv=null;
+			if (!BOT_COMMAND_PREFIX.isEmpty())
+				message = message.substring (BOT_COMMAND_PREFIX.length ());	// 这样直接去掉前缀字符串长度的字符串(而不验证 message 是否以前缀开头)，是因为前面的 getBotCommand 命令已经验证了命令前缀的有效性，否则这样直接去掉是存在缺陷的的（”任意与当前前缀相同长度的前缀都是有效的前缀“）
 			String[] args = message.split (" +", 2);
-			botcmd = args[0];
+			botCmdAlias = args[0];
 			boolean opt_output_username = true;
 			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
 			int opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH;
+			String opt_charset = null;
 			Map<String, Object> mapGlobalOptions = new HashMap ();
 			Map<String, String> mapUserEnv = new HashMap ();	// 用户在 全局参数 里指定的环境变量
 			mapGlobalOptions.put ("env", mapUserEnv);
 			if (args[0].contains("."))
 			{
 				int iFirstDotIndex = args[0].indexOf(".");
-				botcmd = args[0].substring (0, iFirstDotIndex);
+				botCmdAlias = args[0].substring (0, iFirstDotIndex);
 				String sEnv = args[0].substring (iFirstDotIndex + 1);
 				String[] arrayEnv = sEnv.split ("[\\.]+");
 				for (String env : arrayEnv)
@@ -561,16 +589,19 @@ public class LiuYanBot extends PircBot
 					if (env.equalsIgnoreCase("nou"))	// do not output user name 响应时，不输出用户名
 					{
 						opt_output_username = false;
+						logger.finer ("bot “输出用户名”设置为: " + opt_output_username);
 						continue;
 					}
 					else if (env.equalsIgnoreCase("err") || env.equalsIgnoreCase("stderr"))	// 输出 stderr
 					{
 						opt_output_stderr = true;
+						logger.finer ("cmd 命令“输出 stderr”设置为: " + opt_ansi_escape_to_irc_escape);
 						continue;
 					}
 					else if (env.equalsIgnoreCase("esc") || env.equalsIgnoreCase("escape"))	// 转换 ANSI Escape 序列到 IRC Escape 序列
 					{
 						opt_ansi_escape_to_irc_escape = true;
+						logger.finer ("cmd 命令“对输出进行 ANSI 转义序列转换为 IRC 序列”设置为: " + opt_ansi_escape_to_irc_escape);
 						continue;
 					}
 					else if (env.contains("="))	// 设置环境变量，如 LINES=40 COLUMNS=120 等，注意，环境变量的数值不能包含小数点，因为这是全局参数的分隔符。所以，对于 LANG=zh_CN.UTF-8 之类的环境变量，需要当成命令局部参数处理
@@ -590,6 +621,13 @@ public class LiuYanBot extends PircBot
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
+							logger.finer ("cmd 命令“执行超时时长”设置为: " + opt_timeout_length_seconds + " 秒");
+							continue;
+						}
+						if (varName.equals("ocs") || varName.equalsIgnoreCase("OutputCharSet") || varName.equalsIgnoreCase("encoding"))
+						{
+							opt_charset = varValue;
+							logger.finer ("cmd 命令“输出字符集”设置为: " + opt_charset);
 							continue;
 						}
 						mapUserEnv.put (varName, varValue);
@@ -608,6 +646,7 @@ public class LiuYanBot extends PircBot
 						{
 							e.printStackTrace ();
 						}
+						logger.finer ("bot “最大响应行数”设置为: " + opt_max_response_lines);
 						continue;
 					}
 
@@ -621,6 +660,7 @@ public class LiuYanBot extends PircBot
 			mapGlobalOptions.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
 			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
 			mapGlobalOptions.put ("opt_timeout_length_seconds", opt_timeout_length_seconds);
+			mapGlobalOptions.put ("opt_charset", opt_charset);
 
 			if (args.length >= 2)
 				params = args[1];
@@ -629,50 +669,76 @@ public class LiuYanBot extends PircBot
 //System.out.println (params);
 
 			if (false) {}
-			else if (botcmd.equalsIgnoreCase("cmd") || botcmd.equalsIgnoreCase("exec"))
-				ProcessCommand_Exec (channel, sender, login, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("cmd2"))
-				ExecuteCommand (channel, sender, login, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("parseCmd"))
-				ProcessCommand_ParseCommand (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("time"))
-				ProcessCommand_Time (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("action"))
-				ProcessCommand_ActionNotice (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("notice"))
-				ProcessCommand_ActionNotice (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("locales") || botcmd.equalsIgnoreCase("javalocales"))
-				ProcessCommand_Locales (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("timezones") || botcmd.equalsIgnoreCase("javatimezones"))
-				ProcessCommand_TimeZones (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("env"))
-				ProcessCommand_Environment (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("properties"))
-				ProcessCommand_Properties (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("geoip"))
-				ProcessCommand_GeoIP (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("PageRank") || botcmd.equalsIgnoreCase("pr"))
-				ProcessCommand_GooglePageRank (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("urlencode") || botcmd.equalsIgnoreCase("urldecode"))
-				ProcessCommand_URLEncodeDecode (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("httphead"))
-				ProcessCommand_HTTPHead (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("help"))
-				ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("version"))
-				ProcessCommand_Version (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("raw"))
-				ProcessCommand_SendRaw (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			else if (botcmd.equalsIgnoreCase("/set"))
-				ProcessCommand_Set (channel, sender, botcmd, mapGlobalOptions, listEnv, params);
-			//else //if (botcmd.equalsIgnoreCase("help"))
-			//	ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listEnv, null);
+			else if (botCmd.equalsIgnoreCase("cmd"))
+				ProcessCommand_Exec (channel, sender, login, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("cmd2"))
+				ExecuteCommand (channel, sender, login, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("parseCmd"))
+				ProcessCommand_ParseCommand (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("time"))
+				ProcessCommand_Time (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("action"))
+				ProcessCommand_ActionNotice (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("notice"))
+				ProcessCommand_ActionNotice (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("locales"))
+				ProcessCommand_Locales (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("timezones"))
+				ProcessCommand_TimeZones (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("env"))
+				ProcessCommand_Environment (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("properties"))
+				ProcessCommand_Properties (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("geoip"))
+				ProcessCommand_GeoIP (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("PageRank"))
+				ProcessCommand_GooglePageRank (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("urlencode") || botCmd.equalsIgnoreCase("urldecode"))
+				ProcessCommand_URLEncodeDecode (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("httphead"))
+				ProcessCommand_HTTPHead (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("help"))
+				ProcessCommand_Help (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("version"))
+				ProcessCommand_Version (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("raw"))
+				ProcessCommand_SendRaw (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("/set"))
+				ProcessCommand_Set (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
 			SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "出错：" + e);
 		}
+	}
+
+	/**
+	 * 从输入的字符串中提取出合法的 bot 命令
+	 * @param input
+	 * @return 如果存在合法的命令，则返回 BOT_COMMAND_NAMES 数组中的第一个元素；如果不存在合法的命令，则返回 null
+	 */
+	String getBotCommand (String input)
+	{
+		for (String[] names : BOT_COMMAND_NAMES)
+		{
+			for (String name : names)
+			{
+				String cmd = formatBotCommand (name);
+				if (
+					   StringUtils.equalsIgnoreCase (input, cmd)	// [“输入”与“命令”完全相等]，
+					|| StringUtils.startsWithIgnoreCase (input, cmd + " ")	// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
+					|| StringUtils.startsWithIgnoreCase (input, cmd + ".")	// 或者 [“输入”以“命令”开头，且紧接小数点"."字符]，小数点字符用于附加 bot 命令的选项
+					)
+				//if (input.matches (cmd))
+					return names[0];
+			}
+		}
+		return null;
+	}
+	String formatBotCommand (String cmd)
+	{
+		return BOT_COMMAND_PREFIX + cmd;
 	}
 
 	boolean isCommandMatch (String[] inputs, String cmd)
@@ -689,17 +755,18 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, mapGlobalOptions,
-				"本bot命令格式: <" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    命令列表:  " + COLOR_COMMAND + "Help Time Cmd Cmd2 ParseCmd Action Notice GeoIP PageRank TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				"本bot命令格式: <" + COLOR_COMMAND_PREFIX + "命令前缀 + " + Colors.NORMAL +"><" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL +
+				"]...    当前" + (BOT_COMMAND_PREFIX.isEmpty () ? "没有命令前缀" : "的命令前缀是 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL)  + ", 命令列表:  " + COLOR_COMMAND_INSTANCE + "Help Time Cmd Cmd2 ParseCmd Action Notice GeoIP PageRank TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
-				COLOR_COMMAND_LITERAL_OPTION + "nou" + Colors.NORMAL + "--不输出用户名(NO Username), " +
+				COLOR_COMMAND_OPTION_INSTANCE + "nou" + Colors.NORMAL + "--不输出用户名(NO Username), " +
 				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过" + MAX_RESPONSE_LINES_LIMIT + "). " +
 
 				COLOR_BOT_COMMAND + "cmd" + Colors.NORMAL + " 命令特有选项: " +
-				COLOR_COMMAND_LITERAL_OPTION + "esc" + Colors.NORMAL + "|" + COLOR_COMMAND_LITERAL_OPTION + "escape" + Colors.NORMAL + "--将输出的颜色转换为 IRC 颜色('ESC[01;33;41m' -> 0x02 0x03 '0308,04'), " +
-				COLOR_COMMAND_LITERAL_OPTION + "err" + Colors.NORMAL + "|" + COLOR_COMMAND_LITERAL_OPTION + "stderr" + Colors.NORMAL + "--输出 stderr, " +
-				COLOR_COMMAND_LITERAL_OPTION + "timeout=" + COLOR_COMMAND_OPTION_VALUE + "N" + Colors.NORMAL + "--将超时时间改为 N 秒), " +
+				COLOR_COMMAND_OPTION_INSTANCE + "esc" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "escape" + Colors.NORMAL + "--将输出的 ANSI 颜色转换为 IRC 颜色(ESC'[01;33;41m' -> 0x02 0x03 '08,04'), " +
+				COLOR_COMMAND_OPTION_INSTANCE + "err" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "stderr" + Colors.NORMAL + "--输出 stderr, " +
+				COLOR_COMMAND_OPTION_INSTANCE + "timeout=" + COLOR_COMMAND_OPTION_VALUE + "N" + Colors.NORMAL + "--将超时时间改为 N 秒), " +
 				COLOR_COMMAND_OPTION + "变量名=" + COLOR_COMMAND_OPTION_VALUE + "变量值" + Colors.NORMAL + "--设置环境变量), " +
 				"全局选项的顺序无关紧要, 私有选项需按命令要求的顺序出现"
 				);
@@ -712,9 +779,9 @@ public class LiuYanBot extends PircBot
 		cmd = "time";           if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		cmd = "action";         if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_LITERAL_OPTION + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_LITERAL_OPTION + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "动作消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION_INSTANCE + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "动作消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
 		cmd = "notice";         if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_LITERAL_OPTION + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_LITERAL_OPTION + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "通知消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION_INSTANCE + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "通知消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
 		cmd = "parsecmd";       if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析要执行的命令");
 		cmd = "cmd";            if (isCommandMatch (args, cmd) || isCommandMatch (args, "exec"))
@@ -803,7 +870,7 @@ public class LiuYanBot extends PircBot
 	{
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
-			arrayParams = params.split (" +", 2);
+			arrayParams = params.split (" ", 2);
 		if (arrayParams == null || arrayParams.length<1)
 		{
 			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
@@ -821,6 +888,16 @@ public class LiuYanBot extends PircBot
 			else
 				logger.setLevel (Level.parse(value.toUpperCase()));
 			System.out.println ("日志级别已改为: " + logger.getLevel ());
+		}
+		else if (param.equalsIgnoreCase ("botcmd.prefix"))	// bot 命令前缀
+		{
+			if (value==null || value.isEmpty ())
+			{
+				System.out.println ("bot 命令格式字符串不能为空");
+				return;
+			}
+			BOT_COMMAND_PREFIX = value;
+			System.out.println ("bot 命令格式字符串已改为: [" + BOT_COMMAND_PREFIX + "]");
 		}
 	}
 
@@ -867,8 +944,13 @@ public class LiuYanBot extends PircBot
 				sDateFormat = args[1];
 		}
 
+		String sWarning = "";
 		if (sTimeZoneID!=null)
+		{
 			tz = TimeZone.getTimeZone (sTimeZoneID);
+			if (tz.getRawOffset()==0)
+				sWarning = " (" + sTimeZoneID + " 有可能不是有效的时区，被默认为国际标准时间)";
+		}
 		if (sDateFormat==null)
 			sDateFormat = DEFAULT_TIME_FORMAT_STRING;
 		if (l == null)
@@ -890,7 +972,8 @@ public class LiuYanBot extends PircBot
 					(l==null ? DEFAULT_TIME_ZONE.getDisplayName() : DEFAULT_TIME_ZONE.getDisplayName(l)) :
 					(l==null ? tz.getDisplayName() : tz.getDisplayName(l))
 					) + Colors.NORMAL +
-			"]."
+			"]." +
+			sWarning
 			// docs.oracle.com/javase/7/docs/api/java/util/Locale.html docs.oracle.com/javase/7/docs/api/java/util/TimeZone.html docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html
 			// http://docs.oracle.com/javase/7/docs/api/java/util/Locale.html http://docs.oracle.com/javase/7/docs/api/java/util/TimeZone.html http://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html
 			);
@@ -1495,21 +1578,33 @@ public class LiuYanBot extends PircBot
 			|| cmd.equalsIgnoreCase("sh") || StringUtils.endsWithIgnoreCase(cmd, "/sh")
 			|| cmd.equalsIgnoreCase("dash") || StringUtils.endsWithIgnoreCase(cmd, "/dash")
 
+			// 防止把禁用命令“软连接/改名”
 			|| cmd.equalsIgnoreCase("ln") || StringUtils.endsWithIgnoreCase(cmd, "/ln")
 			|| cmd.equalsIgnoreCase("link") || StringUtils.endsWithIgnoreCase(cmd, "/link")
 
+			// 关机 重启
 			|| cmd.equalsIgnoreCase("poweroff") || StringUtils.endsWithIgnoreCase(cmd, "/poweroff")
 			|| cmd.equalsIgnoreCase("halt") || StringUtils.endsWithIgnoreCase(cmd, "/halt")
 			|| cmd.equalsIgnoreCase("reboot") || StringUtils.endsWithIgnoreCase(cmd, "/reboot")
 			|| cmd.equalsIgnoreCase("shutdown") || StringUtils.endsWithIgnoreCase(cmd, "/shutdown")
+			|| cmd.equalsIgnoreCase("systemctl") || StringUtils.endsWithIgnoreCase(cmd, "/systemctl")
 
+			// 执行脚本
 			|| cmd.equalsIgnoreCase("python") || StringUtils.endsWithIgnoreCase(cmd, "/python")
 			|| cmd.equalsIgnoreCase("perl") || StringUtils.endsWithIgnoreCase(cmd, "/perl")
-			|| cmd.equalsIgnoreCase("java") || StringUtils.endsWithIgnoreCase(cmd, "/java")
 
-			|| cmd.equalsIgnoreCase("env") || StringUtils.endsWithIgnoreCase(cmd, "/env")
-			|| cmd.equalsIgnoreCase("watch") || StringUtils.endsWithIgnoreCase(cmd, "/watch")
-			|| cmd.equalsIgnoreCase("nohup") || StringUtils.endsWithIgnoreCase(cmd, "/nohup")
+			|| cmd.equalsIgnoreCase("java") || StringUtils.endsWithIgnoreCase(cmd, "/java")
+			|| cmd.equalsIgnoreCase("gcc") || StringUtils.endsWithIgnoreCase(cmd, "/gcc")
+			|| cmd.equalsIgnoreCase("g++") || StringUtils.endsWithIgnoreCase(cmd, "/g++")
+			|| cmd.equalsIgnoreCase("make") || StringUtils.endsWithIgnoreCase(cmd, "/make")
+
+			// 可以执行其他命令的命令
+			|| cmd.equalsIgnoreCase("env") || StringUtils.endsWithIgnoreCase(cmd, "/env")	// coreutils
+			|| cmd.equalsIgnoreCase("watch") || StringUtils.endsWithIgnoreCase(cmd, "/watch")	// procps-ng
+			|| cmd.equalsIgnoreCase("nohup") || StringUtils.endsWithIgnoreCase(cmd, "/nohup")	// coreutils
+			|| cmd.equalsIgnoreCase("stdbuf") || StringUtils.endsWithIgnoreCase(cmd, "/stdbuf")	// coreutils
+			|| cmd.equalsIgnoreCase("unbuffer") || StringUtils.endsWithIgnoreCase(cmd, "/unbuffer")	// expect
+			|| cmd.equalsIgnoreCase("time") || StringUtils.endsWithIgnoreCase(cmd, "/time")	// time
 		)
 		&& !isUserInWhiteList(u, nick))
 			return false;
@@ -1572,6 +1667,7 @@ public class LiuYanBot extends PircBot
 		boolean opt_output_username;
 		boolean opt_ansi_escape_to_irc_escape;
 		int opt_max_response_lines;
+		String opt_charset;
 		Map<String, Object> options;
 		int lineCounter = 0;
 		public OutputStreamToIRCMessage (String channel, String sender, Map<String, Object> mapOptions)	//boolean opt_output_username, boolean opt_ansi_escape_to_irc_escape, int opt_max_response_lines
@@ -1582,6 +1678,7 @@ public class LiuYanBot extends PircBot
 			this.opt_output_username = (boolean)options.get("opt_output_username");
 			this.opt_ansi_escape_to_irc_escape = (boolean)options.get("opt_ansi_escape_to_irc_escape");
 			this.opt_max_response_lines = (int)options.get("opt_max_response_lines");
+			this.opt_charset = (String)mapOptions.get("opt_charset");
 		}
 		@Override
 		protected void processLine (String line, int level)
@@ -1598,6 +1695,7 @@ public class LiuYanBot extends PircBot
 			if (opt_ansi_escape_to_irc_escape)
 				line = AnsiEscapeToIrcEscape (line, lineCounter);
 
+			//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
 			SendMessage (channel, sender, options, line);
 		}
 	}
@@ -2116,9 +2214,10 @@ public class LiuYanBot extends PircBot
 
 		boolean opt_output_username = true;
 		boolean opt_output_stderr = false;
-		boolean opt_ansi_escape_to_irc_escape;
+		boolean opt_ansi_escape_to_irc_escape = false;
 		int opt_max_response_lines = 0;
 		int opt_timeout_length_seconds = 0;
+		String opt_charset = null;
 
 		Map<String, Object> previousCommand = null;	// 上个命令
 		Map<String, Object> nextCommand = null;	// 下个命令
@@ -2148,6 +2247,7 @@ public class LiuYanBot extends PircBot
 				opt_max_response_lines = (int)globalOpts.get("opt_max_response_lines");
 				opt_ansi_escape_to_irc_escape = (boolean)globalOpts.get("opt_ansi_escape_to_irc_escape");
 				opt_timeout_length_seconds = (int)globalOpts.get("opt_timeout_length_seconds");
+				opt_charset = (String)globalOpts.get("opt_charset");
 
 			cmdEnv = listCmdEnv;
 			previousCommand = mapPreviousCommand;
@@ -2243,20 +2343,28 @@ public class LiuYanBot extends PircBot
 						public void run ()
 						{
 							logger.fine ("Piping thread ID = " + Thread.currentThread().getId());
-							logger.finer (program + " 开始从管道输出……");
+							logger.finer (program + "->" + nextCommand.get("program") + " 开始从管道输入输出……");
 							long n = 0;
+							int nReaded = 0;
 							try
 							{
 								byte[] small_buffer = new byte[10];	// 用小的缓冲区，让下个命令尽快得到输出（否则，如果当前命令是 ping，要攒够默认缓冲区大小 4096 字节的数据要等很久）
 								//n = IOUtils.copyLarge (in, nextOut);
-								n = IOUtils.copyLarge (in, nextOut, small_buffer);
+								//n = IOUtils.copyLarge (in, nextOut, small_buffer);
+								while (-1 != (nReaded = in.read(small_buffer)))
+								{
+									nextOut.write(small_buffer, 0, nReaded);
+									n += nReaded;
+									nextOut.flush ();
+									logger.finest (program + "->" + nextCommand.get("program") +" 传输了 " + nReaded + " 字节");
+								}
+								logger.finer (program + "->" + nextCommand.get("program") +" 总共传输了 " + n + " 字节");
 								in.close ();
 								nextOut.flush ();
 								nextOut.close ();	// 必须关闭，否则下个进程的线程不会结束
 							}
 							catch (IOException e)
 							{
-								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
 							logger.finer (program + " 管道输出结束, 输出了 " + n + " 字节");
@@ -2267,11 +2375,20 @@ public class LiuYanBot extends PircBot
 				if (!isPipeOut && !isRedirectOut)
 				{	// 需要把 stdout stderr 吃掉，否则进程不会结束
 					String line = null;
-					BufferedReader br = new BufferedReader (new InputStreamReader(in));
 					logger.finer (program + " 开始读取 stdout 流……");
 
-		otherLines:	while ((line = br.readLine()) != null)
+					BufferedReader br = null;
+					br = new BufferedReader (
+							(opt_charset==null || opt_charset.isEmpty()) ?
+							new InputStreamReader(in) :
+							new InputStreamReader(in, opt_charset)
+							);
+					//LineIterator li = IOUtils.lineIterator (in, opt_charset);
+		otherLines:
+					while ((line = br.readLine()) != null)
+					//while (li.hasNext())
 					{
+						//line = li.nextLine ();
 						lineCounterIncludingEmptyLines ++;
 						if (!opt_output_username && line.isEmpty())	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
 							continue;
@@ -2286,7 +2403,10 @@ public class LiuYanBot extends PircBot
 							line = AnsiEscapeToIrcEscape (line, lineCounterIncludingEmptyLines);
 
 						if (!line.contains ("\n"))
+						{
+							//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
 							SendMessage (channel, sender, globalOpts, line);
+						}
 						else	// 这里包含的换行符可能是 AnsiEscapeToIrcEscape 转换时遇到 CSI n;m 'H' (设置光标位置)、CSI n 'd' (行跳转) 等光标移动转义序列 而导致的换行 (比如: htop 的输出)
 						{
 							String[] arrayLines = line.split ("\n");
@@ -2297,6 +2417,7 @@ public class LiuYanBot extends PircBot
 								if (lineCounter > opt_max_response_lines)
 									continue otherLines;	// java 的标签只有跳循环这个用途，这还是第一次实际应用……
 
+								//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
 								SendMessage (channel, sender, globalOpts, newLine);
 								lineCounter ++;
 								lineCounterIncludingEmptyLines++;
@@ -2353,7 +2474,31 @@ public class LiuYanBot extends PircBot
 		int timelength = (int)( end - start) / 1000;
 		int nMinute = timelength/60;
 		int nSeconds = timelength%60;
-		return (nMinute==0?"":""+nMinute+"分") + (nSeconds==0?"":""+nSeconds+"秒");
+		return (nMinute==0?"":""+nMinute+"分钟") + (nSeconds==0?"":""+nSeconds+"秒");
+	}
+
+	String ConvertCharsetEncoding (String s, String src, String dst)
+	{
+		if (src!=null && !src.isEmpty() && !src.equalsIgnoreCase(dst))
+		{	// 如果设置了字符集，并且该字符集与 IRC 服务器字符集不相同，则转换之
+			logger.fine ("转换字符集编码: " + src + " -> " + dst);
+			try
+			{
+				HexDump (s);
+				// 这里需要转两次，比如：以 GBK 字符集编码的“中”字，其字节为 0xD6 0xD0，但在 BufferedReader.readLine() 之后变成了 EF BF BD EF BF BD
+				byte[] ba = s.getBytes("Windows-1252");	// JVM_CHARSET
+				s = new String (ba, src);
+				HexDump (s);
+				//s = new String (s.getBytes(src), dst);
+				//HexDump (s);
+				return s;
+			}
+			catch (UnsupportedEncodingException e)
+			{
+				e.printStackTrace();
+			}
+		}
+		return s;
 	}
 
 	public static boolean isQuoteChar (char ch)
@@ -2511,8 +2656,8 @@ public class LiuYanBot extends PircBot
 	public static void main (String[] args) throws IOException, IrcException
 	{
 		String server = "irc.freenode.net";
-		String nick = "FedoraBot";
-		String channels = "#LiuYanBot,#fedora-zh,#linuxba";
+		String nick = "CmdBot";
+		String channels = "#LiuYanBot,#linuxba";
 		String[] arrayChannels;
 		String encoding = "UTF-8";
 		String geoIPDB = null;
