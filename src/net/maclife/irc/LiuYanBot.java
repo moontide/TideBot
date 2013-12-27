@@ -46,7 +46,6 @@ public class LiuYanBot extends PircBot
 		{"TimeZones", "JavaTimeZones", },
 		{"Locales", "JavaLocales", },
 		{"cmd", "exec", },
-		{"cmd2", },
 		{"parseCmd", },
 		{"env", },
 		{"properties", },
@@ -670,8 +669,6 @@ public class LiuYanBot extends PircBot
 
 			if (false) {}
 			else if (botCmd.equalsIgnoreCase("cmd"))
-				ProcessCommand_Exec (channel, sender, login, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("cmd2"))
 				ExecuteCommand (channel, sender, login, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("parseCmd"))
 				ProcessCommand_ParseCommand (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
@@ -755,8 +752,9 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, mapGlobalOptions,
-				"本bot命令格式: <" + COLOR_COMMAND_PREFIX + "命令前缀 + " + Colors.NORMAL +"><" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL +
-				"]...    当前" + (BOT_COMMAND_PREFIX.isEmpty () ? "没有命令前缀" : "的命令前缀是 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL)  + ", 命令列表:  " + COLOR_COMMAND_INSTANCE + "Help Time Cmd Cmd2 ParseCmd Action Notice GeoIP PageRank TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				"本bot命令格式: [" + COLOR_COMMAND_PREFIX + "命令前缀" + Colors.NORMAL +"]<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL +
+				"]...    当前" + (BOT_COMMAND_PREFIX.isEmpty () ? "没有命令前缀" : "的命令前缀是 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) +
+				", 命令列表: " + COLOR_COMMAND_INSTANCE + "Help Time Cmd ParseCmd Action Notice GeoIP PageRank TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
@@ -785,9 +783,9 @@ public class LiuYanBot extends PircBot
 		cmd = "parsecmd";       if (isCommandMatch (args, cmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析要执行的命令");
 		cmd = "cmd";            if (isCommandMatch (args, cmd) || isCommandMatch (args, "exec"))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, shell 中类似变量取值($var) 管道(|) 重定向(><) 通配符(*?) 内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
-		cmd = "cmd2";            if (isCommandMatch (args, cmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 与 cmd 命令相同，但增加了对管道的支持，管道符(|) 前后必须用空格分开: cmd1 | cmd2");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: 这不是 shell, 除了管道(|) 之外, shell 中类似变量取值($var) 重定向(><) 通配符(*?) 内置命令 等都不支持. 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+		//cmd = "cmd2";            if (isCommandMatch (args, cmd))
+		//	SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 与 cmd 命令相同，但增加了对管道的支持，管道符(|) 前后必须用空格分开: cmd1 | cmd2");
 
 		cmd = "locales";        if (isCommandMatch (args, cmd) || isCommandMatch (args, "javalocales"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + COLOR_COMMAND +  cmd + Colors.NORMAL + "|" + COLOR_COMMAND +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
@@ -1436,7 +1434,7 @@ public class LiuYanBot extends PircBot
 	}
 
 	/**
-	 * 执行命令
+	 * 执行操作系统命令
 	 * @param ch
 	 * @param nick
 	 * @param user
