@@ -28,6 +28,7 @@ public class LiuYanBot extends PircBot
 	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault ();
 	public static final int MAX_RESPONSE_LINES = 5;	// 最大响应行数 (可由参数调整)
 	public static final int MAX_RESPONSE_LINES_LIMIT = 10;	// 最大响应行数 (真的不能大于该行数)
+	public static final int MAX_RESPONSE_LINES_RedirectToPrivateMessage = 3;	// 最大响应行数，超过该行数后，直接通过私信送给执行 bot 命令的人，而不再发到频道里
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 15;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
 	public static final int WATCH_DOG_TIMEOUT_LENGTH_LIMIT = 300;
 
@@ -328,7 +329,7 @@ public class LiuYanBot extends PircBot
 		geoIP2DatabaseFileName = fn;
 		try
 		{
-			geoIP2DatabaseReader = new DatabaseReader(new File(geoIP2DatabaseFileName));
+			geoIP2DatabaseReader = new DatabaseReader.Builder(new File(geoIP2DatabaseFileName)).build ();
 		}
 		catch (Exception e)
 		{
@@ -366,11 +367,11 @@ public class LiuYanBot extends PircBot
 	boolean isFlooding (String channel, String sender, String login, String hostname, String message)
 	{
 		boolean isFlooding = false;
-		Map<String, Object> mapUserInfo = mapAntiFloodRecord.get (sender);
+		Map<String, Object> mapUserInfo = mapAntiFloodRecord.get (login);
 		if (mapUserInfo==null)
 		{
 			mapUserInfo = new HashMap<String, Object> ();
-			mapAntiFloodRecord.put (sender, mapUserInfo);
+			mapAntiFloodRecord.put (login, mapUserInfo);
 			mapUserInfo.put ("最后活动时间", 0L);
 			mapUserInfo.put ("灌水计数器", 0);
 			mapUserInfo.put ("总灌水计数器", 0);
@@ -570,6 +571,7 @@ public class LiuYanBot extends PircBot
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
 			int opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH;
 			String opt_charset = null;
+			String opt_reply_to = null;	// reply to
 			Map<String, Object> mapGlobalOptions = new HashMap ();
 			Map<String, String> mapUserEnv = new HashMap ();	// 用户在 全局参数 里指定的环境变量
 			mapGlobalOptions.put ("env", mapUserEnv);
@@ -629,6 +631,12 @@ public class LiuYanBot extends PircBot
 							logger.finer ("cmd 命令“输出字符集”设置为: " + opt_charset);
 							continue;
 						}
+						if (varName.equalsIgnoreCase("to"))
+						{
+							opt_reply_to = varValue;
+							logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
+							continue;
+						}
 						mapUserEnv.put (varName, varValue);
 
 						continue;
@@ -660,12 +668,16 @@ public class LiuYanBot extends PircBot
 			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
 			mapGlobalOptions.put ("opt_timeout_length_seconds", opt_timeout_length_seconds);
 			mapGlobalOptions.put ("opt_charset", opt_charset);
+			mapGlobalOptions.put ("opt_reply_to", opt_reply_to);
 
 			if (args.length >= 2)
 				params = args[1];
 //System.out.println (botcmd);
 //System.out.println (listEnv);
 //System.out.println (params);
+
+			if (opt_reply_to != null)
+				sender = opt_reply_to;
 
 			if (false) {}
 			else if (botCmd.equalsIgnoreCase("cmd"))
@@ -966,7 +978,7 @@ public class LiuYanBot extends PircBot
 			u,
 			mapGlobalOptions,
 			"[" + Colors.GREEN + sTime + Colors.NORMAL +
-			"], [" + Colors.YELLOW + (tz==null  ?
+			"], [" + COLOR_DARK_CYAN + (tz==null  ?
 					(l==null ? DEFAULT_TIME_ZONE.getDisplayName() : DEFAULT_TIME_ZONE.getDisplayName(l)) :
 					(l==null ? tz.getDisplayName() : tz.getDisplayName(l))
 					) + Colors.NORMAL +
@@ -1227,8 +1239,8 @@ public class LiuYanBot extends PircBot
 		if (params!=null)
 			ips = params.split (" +");
 
-		City city = null;
-		CityIspOrg isp = null;
+		CityResponse city = null;
+		CityIspOrgResponse isp = null;
 		for (String ip : ips)
 		{
 			try
