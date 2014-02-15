@@ -569,6 +569,7 @@ public class LiuYanBot extends PircBot
 			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
+			boolean opt_max_response_lines_specified = false;	// 是否指定了最大响应行数，如果指定了的话，达到行数后，就不再提示“[已达到响应行数限制，剩余的行将被忽略]”
 			int opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH;
 			String opt_charset = null;
 			String opt_reply_to = null;	// reply to
@@ -646,6 +647,7 @@ public class LiuYanBot extends PircBot
 						try
 						{
 							opt_max_response_lines = Integer.parseInt (env);
+							opt_max_response_lines_specified = true;
 							if (! isUserInWhiteList(login, sender) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
 								opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 						}
@@ -666,6 +668,7 @@ public class LiuYanBot extends PircBot
 			mapGlobalOptions.put ("opt_output_stderr", opt_output_stderr);
 			mapGlobalOptions.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
 			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
+			mapGlobalOptions.put ("opt_max_response_lines_specified", opt_max_response_lines_specified);
 			mapGlobalOptions.put ("opt_timeout_length_seconds", opt_timeout_length_seconds);
 			mapGlobalOptions.put ("opt_charset", opt_charset);
 			mapGlobalOptions.put ("opt_reply_to", opt_reply_to);
@@ -2226,6 +2229,7 @@ public class LiuYanBot extends PircBot
 		boolean opt_output_stderr = false;
 		boolean opt_ansi_escape_to_irc_escape = false;
 		int opt_max_response_lines = 0;
+		boolean opt_max_response_lines_specified = false;
 		int opt_timeout_length_seconds = 0;
 		String opt_charset = null;
 
@@ -2255,6 +2259,7 @@ public class LiuYanBot extends PircBot
 				opt_output_username = (boolean)globalOpts.get("opt_output_username");
 				opt_output_stderr = (boolean)globalOpts.get("opt_output_stderr");
 				opt_max_response_lines = (int)globalOpts.get("opt_max_response_lines");
+				opt_max_response_lines_specified = (boolean)globalOpts.get("opt_max_response_lines_specified");
 				opt_ansi_escape_to_irc_escape = (boolean)globalOpts.get("opt_ansi_escape_to_irc_escape");
 				opt_timeout_length_seconds = (int)globalOpts.get("opt_timeout_length_seconds");
 				opt_charset = (String)globalOpts.get("opt_charset");
@@ -2404,7 +2409,7 @@ public class LiuYanBot extends PircBot
 							continue;
 
 						lineCounter ++;
-						if (lineCounter == opt_max_response_lines + 1)
+						if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
 							SendMessage (channel, sender, globalOpts, "[已达到响应行数限制，剩余的行将被忽略]");
 						if (lineCounter > opt_max_response_lines)
 							continue;
@@ -2422,7 +2427,7 @@ public class LiuYanBot extends PircBot
 							String[] arrayLines = line.split ("\n");
 							for (String newLine : arrayLines)
 							{
-								if (lineCounter == opt_max_response_lines + 1)
+								if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
 									SendMessage (channel, sender, globalOpts, "[已达到响应行数限制，剩余的行将被忽略]");
 								if (lineCounter > opt_max_response_lines)
 									continue otherLines;	// java 的标签只有跳循环这个用途，这还是第一次实际应用……
