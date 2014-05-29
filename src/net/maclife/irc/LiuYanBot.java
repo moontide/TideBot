@@ -10,7 +10,7 @@ import java.util.logging.*;
 import java.util.regex.*;
 
 import org.apache.commons.lang3.*;
-import org.apache.commons.io.*;
+//import org.apache.commons.io.*;
 import org.apache.commons.exec.*;
 
 import com.maxmind.geoip2.*;
@@ -37,7 +37,7 @@ public class LiuYanBot extends PircBot
 
 	java.util.concurrent.Executor executor = Executors.newFixedThreadPool (15);
 
-	static String BOT_COMMAND_PREFIX = "";	//""   " "   "/"   "`"   "!"   "#"   "$"   "~"   "@"
+	static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	static final String[][] BOT_COMMAND_NAMES =
 	{
 		{"help", },
@@ -57,6 +57,7 @@ public class LiuYanBot extends PircBot
 		{"httphead", },
 		{"raw", },
 		{"/set", },
+		{"/ignore", },
 		{"version", },
 	};
 
@@ -293,6 +294,12 @@ public class LiuYanBot extends PircBot
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 7;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
 	Random rand = new Random ();
+
+	/*
+	 * 所忽略的用户名列表。如果在忽略列表内，则不响应该用户名发来的消息。
+	 * 通常用于忽略其他机器人（个别用户有意造成 bot 循环）、恶意用户
+	 */
+	List<Map<String,Object>> listIgnoredNamePatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
 
 	String geoIP2DatabaseFileName = null;
 	DatabaseReader geoIP2DatabaseReader = null;
@@ -540,6 +547,7 @@ public class LiuYanBot extends PircBot
 		}
 		try
 		{
+			//  先判断是不是 bot 命令
 			String botCmd;
 			botCmd = getBotCommand (message);
 			if (botCmd == null)
@@ -552,19 +560,31 @@ public class LiuYanBot extends PircBot
 				return;
 			}
 
-			// Anti-Flood 防止灌水、滥用
+			// 再 Anti-Flood 防止灌水、滥用
 			if (isFlooding(channel, sender, login, hostname, message))
 				return;
 
+			// 再查看忽略列表
+			if (!isUserInWhiteList(login, sender))
+			{
+				Map<String, Object> ignoreInfo = GetNameInfoFromIgnoredNames (sender);
+				if (ignoreInfo != null)
+				{
+					System.out.println (CSI + "31;1m" + sender  + CSI + "m 已被忽略");
+					return;
+				}
+			}
+
 			// 统一命令格式处理，得到 bot 命令、bot 命令环境参数、其他参数
-			// bot命令[.语言等环境变量]... [参数]...
+			// bot命令[.语言等环境变量]... [接收人(仅当命令环境参数有 .to 时才需要本参数)] [其他参数]...
 			//  语言
-			String botCmdAlias, params=null;
+			String botCmdAlias=null, params=null;
 			List<String> listEnv=null;
 			if (!BOT_COMMAND_PREFIX.isEmpty())
 				message = message.substring (BOT_COMMAND_PREFIX.length ());	// 这样直接去掉前缀字符串长度的字符串(而不验证 message 是否以前缀开头)，是因为前面的 getBotCommand 命令已经验证了命令前缀的有效性，否则这样直接去掉是存在缺陷的的（”任意与当前前缀相同长度的前缀都是有效的前缀“）
 			String[] args = message.split (" +", 2);
 			botCmdAlias = args[0];
+			boolean opt_reply_to_option_on = false;
 			boolean opt_output_username = true;
 			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
@@ -573,8 +593,8 @@ public class LiuYanBot extends PircBot
 			int opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH;
 			String opt_charset = null;
 			String opt_reply_to = null;	// reply to
-			Map<String, Object> mapGlobalOptions = new HashMap ();
-			Map<String, String> mapUserEnv = new HashMap ();	// 用户在 全局参数 里指定的环境变量
+			Map<String, Object> mapGlobalOptions = new HashMap<String, Object> ();
+			Map<String, String> mapUserEnv = new HashMap<String, String> ();	// 用户在 全局参数 里指定的环境变量
 			mapGlobalOptions.put ("env", mapUserEnv);
 			if (args[0].contains("."))
 			{
@@ -606,6 +626,11 @@ public class LiuYanBot extends PircBot
 						logger.finer ("cmd 命令“对输出进行 ANSI 转义序列转换为 IRC 序列”设置为: " + opt_ansi_escape_to_irc_escape);
 						continue;
 					}
+					else if (env.equalsIgnoreCase("to"))
+					{
+						opt_reply_to_option_on = true;
+						continue;
+					}
 					else if (env.contains("="))	// 设置环境变量，如 LINES=40 COLUMNS=120 等，注意，环境变量的数值不能包含小数点，因为这是全局参数的分隔符。所以，对于 LANG=zh_CN.UTF-8 之类的环境变量，需要当成命令局部参数处理
 					{
 						String[] env_var = env.split ("=", 2);
@@ -630,12 +655,6 @@ public class LiuYanBot extends PircBot
 						{
 							opt_charset = varValue;
 							logger.finer ("cmd 命令“输出字符集”设置为: " + opt_charset);
-							continue;
-						}
-						if (varName.equalsIgnoreCase("to"))
-						{
-							opt_reply_to = varValue;
-							logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 							continue;
 						}
 						mapUserEnv.put (varName, varValue);
@@ -673,8 +692,20 @@ public class LiuYanBot extends PircBot
 			mapGlobalOptions.put ("opt_charset", opt_charset);
 			mapGlobalOptions.put ("opt_reply_to", opt_reply_to);
 
-			if (args.length >= 2)
-				params = args[1];
+			if (opt_reply_to_option_on)
+			{
+				if (args.length >= 2)
+					opt_reply_to = args[1];
+				logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
+
+				if (args.length >= 3)
+					params = args[2];
+			}
+			else
+			{
+				if (args.length >= 2)
+					params = args[1];
+			}
 //System.out.println (botcmd);
 //System.out.println (listEnv);
 //System.out.println (params);
@@ -709,6 +740,8 @@ public class LiuYanBot extends PircBot
 				ProcessCommand_URLEncodeDecode (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("httphead"))
 				ProcessCommand_HTTPHead (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("se") || botCmd.equalsIgnoreCase("StackExchange"))
+				ProcessCommand_StackExchange (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("help"))
 				ProcessCommand_Help (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("version"))
@@ -717,6 +750,8 @@ public class LiuYanBot extends PircBot
 				ProcessCommand_SendRaw (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("/set"))
 				ProcessCommand_Set (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase("/ignore"))
+				ProcessCommand_Ignore (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 		}
 		catch (Exception e)
 		{
@@ -767,8 +802,8 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, mapGlobalOptions,
-				"本bot命令格式: [" + COLOR_COMMAND_PREFIX + "命令前缀" + Colors.NORMAL +"]<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" + COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL +
-				"]...    当前" + (BOT_COMMAND_PREFIX.isEmpty () ? "没有命令前缀" : "的命令前缀是 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) +
+				"本bot命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
+				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
 				", 命令列表: " + COLOR_COMMAND_INSTANCE + "Help Time Cmd ParseCmd Action Notice GeoIP PageRank TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
@@ -914,6 +949,145 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
+	void ProcessCommand_Ignore (String channel, String sender, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		String[] arrayParams = null;
+		if (params!=null && !params.isEmpty())
+			arrayParams = params.split (" ", 3);
+		if (arrayParams == null || arrayParams.length<1)
+		{
+			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		String action = arrayParams[0];
+		String name_pattern = null;
+		String reason = null;
+		if (arrayParams.length >= 2) name_pattern = arrayParams[1];
+		if (arrayParams.length >= 3) reason = arrayParams[2];
+
+		boolean bFounded = false;
+
+		if (action.equalsIgnoreCase ("l") || action.equalsIgnoreCase ("ls") || action.equalsIgnoreCase ("list"))	// 列出被忽略的用户名
+		{
+			for (Map nickInfo : listIgnoredNamePatterns)
+			{
+				System.out.print (nickInfo.get("Name"));
+				System.out.print ("	");
+				System.out.print (nickInfo.get("AddedTime"));
+				System.out.print ("	");
+				System.out.print (nickInfo.get("AddedTimes"));
+				System.out.print ("	");
+				System.out.print (nickInfo.get("UpdatedTime"));
+				System.out.print ("	");
+				System.out.println (nickInfo.get("Reason"));
+			}
+		}
+		else if (action.equalsIgnoreCase ("c") || action.equalsIgnoreCase ("clear"))	// 清空
+		{
+			listIgnoredNamePatterns.clear ();
+			System.out.println ("已清空用户名忽略列表");
+		}
+		else if (action.equalsIgnoreCase ("a") || action.equalsIgnoreCase ("+") || action.equalsIgnoreCase ("add"))	// 添加
+		{
+			if (name_pattern==null || name_pattern.isEmpty ())
+			{
+				System.err.println ("要忽略的用户名不能为空");
+				return;
+			}
+			AddIgnore (name_pattern);
+		}
+		else if (action.equalsIgnoreCase ("d")
+			|| action.equalsIgnoreCase ("-")
+			|| action.equalsIgnoreCase ("r")
+			|| action.equalsIgnoreCase ("rm")
+			|| action.equalsIgnoreCase ("del")
+			|| action.equalsIgnoreCase ("remove")
+			|| action.equalsIgnoreCase ("delete")
+			)	// 删除
+		{
+			if (name_pattern==null || name_pattern.isEmpty ())
+			{
+				System.err.println ("要解除忽略的用户名不能为空");
+				return;
+			}
+
+			// 检查是否已经添加过
+			Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (name_pattern);
+			if (nameInfo==null)
+			{
+				System.err.println (name_pattern + " 不在忽略列表中");
+				return;
+			}
+			if (listIgnoredNamePatterns.remove (nameInfo))
+				System.out.println (CSI + "32;1m" + sender  + CSI + "m 已解除忽略的用户名，当前还有 " + listIgnoredNamePatterns.size () + " 个被忽略的用户名");
+			else
+				System.err.println (name_pattern + " 解除失败 (未曾添加过？)");
+		}
+		else
+		{
+			// 此时，action 参数被当做 用户名。。。
+			name_pattern = action;
+			Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (name_pattern);
+			bFounded = (nameInfo != null);
+			System.out.println (name_pattern + " " + (bFounded ? Colors.RED : Colors.GREEN + "不") + "在" + Colors.NORMAL + "忽略列表中");
+		}
+	}
+	/**
+	 * 根据给定的用户名 nickPattern 从忽略列表中获取相应的用户名信息
+	 * @param namePattern 用户名
+	 * @return null - 不存在； not null - 存在
+	 */
+	Map<String, Object> GetNameInfoFromIgnoredNames (String namePattern)
+	{
+		boolean bFounded = false;
+		for (Map<String,Object> nickInfo : listIgnoredNamePatterns)
+		{
+			String name = (String)nickInfo.get("Name");
+			if (name.equalsIgnoreCase (namePattern) || name.matches (namePattern))	// 注意：由于 IRC 用户名可能包含 [] 字符，所以，如果用 RegExp 匹配会导致意外结果
+			{
+				return nickInfo;
+			}
+		}
+		return null;
+	}
+	/**
+	 * 添加到忽略列表
+	 * @param ignore 要忽略的用户名
+	 * @param reason 忽略的原因
+	 * @return
+	 */
+	boolean AddIgnore (String ignore, String reason)
+	{
+		boolean bFounded = false;
+		Map<String,Object> nameInfoToAdd = null;
+
+		// 检查是否已经添加过
+		Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (ignore);
+		bFounded = (nameInfo != null);
+		if (bFounded)
+		{
+			System.err.println ("要忽略的用户名已经被添加过，更新之");
+			nameInfoToAdd.put ("UpdatedTime", System.currentTimeMillis ());
+			int nTimes = nameInfoToAdd.get ("AddedTimes")==null ? 1 : (int)nameInfoToAdd.get ("AddedTimes");
+			nTimes ++;
+			nameInfoToAdd.put ("AddedTimes", nTimes);
+			nameInfoToAdd.put ("Reason", reason==null?"":reason);
+			return true;
+		}
+
+		//　新添加
+		nameInfoToAdd = new HashMap<String, Object> ();
+		nameInfoToAdd.put ("Name", ignore);
+		nameInfoToAdd.put ("AddedTime", System.currentTimeMillis ());
+		nameInfoToAdd.put ("AddedTimes", 1);
+		nameInfoToAdd.put ("Reason", reason==null?"":reason);
+		listIgnoredNamePatterns.add (nameInfoToAdd);
+		return true;
+	}
+	boolean AddIgnore (String ignore)
+	{
+		return AddIgnore (ignore, null);
+	}
 	/**
 	 * time[.语言代码] [时区] [格式]
 	 * 语言：如： zh, zh_CN, en_US, es_MX, fr
@@ -1414,6 +1588,47 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
+	void ProcessCommand_StackExchange (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		String sCharset = null;
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+			sCharset = listCmdEnv.get(0);
+
+		try
+		{
+			URL url = new URL (params);
+			URLConnection conn = url.openConnection ();
+			if (! (conn instanceof HttpURLConnection))
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "URL 地址不是 HTTP 地址。 URLConnection 类名: " + conn.getClass().getName());
+			}
+			else
+			{
+				HttpURLConnection http = (HttpURLConnection) conn;
+				http.setRequestMethod ("HEAD");
+				http.connect ();
+
+				Map<String, List<String>> headers = http.getHeaderFields();
+				//String sResult = http.getHeaderFields().toString();
+				//SendMessage (ch, nick, mapGlobalOptions, sResult);
+				for (int i=0; i<headers.size(); i++)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, http.getHeaderFieldKey(i) + ": " + http.getHeaderField(i));
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+		}
+	}
+
 	/**
 	 * 显示 bot 版本
 	 */
@@ -1575,51 +1790,38 @@ public class LiuYanBot extends PircBot
 		*/
 	}
 
+	String [] arrayBannedCommands =
+	{
+		// 潜在的破坏性命令
+		"rm", "dd", "kill", "killall", "killall5", "pkill", "skill", "chmod", "cp",
+
+		// shell
+		"bash", "sh", "dash",
+
+		// 防止把禁用命令“软连接/改名”
+		"ln", "link",
+
+		// 关机 重启
+		"poweroff", "halt", "reboot", "shutdown", "systemctl",
+
+		// 执行脚本、语言编译器
+		"python", "python2", "python2.7", "python3", "python3.3", "python3.3m", "perl", "java", "gcc", "g++", "gcc", "make",
+
+		// 可以执行其他命令的命令
+		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install",
+	};
 	boolean CheckExecuteSafety (String cmd, String ch, String u, String nick)
 	{
-		if (
-			(cmd.equalsIgnoreCase("rm") || StringUtils.endsWithIgnoreCase(cmd, "/rm")
-			|| cmd.equalsIgnoreCase("dd") || StringUtils.endsWithIgnoreCase(cmd, "/dd")
-			|| cmd.equalsIgnoreCase("kill") || StringUtils.endsWithIgnoreCase(cmd, "/kill")
-			|| cmd.equalsIgnoreCase("killall") || StringUtils.endsWithIgnoreCase(cmd, "/killall")
-			|| cmd.equalsIgnoreCase("killall5") || StringUtils.endsWithIgnoreCase(cmd, "/killall5")
-			|| cmd.equalsIgnoreCase("pkill") || StringUtils.endsWithIgnoreCase(cmd, "/pkill")
-			|| cmd.equalsIgnoreCase("skill") || StringUtils.endsWithIgnoreCase(cmd, "/skill")
-			|| cmd.equalsIgnoreCase("chmod") || StringUtils.endsWithIgnoreCase(cmd, "/chmod")
-			|| cmd.equalsIgnoreCase("cp") || StringUtils.endsWithIgnoreCase(cmd, "/cp")
-			|| cmd.equalsIgnoreCase("bash") || StringUtils.endsWithIgnoreCase(cmd, "/bash")
-			|| cmd.equalsIgnoreCase("sh") || StringUtils.endsWithIgnoreCase(cmd, "/sh")
-			|| cmd.equalsIgnoreCase("dash") || StringUtils.endsWithIgnoreCase(cmd, "/dash")
-
-			// 防止把禁用命令“软连接/改名”
-			|| cmd.equalsIgnoreCase("ln") || StringUtils.endsWithIgnoreCase(cmd, "/ln")
-			|| cmd.equalsIgnoreCase("link") || StringUtils.endsWithIgnoreCase(cmd, "/link")
-
-			// 关机 重启
-			|| cmd.equalsIgnoreCase("poweroff") || StringUtils.endsWithIgnoreCase(cmd, "/poweroff")
-			|| cmd.equalsIgnoreCase("halt") || StringUtils.endsWithIgnoreCase(cmd, "/halt")
-			|| cmd.equalsIgnoreCase("reboot") || StringUtils.endsWithIgnoreCase(cmd, "/reboot")
-			|| cmd.equalsIgnoreCase("shutdown") || StringUtils.endsWithIgnoreCase(cmd, "/shutdown")
-			|| cmd.equalsIgnoreCase("systemctl") || StringUtils.endsWithIgnoreCase(cmd, "/systemctl")
-
-			// 执行脚本
-			|| cmd.equalsIgnoreCase("python") || StringUtils.endsWithIgnoreCase(cmd, "/python")
-			|| cmd.equalsIgnoreCase("perl") || StringUtils.endsWithIgnoreCase(cmd, "/perl")
-
-			|| cmd.equalsIgnoreCase("java") || StringUtils.endsWithIgnoreCase(cmd, "/java")
-			|| cmd.equalsIgnoreCase("gcc") || StringUtils.endsWithIgnoreCase(cmd, "/gcc")
-			|| cmd.equalsIgnoreCase("g++") || StringUtils.endsWithIgnoreCase(cmd, "/g++")
-			|| cmd.equalsIgnoreCase("make") || StringUtils.endsWithIgnoreCase(cmd, "/make")
-
-			// 可以执行其他命令的命令
-			|| cmd.equalsIgnoreCase("env") || StringUtils.endsWithIgnoreCase(cmd, "/env")	// coreutils
-			|| cmd.equalsIgnoreCase("watch") || StringUtils.endsWithIgnoreCase(cmd, "/watch")	// procps-ng
-			|| cmd.equalsIgnoreCase("nohup") || StringUtils.endsWithIgnoreCase(cmd, "/nohup")	// coreutils
-			|| cmd.equalsIgnoreCase("stdbuf") || StringUtils.endsWithIgnoreCase(cmd, "/stdbuf")	// coreutils
-			|| cmd.equalsIgnoreCase("unbuffer") || StringUtils.endsWithIgnoreCase(cmd, "/unbuffer")	// expect
-			|| cmd.equalsIgnoreCase("time") || StringUtils.endsWithIgnoreCase(cmd, "/time")	// time
-		)
-		&& !isUserInWhiteList(u, nick))
+		boolean bBanned = false;
+		for (String sBannedCmd : arrayBannedCommands)
+		{
+			if (cmd.equalsIgnoreCase (sBannedCmd) || StringUtils.endsWithIgnoreCase(cmd, "/" + sBannedCmd))
+			{
+				bBanned = true;
+				break;
+			}
+		}
+		if (bBanned && !isUserInWhiteList(u, nick))
 			return false;
 		return true;
 	}
@@ -2676,9 +2878,11 @@ public class LiuYanBot extends PircBot
 		String[] arrayChannels;
 		String encoding = "UTF-8";
 		String geoIPDB = null;
+		String[] arrayIgnores;
+		String ignores_patterns = ".*bot.*";
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-e 字符集编码]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-e 字符集编码] [-i 要忽略的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -2717,6 +2921,16 @@ public class LiuYanBot extends PircBot
 					channels = args[i+1];
 					i ++;
 				}
+				else if (arg.equalsIgnoreCase("i") || arg.equalsIgnoreCase("ignore"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定要忽略的用户名列表，多个用户名用 ',' 分割");
+						return;
+					}
+					ignores_patterns = args[i+1];
+					i ++;
+				}
 				else if (arg.equalsIgnoreCase("e"))
 				{
 					if (i == args.length-1)
@@ -2747,6 +2961,14 @@ public class LiuYanBot extends PircBot
 		bot.setEncoding (encoding);
 		if (geoIPDB!=null)
 			bot.setGeoIPDatabaseFileName(geoIPDB);
+
+		arrayIgnores = ignores_patterns.split ("[,;/]+");
+		for (String ignore : arrayIgnores)
+		{
+			if (ignore==null || ignore.isEmpty())
+				continue;
+			bot.AddIgnore (ignore);
+		}
 
 		bot.connect (server);
 		bot.changeNick (nick);
