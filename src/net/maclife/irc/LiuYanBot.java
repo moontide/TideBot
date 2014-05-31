@@ -19,7 +19,11 @@ import com.maxmind.geoip2.model.*;
 import org.jibble.pircbot.*;
 
 import com.temesoft.google.pr.*;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.node.*;
 import com.liuyan.util.qqwry.*;
+
+import net.maclife.seapi.*;
 
 public class LiuYanBot extends PircBot
 {
@@ -57,6 +61,7 @@ public class LiuYanBot extends PircBot
 		{"urldecode", },
 		{"urlencode", },
 		{"httphead", },
+		{"stackexchange", "se",},
 		{"/raw", },
 		{"/set", },
 		{"/ignore", },
@@ -302,6 +307,7 @@ public class LiuYanBot extends PircBot
 	 * 通常用于忽略其他机器人（个别用户有意造成 bot 循环）、恶意用户
 	 */
 	List<Map<String,Object>> listIgnoredNamePatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
+	public static final String DEFAULT_IGNORE_PATTERN = ".*bot.*";	// 默认忽略对象：名字含有 bot (机器人) 的，如果是真人但姓名中含有 bot，则很抱歉……
 
 	String geoIP2DatabaseFileName = null;
 	DatabaseReader geoIP2DatabaseReader = null;
@@ -310,6 +316,11 @@ public class LiuYanBot extends PircBot
 	ChunZhenIPQuery qqwry = null;
 	String chunzhenIPDBVersion = null;
 	long chunzhenIPCount = 0;
+
+	/**
+	 * StackExchange API 搜索时的每页最大结果数
+	 */
+	int STACKEXCHANGE_DEFAULT_PAGESIZE = 3;
 
 	class AntiFloodComparator implements Comparator<Map<String, Object>>
 	{
@@ -569,12 +580,13 @@ public class LiuYanBot extends PircBot
 		}
 		try
 		{
-			//  先判断是不是 bot 命令
+			Map<String, Object> ignoreInfo = GetNameInfoFromIgnoredNames (sender);
+			//  再判断是不是 bot 命令
 			String botCmd;
 			botCmd = getBotPrimaryCommand (message);
 			if (botCmd == null)
 			{
-				if (isSayingToMe)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
+				if (isSayingToMe && ignoreInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 				{
 					SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommand("help") + " 命令显示帮助信息");
 					//ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listEnv, null);
@@ -582,13 +594,17 @@ public class LiuYanBot extends PircBot
 				return;
 			}
 
-			// 再查看忽略列表
+			// 先查看忽略列表
 			if (!isUserInWhiteList(login, sender))
 			{
-				Map<String, Object> ignoreInfo = GetNameInfoFromIgnoredNames (sender);
 				if (ignoreInfo != null)
 				{
 					System.out.println (CSI + "31;1m" + sender  + CSI + "m 已被忽略");
+					if (ignoreInfo.get ("NotifyTime") == null)
+					{
+						SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "你已被加入黑名单。" + (ignoreInfo.get ("Reason")==null?"": "原因: " + Colors.RED + ignoreInfo.get ("Reason")) + Colors.NORMAL + " (本消息只提醒一次)");
+						ignoreInfo.put ("NotifyTime", System.currentTimeMillis ());
+					}
 					return;
 				}
 			}
@@ -716,6 +732,7 @@ public class LiuYanBot extends PircBot
 
 			if (opt_reply_to_option_on)
 			{
+				args = message.split (" +", 3);	// 重新分割命令输入，分为 3 份
 				if (args.length >= 2)
 					opt_reply_to = args[1];
 				logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
@@ -764,7 +781,7 @@ public class LiuYanBot extends PircBot
 				ProcessCommand_URLEncodeDecode (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("httphead"))
 				ProcessCommand_HTTPHead (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("se") || botCmd.equalsIgnoreCase("StackExchange"))
+			else if (botCmd.equalsIgnoreCase("StackExchange"))
 				ProcessCommand_StackExchange (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("help"))
 				ProcessCommand_Help (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
@@ -837,7 +854,7 @@ public class LiuYanBot extends PircBot
 			SendMessage (ch, u, mapGlobalOptions,
 				"本bot命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				", 命令列表: " + COLOR_COMMAND_INSTANCE + "Help Time Cmd ParseCmd Action Notice GeoIP IPLocation PageRank TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				", 命令列表: " + COLOR_COMMAND_INSTANCE + "Help Cmd StackExchange GeoIP IPLocation PageRank Time  ParseCmd Action Notice TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
@@ -871,7 +888,7 @@ public class LiuYanBot extends PircBot
 
 		primaryCmd = "locales";        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "javalocales"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
-		primaryCmd = "timezones";      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "javatimezones"))
+		primaryCmd = "timeZones";      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "javatimezones"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javatimezones" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
 		primaryCmd = "env";            if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
@@ -887,6 +904,8 @@ public class LiuYanBot extends PircBot
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "urldecode" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
 		primaryCmd = "httphead";        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL+ "] <HTTP 网址>    -- 显示指定网址的 HTTP 响应头");
+		primaryCmd = "stackExchange";        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL+ " <站点名|list> <动作> [参数]..    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 list 列出， 动作有 Search/s, Users/u(按ID查询) AllUsers/au(全站用户，可按姓名查) Info(站点信息) ");
 
 		primaryCmd = "version";          if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
@@ -1003,6 +1022,7 @@ public class LiuYanBot extends PircBot
 
 		if (action.equalsIgnoreCase ("l") || action.equalsIgnoreCase ("ls") || action.equalsIgnoreCase ("list"))	// 列出被忽略的用户名
 		{
+			System.out.println ("列出黑名单");
 			for (Map nickInfo : listIgnoredNamePatterns)
 			{
 				System.out.print (nickInfo.get("Name"));
@@ -1019,7 +1039,7 @@ public class LiuYanBot extends PircBot
 		else if (action.equalsIgnoreCase ("c") || action.equalsIgnoreCase ("clear"))	// 清空
 		{
 			listIgnoredNamePatterns.clear ();
-			System.out.println ("已清空用户名忽略列表");
+			System.out.println ("已清空黑名单");
 		}
 		else if (action.equalsIgnoreCase ("a") || action.equalsIgnoreCase ("+") || action.equalsIgnoreCase ("add"))	// 添加
 		{
@@ -1028,7 +1048,7 @@ public class LiuYanBot extends PircBot
 				System.err.println ("要忽略的用户名不能为空");
 				return;
 			}
-			AddIgnore (name_pattern);
+			AddIgnore (name_pattern, reason);
 		}
 		else if (action.equalsIgnoreCase ("d")
 			|| action.equalsIgnoreCase ("-")
@@ -1041,7 +1061,7 @@ public class LiuYanBot extends PircBot
 		{
 			if (name_pattern==null || name_pattern.isEmpty ())
 			{
-				System.err.println ("要解除忽略的用户名不能为空");
+				System.err.println ("要解封的用户名不能为空");
 				return;
 			}
 
@@ -1053,9 +1073,9 @@ public class LiuYanBot extends PircBot
 				return;
 			}
 			if (listIgnoredNamePatterns.remove (nameInfo))
-				System.out.println (CSI + "32;1m" + sender  + CSI + "m 已解除忽略的用户名，当前还有 " + listIgnoredNamePatterns.size () + " 个被忽略的用户名");
+				System.out.println (CSI + "32;1m" + name_pattern  + CSI + "m 已从黑名单中剔除，当前还有 " + listIgnoredNamePatterns.size () + " 个被忽略的用户名");
 			else
-				System.err.println (name_pattern + " 解除失败 (未曾添加过？)");
+				System.err.println (name_pattern + " 解封失败 (未曾添加过？)");
 		}
 		else
 		{
@@ -1063,21 +1083,21 @@ public class LiuYanBot extends PircBot
 			name_pattern = action;
 			Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (name_pattern);
 			bFounded = (nameInfo != null);
-			System.out.println (name_pattern + " " + (bFounded ? Colors.RED : Colors.GREEN + "不") + "在" + Colors.NORMAL + "忽略列表中");
+			System.out.println (name_pattern + " " + (bFounded ? CSI+"31;1m" : CSI+"32;1m" + "不") + "在" + CSI + "m忽略列表中。" + (nameInfo==null?"": "匹配的模式=" + nameInfo.get("Name") + "，原因=" + nameInfo.get ("Reason")));
 		}
 	}
 	/**
 	 * 根据给定的用户名 nickPattern 从忽略列表中获取相应的用户名信息
-	 * @param namePattern 用户名
+	 * @param nameOrPattern 用户名
 	 * @return null - 不存在； not null - 存在
 	 */
-	Map<String, Object> GetNameInfoFromIgnoredNames (String namePattern)
+	Map<String, Object> GetNameInfoFromIgnoredNames (String nameOrPattern)
 	{
 		boolean bFounded = false;
 		for (Map<String,Object> nickInfo : listIgnoredNamePatterns)
 		{
-			String name = (String)nickInfo.get("Name");
-			if (name.equalsIgnoreCase (namePattern) || name.matches ("(?i)^"+namePattern + "$"))	// 注意：由于 IRC 用户名可能包含 [] 字符，所以，如果用 RegExp 匹配会导致意外结果
+			String name_pattern = (String)nickInfo.get("Name");
+			if (nameOrPattern.equalsIgnoreCase (name_pattern) || nameOrPattern.matches ("(?i)^"+name_pattern + "$"))	// 注意：由于 IRC 用户名可能包含 [] 字符，所以，如果用 RegExp 匹配会导致意外结果
 			{
 				return nickInfo;
 			}
@@ -1086,17 +1106,17 @@ public class LiuYanBot extends PircBot
 	}
 	/**
 	 * 添加到忽略列表
-	 * @param ignore 要忽略的用户名
+	 * @param name 要忽略的用户名
 	 * @param reason 忽略的原因
 	 * @return
 	 */
-	boolean AddIgnore (String ignore, String reason)
+	boolean AddIgnore (String name, String reason)
 	{
 		boolean bFounded = false;
 		Map<String,Object> nameInfoToAdd = null;
 
 		// 检查是否已经添加过
-		Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (ignore);
+		Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (name);
 		bFounded = (nameInfo != null);
 		if (bFounded)
 		{
@@ -1111,11 +1131,12 @@ public class LiuYanBot extends PircBot
 
 		//　新添加
 		nameInfoToAdd = new HashMap<String, Object> ();
-		nameInfoToAdd.put ("Name", ignore);
+		nameInfoToAdd.put ("Name", name);
 		nameInfoToAdd.put ("AddedTime", System.currentTimeMillis ());
 		nameInfoToAdd.put ("AddedTimes", 1);
 		nameInfoToAdd.put ("Reason", reason==null?"":reason);
 		listIgnoredNamePatterns.add (nameInfoToAdd);
+		System.out.println ("已把 " + name + " 加入到黑名单。原因=" + nameInfoToAdd.get ("Reason") );
 		return true;
 	}
 	boolean AddIgnore (String ignore)
@@ -1687,42 +1708,652 @@ public class LiuYanBot extends PircBot
 
 	void ProcessCommand_StackExchange (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		String[] arrayParams = null;
+		if (params!=null && !params.isEmpty())
+			arrayParams = params.split (" +");
+		if (arrayParams == null || arrayParams.length<1)
 		{
 			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		String sCharset = null;
-		if (listCmdEnv!=null && listCmdEnv.size()>0)
-			sCharset = listCmdEnv.get(0);
 
+		//
+		// 解析参数
+		//
+		String site = null;
+		String action = null;
+		String q = null;
+
+		int i=0;
+		int level = 0;
+		StringBuilder sbQ = new StringBuilder ();
+		Map<String, String> mapParams = new HashMap<String, String> ();
+		for (i=0; i<arrayParams.length; i++)
+		{
+			String param = arrayParams[i];
+			if (param.startsWith("/") || param.startsWith("-"))
+			{	// 参数
+				param = param.substring (1);
+				if (param.equalsIgnoreCase("help"))
+				{
+					switch (level)
+					{
+						case 0:
+							SendMessage (ch, nick, mapGlobalOptions, "用来查询 StackExchange 问答网站的问题、答案信息");
+							break;
+						case 1:
+							break;
+						case 2:
+							break;
+						case 3:
+							break;
+					}
+				}
+				/*
+				 * 公共查询参数（基本上）
+				 */
+				else if (param.equalsIgnoreCase("page"))
+				{	// 第几页
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定结果页码数" + Colors.NORMAL);
+						return;
+					}
+					//searchOption_page = args [++i];
+					mapParams.put ("page", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("pagesize"))
+				{	// 每页多少条记录
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定每页记录数" + Colors.NORMAL);
+						return;
+					}
+					//searchOption_pagesize = args [++i];
+					mapParams.put ("pagesize", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("fromdate"))
+				{	// 从哪天开始
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定开始日期，日期格式必须为 yyyy-MM-dd" + Colors.NORMAL);
+						return;
+					}
+					String searchOption_fromdate = arrayParams [++i];
+					long ms = java.sql.Date.parse (searchOption_fromdate);
+					mapParams.put ("fromdate", String.valueOf (ms/1000));
+				}
+				else if (param.equalsIgnoreCase("todate"))
+				{	// 从哪天开始
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定结束日期，日期格式必须为 yyyy-MM-dd" + Colors.NORMAL);
+						return;
+					}
+					String searchOption_todate = arrayParams [++i];
+					long ms = java.sql.Date.parse (searchOption_todate);
+					mapParams.put ("todate", String.valueOf (ms/1000));
+				}
+				else if (param.equalsIgnoreCase("sort"))
+				{	// 排序字段，activity is the default sort. 字段有：
+					//	activity: 活动时间;
+					//	creation: 创建时间;
+					//	votes: 得分;
+					//// 仅用于 advancedSearch 的排序字段 //// （4个//// si / search   (=_=)）
+					// relevance: 相关度; – matches the relevance tab on the site itself. Does not accept min or max 不能出现在 min max 中
+					// 用户信息的排序字段
+					// reputation: 分数/声望
+					// name: 姓名/显示名
+					// modified: 最后修改日期
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段名，排序字段有： " + Colors.GREEN + "activity" + Colors.NORMAL + ": 活动时间; " + Colors.GREEN + "creation" + Colors.NORMAL + ": 创建时间; " + Colors.GREEN + "votes" + Colors.NORMAL + ": 得分; " + Colors.BLUE + "relevance" + Colors.NORMAL + ": 相关度;  如果指定了排序字段，则还可以在 /min /max 中指定其取值范围 (" + Colors.BLUE + "relevance" + Colors.NORMAL + " 除外)。");
+						return;
+					}
+					//searchOption_sort = args [++i];
+					mapParams.put ("sort", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("order"))
+				{	// 顺序还是倒序排列，取值: asc: 顺序; desc: 倒序
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段的排序类型，排序类型有： " + Colors.GREEN + "asc" + Colors.NORMAL + ": 顺序; " + Colors.GREEN + "desc" + Colors.NORMAL + ": 倒序;");
+						return;
+					}
+					//searchOption_order = args [++i];
+					mapParams.put ("order", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("min"))
+				{	// 根据排序字段，指定数据范围的最小值
+					if (i == arrayParams.length-1)
+					{
+						System.err.println ();
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段的最小值;");
+						return;
+					}
+					//searchOption_min = args [++i];
+					mapParams.put ("min", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("max"))
+				{	// 根据排序字段，指定数据范围的最大值
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段的最大值;");
+						return;
+					}
+					//searchOption_max = args [++i];
+					mapParams.put ("max", arrayParams [++i]);
+				}
+
+				/*
+				 * advanced-search 查询参数
+				 */
+				//else if (arg.equalsIgnoreCase("q"))
+				//{	// 查询内容，这个其实不用，这是 advanced-search 不用查询参数的默认参数，即：第4个参数
+				//	searchOption_q = arg;
+				//}
+				else if (param.equalsIgnoreCase("title"))
+				{	// 问题标题 必须包含
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定标题包含的内容;");
+						return;
+					}
+					//searchOption_title = args [++i];
+					mapParams.put ("title", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("body"))
+				{	// 问题内容 必须包含
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定正文包含的内容;");
+						return;
+					}
+					//searchOption_body = args [++i];
+					mapParams.put ("body", arrayParams [++i]);
+				}
+
+				else if (param.equalsIgnoreCase("user") || param.equalsIgnoreCase("userID"))
+				{	// 问题所有者 / 问题属于哪个人
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定用户 ID;");
+						return;
+					}
+					//searchOption_user = args [++i];
+					mapParams.put ("user", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("url"))
+				{	// 问题包含某个网址，网址可以包含通配符
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题包含的网址;");
+						return;
+					}
+					//searchOption_url = args [++i];
+					mapParams.put ("url", arrayParams [++i]);
+				}
+
+				else if (param.equalsIgnoreCase("answers"))
+				{	// 返回的问题必须包含**至少有（>=）**多少个答案
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题的答案的最少数量;");
+						return;
+					}
+					//searchOption_answers = args [++i];
+					mapParams.put ("answers", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("views"))
+				{	// 返回的问题必须被查看了**至少（>=）**多少次
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题被查看的最少数量;");
+						return;
+					}
+					//searchOption_views = args [++i];
+					mapParams.put ("views", arrayParams [++i]);
+				}
+
+				else if (param.equalsIgnoreCase("tagged") || param.equalsIgnoreCase("tags") || param.equalsIgnoreCase("tagIn"))
+				{	// 问题包含任意一个标签，多个标签用分号分割，如“java;sql;mysql”
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题的标签，多个标签用分号 ';' 分割;");
+						return;
+					}
+					//searchOption_tagged = args [++i];
+					mapParams.put ("tagged", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("notTagged") || param.equalsIgnoreCase("noTags") || param.equalsIgnoreCase("notTagIn"))
+				{	// 问题不应该包含任何指定的标签，多个标签用分号分割，如“browser;database”
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题不应该包含的标签，多个标签用分号 ';' 分割;");
+						return;
+					}
+					//searchOption_notTagged = args [++i];
+					mapParams.put ("nottagged", arrayParams [++i]);
+				}
+
+				else if (param.equalsIgnoreCase("accepted"))
+				{	// 问题是否已采用答案，True: 已采用采用答案的问题 | False: 没有采用答案的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否已采用答案， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						return;
+					}
+					//searchOption_accepted = args [++i];
+					mapParams.put ("accepted", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("closed"))
+				{	// 问题是否关闭，True: 已关闭的问题 | False: 未关闭的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否已关闭， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						return;
+					}
+					//searchOption_closed = args [++i];
+					mapParams.put ("closed", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("migrated"))
+				{	// 问题是否从其他网站转过来的，True: 是转移过来的问题 | False: 不是转移过来的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否是从其他网站转移过来的， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						return;
+					}
+					//searchOption_migrated = args [++i];
+					mapParams.put ("migrated", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("notice"))
+				{	// 问题是否是被关注的/有奖励的，True: 被关注/有奖励的 | False: 没被关注/没有奖励的，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否是被关注的/有奖励的， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						return;
+					}
+					//searchOption_notice = args [++i];
+					mapParams.put ("notice", arrayParams [++i]);
+				}
+				else if (param.equalsIgnoreCase("wiki"))
+				{	// 问题是否是社区维基，True: 是 | False: 不是，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
+					if (i == arrayParams.length-1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否是社区维基， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						return;
+					}
+					//searchOption_wiki = args [++i];
+					mapParams.put ("wiki", arrayParams [++i]);
+				}
+
+				// /users 搜索站点所有用户信息时
+				//else if (param.equalsIgnoreCase("inname"))
+				//{	// 姓名 中必须包含
+				//	if (i == arrayParams.length-1)
+				//	{
+				//		SendMessage (ch, nick, mapGlobalOptions, "需要指定姓名所包含的内容;");
+				//		return;
+				//	}
+				//	//searchOption_title = args [++i];
+				//	mapParams.put ("inname", arrayParams [++i]);
+				//}
+
+				// /XXX/{ids} 按 ID 搜索信息（问题、答案、用户、帖子）时 ---- 应该放在主参数中
+				//else if (param.equalsIgnoreCase("ids"))
+				//{	// 姓名 中必须包含
+				//	if (i == arrayParams.length-1)
+				//	{
+				//		SendMessage (ch, nick, mapGlobalOptions, "需要指定姓名所包含的内容;");
+				//		return;
+				//	}
+				//	//searchOption_title = args [++i];
+				//	mapParams.put ("ids", arrayParams [++i]);
+				//}
+				continue;
+			}
+			else if (site == null)
+				site = param;
+			else if (action == null)
+				action = param;
+			else
+			{
+				if (sbQ.length () != 0)
+					sbQ.append (" ");
+				sbQ.append (param);
+			}
+		}
+		String sMin = mapParams.get ("min");
+		String sMax = mapParams.get ("max");
+		String sSort = mapParams.get ("sort");
+		if (sMin != null || sMax != null)
+		{
+			if (sSort != null && (sSort.equalsIgnoreCase ("creation") || sSort.equalsIgnoreCase ("activity")))
+			{
+				// 将日期变为秒数
+				if (sMin != null)
+				{
+					long ms = java.sql.Date.parse (sMin);
+					mapParams.put ("min", String.valueOf (ms/1000));
+				}
+				if (sMax != null)
+				{
+					long ms = java.sql.Date.parse (sMax);
+					mapParams.put ("max", String.valueOf (ms/1000));
+				}
+			}
+		}
+
+		//
+		if (site == null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "需要指定 StackExchange 站点群的一个站点名");
+			return;
+		}
+
+		// 如果站点名是 list/listSites/sites
+		if (site.equalsIgnoreCase ("list") || site.equalsIgnoreCase ("sites") || site.equalsIgnoreCase ("listSites"))
+		{
+			StringBuilder sbSiteInfo = new StringBuilder ();
+			sbSiteInfo.append (StackExchangeAPI.arrayStackExchangeSites.length);
+			sbSiteInfo.append (" 个站点。");
+			for (i=0; i<StackExchangeAPI.arrayStackExchangeSites.length; i++)
+			{
+				Object[] siteInfo = StackExchangeAPI.arrayStackExchangeSites[i];
+
+				sbSiteInfo.append (i+1);
+				sbSiteInfo.append (".");
+				String[] names = (String[])siteInfo[0];
+				for (int j=0; j<names.length; j++)
+				{
+					String name = names[j];
+					if (j==0)
+					{
+						sbSiteInfo.append (Colors.GREEN);
+						sbSiteInfo.append (name);
+						sbSiteInfo.append (Colors.NORMAL);
+					}
+					else
+						sbSiteInfo.append (name);
+					sbSiteInfo.append (" ");
+				}
+				if ((i+1)%10 == 0)	// 每 10 个站点（可能更少）一行
+				{
+					SendMessage (ch, nick, mapGlobalOptions, sbSiteInfo.toString ());
+					sbSiteInfo.delete (0, sbSiteInfo.length ());
+				}
+			}
+			if (sbSiteInfo.length () > 0)	// 剩余的站点
+				SendMessage (ch, nick, mapGlobalOptions, sbSiteInfo.toString ());
+			return;
+		}
+
+		if (action == null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "需要指定动作，如 search、 questions、 answers");
+			return;
+		}
+
+		// 校正站点名为 StackExchange 接口要求的站点名 （arrayStackExchangeSites 每个数组元素（还是数组）的第一个元素）
+		String sSiteNameForAPI = null;
+		String sSiteDomain = null;
+		String sSiteInfo = null;
+		String sURL = null;
+		for (Object[] siteInfo : StackExchangeAPI.arrayStackExchangeSites)
+		{
+			String[] names = (String[])siteInfo[0];
+			for (String name : names)
+			{
+				if (site.equalsIgnoreCase(name))
+				{
+					sSiteNameForAPI = names[0];
+					sSiteDomain = (String)siteInfo[1];
+					sSiteInfo = (String)siteInfo[2];
+				}
+			}
+		}
+		if (sSiteNameForAPI == null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "无法识别此“StackExchange 站点名”: " + site);
+			return;
+		}
+
+		// 执行动作
 		try
 		{
-			URL url = new URL (params);
-			URLConnection conn = url.openConnection ();
-			if (! (conn instanceof HttpURLConnection))
+			JsonNode node = null;
+			if (mapParams.get ("pagesize") == null)
 			{
-				SendMessage (ch, nick, mapGlobalOptions, "URL 地址不是 HTTP 地址。 URLConnection 类名: " + conn.getClass().getName());
+				mapParams.put ("pagesize", String.valueOf (STACKEXCHANGE_DEFAULT_PAGESIZE));
+			}
+			else if (Integer.parseInt (mapParams.get ("pagesize")) > MAX_RESPONSE_LINES_LIMIT)
+			{	// 仅当指定了过大的 /pagesize 参数时才提示
+				mapParams.put ("pagesize", String.valueOf (MAX_RESPONSE_LINES_LIMIT));
+				SendMessage (ch, nick, mapGlobalOptions, "已将搜索结果限制在 " + STACKEXCHANGE_DEFAULT_PAGESIZE + " 条内");
+			}
+
+			if (action.equalsIgnoreCase("info") || action.equalsIgnoreCase("siteInfo") || action.equalsIgnoreCase("站点信息"))
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "域名: " + sSiteDomain + "   " + sSiteInfo);
+			}
+			else if (action.equalsIgnoreCase("s") || action.equalsIgnoreCase("search") || action.equalsIgnoreCase("搜") || action.equalsIgnoreCase("搜索") || action.equalsIgnoreCase("查") || action.equalsIgnoreCase("查询") || action.equalsIgnoreCase("as") || action.equalsIgnoreCase("advancedSearch") || action.equalsIgnoreCase("advanced-Search") || action.equalsIgnoreCase("advanced_Search"))
+			{
+				node = StackExchangeAPI.advancedSearch (sSiteNameForAPI, mapParams, sbQ.toString ());
+				processStackExchangeQuestionsNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+			}
+			else if (action.equalsIgnoreCase ("u") || action.equalsIgnoreCase ("user") || action.equalsIgnoreCase ("users") || action.equalsIgnoreCase ("用户"))
+			{
+				node = StackExchangeAPI.usersInfo (sSiteNameForAPI, mapParams, sbQ.toString ().replaceAll (" +", ";"));
+				processStackExchangeUsersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+			}
+			else if (action.equalsIgnoreCase ("au") || action.equalsIgnoreCase ("alluser") || action.equalsIgnoreCase ("AllUsers") || action.equalsIgnoreCase ("全站用户"))
+			{
+				if (sbQ.length () > 0)
+					mapParams.put ("inname", sbQ.toString ());
+				node = StackExchangeAPI.allUsersInfo (sSiteNameForAPI, mapParams);
+				processStackExchangeUsersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else
 			{
-				HttpURLConnection http = (HttpURLConnection) conn;
-				http.setRequestMethod ("HEAD");
-				http.connect ();
-
-				Map<String, List<String>> headers = http.getHeaderFields();
-				//String sResult = http.getHeaderFields().toString();
-				//SendMessage (ch, nick, mapGlobalOptions, sResult);
-				for (int i=0; i<headers.size(); i++)
-				{
-					SendMessage (ch, nick, mapGlobalOptions, http.getHeaderFieldKey(i) + ": " + http.getHeaderField(i));
-				}
+				SendMessage (ch, nick, mapGlobalOptions, "不支持 " + action + " 动作");
 			}
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
 			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+		}
+	}
+
+	public void processStackExchangeErrorNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
+	{
+		if (node == null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "无结果");
+			return;
+		}
+
+		String errorID = node.get ("error_id").asText ();
+		String errorName = ""; if (node.get ("error_name")!=null) errorName = node.get ("error_name").asText ();
+		String errorMessage = ""; if (node.get ("error_message")!=null) errorMessage = node.get ("error_message").asText ();
+		String description = ""; if (node.get ("description")!=null) description = node.get ("description").asText ();
+
+		SendMessage (ch, nick, mapGlobalOptions,
+			"错误 " + Colors.RED + errorID + "  " +
+			(errorName.isEmpty () ? "" : errorName + "   ") +
+			(description.isEmpty () ? "" : description + "   ") +
+			(errorMessage.isEmpty () ? "" : errorMessage + "   ") +
+			Colors.NORMAL +
+			""
+		);
+	}
+
+	public void processStackExchangeQuestionsNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
+	{
+		if (node == null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "无结果");
+			return;
+		}
+
+		if (node.get ("error_id")!=null)
+		{
+			processStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+			return;
+		}
+
+		ArrayNode questions = (ArrayNode)node.get("items");
+		boolean hasMoreResults = node.get ("has_more").booleanValue ();
+		int nQuotaMax = node.get ("quota_max").intValue ();
+		int nQuotaRemaining = node.get ("quota_remaining").intValue ();
+
+		if (questions.size () == 0)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "搜索无结果。  剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次");
+			return;
+		}
+
+		for (int i=0; i<questions.size(); i++)
+		{
+			JsonNode question = questions.get (i);
+
+			JsonNode owner = question.get ("owner");
+				String userType = owner.get ("user_type").asText ();
+				String userName = owner.get ("display_name").asText ();
+
+				// 下面的信息，如果用户是非注册用户时，是没有的
+				int userID = 0;
+				if (owner.get ("user_id") != null)
+					userID = owner.get ("user_id").asInt ();
+				int userReputation = 0;
+				if (owner.get ("reputation") != null)
+					userReputation = owner.get ("reputation").asInt ();
+				String userLink = "";
+				if (owner.get ("link") != null)
+					userLink = owner.get ("link").asText ();
+			ArrayNode tags = (ArrayNode)question.get ("tags");
+			String sTagsWithIRCColor = "";
+			int nTagCount = 0;
+			int iTagColorIndexRotate = 0;
+			for (int j=0; j<tags.size (); j++)
+			{
+				JsonNode tag = tags.get (j);
+				iTagColorIndexRotate = j % 5;	// StackExchange 最多允许设置 5 个 tag
+				if (j>0)
+					sTagsWithIRCColor = sTagsWithIRCColor + " ";
+				switch (iTagColorIndexRotate)
+				{
+					case 0:
+						sTagsWithIRCColor = sTagsWithIRCColor + Colors.RED + tag.asText () + Colors.NORMAL;
+						break;
+					case 1:
+						sTagsWithIRCColor = sTagsWithIRCColor + Colors.GREEN + tag.asText () + Colors.NORMAL;
+						break;
+					case 2:
+						sTagsWithIRCColor = sTagsWithIRCColor + Colors.BLUE + tag.asText () + Colors.NORMAL;
+						break;
+					case 3:
+						sTagsWithIRCColor = sTagsWithIRCColor + Colors.CYAN + tag.asText () + Colors.NORMAL;
+						break;
+					case 4:
+						sTagsWithIRCColor = sTagsWithIRCColor + Colors.YELLOW + tag.asText () + Colors.NORMAL;
+						break;
+					default:
+						sTagsWithIRCColor = sTagsWithIRCColor + Colors.DARK_GRAY + tag.asText () + Colors.NORMAL;
+						break;
+				}
+			}
+
+			int id = question.get ("question_id").asInt ();
+			String title = question.get ("title").asText ();
+			//String body = question.get ("body").asText ();
+			String link = question.get ("link").asText ();
+
+			boolean isAnswered = question.get ("is_answered").booleanValue ();
+			int viewCount = question.get ("view_count").intValue ();
+			int answerID = 0;
+			if (question.get ("accepted_answer_id") != null)
+				answerID = question.get ("accepted_answer_id").intValue ();	// 没有接受答案的则没有该信息
+			int answerCount = question.get ("answer_count").intValue ();
+			int score = question.get ("score").intValue ();
+			long creationDate_Seconds = question.get ("creation_date").longValue ();
+
+			SendMessage (ch, nick, mapGlobalOptions,
+				link.substring (0, link.lastIndexOf ('/')) + "   " +	// link.substring (0, link.lastIndexOf ('/'))   -->  把网址后面的与标题内容重复的内容剔除
+				Colors.LIGHT_GRAY + StringEscapeUtils.unescapeHtml4 (title) + Colors.NORMAL + "   " +
+				sTagsWithIRCColor + "   " +
+				//"浏览数=" + viewCount + " 分数=" + score + " 回复数=" + answerCount + (answerID!=0 ? " 答案ID=" + answerID : "") + "   " +
+				//"提问者 " + Colors.BOLD + userName + Colors.NORMAL + (userID==0 ? "("+Colors.DARK_GRAY+userType+Colors.NORMAL+")" : " " + userID + " 威望=" + userReputation) + 	"   " + //  + ", " + userLink
+				(i==0 ? "剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次" : "") +
+				""
+			);
+		}
+	}
+
+	public void processStackExchangeUsersNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
+	{
+		if (node == null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "无结果");
+			return;
+		}
+
+		if (node.get ("error_id")!=null)
+		{
+			processStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+			return;
+		}
+
+		ArrayNode users = (ArrayNode)node.get("items");
+		boolean hasMoreResults = node.get ("has_more").booleanValue ();
+		int nQuotaMax = node.get ("quota_max").intValue ();
+		int nQuotaRemaining = node.get ("quota_remaining").intValue ();
+
+		if (users.size () == 0)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "搜索无结果。  剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次");
+			return;
+		}
+
+		for (int i=0; i<users.size(); i++)
+		{
+			JsonNode user = users.get (i);
+
+			JsonNode badgeCounts = user.get ("badge_counts");
+				String bronzeCount = badgeCounts.get ("bronze").asText ();
+				String silverCount = badgeCounts.get ("silver").asText ();
+				String goldCount = badgeCounts.get ("gold").asText ();
+
+			String userType = user.get ("user_type").textValue ();
+			String name = user.get ("display_name").asText ();
+			String link = user.get ("link").asText ();
+			String age = "";
+			if (user.get ("age") != null) age = user.get ("age").asText ();
+			String location = "";
+			if (user.get ("location") != null) location = user.get ("location").asText ();
+			String websiteURL = "";
+			if (user.get ("website_url") != null) websiteURL = user.get ("website_url").asText ();
+
+			String accountID = user.get ("account_id").asText ();
+			boolean isEmployee = user.get ("is_employee").booleanValue ();
+			int reputation = user.get ("reputation").intValue ();
+			int acceptRate = 0;
+			if (user.get ("accept_rate") != null) acceptRate = user.get ("accept_rate").intValue ();
+			long creationTime_Seconds = user.get ("creation_date").longValue ();
+			long lastAccessTime_Seconds = user.get ("last_access_date").longValue ();
+
+			SendMessage (ch, nick, mapGlobalOptions,
+				link.substring (0, link.lastIndexOf ('/')) + "   " +	// link.substring (0, link.lastIndexOf ('/'))   -->  把网址后面的与标题内容重复的内容剔除
+				Colors.LIGHT_GRAY + StringEscapeUtils.unescapeHtml4 (name) + Colors.NORMAL + "   " +
+				"勋章:" + Colors.YELLOW + goldCount + "金" + Colors.NORMAL + "," + Colors.LIGHT_GRAY+ silverCount + "银" + Colors.NORMAL + "," + Colors.OLIVE + bronzeCount + "铜" + Colors.NORMAL + " " +
+				"分数/声望:" + reputation + ", 答案接受比:" + acceptRate + "%    " +
+				(age.isEmpty () ? "" : age + "岁   ") +
+				(location.isEmpty () ? "" : location + "   ") +
+				(websiteURL.isEmpty () ? "" : "个人网站: " + websiteURL + "   ") +
+				"创建时间:" + new java.sql.Timestamp(creationTime_Seconds*1000) + ", 最后访问时间:" + new java.sql.Timestamp(lastAccessTime_Seconds*1000) +
+				(i==0 ? "    剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次" : "") +
+				""
+			);
 		}
 	}
 
@@ -1758,133 +2389,6 @@ public class LiuYanBot extends PircBot
 			sb.append ("] ");
 		}
 		SendMessage (ch, u, mapGlobalOptions, sb.toString());
-	}
-
-	/**
-	 * 执行操作系统命令
-	 * @param ch
-	 * @param nick
-	 * @param user
-	 * @param botcmd
-	 * @param mapGlobalOptions 全局选项
-	 * @param listCmdEnv 通常是 语言.字符集 两项
-	 * @param params 要执行的命令及其参数
-	 */
-	void ProcessCommand_Exec (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
-	{
-		boolean opt_output_stderr = (boolean)mapGlobalOptions.get("opt_output_stderr");
-		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		if (params==null || params.isEmpty())
-		{
-			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
-			return;
-		}
-		if (ch==null)
-		{
-			SendMessage (ch, nick, mapGlobalOptions, botcmd + " 命令不支持通过私信执行，请在频道中执行");
-			return;
-		}
-		CommandLine cmdline = null;
-		List<String> args = splitCommandLine (params);
-		if (args==null || args.size() == 0)
-			return;
-		//CommandLine.parse (params);
-		cmdline = new CommandLine (args.get(0));
-		for (int i=1; i<args.size(); i++)
-			cmdline.addArgument (args.get(i), false);
-//	System.out.println (cmdline.getExecutable());
-//for (String p : cmdline.getArguments())
-//	System.out.println (p);
-
-		/*
-		 * 常见破坏方式
-		 * wget 外网上的脚本，执行该脚本(fork炸弹等) ，应对方法：检查URL域名？
-		 *
-		 * bash -c '任意脚本'	，应对方法：解析 bash 参数，禁止 -c 执行？
-		 * python -c
-		 * awk/gawk 调用 System 函数
-		 *
-		 * cp /bin/rm 任意名字, 执行  任意名字 -rf /，	应对方法：禁止 cp /bin 里的内容？要是从网上下载 rm 呢？
-		 * 解析 rm 参数，禁止递归调用？
-		 *
-		 * kill 0，使bot程序退出，	应对方法：
-		 */
-		if (! CheckExecuteSafety(cmdline.getExecutable(), ch, user, nick))
-		{
-			SendMessage (ch, nick, mapGlobalOptions, cmdline.getExecutable() + " 命令已禁用");
-			return;
-		}
-
-		/*
-		 * 再检查一些常见的，要求交互的命令，这点在 IRC 频道是无法实现的
-		 */
-		// 无参数的 bash cat，yes, 编辑器 vi vim 等
-
-		/*
-		 * 执行
-		 */
-		org.apache.commons.exec.Executor exec = new DefaultExecutor ();
-		OutputStream os =
-				//new ByteArrayOutputStream ();
-				new OutputStreamToIRCMessage (ch, nick, mapGlobalOptions);
-		if (opt_output_stderr)
-			exec.setStreamHandler (new PumpStreamHandler(os, os));
-		else
-			exec.setStreamHandler (new PumpStreamHandler(os));
-		ExecuteWatchdog watchdog = new ExecuteWatchdog (opt_timeout_length_seconds*1000);
-		exec.setWatchdog (watchdog);
-		try
-		{
-			Map<String, String> env = new HashMap<String, String>();
-			env.putAll (System.getenv ());	// System.getenv() 出来的环境变量不允许修改
-			env.put ("COLUMNS", "160");	// 设置“屏幕”宽度，也许仅仅在 linux 有效
-			env.put ("LINES", "25");	// 设置“屏幕”高度，也许仅仅在 linux 有效
-			if (mapGlobalOptions.get("env")!=null)
-				env.putAll ((Map<String, String>)mapGlobalOptions.get("env"));
-
-			if (listCmdEnv!=null)
-			{
-				String lang = listCmdEnv.get (0);
-				if (listCmdEnv.size() >= 2)
-					lang = lang + "." + listCmdEnv.get (1);
-				else
-					lang = lang + ".UTF-8";
-
-				env.put ("LANG", lang);
-				env.put ("LC_MESSAGES", lang);
-			}
-
-			exec.execute (cmdline, env);
-			logger.info ("execute 结束");
-		}
-		catch (Exception e)
-		{
-			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "出错: " + e);
-		}
-		/*
-		String output = os.toString ();
-		if (output.isEmpty())
-		{
-			SendMessage (channel, sender, "** 此命令没有输出任何信息 **");
-		}
-		else
-		{
-			String[] lines = output.split ("\n");
-			int nLines = 0;
-			for (String line : lines)
-			{
-				nLines ++;
-				if (nLines <= MAX_RESPONSE_LINES)
-					SendMessage (channel, sender, line);
-				else
-				{
-					SendMessage (channel, sender, "[忽略剩下的 " + (lines.length - MAX_RESPONSE_LINES) + " 行，有点多]");
-					break;
-				}
-			}
-		}
-		*/
 	}
 
 	String [] arrayBannedCommands =
@@ -1969,46 +2473,6 @@ public class LiuYanBot extends PircBot
 			{
 				System.out.println ("从 IRC 中执行 dd 命令需要输入参数");
 			}
-		}
-	}
-
-	class OutputStreamToIRCMessage extends LogOutputStream
-	{
-		String channel;
-		String sender;
-		boolean opt_output_username;
-		boolean opt_ansi_escape_to_irc_escape;
-		int opt_max_response_lines;
-		String opt_charset;
-		Map<String, Object> options;
-		int lineCounter = 0;
-		public OutputStreamToIRCMessage (String channel, String sender, Map<String, Object> mapOptions)	//boolean opt_output_username, boolean opt_ansi_escape_to_irc_escape, int opt_max_response_lines
-		{
-			this.channel = channel;
-			this.sender = sender;
-			this.options = mapOptions;
-			this.opt_output_username = (boolean)options.get("opt_output_username");
-			this.opt_ansi_escape_to_irc_escape = (boolean)options.get("opt_ansi_escape_to_irc_escape");
-			this.opt_max_response_lines = (int)options.get("opt_max_response_lines");
-			this.opt_charset = (String)mapOptions.get("opt_charset");
-		}
-		@Override
-		protected void processLine (String line, int level)
-		{
-			if (!opt_output_username && line.isEmpty())	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
-				return;
-
-			lineCounter ++;
-			if (lineCounter == opt_max_response_lines + 1)
-				SendMessage (channel, sender, options, "[已达到响应行数限制，剩余的行将被忽略]");
-			if (lineCounter > opt_max_response_lines)
-				return;
-
-			if (opt_ansi_escape_to_irc_escape)
-				line = AnsiEscapeToIrcEscape (line, lineCounter);
-
-			//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
-			SendMessage (channel, sender, options, line);
 		}
 	}
 
@@ -2977,7 +3441,7 @@ public class LiuYanBot extends PircBot
 		String geoIPDB = null;
 		String chunzhenIPDB = null;
 		String[] arrayIgnores;
-		String ignores_patterns = ".*bot.*";
+		String ignores_patterns = null;
 
 		if (args.length==0)
 			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-i 要忽略的用户名，多个名字用 ',' 分割]");
@@ -3072,12 +3536,16 @@ public class LiuYanBot extends PircBot
 		if (chunzhenIPDB != null)
 			bot.set纯真IPDatabaseFileName (chunzhenIPDB);
 
-		arrayIgnores = ignores_patterns.split ("[,;/]+");
-		for (String ignore : arrayIgnores)
+		bot.AddIgnore (DEFAULT_IGNORE_PATTERN, "名称中含有 bot (被认定为机器人)");
+		if (ignores_patterns != null)
 		{
-			if (ignore==null || ignore.isEmpty())
-				continue;
-			bot.AddIgnore (ignore);
+			arrayIgnores = ignores_patterns.split ("[,;/]+");
+			for (String ignore : arrayIgnores)
+			{
+				if (ignore==null || ignore.isEmpty())
+					continue;
+				bot.AddIgnore (ignore);
+			}
 		}
 
 		bot.connect (server);
