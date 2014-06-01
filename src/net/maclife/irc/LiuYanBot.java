@@ -382,6 +382,10 @@ public class LiuYanBot extends PircBot
 		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		//String opt_charset = (String)mapGlobalOptions.get("opt_charset");
+		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
+		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
+		if (opt_reply_to_option_on && opt_reply_to!=null && !user.equalsIgnoreCase (opt_reply_to))
+			user = opt_reply_to;
 		SendMessage (channel, user, opt_output_username, opt_max_response_lines, msg);
 	}
 	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
@@ -404,7 +408,7 @@ public class LiuYanBot extends PircBot
 		return user.equalsIgnoreCase ("~LiuYan") || user.equalsIgnoreCase ("~biergaizi");
 	}
 
-	boolean isFlooding (String channel, String sender, String login, String hostname, String message)
+	boolean isFlooding (String channel, String nick, String login, String hostname, String message)
 	{
 		boolean isFlooding = false;
 		Map<String, Object> mapUserInfo = mapAntiFloodRecord.get (login);
@@ -437,7 +441,7 @@ public class LiuYanBot extends PircBot
 			else
 			{
 				// 假定其身后的用户是倾向于”变好“，该 bot 的消息是不是造成
-				SendMessage (channel, sender, true, 1, "[防洪] 谢谢，对您的灌水惩罚减刑 1 次，目前 = " + 灌水计数器 + " 次，请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
+				SendMessage (channel, nick, true, 1, "[防洪] 谢谢，对您的灌水惩罚减刑 1 次，目前 = " + 灌水计数器 + " 次，请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
 			}
 		}
 		else
@@ -453,7 +457,7 @@ public class LiuYanBot extends PircBot
 
 			// 发送消息提示该用户，但别造成自己被跟着 flood 起来
 			if (!上次是否灌水 || 用户灌水时是否回复)
-				SendMessage (channel, sender, true, 1, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
+				SendMessage (channel, nick, true, 1, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
 		}
 		mapUserInfo.put ("最后活动时间", now);
 		mapUserInfo.put ("灌水计数器", 灌水计数器);
@@ -561,16 +565,16 @@ public class LiuYanBot extends PircBot
 	}
 
 	@Override
-	public void onPrivateMessage (String sender, String login, String hostname, String message)
+	public void onPrivateMessage (String nick, String login, String hostname, String message)
 	{
-		onMessage (null, sender, login, hostname, message);
+		onMessage (null, nick, login, hostname, message);
 	}
 
 	@Override
-	public void onMessage (String channel, String sender, String login, String hostname, String message)
+	public void onMessage (String channel, String nick, String login, String hostname, String message)
 	{
 		boolean isSayingToMe = false;	// 是否是指名道姓的对我说
-		//System.out.println ("ch="+channel +",sender="+sender +",login="+login +",hostname="+hostname);
+		//System.out.println ("ch="+channel +",nick="+nick +",login="+login +",hostname="+hostname);
 		// 如果是指名道姓的直接对 Bot 说话，则把机器人用户名去掉
 		if (StringUtils.startsWithIgnoreCase(message, getName()+":") || StringUtils.startsWithIgnoreCase(message, getName()+","))
 		{
@@ -580,7 +584,7 @@ public class LiuYanBot extends PircBot
 		}
 		try
 		{
-			Map<String, Object> ignoreInfo = GetNameInfoFromIgnoredNames (sender);
+			Map<String, Object> ignoreInfo = GetNameInfoFromIgnoredNames (nick);
 			//  再判断是不是 bot 命令
 			String botCmd;
 			botCmd = getBotPrimaryCommand (message);
@@ -588,21 +592,21 @@ public class LiuYanBot extends PircBot
 			{
 				if (isSayingToMe && ignoreInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 				{
-					SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommand("help") + " 命令显示帮助信息");
-					//ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listEnv, null);
+					SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommand("help") + " 命令显示帮助信息");
+					//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
 				}
 				return;
 			}
 
 			// 先查看忽略列表
-			if (!isUserInWhiteList(login, sender))
+			if (!isUserInWhiteList(login, nick))
 			{
 				if (ignoreInfo != null)
 				{
-					System.out.println (CSI + "31;1m" + sender  + CSI + "m 已被忽略");
+					System.out.println (CSI + "31;1m" + nick  + CSI + "m 已被忽略");
 					if (ignoreInfo.get ("NotifyTime") == null)
 					{
-						SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "你已被加入黑名单。" + (ignoreInfo.get ("Reason")==null?"": "原因: " + Colors.RED + ignoreInfo.get ("Reason")) + Colors.NORMAL + " (本消息只提醒一次)");
+						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "你已被加入黑名单。" + (ignoreInfo.get ("Reason")==null?"": "原因: " + Colors.RED + ignoreInfo.get ("Reason")) + Colors.NORMAL + " (本消息只提醒一次)");
 						ignoreInfo.put ("NotifyTime", System.currentTimeMillis ());
 					}
 					return;
@@ -610,7 +614,7 @@ public class LiuYanBot extends PircBot
 			}
 
 			// 再 Anti-Flood 防止灌水、滥用
-			if (isFlooding(channel, sender, login, hostname, message))
+			if (isFlooding(channel, nick, login, hostname, message))
 				return;
 
 			// 统一命令格式处理，得到 bot 命令、bot 命令环境参数、其他参数
@@ -622,7 +626,6 @@ public class LiuYanBot extends PircBot
 				message = message.substring (BOT_COMMAND_PREFIX.length ());	// 这样直接去掉前缀字符串长度的字符串(而不验证 message 是否以前缀开头)，是因为前面的 getBotCommand 命令已经验证了命令前缀的有效性，否则这样直接去掉是存在缺陷的的（”任意与当前前缀相同长度的前缀都是有效的前缀“）
 			String[] args = message.split (" +", 2);
 			botCmdAlias = args[0];
-			boolean opt_reply_to_option_on = false;
 			boolean opt_output_username = true;
 			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
@@ -630,6 +633,7 @@ public class LiuYanBot extends PircBot
 			boolean opt_max_response_lines_specified = false;	// 是否指定了最大响应行数，如果指定了的话，达到行数后，就不再提示“[已达到响应行数限制，剩余的行将被忽略]”
 			int opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH;
 			String opt_charset = null;
+			boolean opt_reply_to_option_on = false;
 			String opt_reply_to = null;	// reply to
 			Map<String, Object> mapGlobalOptions = new HashMap<String, Object> ();
 			Map<String, String> mapUserEnv = new HashMap<String, String> ();	// 用户在 全局参数 里指定的环境变量
@@ -667,6 +671,7 @@ public class LiuYanBot extends PircBot
 					else if (env.equalsIgnoreCase("to"))
 					{
 						opt_reply_to_option_on = true;
+						// opt_reply_to = 		// 因为牵扯到更改了（增加了）参数数量，所以需要在下面单独设置 opt_reply_to
 						continue;
 					}
 					else if (env.contains("="))	// 设置环境变量，如 LINES=40 COLUMNS=120 等，注意，环境变量的数值不能包含小数点，因为这是全局参数的分隔符。所以，对于 LANG=zh_CN.UTF-8 之类的环境变量，需要当成命令局部参数处理
@@ -705,7 +710,7 @@ public class LiuYanBot extends PircBot
 						{
 							opt_max_response_lines = Integer.parseInt (env);
 							opt_max_response_lines_specified = true;
-							if (! isUserInWhiteList(login, sender) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
+							if (! isUserInWhiteList(login, nick) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
 								opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 						}
 						catch (Exception e)
@@ -721,14 +726,6 @@ public class LiuYanBot extends PircBot
 					listEnv.add (env);
 				}
 			}
-			mapGlobalOptions.put ("opt_output_username", opt_output_username);
-			mapGlobalOptions.put ("opt_output_stderr", opt_output_stderr);
-			mapGlobalOptions.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
-			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
-			mapGlobalOptions.put ("opt_max_response_lines_specified", opt_max_response_lines_specified);
-			mapGlobalOptions.put ("opt_timeout_length_seconds", opt_timeout_length_seconds);
-			mapGlobalOptions.put ("opt_charset", opt_charset);
-			mapGlobalOptions.put ("opt_reply_to", opt_reply_to);
 
 			if (opt_reply_to_option_on)
 			{
@@ -745,59 +742,66 @@ public class LiuYanBot extends PircBot
 				if (args.length >= 2)
 					params = args[1];
 			}
+
+			mapGlobalOptions.put ("opt_output_username", opt_output_username);
+			mapGlobalOptions.put ("opt_output_stderr", opt_output_stderr);
+			mapGlobalOptions.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
+			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
+			mapGlobalOptions.put ("opt_max_response_lines_specified", opt_max_response_lines_specified);
+			mapGlobalOptions.put ("opt_timeout_length_seconds", opt_timeout_length_seconds);
+			mapGlobalOptions.put ("opt_charset", opt_charset);
+			mapGlobalOptions.put ("opt_reply_to", opt_reply_to);
+			mapGlobalOptions.put ("opt_reply_to_option_on", opt_reply_to_option_on);
 //System.out.println (botcmd);
 //System.out.println (listEnv);
 //System.out.println (params);
 
-			if (opt_reply_to != null)
-				sender = opt_reply_to;
-
 			if (false) {}
 			else if (botCmd.equalsIgnoreCase("cmd"))
-				ExecuteCommand (channel, sender, login, botCmd, mapGlobalOptions, listEnv, params);
+				ExecuteCommand (channel, nick, login, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("parseCmd"))
-				ProcessCommand_ParseCommand (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_ParseCommand (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("time"))
-				ProcessCommand_Time (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Time (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("action"))
-				ProcessCommand_ActionNotice (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("notice"))
-				ProcessCommand_ActionNotice (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("locales"))
-				ProcessCommand_Locales (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Locales (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("timezones"))
-				ProcessCommand_TimeZones (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_TimeZones (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("env"))
-				ProcessCommand_Environment (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Environment (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("properties"))
-				ProcessCommand_Properties (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Properties (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("geoip"))
-				ProcessCommand_GeoIP (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_GeoIP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("iplocation"))
-				ProcessCommand_纯真IP (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_纯真IP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("PageRank"))
-				ProcessCommand_GooglePageRank (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_GooglePageRank (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("urlencode") || botCmd.equalsIgnoreCase("urldecode"))
-				ProcessCommand_URLEncodeDecode (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_URLEncodeDecode (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("httphead"))
-				ProcessCommand_HTTPHead (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_HTTPHead (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("StackExchange"))
-				ProcessCommand_StackExchange (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_StackExchange (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("help"))
-				ProcessCommand_Help (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Help (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("version"))
-				ProcessCommand_Version (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Version (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("/raw"))
-				ProcessCommand_SendRaw (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_SendRaw (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("/set"))
-				ProcessCommand_Set (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Set (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase("/ignore"))
-				ProcessCommand_Ignore (channel, sender, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Ignore (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (channel, sender, true, MAX_RESPONSE_LINES, "出错：" + e);
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "出错：" + e);
 		}
 	}
 
@@ -852,21 +856,26 @@ public class LiuYanBot extends PircBot
 		if (params==null)
 		{
 			SendMessage (ch, u, mapGlobalOptions,
-				"本bot命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
+				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				", 命令列表: " + COLOR_COMMAND_INSTANCE + "Help Cmd StackExchange GeoIP IPLocation PageRank Time  ParseCmd Action Notice TimeZones Locales Env Properties Version" + Colors.NORMAL + ", 可用 help [命令]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time  ParseCmd Action Notice TimeZones Locales Env Properties Version Help" + Colors.NORMAL +
+				", 可用 "+ COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
-				COLOR_COMMAND_OPTION_INSTANCE + "nou" + Colors.NORMAL + "--不输出用户名(NO Username), " +
-				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过" + MAX_RESPONSE_LINES_LIMIT + "). " +
-
-				COLOR_BOT_COMMAND + "cmd" + Colors.NORMAL + " 命令特有选项: " +
-				COLOR_COMMAND_OPTION_INSTANCE + "esc" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "escape" + Colors.NORMAL + "--将输出的 ANSI 颜色转换为 IRC 颜色(ESC'[01;33;41m' -> 0x02 0x03 '08,04'), " +
-				COLOR_COMMAND_OPTION_INSTANCE + "err" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "stderr" + Colors.NORMAL + "--输出 stderr, " +
-				COLOR_COMMAND_OPTION_INSTANCE + "timeout=" + COLOR_COMMAND_OPTION_VALUE + "N" + Colors.NORMAL + "--将超时时间改为 N 秒), " +
-				COLOR_COMMAND_OPTION + "变量名=" + COLOR_COMMAND_OPTION_VALUE + "变量值" + Colors.NORMAL + "--设置环境变量), " +
+				COLOR_COMMAND_OPTION_INSTANCE + "to" + Colors.NORMAL + "--将输出重定向(需要加额外的“目标”参数); " +
+				COLOR_COMMAND_OPTION_INSTANCE + "nou" + Colors.NORMAL + "--不输出用户名(NO Username), 该选项覆盖 " + COLOR_COMMAND_OPTION_INSTANCE + "to" + Colors.NORMAL + " 选项; " +
 				"全局选项的顺序无关紧要, 私有选项需按命令要求的顺序出现"
+				);
+
+			SendMessage (ch, u, mapGlobalOptions,
+				COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令特有的全局选项: " +
+				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
+				COLOR_COMMAND_OPTION_INSTANCE + "esc" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "escape" + Colors.NORMAL + "--将 ANSI 颜色转换为 IRC 颜色(ESC'[01;33;41m' -> 0x02 0x03 '08,04'); " +
+				COLOR_COMMAND_OPTION_INSTANCE + "err" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "stderr" + Colors.NORMAL + "--输出 stderr; " +
+				COLOR_COMMAND_OPTION_INSTANCE + "timeout=" + COLOR_COMMAND_OPTION_VALUE + "N" + Colors.NORMAL + "--将超时时间改为 N 秒); " +
+				COLOR_COMMAND_OPTION + "变量名=" + COLOR_COMMAND_OPTION_VALUE + "变量值" + Colors.NORMAL + "--设置环境变量); " +
+				""
 				);
 			return;
 		}
@@ -878,17 +887,17 @@ public class LiuYanBot extends PircBot
 		primaryCmd = "time";           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		primaryCmd = "action";         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION_INSTANCE + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "动作消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
 		primaryCmd = "notice";         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION_INSTANCE + ".target" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + ".目标" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "通知消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 .target 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
 		primaryCmd = "parsecmd";       if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析要执行的命令");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析 " + COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令的参数");
 		primaryCmd = "cmd";            if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "exec"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 之外, shell 中类似变量取值($var) 重定向(><) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 
-		primaryCmd = "locales";        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "javalocales"))
+		primaryCmd = "locales";        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaLocales"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
-		primaryCmd = "timeZones";      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "javatimezones"))
+		primaryCmd = "timeZones";      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaTimeZones"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javatimezones" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
 		primaryCmd = "env";            if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
@@ -903,78 +912,65 @@ public class LiuYanBot extends PircBot
 		primaryCmd = "urlencode";        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "urldecode"))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "urldecode" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
 		primaryCmd = "httphead";        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL+ "] <HTTP 网址>    -- 显示指定网址的 HTTP 响应头");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "] <HTTP 网址>    -- 显示指定网址的 HTTP 响应头");
 		primaryCmd = "stackExchange";        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL+ " <站点名|list> <动作> [参数]..    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 list 列出， 动作有 Search/s, Users/u(按ID查询) AllUsers/au(全站用户，可按姓名查) Info(站点信息) ");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "se" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "站点名" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER + "list" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "动作" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数" + Colors.NORMAL + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + COLOR_COMMAND_PARAMETER_INSTANCE + "list" + Colors.NORMAL + " 列出， 动作有 " + COLOR_COMMAND_PARAMETER_INSTANCE + "Search" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "s" + Colors.NORMAL + " " + COLOR_COMMAND_PARAMETER_INSTANCE + "Users" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "u" + Colors.NORMAL + "(按ID查询) " + COLOR_COMMAND_PARAMETER_INSTANCE + "AllUsers" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "au" + Colors.NORMAL + "(全站用户，可按姓名查) " + COLOR_COMMAND_PARAMETER_INSTANCE + "Info" + Colors.NORMAL + "(站点信息) ");
 
 		primaryCmd = "version";          if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
 
 		primaryCmd = "help";           if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加命令前缀)" + Colors.NORMAL + "]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
 	}
 
-	void ProcessCommand_ActionNotice (String channel, String sender, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_ActionNotice (String channel, String nick, String login, String host, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		boolean targetParameterOn = false;
-		if (listCmdEnv!=null)
-		{
-			for (String env : listCmdEnv)
-				if (env.equalsIgnoreCase("target") || env.equalsIgnoreCase("目标"))
-					targetParameterOn = true;
-		}
+		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
+		String opt_reply_to = (String)mapGlobalOptions.get ("opt_reply_to");
 
-		String target = channel, msg = null;
-		if (channel==null)
-			target = sender;
+		String target = channel;	// 默认在本频道执行动作/提醒
+		String msg = params;
+		if (opt_reply_to_option_on)	// .to 参数修改目标
+			target = opt_reply_to;
 
-		if (targetParameterOn)
-		{
-			String[] args = params.split (" ", 2);
-			if (args.length != 2 || args[0].isEmpty() || args[1].isEmpty())
-			{
-				SendMessage (channel, sender, mapGlobalOptions, "参数不完整。");
-				return;
-			}
-			target = args[0];
-			msg = args[1];
-		}
-		else
-			msg = params;
-
-		if (!target.equals(channel))
-			msg = msg + " (发自 " + sender + (channel==null?" 的私信":", 频道: "+channel) + ")";
+		if (!target.equalsIgnoreCase(channel))
+			msg = msg + " (发自 " + nick + (channel==null ? " 的私信" : ", 频道: "+channel) + ")";
 
 		if (botcmd.equalsIgnoreCase("action"))
 			sendAction (target, msg);
 		else if (botcmd.equalsIgnoreCase("notice"))
-			sendNotice (target, msg);
+		{
+			if (this.isUserInWhiteList (login, nick))
+				sendNotice (target, msg);
+			else
+				SendMessage (channel, nick, mapGlobalOptions, "notice 命令已关闭 (会造成部分用户客户端有提醒信息出现)");
+		}
 	}
 
-	void ProcessCommand_SendRaw (String channel, String sender, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_SendRaw (String channel, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		logger.fine (params);
 		sendRawLine (params);
 	}
 
-	void ProcessCommand_Set (String channel, String sender, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Set (String channel, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
 			arrayParams = params.split (" ", 2);
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String param = arrayParams[0];
@@ -1002,14 +998,14 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
-	void ProcessCommand_Ignore (String channel, String sender, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Ignore (String channel, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
 			arrayParams = params.split (" ", 3);
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (channel, sender, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String action = arrayParams[0];
@@ -2077,7 +2073,7 @@ public class LiuYanBot extends PircBot
 						sbSiteInfo.append (name);
 					sbSiteInfo.append (" ");
 				}
-				if ((i+1)%10 == 0)	// 每 10 个站点（可能更少）一行
+				if ((i+1)%8 == 0)	// 每 10 个站点（可能更少）一行
 				{
 					SendMessage (ch, nick, mapGlobalOptions, sbSiteInfo.toString ());
 					sbSiteInfo.delete (0, sbSiteInfo.length ());
@@ -3006,14 +3002,14 @@ public class LiuYanBot extends PircBot
 		public OutputStream nextOut = null;	// 下个命令的输入（作为本命令的输出）
 
 		String channel;
-		String sender;
+		String nick;
 		int lineCounter = 0;
 		int lineCounterIncludingEmptyLines = 0;	// 包含空行的行号计数器，这个行号用在 AnsiEscapeToIrcEscape 中对“设置当前光标位置/CUP”控制序列的转换
 
-		public CommandRunner (String channel, String sender, Map<String, Object> mapCommand, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, Map<String, Object> mapPreviousCommand, Map<String, Object> mapNextCommand)
+		public CommandRunner (String channel, String nick, Map<String, Object> mapCommand, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, Map<String, Object> mapPreviousCommand, Map<String, Object> mapNextCommand)
 		{
 			this.channel = channel;
-			this.sender = sender;
+			this.nick = nick;
 
 			command = mapCommand;
 				commandArgs = (List<String>)mapCommand.get ("commandargs");
@@ -3173,7 +3169,7 @@ public class LiuYanBot extends PircBot
 
 						lineCounter ++;
 						if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
-							SendMessage (channel, sender, globalOpts, "[已达到响应行数限制，剩余的行将被忽略]");
+							SendMessage (channel, nick, globalOpts, "[已达到响应行数限制，剩余的行将被忽略]");
 						if (lineCounter > opt_max_response_lines)
 							continue;
 
@@ -3183,7 +3179,7 @@ public class LiuYanBot extends PircBot
 						if (!line.contains ("\n"))
 						{
 							//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
-							SendMessage (channel, sender, globalOpts, line);
+							SendMessage (channel, nick, globalOpts, line);
 						}
 						else	// 这里包含的换行符可能是 AnsiEscapeToIrcEscape 转换时遇到 CSI n;m 'H' (设置光标位置)、CSI n 'd' (行跳转) 等光标移动转义序列 而导致的换行 (比如: htop 的输出)
 						{
@@ -3191,12 +3187,12 @@ public class LiuYanBot extends PircBot
 							for (String newLine : arrayLines)
 							{
 								if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
-									SendMessage (channel, sender, globalOpts, "[已达到响应行数限制，剩余的行将被忽略]");
+									SendMessage (channel, nick, globalOpts, "[已达到响应行数限制，剩余的行将被忽略]");
 								if (lineCounter > opt_max_response_lines)
 									continue otherLines;	// java 的标签只有跳循环这个用途，这还是第一次实际应用……
 
 								//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
-								SendMessage (channel, sender, globalOpts, newLine);
+								SendMessage (channel, nick, globalOpts, newLine);
 								lineCounter ++;
 								lineCounterIncludingEmptyLines++;
 							}
@@ -3205,7 +3201,7 @@ public class LiuYanBot extends PircBot
 					logger.finer (program + " stdout 读取完毕");
 
 					if (lineCounter==0)
-						SendMessage (channel, sender, globalOpts, program + " 命令没有输出");
+						SendMessage (channel, nick, globalOpts, program + " 命令没有输出");
 
 					//if (!opt_output_stderr)
 					{
@@ -3226,13 +3222,13 @@ public class LiuYanBot extends PircBot
 				if (rc==0)
 				{
 					if ((nEndTime - nStartTime)/1000 > WATCH_DOG_TIMEOUT_LENGTH)
-						SendMessage (channel, sender, globalOpts, program + " 耗时 " + GetRunTimeString(nStartTime, nEndTime));
+						SendMessage (channel, nick, globalOpts, program + " 耗时 " + GetRunTimeString(nStartTime, nEndTime));
 				}
 				else if (rc!=0)
 				{
 					// 非正常结束，有 stdout 输出, 不处理？
 					// 非正常结束，无 stdout 输出, 有/无 stderr 输出，输出 stderr ?
-					SendMessage (channel, sender, globalOpts, program + " 返回代码 = " + rc);
+					SendMessage (channel, nick, globalOpts, program + " 返回代码 = " + rc);
 				}
 			}
 			catch (Exception e)
@@ -3241,9 +3237,9 @@ public class LiuYanBot extends PircBot
 				e.printStackTrace();
 
 				if ((nEndTime - nStartTime)/1000 > WATCH_DOG_TIMEOUT_LENGTH)
-					SendMessage (channel, sender, globalOpts, program + " 出错: " + e + "    耗时 " + GetRunTimeString(nStartTime, nEndTime));
+					SendMessage (channel, nick, globalOpts, program + " 出错: " + e + "    耗时 " + GetRunTimeString(nStartTime, nEndTime));
 				else
-					SendMessage (channel, sender, globalOpts, program + " 出错: " + e);
+					SendMessage (channel, nick, globalOpts, program + " 出错: " + e);
 			}
 		}
 	}
