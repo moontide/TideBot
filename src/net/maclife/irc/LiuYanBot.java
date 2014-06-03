@@ -859,7 +859,7 @@ public class LiuYanBot extends PircBot
 				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
 				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time  ParseCmd Action Notice TimeZones Locales Env Properties Version Help" + Colors.NORMAL +
-				", 可用 "+ COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
@@ -935,6 +935,8 @@ public class LiuYanBot extends PircBot
 
 		String target = channel;	// 默认在本频道执行动作/提醒
 		String msg = params;
+		if (target==null)
+			target = nick;
 		if (opt_reply_to_option_on)	// .to 参数修改目标
 			target = opt_reply_to;
 
@@ -1116,6 +1118,7 @@ public class LiuYanBot extends PircBot
 		bFounded = (nameInfo != null);
 		if (bFounded)
 		{
+			nameInfoToAdd = nameInfo;
 			System.err.println ("要忽略的用户名已经被添加过，更新之");
 			nameInfoToAdd.put ("UpdatedTime", System.currentTimeMillis ());
 			int nTimes = nameInfoToAdd.get ("AddedTimes")==null ? 1 : (int)nameInfoToAdd.get ("AddedTimes");
@@ -1183,13 +1186,13 @@ public class LiuYanBot extends PircBot
 		}
 
 		String sWarning = "";
-		if (sTimeZoneID!=null)
+		if (sTimeZoneID!=null && !sTimeZoneID.isEmpty ())
 		{
 			tz = TimeZone.getTimeZone (sTimeZoneID);
 			if (tz.getRawOffset()==0)
-				sWarning = " (" + sTimeZoneID + " 有可能不是有效的时区，被默认为国际标准时间)";
+				sWarning = " ([" + sTimeZoneID + "] 有可能不是有效的时区，被默认为国际标准时间)";
 		}
-		if (sDateFormat==null)
+		if (sDateFormat==null || sDateFormat.isEmpty ())
 			sDateFormat = DEFAULT_TIME_FORMAT_STRING;
 		if (l == null)
 			df = new SimpleDateFormat (sDateFormat);
@@ -1776,7 +1779,7 @@ public class LiuYanBot extends PircBot
 						return;
 					}
 					String searchOption_fromdate = arrayParams [++i];
-					long ms = java.sql.Date.parse (searchOption_fromdate);
+					long ms = java.sql.Date.valueOf (searchOption_fromdate).getTime ();
 					mapParams.put ("fromdate", String.valueOf (ms/1000));
 				}
 				else if (param.equalsIgnoreCase("todate"))
@@ -1787,7 +1790,7 @@ public class LiuYanBot extends PircBot
 						return;
 					}
 					String searchOption_todate = arrayParams [++i];
-					long ms = java.sql.Date.parse (searchOption_todate);
+					long ms = java.sql.Date.valueOf (searchOption_todate).getTime ();
 					mapParams.put ("todate", String.valueOf (ms/1000));
 				}
 				else if (param.equalsIgnoreCase("sort"))
@@ -2029,12 +2032,12 @@ public class LiuYanBot extends PircBot
 				// 将日期变为秒数
 				if (sMin != null)
 				{
-					long ms = java.sql.Date.parse (sMin);
+					long ms = java.sql.Date.valueOf (sMin).getTime ();
 					mapParams.put ("min", String.valueOf (ms/1000));
 				}
 				if (sMax != null)
 				{
-					long ms = java.sql.Date.parse (sMax);
+					long ms = java.sql.Date.valueOf (sMax).getTime ();
 					mapParams.put ("max", String.valueOf (ms/1000));
 				}
 			}
@@ -2344,7 +2347,7 @@ public class LiuYanBot extends PircBot
 				"勋章:" + Colors.YELLOW + goldCount + "金" + Colors.NORMAL + "," + Colors.LIGHT_GRAY+ silverCount + "银" + Colors.NORMAL + "," + Colors.OLIVE + bronzeCount + "铜" + Colors.NORMAL + " " +
 				"分数/声望:" + reputation + ", 答案接受比:" + acceptRate + "%    " +
 				(age.isEmpty () ? "" : age + "岁   ") +
-				(location.isEmpty () ? "" : location + "   ") +
+				(location.isEmpty () ? "" : StringEscapeUtils.unescapeHtml4 (location) + "   ") +
 				(websiteURL.isEmpty () ? "" : "个人网站: " + websiteURL + "   ") +
 				"创建时间:" + new java.sql.Timestamp(creationTime_Seconds*1000) + ", 最后访问时间:" + new java.sql.Timestamp(lastAccessTime_Seconds*1000) +
 				(i==0 ? "    剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次" : "") +
@@ -2402,7 +2405,7 @@ public class LiuYanBot extends PircBot
 		"poweroff", "halt", "reboot", "shutdown", "systemctl",
 
 		// 执行脚本、语言编译器
-		"python", "python2", "python2.7", "python3", "python3.3", "python3.3m", "perl", "java", "gcc", "g++", "gcc", "make",
+		"python", "python2", "python2.7", "python3", "python3.3", "python3.3m", "perl", "perl5.18.2", "java", "gcc", "g++", "gcc", "make",
 
 		// 可以执行其他命令的命令
 		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install",
@@ -2441,7 +2444,7 @@ public class LiuYanBot extends PircBot
 					|| arg.equalsIgnoreCase ("-prune")
 					)
 				{
-					System.out.println ("禁止执行 find 命令操作: " + arg);
+					System.out.println ("find 命令禁止参数: " + arg);
 				}
 			}
 		}
@@ -2592,12 +2595,16 @@ public class LiuYanBot extends PircBot
 						iBold = 1;
 						irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
 						break;
+					// unbuffer 命令在 TERM=screen 执行 cal 命令时，输出 ESC [3m 和 ESC [23m
+					case 3:	// Italic: on      not widely supported. Sometimes treated as inverse.
+					// unbuffer 命令在 TERM=xterm-256color 或者 TERM=linux 执行 cal 命令时，输出 ESC [7m 和 ESC [27m
 					case 7:	// Image: Negative 前景背景色反转 inverse or reverse; swap foreground and background (reverse video)
 						irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
 						break;
+					case 23:	// Not italic, not Fraktur
 					case 27:	// Image: Positive 前景背景色正常。由于 IRC 没有这一项，所以，应该替换为 Colors.NORMAL 或者 再次翻转(反反得正)
-						//irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
-						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
+						irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
+						//irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
 						break;
 					case 4:	// 单下划线
 						irc_escape_sequence = irc_escape_sequence + Colors.UNDERLINE;
