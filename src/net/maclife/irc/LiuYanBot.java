@@ -19,6 +19,7 @@ import com.maxmind.geoip2.model.*;
 import org.jibble.pircbot.*;
 
 import com.temesoft.google.pr.*;
+import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
 import com.liuyan.util.qqwry.*;
@@ -43,29 +44,60 @@ public class LiuYanBot extends PircBot
 	java.util.concurrent.Executor executor = Executors.newFixedThreadPool (15);
 
 	static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
+	public static final String BOT_PRIMARY_COMMAND_Help	= "Help";
+	public static final String BOT_PRIMARY_COMMAND_Cmd	= "Cmd";
+	public static final String BOT_PRIMARY_COMMAND_ParseCmd	= "ParseCmd";
+	public static final String BOT_PRIMARY_COMMAND_IPLocation	= "IPLocation";
+	public static final String BOT_PRIMARY_COMMAND_GeoIP	= "GeoIP";
+	public static final String BOT_PRIMARY_COMMAND_PageRank = "PageRank";
+	public static final String BOT_PRIMARY_COMMAND_StackExchange = "StackExchange";
+	public static final String BOT_PRIMARY_COMMAND_Google = "/Google";
+
+	public static final String BOT_PRIMARY_COMMAND_Time	= "Time";
+	public static final String BOT_PRIMARY_COMMAND_Action	= "Action";
+	public static final String BOT_PRIMARY_COMMAND_Notice	= "Notice";
+
+	public static final String BOT_PRIMARY_COMMAND_URLDecode = "URLDecode";
+	public static final String BOT_PRIMARY_COMMAND_URLEecode = "URLEecode";
+	public static final String BOT_PRIMARY_COMMAND_HTTPHead = "HTTPHead";
+
+	public static final String BOT_PRIMARY_COMMAND_TimeZones	= "TimeZones";
+	public static final String BOT_PRIMARY_COMMAND_Locales	= "Locales";
+	public static final String BOT_PRIMARY_COMMAND_Env	= "Env";
+	public static final String BOT_PRIMARY_COMMAND_Properties	= "Properties";
+
+	public static final String BOT_PRIMARY_COMMAND_Ignore	= "/ignore";
+	public static final String BOT_PRIMARY_COMMAND_Set	= "/set";
+	public static final String BOT_PRIMARY_COMMAND_Raw	= "/raw";
+	public static final String BOT_PRIMARY_COMMAND_Version	= "Version";
 	static final String[][] BOT_COMMAND_NAMES =
 	{
-		{"help", },
-		{"time", },
-		{"action", },
-		{"notice", },
-		{"TimeZones", "JavaTimeZones", },
-		{"Locales", "JavaLocales", },
-		{"cmd", "exec", },
-		{"parseCmd", },
-		{"env", },
-		{"properties", },
-		{"geoip", },
-		{"iplocation", "iploc", "ipl",},
-		{"PageRank", "pr", },
-		{"urldecode", },
-		{"urlencode", },
-		{"httphead", },
-		{"stackexchange", "se",},
-		{"/raw", },
-		{"/set", },
-		{"/ignore", },
-		{"version", },
+		{BOT_PRIMARY_COMMAND_Help, },
+		{BOT_PRIMARY_COMMAND_Cmd, "exec", },
+		{BOT_PRIMARY_COMMAND_ParseCmd, },
+		{BOT_PRIMARY_COMMAND_IPLocation, "iploc", "ipl",},
+		{BOT_PRIMARY_COMMAND_GeoIP, },
+		{BOT_PRIMARY_COMMAND_PageRank, "pr", },
+		{BOT_PRIMARY_COMMAND_StackExchange, "se",},
+		{BOT_PRIMARY_COMMAND_Google, "/goo+gle",},
+
+		{BOT_PRIMARY_COMMAND_Time, },
+		{BOT_PRIMARY_COMMAND_Action, },
+		{BOT_PRIMARY_COMMAND_Notice, },
+
+		{BOT_PRIMARY_COMMAND_URLDecode, },
+		{BOT_PRIMARY_COMMAND_URLEecode, },
+		{BOT_PRIMARY_COMMAND_HTTPHead, },
+
+		{BOT_PRIMARY_COMMAND_TimeZones, "JavaTimeZones", },
+		{BOT_PRIMARY_COMMAND_Locales, "JavaLocales", },
+		{BOT_PRIMARY_COMMAND_Env, },
+		{BOT_PRIMARY_COMMAND_Properties, },
+
+		{BOT_PRIMARY_COMMAND_Ignore, },
+		{BOT_PRIMARY_COMMAND_Set, },
+		{BOT_PRIMARY_COMMAND_Raw, },
+		{BOT_PRIMARY_COMMAND_Version, },
 	};
 
 	// http://en.wikipedia.org/wiki/ANSI_escape_code#CSI_codes
@@ -757,46 +789,51 @@ public class LiuYanBot extends PircBot
 //System.out.println (params);
 
 			if (false) {}
-			else if (botCmd.equalsIgnoreCase("cmd"))
-				ExecuteCommand (channel, nick, login, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("parseCmd"))
-				ProcessCommand_ParseCommand (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("time"))
-				ProcessCommand_Time (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("action"))
-				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("notice"))
-				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("locales"))
-				ProcessCommand_Locales (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("timezones"))
-				ProcessCommand_TimeZones (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("env"))
-				ProcessCommand_Environment (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("properties"))
-				ProcessCommand_Properties (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("geoip"))
-				ProcessCommand_GeoIP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("iplocation"))
-				ProcessCommand_纯真IP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("PageRank"))
-				ProcessCommand_GooglePageRank (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("urlencode") || botCmd.equalsIgnoreCase("urldecode"))
-				ProcessCommand_URLEncodeDecode (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("httphead"))
-				ProcessCommand_HTTPHead (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("StackExchange"))
-				ProcessCommand_StackExchange (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("help"))
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Help))
 				ProcessCommand_Help (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("version"))
-				ProcessCommand_Version (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("/raw"))
-				ProcessCommand_SendRaw (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("/set"))
-				ProcessCommand_Set (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase("/ignore"))
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Cmd))
+				ExecuteCommand (channel, nick, login, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_ParseCmd))
+				ProcessCommand_ParseCommand (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_IPLocation))
+				ProcessCommand_纯真IP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_GeoIP))
+				ProcessCommand_GeoIP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_PageRank))
+				ProcessCommand_GooglePageRank (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_StackExchange))
+				ProcessCommand_StackExchange (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Google))
+				ProcessCommand_Google (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ignore))
 				ProcessCommand_Ignore (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Time))
+				ProcessCommand_Time (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Action) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Notice))
+				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLEecode) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLDecode))
+				ProcessCommand_URLEncodeDecode (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_HTTPHead))
+				ProcessCommand_HTTPHead (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_TimeZones))
+				ProcessCommand_TimeZones (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Locales))
+				ProcessCommand_Locales (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Env))
+				ProcessCommand_Environment (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Properties))
+				ProcessCommand_Properties (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Set))
+				ProcessCommand_Set (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Raw))
+				ProcessCommand_SendRaw (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Version))
+				ProcessCommand_Version (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
 		}
 		catch (Exception e)
 		{
@@ -812,17 +849,20 @@ public class LiuYanBot extends PircBot
 	 */
 	String getBotPrimaryCommand (String input)
 	{
+		// [“输入”与“命令”完全相等]，
+		// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
+		// 或者 [“输入”以“命令”开头，且紧接小数点"."字符]，小数点字符用于附加 bot 命令的选项
+		String[] inputs = input.split ("[ .]+", 2);
+		String sInputCmd = inputs[0];
 		for (String[] names : BOT_COMMAND_NAMES)
 		{
 			for (String name : names)
 			{
-				String cmd = formatBotCommand (name);
+				String regular_cmd_pattern = formatBotCommand (name);
 				if (
-					   StringUtils.equalsIgnoreCase (input, cmd)	// [“输入”与“命令”完全相等]，
-					|| StringUtils.startsWithIgnoreCase (input, cmd + " ")	// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
-					|| StringUtils.startsWithIgnoreCase (input, cmd + ".")	// 或者 [“输入”以“命令”开头，且紧接小数点"."字符]，小数点字符用于附加 bot 命令的选项
+					   StringUtils.equalsIgnoreCase (sInputCmd, regular_cmd_pattern)
+					|| sInputCmd.matches ("(?i)^" + regular_cmd_pattern + "$")
 					)
-				//if (input.matches (cmd))
 					return names[0];
 			}
 		}
@@ -884,43 +924,46 @@ public class LiuYanBot extends PircBot
 
 		String primaryCmd;
 		String sColoredCommandPrefix = BOT_COMMAND_PREFIX.isEmpty () ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL;
-		primaryCmd = "time";           if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
-		primaryCmd = "action";         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
-		primaryCmd = "notice";         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
-		primaryCmd = "parsecmd";       if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析 " + COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令的参数");
-		primaryCmd = "cmd";            if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "exec"))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 之外, shell 中类似变量取值($var) 重定向(><) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
-
-		primaryCmd = "locales";        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaLocales"))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
-		primaryCmd = "timeZones";      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaTimeZones"))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javatimezones" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
-		primaryCmd = "env";            if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
-		primaryCmd = "properties";     if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
-		primaryCmd = "geoip";          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".GeoIP语言代码]" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IP地址/域名" + Colors.NORMAL + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
-		primaryCmd = "ipLocation";          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "iploc" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "ipl" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IPv4地址/域名" + Colors.NORMAL + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个.");
-		primaryCmd = "pagerank";      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "pr" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "网址" + Colors.NORMAL + ">    -- 从 Google 获取网页的 PageRank (网页排名等级)");
-		primaryCmd = "urlencode";        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "urldecode"))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "urldecode" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
-		primaryCmd = "httphead";        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "] <HTTP 网址>    -- 显示指定网址的 HTTP 响应头");
-		primaryCmd = "stackExchange";        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "se" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "站点名" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER + "list" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "动作" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数" + Colors.NORMAL + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + COLOR_COMMAND_PARAMETER_INSTANCE + "list" + Colors.NORMAL + " 列出， 动作有 " + COLOR_COMMAND_PARAMETER_INSTANCE + "Search" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "s" + Colors.NORMAL + " " + COLOR_COMMAND_PARAMETER_INSTANCE + "Users" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "u" + Colors.NORMAL + "(按ID查询) " + COLOR_COMMAND_PARAMETER_INSTANCE + "AllUsers" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "au" + Colors.NORMAL + "(全站用户，可按姓名查) " + COLOR_COMMAND_PARAMETER_INSTANCE + "Info" + Colors.NORMAL + "(站点信息) ");
-
-		primaryCmd = "version";          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
-
-		primaryCmd = "help";           if (isThisCommandSpecified (args, primaryCmd))
+		primaryCmd = BOT_PRIMARY_COMMAND_Help;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
+		primaryCmd = BOT_PRIMARY_COMMAND_Cmd;            if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "exec"))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 之外, shell 中类似变量取值($var) 重定向(><) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+		primaryCmd = BOT_PRIMARY_COMMAND_ParseCmd;       if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析 " + COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令的参数");
+		primaryCmd = BOT_PRIMARY_COMMAND_IPLocation;          if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "iploc" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "ipl" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IPv4地址/域名" + Colors.NORMAL + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个.");
+		primaryCmd = BOT_PRIMARY_COMMAND_GeoIP;          if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".GeoIP语言代码]" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IP地址/域名" + Colors.NORMAL + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
+		primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "pr" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "网址" + Colors.NORMAL + ">    -- 从 Google 获取网页的 PageRank (网页排名等级)");
+		primaryCmd = BOT_PRIMARY_COMMAND_StackExchange;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "se" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "站点名" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER + "list" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "动作" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数" + Colors.NORMAL + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + COLOR_COMMAND_PARAMETER_INSTANCE + "list" + Colors.NORMAL + " 列出， 动作有 " + COLOR_COMMAND_PARAMETER_INSTANCE + "Search" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "s" + Colors.NORMAL + " " + COLOR_COMMAND_PARAMETER_INSTANCE + "Users" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "u" + Colors.NORMAL + "(按ID查询) " + COLOR_COMMAND_PARAMETER_INSTANCE + "AllUsers" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "au" + Colors.NORMAL + "(全站用户，可按姓名查) " + COLOR_COMMAND_PARAMETER_INSTANCE + "Info" + Colors.NORMAL + "(站点信息) ");
+		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 返回结果：前 3 条");
+
+		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
+		primaryCmd = BOT_PRIMARY_COMMAND_Action;         if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
+		primaryCmd = BOT_PRIMARY_COMMAND_Notice;         if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
+
+		primaryCmd = BOT_PRIMARY_COMMAND_URLEecode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + BOT_PRIMARY_COMMAND_URLDecode + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
+		primaryCmd = BOT_PRIMARY_COMMAND_HTTPHead;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <HTTP 网址>    -- 显示指定网址的 HTTP 响应头");
+
+		primaryCmd = BOT_PRIMARY_COMMAND_Locales;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaLocales"))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
+		primaryCmd = BOT_PRIMARY_COMMAND_TimeZones;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaTimeZones"))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javatimezones" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
+		primaryCmd = BOT_PRIMARY_COMMAND_Env;            if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
+		primaryCmd = BOT_PRIMARY_COMMAND_Properties;     if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
+
+		primaryCmd = BOT_PRIMARY_COMMAND_Version;          if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
 	}
 
 	void ProcessCommand_ActionNotice (String channel, String nick, String login, String host, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -1472,45 +1515,57 @@ public class LiuYanBot extends PircBot
 
 		CityResponse city = null;
 		CityIspOrgResponse isp = null;
-		for (String ip : ips)
+		for (String host : ips)
 		{
 			try
 			{
-				InetAddress netaddr = InetAddress.getByName (ip);
-				city = geoIP2DatabaseReader.city (netaddr);
-				isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
+				InetAddress[] netaddrs = InetAddress.getAllByName (host);
+				for (InetAddress netaddr : netaddrs)
+				{
+					city = geoIP2DatabaseReader.city (netaddr);
+					isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
 
-				String sContinent=null, sCountry=null, sProvince=null, sCity=null, sCountry_iso_code=null, sISPName=null;
-				double latitude=0, longitude=0;
+					String sContinent=null, sCountry=null, sProvince=null, sCity=null, sCountry_iso_code=null, sISPName=null;
+					double latitude=0, longitude=0;
 
-				latitude = city.getLocation().getLatitude();
-				longitude = city.getLocation().getLongitude();
+					latitude = city.getLocation().getLatitude();
+					longitude = city.getLocation().getLongitude();
 
-				sCountry_iso_code = city.getCountry().getIsoCode();
-				sContinent = city.getContinent().getNames().get(lang);
-				sCountry = city.getCountry().getNames().get(lang);
-				sProvince = city.getMostSpecificSubdivision().getNames().get(lang);
-				sCity = city.getCity().getNames().get(lang);
-				sISPName = isp.getTraits().getIsp();
-				//sISPName = city.getTraits().getIsp();
+					sCountry_iso_code = city.getCountry().getIsoCode();
+					sContinent = city.getContinent().getNames().get(lang);
+					sCountry = city.getCountry().getNames().get(lang);
+					sProvince = city.getMostSpecificSubdivision().getNames().get(lang);
+					sCity = city.getCity().getNames().get(lang);
+					sISPName = isp.getTraits().getIsp();
+					//sISPName = city.getTraits().getIsp();
 
-				if (sContinent==null) sContinent = "";
-				if (sCountry==null) sCountry = "";
-				if (sCity==null) sCity = "";
-				if (sProvince==null) sProvince = "";
-				//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
-				SendMessage (ch, u, mapGlobalOptions, ip + "    " +
-						sContinent + " " +
-						sCountry + " " +
-						(sProvince.isEmpty() ? "" : " " + sProvince)  +
-						(sCity.isEmpty() ? "" : " " + sCity) +
-						(sISPName==null?"" : " " + sISPName) +
-						" 经度=" + longitude + ", 纬度=" + latitude);
+					if (sContinent==null) sContinent = "";
+					if (sCountry==null) sCountry = "";
+					if (sCity==null) sCity = "";
+					if (sProvince==null) sProvince = "";
+					//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
+					String addr = host;
+					if (! host.equalsIgnoreCase (netaddr.getHostAddress ()))
+					{
+						if (netaddr instanceof Inet4Address)
+							addr = host + "  " + String.format ("%-15s", netaddr.getHostAddress ());
+						else if (netaddr instanceof Inet6Address)
+							addr = host + "  " + String.format ("%-39s", netaddr.getHostAddress ());
+					}
+					SendMessage (ch, u, mapGlobalOptions, addr + "    " +
+							sContinent + " " +
+							sCountry + " " +
+							(sProvince.isEmpty() ? "" : " " + sProvince)  +
+							(sCity.isEmpty() ? "" : " " + sCity) +
+							(sISPName==null?"" : " " + sISPName) +
+							" 经度=" + longitude + ", 纬度=" + latitude
+					);
+				}
 			}
 			catch (Exception e)
 			{
 				e.printStackTrace ();
-				SendMessage (ch, u, mapGlobalOptions, ip + " 查询出错: " + e);
+				SendMessage (ch, u, mapGlobalOptions, host + " 查询出错: " + e);
 			}
 		}
 	}
@@ -1705,6 +1760,15 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
+	/**
+	 * 搜索 StackExchange 站点群的问题、答案、用户
+	 * @param ch
+	 * @param nick
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
 	void ProcessCommand_StackExchange (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
@@ -2353,6 +2417,148 @@ public class LiuYanBot extends PircBot
 				(i==0 ? "    剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次" : "") +
 				""
 			);
+		}
+	}
+
+
+	/**
+	 * Google 搜索
+	 *
+	 * 参考 http://stackoverflow.com/questions/3727662/how-can-you-search-google-programmatically-java-api
+	 *
+	 * @param ch
+	 * @param nick
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 * @throws UnsupportedEncodingException
+	 * @throws MalformedURLException
+	 */
+	void ProcessCommand_Google (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+
+		String sGoogleSearchURLBase = "https://ajax.googleapis.com/ajax/services/search/web";
+		String sGoogleSearchAPIVersion = "1.0";
+		//
+		// 解析参数
+		//
+		boolean bProxyOff = false;
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		{
+			for (String env : listCmdEnv)
+			{
+				if (env.equalsIgnoreCase ("ProxyOff"))
+					bProxyOff = true;
+			}
+		}
+		String q = params;
+		// 执行动作
+		try
+		{
+			String sGoogleSearchURL = sGoogleSearchURLBase + "?v=" + sGoogleSearchAPIVersion + "&q=" + URLEncoder.encode (q, getEncoding ());
+System.out.println (sGoogleSearchURL);
+			URL url = new URL (sGoogleSearchURL);
+
+			//Reader reader = null;
+			InputStream is = null;
+			URLConnection http = null;
+			if (bProxyOff)
+				http = url.openConnection ();
+			else
+			{
+				// 利用 GoAgent 代理搜索
+				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
+				// keytool -import -alias GoAgentCert -file CA.crt
+				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress("192.168.2.1", 8087));
+				System.out.println (proxy);
+				http = url.openConnection (proxy);
+			}
+			http.setConnectTimeout (30000);
+			http.setReadTimeout (30000);
+			((HttpURLConnection)http).setInstanceFollowRedirects (true);
+			is = http.getInputStream ();
+
+			ObjectMapper om = new ObjectMapper();
+			om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+
+			JsonNode rootNode = null;
+			rootNode = om.readTree (is);
+System.out.println (rootNode);
+			is.close ();
+
+			JsonNode responseStatus = rootNode.get ("responseStatus");
+			JsonNode responseData = rootNode.get ("responseData");
+			JsonNode responseDetail = rootNode.get ("responseDetail");
+				JsonNode cursor = responseData.get ("cursor");
+					JsonNode resultCount = cursor.get ("resultCount");
+					JsonNode estimatedResultCount = cursor.get ("estimatedResultCount");
+					JsonNode searchResultTime = cursor.get ("searchResultTime");
+					JsonNode currentPageIndex = cursor.get ("currentPageIndex");
+					JsonNode moreResultsURL = cursor.get ("moreResultsUrl");
+System.out.println ("搜索结果数量: " + resultCount);
+System.out.println ("搜索结果大概数量: " + estimatedResultCount);
+System.out.println ("搜索耗时: " + searchResultTime);
+System.out.println ("当前页: " + currentPageIndex);
+System.out.println ("更多结果: " + moreResultsURL);
+			JsonNode results = responseData.get ("results");
+
+			boolean b其他信息已显示 = false;
+			String s其他信息 = "";
+			for (int i=0; i<results.size(); i++)
+			{
+				JsonNode result = results.get (i);
+				JsonNode title = result.get ("title");
+				JsonNode titleNoFormatting = result.get ("titleNoFormatting");
+				JsonNode content = result.get ("content");
+				JsonNode urlNode = result.get ("url");
+				JsonNode unescapedUrl = result.get ("unescapedUrl");
+				JsonNode visibleUrl = result.get ("visibleUrl");
+				JsonNode cacheUrl = result.get ("cacheUrl");
+				JsonNode GsearchResultClass = result.get ("GsearchResultClass");
+
+				String sURL = unescapedUrl.asText ();
+				String sTitle = title.asText ();
+				String sTitle_colorizedForShell = StringUtils.replaceEach (sTitle, new String[]{"<b>", "</b>", "\n"}, new String[]{CSI+"1m", CSI+"22m", ""});
+				sTitle = StringUtils.replaceEach (sTitle, new String[]{"<b>", "</b>", "\n"}, new String[]{Colors.BOLD, Colors.BOLD, ""});
+				String sContent = content.asText ();
+				String sContent_colorizedForShell = StringUtils.replaceEach (sContent, new String[]{"<b>", "</b>", "\n"}, new String[]{CSI+"1m", CSI+"22m", ""});
+				sContent = StringUtils.replaceEach (sContent, new String[]{"<b>", "</b>", "\n"}, new String[]{Colors.BOLD, Colors.BOLD, ""});
+
+System.out.println ((i+1) +"------------------------");
+//System.out.println (urlNode);
+System.out.println (unescapedUrl);
+//System.out.println (visibleUrl);
+//System.out.println (cacheUrl);
+System.out.println (sTitle_colorizedForShell);
+//System.out.println (titleNoFormatting);
+System.out.println (sContent_colorizedForShell);
+//System.out.println (GsearchResultClass);
+
+				String sMessage = (i+1) + "  " + sURL + "  " + sTitle + "  " + sContent;
+				byte[] messageBytes = sMessage.getBytes (getEncoding());
+				if (! b其他信息已显示 && messageBytes.length<300)	// 仅当 (1)未显示过其他信息，且当前行的内容比较少的时候，才显示其他信息
+				{
+					s其他信息 = "搜索耗时 " + searchResultTime.asText () + ", 数量 " + resultCount.asText ();
+					b其他信息已显示 = true;
+
+					SendMessage (ch, nick, mapGlobalOptions,
+						sMessage + "    " + s其他信息
+					);
+				}
+				else
+					SendMessage (ch, nick, mapGlobalOptions, sMessage);
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, "" + e);
 		}
 	}
 
@@ -3443,11 +3649,13 @@ public class LiuYanBot extends PircBot
 		String encoding = "UTF-8";
 		String geoIPDB = null;
 		String chunzhenIPDB = null;
+		String keyStoreFileName = null;
+		String keyStoreFilePassword = null;
 		String[] arrayIgnores;
 		String ignores_patterns = null;
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-i 要忽略的用户名，多个名字用 ',' 分割]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-KeyStoreFile Java密钥库文件] [-KeyStorePassword Java密钥库密码] [-e 字符集编码] [-i 要忽略的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -3525,6 +3733,28 @@ public class LiuYanBot extends PircBot
 					}
 					chunzhenIPDB = args[i+1];
 					i ++;
+				}
+				else if (arg.equalsIgnoreCase("KeyStoreFile"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定 Java 钥匙库文件路径");
+						return;
+					}
+					keyStoreFileName = args[i+1];
+					i ++;
+					System.setProperty ("javax.net.ssl.trustStore", keyStoreFileName);
+				}
+				else if (arg.equalsIgnoreCase("KeyStoreFile"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定 Java 钥匙库文件密码");
+						return;
+					}
+					keyStoreFilePassword = args[i+1];
+					i ++;
+					System.setProperty ("javax.net.ssl.trustStorePassword", keyStoreFilePassword);
 				}
 			}
 		}
