@@ -939,7 +939,7 @@ public class LiuYanBot extends PircBot
 		primaryCmd = BOT_PRIMARY_COMMAND_StackExchange;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "se" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "站点名" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER + "list" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "动作" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数" + Colors.NORMAL + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + COLOR_COMMAND_PARAMETER_INSTANCE + "list" + Colors.NORMAL + " 列出， 动作有 " + COLOR_COMMAND_PARAMETER_INSTANCE + "Search" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "s" + Colors.NORMAL + " " + COLOR_COMMAND_PARAMETER_INSTANCE + "Users" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "u" + Colors.NORMAL + "(按ID查询) " + COLOR_COMMAND_PARAMETER_INSTANCE + "AllUsers" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "au" + Colors.NORMAL + "(全站用户，可按姓名查) " + COLOR_COMMAND_PARAMETER_INSTANCE + "Info" + Colors.NORMAL + "(站点信息) ");
 		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 返回结果：前 3 条");
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -2510,6 +2510,13 @@ System.out.println ("更多结果: " + moreResultsURL);
 
 			boolean b其他信息已显示 = false;
 			String s其他信息 = "";
+			if (results.size() == 0)
+			{
+				s其他信息 = "没有搜到内容。 搜索耗时 " + searchResultTime.asText ();
+				SendMessage (ch, nick, mapGlobalOptions, s其他信息);
+				return;
+			}
+
 			for (int i=0; i<results.size(); i++)
 			{
 				JsonNode result = results.get (i);
@@ -2540,7 +2547,7 @@ System.out.println (sTitle_colorizedForShell);
 System.out.println (sContent_colorizedForShell);
 //System.out.println (GsearchResultClass);
 
-				String sMessage = (i+1) + "  " + sURL + "  " + sTitle + "  " + sContent;
+				String sMessage = (i+1) + "  " + Colors.UNDERLINE + URLDecoder.decode (sURL, "UTF-8") + Colors.UNDERLINE + "  " + Colors.BLUE + sTitle + Colors.NORMAL + "  " + sContent;
 				byte[] messageBytes = sMessage.getBytes (getEncoding());
 				if (! b其他信息已显示 && messageBytes.length<300)	// 仅当 (1)未显示过其他信息，且当前行的内容比较少的时候，才显示其他信息
 				{
@@ -2554,6 +2561,7 @@ System.out.println (sContent_colorizedForShell);
 				else
 					SendMessage (ch, nick, mapGlobalOptions, sMessage);
 			}
+
 		}
 		catch (Exception e)
 		{
@@ -3649,13 +3657,11 @@ System.out.println (sContent_colorizedForShell);
 		String encoding = "UTF-8";
 		String geoIPDB = null;
 		String chunzhenIPDB = null;
-		String keyStoreFileName = null;
-		String keyStoreFilePassword = null;
 		String[] arrayIgnores;
 		String ignores_patterns = null;
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-KeyStoreFile Java密钥库文件] [-KeyStorePassword Java密钥库密码] [-e 字符集编码] [-i 要忽略的用户名，多个名字用 ',' 分割]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-i 要忽略的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -3733,28 +3739,6 @@ System.out.println (sContent_colorizedForShell);
 					}
 					chunzhenIPDB = args[i+1];
 					i ++;
-				}
-				else if (arg.equalsIgnoreCase("KeyStoreFile"))
-				{
-					if (i == args.length-1)
-					{
-						System.err.println ("需要指定 Java 钥匙库文件路径");
-						return;
-					}
-					keyStoreFileName = args[i+1];
-					i ++;
-					System.setProperty ("javax.net.ssl.trustStore", keyStoreFileName);
-				}
-				else if (arg.equalsIgnoreCase("KeyStoreFile"))
-				{
-					if (i == args.length-1)
-					{
-						System.err.println ("需要指定 Java 钥匙库文件密码");
-						return;
-					}
-					keyStoreFilePassword = args[i+1];
-					i ++;
-					System.setProperty ("javax.net.ssl.trustStorePassword", keyStoreFilePassword);
 				}
 			}
 		}
