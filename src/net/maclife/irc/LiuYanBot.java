@@ -52,6 +52,8 @@ public class LiuYanBot extends PircBot
 	public static final String BOT_PRIMARY_COMMAND_PageRank = "PageRank";
 	public static final String BOT_PRIMARY_COMMAND_StackExchange = "StackExchange";
 	public static final String BOT_PRIMARY_COMMAND_Google = "/Google";
+	public static final String BOT_PRIMARY_COMMAND_RegExp = "RegExp";
+	public static final String BOT_PRIMARY_COMMAND_Ban	= "/ban";
 
 	public static final String BOT_PRIMARY_COMMAND_Time	= "Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	= "Action";
@@ -66,7 +68,6 @@ public class LiuYanBot extends PircBot
 	public static final String BOT_PRIMARY_COMMAND_Env	= "Env";
 	public static final String BOT_PRIMARY_COMMAND_Properties	= "Properties";
 
-	public static final String BOT_PRIMARY_COMMAND_Ignore	= "/ignore";
 	public static final String BOT_PRIMARY_COMMAND_Set	= "/set";
 	public static final String BOT_PRIMARY_COMMAND_Raw	= "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version	= "Version";
@@ -80,6 +81,8 @@ public class LiuYanBot extends PircBot
 		{BOT_PRIMARY_COMMAND_PageRank, "pr", },
 		{BOT_PRIMARY_COMMAND_StackExchange, "se",},
 		{BOT_PRIMARY_COMMAND_Google, "/goo+gle",},
+		{BOT_PRIMARY_COMMAND_RegExp, "s/.*/.*", "match", "replace", "subst", "substitute", "substitution",},
+		{BOT_PRIMARY_COMMAND_Ban, "/ignore",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -94,7 +97,6 @@ public class LiuYanBot extends PircBot
 		{BOT_PRIMARY_COMMAND_Env, },
 		{BOT_PRIMARY_COMMAND_Properties, },
 
-		{BOT_PRIMARY_COMMAND_Ignore, },
 		{BOT_PRIMARY_COMMAND_Set, },
 		{BOT_PRIMARY_COMMAND_Raw, },
 		{BOT_PRIMARY_COMMAND_Version, },
@@ -335,11 +337,13 @@ public class LiuYanBot extends PircBot
 	Random rand = new Random ();
 
 	/*
-	 * 所忽略的用户名列表。如果在忽略列表内，则不响应该用户名发来的消息。
-	 * 通常用于忽略其他机器人（个别用户有意造成 bot 循环）、恶意用户
+	 * 所封锁的用户名列表。如果在封锁列表内，则不响应该用户名发来的消息。
+	 * 通常用于封锁其他机器人（个别用户有意造成 bot 循环）、恶意用户
 	 */
-	List<Map<String,Object>> listIgnoredNamePatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
-	public static final String DEFAULT_IGNORE_PATTERN = ".*bot.*";	// 默认忽略对象：名字含有 bot (机器人) 的，如果是真人但姓名中含有 bot，则很抱歉……
+	List<Map<String,Object>> listBannedPatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
+	public static final String DEFAULT_BAN_WILDCARD_PATTERN = "*bot*!*@*";	// 默认封锁对象：名字含有 bot (机器人) 的，如果是真人但姓名中含有 bot，则很抱歉……
+	public static final byte BAN_MATCH_MODE_Equals = 0x01;
+	public static final byte BAN_MATCH_MODE_RegExp   = 0x02;
 
 	String geoIP2DatabaseFileName = null;
 	DatabaseReader geoIP2DatabaseReader = null;
@@ -616,13 +620,15 @@ public class LiuYanBot extends PircBot
 		}
 		try
 		{
-			Map<String, Object> ignoreInfo = GetNameInfoFromIgnoredNames (nick);
+			String userRegexpPatternForBan = nick + "!" + login + "@" + hostname;
+			Map<String, Object> banInfo = GetBan (userRegexpPatternForBan, BAN_MATCH_MODE_RegExp);
+
 			//  再判断是不是 bot 命令
 			String botCmd;
 			botCmd = getBotPrimaryCommand (message);
 			if (botCmd == null)
 			{
-				if (isSayingToMe && ignoreInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
+				if (isSayingToMe && banInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 				{
 					SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommand("help") + " 命令显示帮助信息");
 					//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
@@ -630,16 +636,16 @@ public class LiuYanBot extends PircBot
 				return;
 			}
 
-			// 先查看忽略列表
+			// 先查看封锁列表
 			if (!isUserInWhiteList(login, nick))
 			{
-				if (ignoreInfo != null)
+				if (banInfo != null)
 				{
-					System.out.println (CSI + "31;1m" + nick  + CSI + "m 已被忽略");
-					if (ignoreInfo.get ("NotifyTime") == null)
+					System.out.println (CSI + "31;1m" + nick  + CSI + "m 已被封锁。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp"));
+					//if (banInfo.get ("NotifyTime") == null)
 					{
-						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "你已被加入黑名单。" + (ignoreInfo.get ("Reason")==null?"": "原因: " + Colors.RED + ignoreInfo.get ("Reason")) + Colors.NORMAL + " (本消息只提醒一次)");
-						ignoreInfo.put ("NotifyTime", System.currentTimeMillis ());
+						SendMessage (null, nick, true, MAX_RESPONSE_LINES, "你已被封。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL + " (本消息只提醒一次)");
+						banInfo.put ("NotifyTime", System.currentTimeMillis ());
 					}
 					return;
 				}
@@ -790,50 +796,52 @@ public class LiuYanBot extends PircBot
 
 			if (false) {}
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Help))
-				ProcessCommand_Help (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Help (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Cmd))
-				ExecuteCommand (channel, nick, login, botCmd, mapGlobalOptions, listEnv, params);
+				ExecuteCommand (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_ParseCmd))
-				ProcessCommand_ParseCommand (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_ParseCommand (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_IPLocation))
-				ProcessCommand_纯真IP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_纯真IP (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_GeoIP))
-				ProcessCommand_GeoIP (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_GeoIP (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_PageRank))
-				ProcessCommand_GooglePageRank (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_GooglePageRank (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_StackExchange))
-				ProcessCommand_StackExchange (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_StackExchange (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Google))
-				ProcessCommand_Google (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Google (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
+				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 
-			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ignore))
-				ProcessCommand_Ignore (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
+				ProcessCommand_Ban (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Time))
-				ProcessCommand_Time (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Time (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Action) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Notice))
 				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLEecode) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLDecode))
-				ProcessCommand_URLEncodeDecode (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_URLEncodeDecode (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_HTTPHead))
-				ProcessCommand_HTTPHead (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_HTTPHead (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_TimeZones))
-				ProcessCommand_TimeZones (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_TimeZones (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Locales))
-				ProcessCommand_Locales (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Locales (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Env))
-				ProcessCommand_Environment (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Environment (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Properties))
-				ProcessCommand_Properties (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Properties (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Set))
-				ProcessCommand_Set (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Set (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Raw))
-				ProcessCommand_SendRaw (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_SendRaw (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Version))
-				ProcessCommand_Version (channel, nick, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Version (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 		}
 		catch (Exception e)
 		{
@@ -891,7 +899,7 @@ public class LiuYanBot extends PircBot
 		}
 		return false;
 	}
-	void ProcessCommand_Help (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Help (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params==null)
 		{
@@ -970,7 +978,7 @@ public class LiuYanBot extends PircBot
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, host, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
@@ -997,25 +1005,25 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
-	void ProcessCommand_SendRaw (String channel, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_SendRaw (String channel, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		logger.fine (params);
 		sendRawLine (params);
 	}
 
-	void ProcessCommand_Set (String channel, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Set (String channel, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
 			arrayParams = params.split (" ", 2);
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String param = arrayParams[0];
@@ -1043,30 +1051,65 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
-	void ProcessCommand_Ignore (String channel, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	/**
+	 *
+	 * @param channel
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params Ban 命令参数，格式： &lt;动作&gt; [参数]
+	 * <br/>
+	 * 动作有
+	 * <dl>
+	 * 	<dt><code>l</code> <code>ls</code> <code>list</code></dt>
+	 * 	<dd>列出封锁列表。无参数</dd>
+	 * 	<dt><code>c</code> <code>clear</code></dt>
+	 * 	<dd>清空封锁列表。无参数</dd>
+	 * 	<dt><code>a</code> <code>+</code> <code>add</code></dt>
+	 * 	<dd>增加封锁。后面的参数是通配符表达式，格式如：
+	 * 		<ul>
+	 * 			<li><code>badNick!*@*</code> - Ban 掉<b>昵称</b> badNick</li>
+	 * 			<li><code>*!~badLogin@*</code> - Ban 掉<b>登录名</b> ~badLogin</li>
+	 * 			<li><code>*!*@8.8.8.8</code> - Ban 掉<b>主机 IP</b> 8.8.8.8</li>
+	 * 			<li><code>*!*@8.8.8.*</code> - Ban 掉<b>网段</b> 8.8.8</li>
+	 * 		</ul>
+	 * 	</dd>
+	 * 	<dt><code>d</code> <code>r</code> <code>-</code> <code>del</code> <code>rm</code> <code>delete</code> <code>remove</code></dt>
+	 * 	<dd>删除某个封锁。后面的参数是之前添加过的通配符表达式</dd>
+	 * 	<dt>其他未识别的动作</dt>
+	 * 	<dd>其他未识别的动作将被当成用户名，并查询该用户是否在封锁列表内</dd>
+	 * </dl>
+	 */
+	void ProcessCommand_Ban (String channel, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		System.out.println ("ban params = [" + params + "]");
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
-			arrayParams = params.split (" ", 3);
+			arrayParams = params.split (" +", 3);
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String action = arrayParams[0];
-		String name_pattern = null;
+		String wildcardPattern = null;
 		String reason = null;
-		if (arrayParams.length >= 2) name_pattern = arrayParams[1];
+		if (arrayParams.length >= 2) wildcardPattern = arrayParams[1];
 		if (arrayParams.length >= 3) reason = arrayParams[2];
 
 		boolean bFounded = false;
 
-		if (action.equalsIgnoreCase ("l") || action.equalsIgnoreCase ("ls") || action.equalsIgnoreCase ("list"))	// 列出被忽略的用户名
+		if (action.equalsIgnoreCase ("l") || action.equalsIgnoreCase ("ls") || action.equalsIgnoreCase ("list"))	// 列出被封锁的用户名
 		{
-			System.out.println ("列出黑名单");
-			for (Map nickInfo : listIgnoredNamePatterns)
+			System.out.println ("列出封锁列表");
+			for (Map nickInfo : listBannedPatterns)
 			{
-				System.out.print (nickInfo.get("Name"));
+				System.out.print (nickInfo.get("Wildcard"));
+				System.out.print ("	");
+				System.out.print (nickInfo.get("RegExp"));
 				System.out.print ("	");
 				System.out.print (nickInfo.get("AddedTime"));
 				System.out.print ("	");
@@ -1079,17 +1122,17 @@ public class LiuYanBot extends PircBot
 		}
 		else if (action.equalsIgnoreCase ("c") || action.equalsIgnoreCase ("clear"))	// 清空
 		{
-			listIgnoredNamePatterns.clear ();
-			System.out.println ("已清空黑名单");
+			listBannedPatterns.clear ();
+			System.out.println ("已清空封锁列表");
 		}
 		else if (action.equalsIgnoreCase ("a") || action.equalsIgnoreCase ("+") || action.equalsIgnoreCase ("add"))	// 添加
 		{
-			if (name_pattern==null || name_pattern.isEmpty ())
+			if (wildcardPattern==null || wildcardPattern.isEmpty ())
 			{
-				System.err.println ("要忽略的用户名不能为空");
+				System.err.println ("要封锁的用户名不能为空");
 				return;
 			}
-			AddIgnore (name_pattern, reason);
+			AddBan (wildcardPattern, reason);
 		}
 		else if (action.equalsIgnoreCase ("d")
 			|| action.equalsIgnoreCase ("-")
@@ -1100,90 +1143,123 @@ public class LiuYanBot extends PircBot
 			|| action.equalsIgnoreCase ("delete")
 			)	// 删除
 		{
-			if (name_pattern==null || name_pattern.isEmpty ())
+			if (wildcardPattern==null || wildcardPattern.isEmpty ())
 			{
 				System.err.println ("要解封的用户名不能为空");
 				return;
 			}
 
 			// 检查是否已经添加过
-			Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (name_pattern);
-			if (nameInfo==null)
+			Map<String,Object> banInfo = GetBan (wildcardPattern);
+			if (banInfo==null)
 			{
-				System.err.println (name_pattern + " 不在忽略列表中");
+				System.err.println (wildcardPattern + " 不在封锁列表中");
 				return;
 			}
-			if (listIgnoredNamePatterns.remove (nameInfo))
-				System.out.println (CSI + "32;1m" + name_pattern  + CSI + "m 已从黑名单中剔除，当前还有 " + listIgnoredNamePatterns.size () + " 个被忽略的用户名");
+			if (listBannedPatterns.remove (banInfo))
+				System.out.println (CSI + "32;1m" + wildcardPattern  + CSI + "m 已从封锁列表中剔除，当前还有 " + listBannedPatterns.size () + " 个被封锁的用户名");
 			else
-				System.err.println (name_pattern + " 解封失败 (未曾添加过？)");
+				System.err.println (wildcardPattern + " 解封失败 (未曾添加过？)");
 		}
 		else
 		{
 			// 此时，action 参数被当做 用户名。。。
-			name_pattern = action;
-			Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (name_pattern);
-			bFounded = (nameInfo != null);
-			System.out.println (name_pattern + " " + (bFounded ? CSI+"31;1m" : CSI+"32;1m" + "不") + "在" + CSI + "m忽略列表中。" + (nameInfo==null?"": "匹配的模式=" + nameInfo.get("Name") + "，原因=" + nameInfo.get ("Reason")));
+			wildcardPattern = action;
+			Map<String,Object> banInfo = GetBan (wildcardPattern);
+			bFounded = (banInfo != null);
+			System.out.println (
+				wildcardPattern + " " +
+				(bFounded ? CSI+"31;1m" : CSI+"32;1m" + "不") + "在" + CSI + "m封锁列表中。" +
+				(banInfo==null?"": "匹配的模式=" + banInfo.get("Wildcard") +
+				"，原因=" + banInfo.get ("Reason"))
+			);
 		}
 	}
 	/**
-	 * 根据给定的用户名 nickPattern 从忽略列表中获取相应的用户名信息
-	 * @param nameOrPattern 用户名
+	 * 根据给定的用户名 wildcardPatternToFetch 从封锁列表中获取相应的用户名信息
+	 * @param wildcardPatternToFetch 要获取的通配符表达式。参见 ProcessCommand_Ban 的描述
 	 * @return null - 不存在； not null - 存在
 	 */
-	Map<String, Object> GetNameInfoFromIgnoredNames (String nameOrPattern)
+	Map<String, Object> GetBan (String wildcardPatternToFetch, byte iMatchMode)
 	{
 		boolean bFounded = false;
-		for (Map<String,Object> nickInfo : listIgnoredNamePatterns)
+		logger.finer ("判断 " + wildcardPatternToFetch + " 是否在封锁列表中");
+		for (Map<String,Object> banInfo : listBannedPatterns)
 		{
-			String name_pattern = (String)nickInfo.get("Name");
-			if (nameOrPattern.equalsIgnoreCase (name_pattern) || nameOrPattern.matches ("(?i)^"+name_pattern + "$"))	// 注意：由于 IRC 用户名可能包含 [] 字符，所以，如果用 RegExp 匹配会导致意外结果
+			String wildcard = (String)banInfo.get("Wildcard");
+			String regExp = (String)banInfo.get("RegExp");
+			logger.finest ("wildcard=" + wildcard + ", regexp=" + regExp + ", 匹配模式=" + iMatchMode);
+			if ( ((iMatchMode & BAN_MATCH_MODE_Equals) != 0) && wildcardPatternToFetch.equalsIgnoreCase (wildcard) )
 			{
-				return nickInfo;
+				logger.finer (" 结果=true");
+				return banInfo;
 			}
+			if ( ((iMatchMode & BAN_MATCH_MODE_RegExp) != 0) && wildcardPatternToFetch.matches ("(?i)^"+regExp + "$") )
+			{
+				logger.finer (" 结果=true");
+				return banInfo;
+			}
+			logger.finer (" 结果=false");
 		}
 		return null;
 	}
+	Map<String, Object> GetBan (String wildcardPatternToFetch)
+	{
+		return GetBan (wildcardPatternToFetch, BAN_MATCH_MODE_Equals);
+	}
 	/**
-	 * 添加到忽略列表
-	 * @param name 要忽略的用户名
-	 * @param reason 忽略的原因
+	 * 添加到封锁列表
+	 * @param wildcardPattern 要封锁的 用户名/主机/IP/网段 表达式。具体格式参见 ProcessCommand_Ban 中的描述
+	 * @param reason 封锁的原因
 	 * @return
 	 */
-	boolean AddIgnore (String name, String reason)
+	boolean AddBan (String wildcardPattern, String reason)
 	{
 		boolean bFounded = false;
-		Map<String,Object> nameInfoToAdd = null;
+		Map<String,Object> banInfoToAdd = null;
 
 		// 检查是否已经添加过
-		Map<String,Object> nameInfo = GetNameInfoFromIgnoredNames (name);
-		bFounded = (nameInfo != null);
+		Map<String,Object> banInfo = GetBan (wildcardPattern);
+		bFounded = (banInfo != null);
 		if (bFounded)
 		{
-			nameInfoToAdd = nameInfo;
-			System.err.println ("要忽略的用户名已经被添加过，更新之");
-			nameInfoToAdd.put ("UpdatedTime", System.currentTimeMillis ());
-			int nTimes = nameInfoToAdd.get ("AddedTimes")==null ? 1 : (int)nameInfoToAdd.get ("AddedTimes");
+			banInfoToAdd = banInfo;
+			System.err.println ("要封锁的用户名已经被添加过，更新之");
+			banInfoToAdd.put ("UpdatedTime", System.currentTimeMillis ());
+			int nTimes = banInfoToAdd.get ("AddedTimes")==null ? 1 : (int)banInfoToAdd.get ("AddedTimes");
 			nTimes ++;
-			nameInfoToAdd.put ("AddedTimes", nTimes);
-			nameInfoToAdd.put ("Reason", reason==null?"":reason);
+			banInfoToAdd.put ("AddedTimes", nTimes);
+			banInfoToAdd.put ("Reason", reason==null?"":reason);
 			return true;
 		}
 
 		//　新添加
-		nameInfoToAdd = new HashMap<String, Object> ();
-		nameInfoToAdd.put ("Name", name);
-		nameInfoToAdd.put ("AddedTime", System.currentTimeMillis ());
-		nameInfoToAdd.put ("AddedTimes", 1);
-		nameInfoToAdd.put ("Reason", reason==null?"":reason);
-		listIgnoredNamePatterns.add (nameInfoToAdd);
-		System.out.println ("已把 " + name + " 加入到黑名单。原因=" + nameInfoToAdd.get ("Reason") );
+		banInfoToAdd = new HashMap<String, Object> ();
+		banInfoToAdd.put ("Wildcard", wildcardPattern);
+		banInfoToAdd.put ("RegExp", WildcardToRegularExpression(wildcardPattern));
+		banInfoToAdd.put ("AddedTime", System.currentTimeMillis ());
+		banInfoToAdd.put ("AddedTimes", 1);
+		banInfoToAdd.put ("Reason", reason==null?"":reason);
+		listBannedPatterns.add (banInfoToAdd);
+		System.out.println ("已把 " + wildcardPattern + " 加入到封锁列表。原因=" + banInfoToAdd.get ("Reason") );
 		return true;
 	}
-	boolean AddIgnore (String ignore)
+	boolean AddBan (String wildcardPattern)
 	{
-		return AddIgnore (ignore, null);
+		return AddBan (wildcardPattern, null);
+	}
+
+	public static String WildcardToRegularExpression (String wildcardPattern)
+	{
+		if (wildcardPattern == null)
+			return "";
+		return wildcardPattern
+				.replaceAll ("\\.", "\\\\.")	// 把 主机地址 中的 . 替换成规则表达式的 \.
+				.replaceAll ("\\*", ".*")	// 把通配符 * 替换成规则表达式的 .*
+				.replaceAll ("\\?", ".")	// 把通配符 ? 替换成规则表达式的 .
+				.replaceAll ("\\[", "\\\\[")	// 把 昵称 中的 [ 替换成规则表达式的 \[
+				.replaceAll ("\\]", "\\\\]")	// 把 昵称 中的 ] 替换成规则表达式的 \]
+				;
 	}
 	/**
 	 * time[.语言代码] [时区] [格式]
@@ -1191,7 +1267,7 @@ public class LiuYanBot extends PircBot
 	 * 时区：如： Asia/Shanghai, 或自定义时区ID，如： GMT+08:00, GMT+8, GMT-02:00, GMT-2:10
 	 * 格式：如： yyyy-MM-dd HH:mm:ss Z
 	 */
-	void ProcessCommand_Time (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Time (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String sLang = null, sCountry = null, sLocaleVariant=null;
 		String sTimeZoneID = null;
@@ -1265,7 +1341,7 @@ public class LiuYanBot extends PircBot
 	/**
 	 * 列出时区
 	 */
-	void ProcessCommand_TimeZones (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_TimeZones (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -1319,7 +1395,7 @@ public class LiuYanBot extends PircBot
 	/**
 	 * 列出语言/区域
 	 */
-	void ProcessCommand_Locales (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Locales (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -1374,7 +1450,7 @@ public class LiuYanBot extends PircBot
 	/**
 	 * 列出系统环境变量
 	 */
-	void ProcessCommand_Environment (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Environment (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -1434,7 +1510,7 @@ public class LiuYanBot extends PircBot
 	/**
 	 * 列出系统属性
 	 */
-	void ProcessCommand_Properties (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Properties (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (params!=null)
@@ -1493,11 +1569,11 @@ public class LiuYanBot extends PircBot
 	/**
 	 * 查询 IP 地址所在地 (GeoIP2)
 	 */
-	void ProcessCommand_GeoIP (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_GeoIP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params==null)
 		{
-			ProcessCommand_Help (ch, u, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		if (geoIP2DatabaseReader==null)
@@ -1544,14 +1620,7 @@ public class LiuYanBot extends PircBot
 					if (sCity==null) sCity = "";
 					if (sProvince==null) sProvince = "";
 					//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
-					String addr = host;
-					if (! host.equalsIgnoreCase (netaddr.getHostAddress ()))
-					{
-						if (netaddr instanceof Inet4Address)
-							addr = host + "  " + String.format ("%-15s", netaddr.getHostAddress ());
-						else if (netaddr instanceof Inet6Address)
-							addr = host + "  " + String.format ("%-39s", netaddr.getHostAddress ());
-					}
+					String addr = formatHostnameAndAddress (host, netaddr);
 					SendMessage (ch, u, mapGlobalOptions, addr + "    " +
 							sContinent + " " +
 							sCountry + " " +
@@ -1570,14 +1639,45 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
+	public static String formatHostnameAndAddress (String host, Object addr)
+	{
+		String sAddress = "";
+		if (addr instanceof InetAddress)
+		{
+			sAddress = ((InetAddress)addr).getHostAddress ();
+		}
+		else if (addr instanceof String)
+		{
+			sAddress = (String)addr;
+		}
+		else
+			return "";
+
+		boolean isIPv6Address = sAddress.contains (":");
+		if (! host.equalsIgnoreCase (sAddress))
+		{
+			if (isIPv6Address)
+				return host + "  " + String.format ("%-39s", sAddress);
+			else
+				return host + "  " + String.format ("%-15s", sAddress);
+		}
+		else
+		{
+			if (isIPv6Address)
+				return String.format ("%-39s", host);
+			else
+				return String.format ("%-15s", host);
+		}
+	}
+
 	/**
 	 * 查询 IP 地址所在地 (纯真 IP 数据库，只有 IPv4 数据库)
 	 */
-	void ProcessCommand_纯真IP (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_纯真IP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params==null)
 		{
-			ProcessCommand_Help (ch, u, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		if (qqwry==null)
@@ -1609,9 +1709,9 @@ public class LiuYanBot extends PircBot
 					for (int j=0; j<qqwry_locations.length; j++)
 					{
 						com.liuyan.util.qqwry.Location location = qqwry_locations[j];
+						String addr = formatHostnameAndAddress (q, location.getIPAddressString ());
 						SendMessage (ch, u, mapGlobalOptions,
-								q +
-								(q.equalsIgnoreCase (location.getIPAddressString ()) ? "" : " " + location.getIPAddressString ()) + "    " +
+								addr + "    " +
 								location.getCountryName () + " " +
 								location.getRegionName () +
 								(i==0 && j==0
@@ -1633,11 +1733,11 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
-	void ProcessCommand_GooglePageRank (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_GooglePageRank (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -1683,11 +1783,11 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
-	void ProcessCommand_URLEncodeDecode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_URLEncodeDecode (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String sCharset = null;
@@ -1719,11 +1819,11 @@ public class LiuYanBot extends PircBot
 		}
 	}
 
-	void ProcessCommand_HTTPHead (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_HTTPHead (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String sCharset = null;
@@ -1769,14 +1869,14 @@ public class LiuYanBot extends PircBot
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	void ProcessCommand_StackExchange (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_StackExchange (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
 			arrayParams = params.split (" +");
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -2435,11 +2535,11 @@ public class LiuYanBot extends PircBot
 	 * @throws UnsupportedEncodingException
 	 * @throws MalformedURLException
 	 */
-	void ProcessCommand_Google (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Google (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
-			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -2547,7 +2647,7 @@ System.out.println (sTitle_colorizedForShell);
 System.out.println (sContent_colorizedForShell);
 //System.out.println (GsearchResultClass);
 
-				String sMessage = (i+1) + "  " + Colors.UNDERLINE + URLDecoder.decode (sURL, "UTF-8") + Colors.UNDERLINE + "  " + Colors.BLUE + sTitle + Colors.NORMAL + "  " + sContent;
+				String sMessage = (i+1) + "  " + URLDecoder.decode (sURL, "UTF-8") + "  " + Colors.UNDERLINE + sTitle + Colors.UNDERLINE + "  " + sContent;
 				byte[] messageBytes = sMessage.getBytes (getEncoding());
 				if (! b其他信息已显示 && messageBytes.length<300)	// 仅当 (1)未显示过其他信息，且当前行的内容比较少的时候，才显示其他信息
 				{
@@ -2571,9 +2671,57 @@ System.out.println (sContent_colorizedForShell);
 	}
 
 	/**
+	 * 规则表达式
+	 * <li>
+	 * 	<li>匹配 （默认）</li>
+	 * 	<li>替换</li>
+	 * 	<li>解释（向第三方网站请求）</li>
+	 * </li>
+	 * @param ch
+	 * @param nick
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_RegExp (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+
+		String sRegExpExplainationURLBase = "https://ajax.googleapis.com/ajax/services/search/web";
+		String sGoogleSearchAPIVersion = "1.0";
+		//
+		// 解析参数
+		//
+		boolean bProxyOff = false;
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		{
+			for (String env : listCmdEnv)
+			{
+				if (env.equalsIgnoreCase ("ProxyOff"))
+					bProxyOff = true;
+			}
+		}
+		String q = params;
+		// 执行动作
+		try
+		{
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+		}
+	}
+
+	/**
 	 * 显示 bot 版本
 	 */
-	void ProcessCommand_Version (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Version (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		SendMessage (ch, u, mapGlobalOptions, getVersion());
 	}
@@ -2581,11 +2729,11 @@ System.out.println (sContent_colorizedForShell);
 	/**
 	 * 解析命令行
 	 */
-	void ProcessCommand_ParseCommand (String ch, String u, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_ParseCommand (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params==null)
 		{
-			ProcessCommand_Help (ch, u, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		List<String> listTokens = splitCommandLine (params);
@@ -2624,7 +2772,7 @@ System.out.println (sContent_colorizedForShell);
 		// 可以执行其他命令的命令
 		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install",
 	};
-	boolean CheckExecuteSafety (String cmd, String ch, String u, String nick)
+	boolean CheckExecuteSafety (String cmd, String ch, String login, String nick)
 	{
 		boolean bBanned = false;
 		for (String sBannedCmd : arrayBannedCommands)
@@ -2635,7 +2783,7 @@ System.out.println (sContent_colorizedForShell);
 				break;
 			}
 		}
-		if (bBanned && !isUserInWhiteList(u, nick))
+		if (bBanned && !isUserInWhiteList(login, nick))
 			return false;
 		return true;
 	}
@@ -3077,11 +3225,11 @@ System.out.println (sContent_colorizedForShell);
 		return line;
 	}
 
-	void ExecuteCommand (String ch, String nick, String user, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ExecuteCommand (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params==null || params.isEmpty())
 		{
-			ProcessCommand_Help (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		if (ch==null)
@@ -3163,7 +3311,7 @@ System.out.println (sContent_colorizedForShell);
 			{
 				mapCommand.put ("program", listCommandArgs.get(0));
 
-				if (! CheckExecuteSafety((String)mapCommand.get ("program"), ch, user, nick))
+				if (! CheckExecuteSafety((String)mapCommand.get ("program"), ch, login, nick))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, mapCommand.get ("program") + " 命令已禁用");
 					return;
@@ -3518,9 +3666,16 @@ System.out.println (sContent_colorizedForShell);
 	}
 	public static List<String> splitCommandLine (String cmdline)
 	{
-		return splitCommandLine (cmdline, true);
+		return splitCommandLine (cmdline, true, false);
 	}
-	public static List<String> splitCommandLine (String cmdline, boolean unquoted)
+	/**
+	 *
+	 * @param cmdline
+	 * @param unquoted 分割项是否不包含引号 true - 不把引号包含进去; false - 把引号包含进去
+	 * @param unescape 是否处理转义字符 '\'， true - 处理转义字符; false - 不处理转义字符
+	 * @return
+	 */
+	public static List<String> splitCommandLine (String cmdline, boolean unquoted, boolean unescape)
 	{
 		if (cmdline==null || cmdline.isEmpty())
 			return null;
@@ -3661,7 +3816,7 @@ System.out.println (sContent_colorizedForShell);
 		String ignores_patterns = null;
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-i 要忽略的用户名，多个名字用 ',' 分割]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-i 要封锁的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -3704,7 +3859,7 @@ System.out.println (sContent_colorizedForShell);
 				{
 					if (i == args.length-1)
 					{
-						System.err.println ("需要指定要忽略的用户名列表，多个用户名用 ',' 分割");
+						System.err.println ("需要指定要封锁的用户名列表，多个用户名用 ',' 分割");
 						return;
 					}
 					ignores_patterns = args[i+1];
@@ -3753,7 +3908,7 @@ System.out.println (sContent_colorizedForShell);
 		if (chunzhenIPDB != null)
 			bot.set纯真IPDatabaseFileName (chunzhenIPDB);
 
-		bot.AddIgnore (DEFAULT_IGNORE_PATTERN, "名称中含有 bot (被认定为机器人)");
+		bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, "名称中含有 bot (被认定为机器人)");
 		if (ignores_patterns != null)
 		{
 			arrayIgnores = ignores_patterns.split ("[,;/]+");
@@ -3761,7 +3916,7 @@ System.out.println (sContent_colorizedForShell);
 			{
 				if (ignore==null || ignore.isEmpty())
 					continue;
-				bot.AddIgnore (ignore);
+				bot.AddBan (ignore);
 			}
 		}
 
