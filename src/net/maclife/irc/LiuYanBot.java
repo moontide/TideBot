@@ -644,7 +644,7 @@ public class LiuYanBot extends PircBot
 					System.out.println (CSI + "31;1m" + nick  + CSI + "m 已被封锁。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp"));
 					//if (banInfo.get ("NotifyTime") == null)
 					{
-						SendMessage (null, nick, true, MAX_RESPONSE_LINES, "你已被封。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL + " (本消息只提醒一次)");
+						SendMessage (null, nick, true, MAX_RESPONSE_LINES, "你已被封。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
 						banInfo.put ("NotifyTime", System.currentTimeMillis ());
 					}
 					return;
@@ -812,7 +812,7 @@ public class LiuYanBot extends PircBot
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Google))
 				ProcessCommand_Google (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
-				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_Ban (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
@@ -948,6 +948,8 @@ public class LiuYanBot extends PircBot
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "se" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "站点名" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER + "list" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "动作" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数" + Colors.NORMAL + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + COLOR_COMMAND_PARAMETER_INSTANCE + "list" + Colors.NORMAL + " 列出， 动作有 " + COLOR_COMMAND_PARAMETER_INSTANCE + "Search" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "s" + Colors.NORMAL + " " + COLOR_COMMAND_PARAMETER_INSTANCE + "Users" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "u" + Colors.NORMAL + "(按ID查询) " + COLOR_COMMAND_PARAMETER_INSTANCE + "AllUsers" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "au" + Colors.NORMAL + "(全站用户，可按姓名查) " + COLOR_COMMAND_PARAMETER_INSTANCE + "Info" + Colors.NORMAL + "(站点信息) ");
 		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。");
+		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "match" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "replace" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "substitute" + Colors.NORMAL + "[.RegExp选项] <参数1> [参数2] [参数3] [参数4]  -- java RegExp。RegExp选项: i-不区分大小写, m-多行模式, s-.也会匹配换行符; 当命令为 regexp 时, 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移，当命令为 match 时，用 参数1 匹配 参数2; 当命令为 replace/substitute 时，将 参数1 中的 参数2 替换成 参数3;");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -2684,7 +2686,7 @@ System.out.println (sContent_colorizedForShell);
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	void ProcessCommand_RegExp (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_RegExp (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
 		{
@@ -2692,24 +2694,68 @@ System.out.println (sContent_colorizedForShell);
 			return;
 		}
 
-		String sRegExpExplainationURLBase = "https://ajax.googleapis.com/ajax/services/search/web";
-		String sGoogleSearchAPIVersion = "1.0";
+		List<String> listParams = splitCommandLine (params);
+		if (listParams.size () == 0)
+		{
+			return;
+		}
+		String sRegExpOption = "";
+		if (listCmdEnv!=null && listCmdEnv.size () > 0)
+			sRegExpOption = listCmdEnv.get (0);
+		String sSrc = null;
+		String sRegExp = null;
+		String sReplacement = null;
 		//
 		// 解析参数
 		//
-		boolean bProxyOff = false;
-		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		if (botCmdAlias.equalsIgnoreCase ("regexp"))
 		{
-			for (String env : listCmdEnv)
-			{
-				if (env.equalsIgnoreCase ("ProxyOff"))
-					bProxyOff = true;
-			}
+			botCmdAlias = listParams.remove (0);	// shift parameters
 		}
-		String q = params;
+
 		// 执行动作
 		try
 		{
+			if (botCmdAlias.equalsIgnoreCase ("m") || botCmdAlias.equalsIgnoreCase ("match") || botCmdAlias.equalsIgnoreCase ("匹配"))
+			{
+				if (listParams.size () < 2)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "匹配 命令需要两个参数。第一个参数为源字符串，第二个参数为 RegExp");
+					return;
+				}
+				sSrc = listParams.get (0);
+				sRegExp = listParams.get (1);
+
+				if (sRegExpOption.isEmpty ())
+					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.matches (sRegExp));
+				else
+					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.matches ("(?" + sRegExpOption + ")" + sRegExp));
+			}
+			else if (botCmdAlias.equalsIgnoreCase ("r") || botCmdAlias.equalsIgnoreCase ("s") || botCmdAlias.equalsIgnoreCase ("替换") || botCmdAlias.equalsIgnoreCase ("replace") || botCmdAlias.equalsIgnoreCase ("subst") || botCmdAlias.equalsIgnoreCase ("substitute") || botCmdAlias.equalsIgnoreCase ("substitution"))
+			{
+				if (listParams.size () < 3)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "替换 命令需要三个参数。第一个参数为源字符串，第二个参数为 RegExp，第三个参数为要替换的内容（注意：java 中要替换的内容对 \\ 和 $ 有特殊含义，\\ 为转义， $ 为取匹配到的内容，如 $1 $2 .. $9）");
+					return;
+				}
+				sSrc = listParams.get (0);
+				sRegExp = listParams.get (1);
+				sReplacement = listParams.get (2);
+
+				if (sRegExpOption.isEmpty ())
+					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.replaceAll (sRegExp, sReplacement));
+				else
+					SendMessage (ch, nick, mapGlobalOptions, sSrc.replaceAll ("(?" + sRegExpOption + ")" + sRegExp, sReplacement));
+			}
+			else if (botCmdAlias.equalsIgnoreCase ("e") || botCmdAlias.equalsIgnoreCase ("explain"))
+			{
+				if (listParams.size () < 1)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "解释 命令需要一个参数。第一个参数为 RegExp");
+					return;
+				}
+				sRegExp = listParams.get (0);
+			}
 		}
 		catch (Exception e)
 		{
