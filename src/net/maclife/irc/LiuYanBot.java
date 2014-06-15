@@ -213,7 +213,17 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String COLOR_DARK_RED = Colors.BROWN;
 	public static final String COLOR_ORANGE = Colors.OLIVE;
 	public static final String COLOR_DARK_CYAN = Colors.TEAL;
-	String[][] ANSI_16_TO_IRC_16_COLORS = {
+	/**
+	 * 16 色，便于用索引号访问颜色的情况
+	 */
+	public static String[] IRC_16_COLORS =
+	{
+		Colors.WHITE, Colors.BLACK, Colors.DARK_BLUE, Colors.DARK_GREEN,
+		Colors.RED, COLOR_DARK_RED, Colors.PURPLE, COLOR_ORANGE,
+		Colors.YELLOW, Colors.GREEN, COLOR_DARK_CYAN, Colors.CYAN,
+		Colors.BLUE, Colors.MAGENTA, Colors.DARK_GRAY, Colors.LIGHT_GRAY,
+	};
+	public static String[][] ANSI_16_TO_IRC_16_COLORS = {
 		// {普通属性颜色, 带高亮属性的颜色,}
 		{Colors.BLACK, Colors.DARK_GRAY,},	// 黑色 / 深灰
 		{COLOR_DARK_RED, Colors.RED,},	// 深红 / 浅红
@@ -224,7 +234,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{COLOR_DARK_CYAN, Colors.CYAN,},	// 青色
 		{Colors.LIGHT_GRAY, Colors.WHITE,},	// 浅灰 / 白色
 	};
-	String[] XTERM_256_TO_IRC_16_COLORS = {
+	public static String[] XTERM_256_TO_IRC_16_COLORS = {
 		// 传统 16 色
 		// 0-7
 		Colors.BLACK, COLOR_DARK_RED, Colors.DARK_GREEN, COLOR_ORANGE, Colors.DARK_BLUE, Colors.PURPLE, COLOR_DARK_CYAN, Colors.LIGHT_GRAY,
@@ -883,11 +893,11 @@ public class LiuYanBot extends PircBot implements Runnable
 				int iFirstDotIndex = args[0].indexOf(".");
 				botCmdAlias = args[0].substring (0, iFirstDotIndex);
 				String sEnv = args[0].substring (iFirstDotIndex + 1);
-				String[] arrayEnv = sEnv.split ("[\\.]+");
+				String[] arrayEnv = sEnv.split ("\\.");
 				for (String env : arrayEnv)
 				{
-					if (env.isEmpty())
-						continue;
+					//if (env.isEmpty())
+					//	continue;
 
 					// 全局参数选项
 					if (env.equalsIgnoreCase("nou"))	// do not output user name 响应时，不输出用户名
@@ -1151,7 +1161,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。");
 		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "match" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "replace" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "substitute" + Colors.NORMAL + "[.RegExp选项] <参数1> [参数2] [参数3] [参数4]  -- java RegExp。RegExp选项: i-不区分大小写, m-多行模式, s-.也会匹配换行符; 当命令为 regexp 时, 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移，当命令为 match 时，用 参数1 匹配 参数2; 当命令为 replace/substitute 时，将 参数1 中的 参数2 替换成 参数3;");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
+			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "match" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "replace" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "substitute" + Colors.NORMAL + ".[RegExp选项].[color] <参数1> [参数2] [参数3] [参数4]  -- java RegExp。RegExp选项: i-不区分大小写, m-多行模式, s-.也会匹配换行符; 当命令为 regexp 时, 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移，当命令为 match 时，用 参数1 匹配 参数2; 当命令为 replace/substitute 时，将 参数1 中的 参数2 替换成 参数3;");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, "用法: " + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -2875,10 +2885,19 @@ System.out.println (sContent_colorizedForShell);
 		}
 		String sRegExpOption = "";
 		if (listCmdEnv!=null && listCmdEnv.size () > 0)
+		{
 			sRegExpOption = listCmdEnv.get (0);
+		}
 		String sSrc = null;
 		String sRegExp = null;
 		String sReplacement = null;
+		Pattern pattern;
+		boolean bColorized = false;	// 是否以颜色的方式显示结果
+		if (listCmdEnv!=null && listCmdEnv.size () > 1)
+		{
+			bColorized = listCmdEnv.get (1).equalsIgnoreCase ("color");
+		}
+
 		//
 		// 解析参数
 		//
@@ -2900,10 +2919,29 @@ System.out.println (sContent_colorizedForShell);
 				sSrc = listParams.get (0);
 				sRegExp = listParams.get (1);
 
-				if (sRegExpOption.isEmpty ())
+				if (! sRegExpOption.isEmpty ())
+					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
+
+				if (! bColorized)
 					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.matches (sRegExp));
 				else
-					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.matches ("(?" + sRegExpOption + ")" + sRegExp));
+				{
+					pattern = Pattern.compile (sRegExp);
+					Matcher matcher = pattern.matcher (sSrc);
+					boolean bMatched = false;
+					int nMatch = 0;
+					StringBuffer sbReplaceResult = new StringBuffer ();
+					while (matcher.find ())
+					{
+						bMatched = true;
+						nMatch ++;
+						int iColor = nMatch%12 + 2;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用颜色 02-13 （12个颜色）
+						String sMatchedString = matcher.group ();
+						matcher.appendReplacement (sbReplaceResult, IRC_16_COLORS[iColor] + Matcher.quoteReplacement (sMatchedString) + Colors.NORMAL);	// StringUtils.replaceEach (sMatchedString, new String[]{"\\", "$"}, new String[]{"\\\\", "\\$"})
+					}
+					matcher.appendTail (sbReplaceResult);
+					SendMessage (ch, nick, mapGlobalOptions, "" + bMatched + (bMatched ? " -> " + sbReplaceResult : ""));
+				}
 			}
 			else if (botCmdAlias.equalsIgnoreCase ("r") || botCmdAlias.equalsIgnoreCase ("s") || botCmdAlias.equalsIgnoreCase ("替换") || botCmdAlias.equalsIgnoreCase ("replace") || botCmdAlias.equalsIgnoreCase ("subst") || botCmdAlias.equalsIgnoreCase ("substitute") || botCmdAlias.equalsIgnoreCase ("substitution"))
 			{
@@ -2916,10 +2954,29 @@ System.out.println (sContent_colorizedForShell);
 				sRegExp = listParams.get (1);
 				sReplacement = listParams.get (2);
 
-				if (sRegExpOption.isEmpty ())
+				if (! sRegExpOption.isEmpty ())
+					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
+
+				if (! bColorized)
 					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.replaceAll (sRegExp, sReplacement));
 				else
-					SendMessage (ch, nick, mapGlobalOptions, sSrc.replaceAll ("(?" + sRegExpOption + ")" + sRegExp, sReplacement));
+				{
+					pattern = Pattern.compile (sRegExp);
+					Matcher matcher = pattern.matcher (sSrc);
+					boolean bMatched = false;
+					int nMatch = 0;
+					StringBuffer sbReplaceResult = new StringBuffer ();
+					while (matcher.find ())
+					{
+						bMatched = true;
+						nMatch ++;
+						int iColor = nMatch%12 + 2;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用颜色 02-13 （12个颜色）
+						String sMatchedString = matcher.group ();
+						matcher.appendReplacement (sbReplaceResult, IRC_16_COLORS[iColor] + sReplacement + Colors.NORMAL);	// StringUtils.replaceEach (sMatchedString, new String[]{"\\", "$"}, new String[]{"\\\\", "\\$"})
+					}
+					matcher.appendTail (sbReplaceResult);
+					SendMessage (ch, nick, mapGlobalOptions, sbReplaceResult.toString ());
+				}
 			}
 			else if (botCmdAlias.equalsIgnoreCase ("e") || botCmdAlias.equalsIgnoreCase ("explain"))
 			{
