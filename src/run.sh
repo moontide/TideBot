@@ -14,7 +14,8 @@ java -Dbotcmd.prefix=$botcmdPrefix \
 	-chunzhenipdb $dbdir/qqwry.dat \
 	-s chat.freenode.net \
 	-u $nick \
-	-c "$channels"
+	-c "$channels" \
+	/ban "*!*@59.78.22.*" \
 
 #-Djavax.net.ssl.trustStorePassword=changeit \
 

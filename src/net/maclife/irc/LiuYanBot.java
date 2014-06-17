@@ -22,8 +22,8 @@ import com.temesoft.google.pr.*;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
-import com.liuyan.util.qqwry.*;
 
+import com.liuyan.util.qqwry.*;
 import net.maclife.seapi.*;
 
 public class LiuYanBot extends PircBot implements Runnable
@@ -214,7 +214,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String COLOR_ORANGE = Colors.OLIVE;
 	public static final String COLOR_DARK_CYAN = Colors.TEAL;
 	/**
-	 * 16 色，便于用索引号访问颜色的情况
+	 * 16 色 IRC 颜色数组，便于用索引号访问颜色
 	 */
 	public static String[] IRC_16_COLORS =
 	{
@@ -223,6 +223,46 @@ public class LiuYanBot extends PircBot implements Runnable
 		Colors.YELLOW, Colors.GREEN, COLOR_DARK_CYAN, Colors.CYAN,
 		Colors.BLUE, Colors.MAGENTA, Colors.DARK_GRAY, Colors.LIGHT_GRAY,
 	};
+	/**
+	 * 16 色 IRC 背景颜色数组，便于用索引号访问颜色。
+	 * 注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码
+	 */
+	public static String[] IRC_16_BACKGROUND_COLORS =
+	{
+		",00", ",01", ",02", ",03",
+		",04", ",05", ",06", ",07",
+		",08", ",09", ",10", ",11",
+		",12", ",13", ",14", ",15",
+	};
+	/**
+	 * 16 色 IRC 颜色+相同颜色的背景颜色数组，便于用索引号访问颜色
+	 */
+	public static String[] IRC_16_COLORS_WITH_SAME_BACKGROUND_COLORS =
+	{
+		Colors.WHITE + ",00", Colors.BLACK + ",01", Colors.DARK_BLUE + ",02", Colors.DARK_GREEN + ",03",
+		Colors.RED + ",04", COLOR_DARK_RED + ",05", Colors.PURPLE + ",06", COLOR_ORANGE + ",07",
+		Colors.YELLOW + ",08", Colors.GREEN + ",09", COLOR_DARK_CYAN + ",10", Colors.CYAN + ",11",
+		Colors.BLUE + ",12", Colors.MAGENTA + ",13", Colors.DARK_GRAY + ",14", Colors.LIGHT_GRAY + ",15",
+	};
+	/**
+	 * 16 色 ANSI 颜色数组，便于用索引号访问颜色
+	 */
+	public static String[] ANSI_16_COLORS =
+	{
+		"30",   "31",   "32",   "33",   "34",   "35",   "36",   "37",
+		"30;1", "31;1", "32;1", "33;1", "34;1", "35;1", "36;1", "37;1",
+	};
+	/**
+	 * 8 色 ANSI 背景颜色数组，便于用索引号访问颜色
+	 */
+	public static String[] ANSI_8_BACKGROUND_COLORS =
+	{
+		"40",   "41",   "42",   "43",   "44",   "45",   "46",   "47",
+	};
+
+	/**
+	 * 16 色 ANSI 颜色转换到 IRC 颜色索引数组
+	 */
 	public static String[][] ANSI_16_TO_IRC_16_COLORS = {
 		// {普通属性颜色, 带高亮属性的颜色,}
 		{Colors.BLACK, Colors.DARK_GRAY,},	// 黑色 / 深灰
@@ -444,6 +484,15 @@ public class LiuYanBot extends PircBot implements Runnable
 	}
 	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
 	{
+		if (msg.contains ("\n"))
+		{	// 部分 java Exception 的错误信息包含多行，这会导致后面的行被 IRC 服务器当做是错误的命令放弃，这里需要处理一下
+			String[]lines = msg.split ("[\r\n]+");
+			for (String line : lines)
+			{
+				SendMessage (channel, user, opt_output_username, opt_max_response_lines, line);	// 递归
+			}
+			return;
+		}
 		if (channel!=null)
 		{
 			if (opt_output_username)
@@ -577,7 +626,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		userToAdd.put ("AddedTimes", 1);
 		userToAdd.put ("Reason", reason==null?"":reason);
 		list.add (userToAdd);
-		System.out.println ("已把 " + wildcardPattern + " 加入到" + sListName + "中。原因=" + userToAdd.get ("Reason") );
+		System.out.println ("已把 " + wildcardPattern + " 加入到" + sListName + "中。" + ((userToAdd.get ("Reason")==null || ((String)userToAdd.get ("Reason")).isEmpty()) ? "无原因" : "原因=" + userToAdd.get ("Reason")) );
 		return true;
 	}
 
@@ -960,7 +1009,12 @@ public class LiuYanBot extends PircBot implements Runnable
 						{
 							opt_max_response_lines = Integer.parseInt (env);
 							opt_max_response_lines_specified = true;
-							if (!isFromConsole(channel, nick, login, hostname) && ! isUserInWhiteList(hostname, login, nick) && opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
+							if (
+								!botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp)	// 2014-06-16 除去 RegExp 命令的响应行数限制，该数值在 RegExp 命令中做匹配次数用途
+								&&!isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
+								&& !isUserInWhiteList(hostname, login, nick)	// 不在白名单
+								&& opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT	// 设置的大小超出了上限
+							)
 								opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 						}
 						catch (Exception e)
@@ -1125,12 +1179,12 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				COLOR_COMMAND_OPTION_INSTANCE + "to" + Colors.NORMAL + "--将输出重定向(需要加额外的“目标”参数); " +
 				COLOR_COMMAND_OPTION_INSTANCE + "nou" + Colors.NORMAL + "--不输出用户名(NO Username), 该选项覆盖 " + COLOR_COMMAND_OPTION_INSTANCE + "to" + Colors.NORMAL + " 选项; " +
+				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数或其他上限(不超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
 				"全局选项的顺序无关紧要, 私有选项需按命令要求的顺序出现"
 				);
 
 			SendMessage (ch, u, mapGlobalOptions,
 				COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令特有的全局选项: " +
-				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数(不超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
 				COLOR_COMMAND_OPTION_INSTANCE + "esc" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "escape" + Colors.NORMAL + "--将 ANSI 颜色转换为 IRC 颜色(ESC'[01;33;41m' -> 0x02 0x03 '08,04'); " +
 				COLOR_COMMAND_OPTION_INSTANCE + "err" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "stderr" + Colors.NORMAL + "--输出 stderr; " +
 				COLOR_COMMAND_OPTION_INSTANCE + "timeout=" + COLOR_COMMAND_OPTION_VALUE + "N" + Colors.NORMAL + "--将超时时间改为 N 秒); " +
@@ -2857,6 +2911,78 @@ System.out.println (sContent_colorizedForShell);
 	}
 
 	/**
+	 * 将匹配/替换结果颜色化的替换，便于人眼观察匹配/替换结果
+	 * @param sSrc 源字符串
+	 * @param sRegExp 规则表达式
+	 * @param sReplacement 替换物。如果替换物为 null，则表示是 match 用到的替换：即将匹配到的字符串替换为加上颜色的自身。
+	 * @param opt_match_times_specified 是否指定匹配次数
+	 * @param opt_max_match_times 匹配次数
+	 * @return
+	 */
+	public static Map<String, Object> IRCColorizedReplace (String sSrc, String sRegExp, String sReplacement, boolean opt_match_times_specified, int opt_max_match_times)
+	{
+		Map<String, Object> result = new HashMap<String, Object> ();
+		result.put ("Matched", false);
+		result.put ("MatchedTimes", 0);
+		result.put ("Result", "");
+		result.put ("MatchedEmptyString", false);	// 是否匹配到过空字符串
+		result.put ("MatchedWhitespaceString", false);	// 是否匹配到过空白字符串
+		result.put ("Memo", "");
+
+		Pattern pattern = Pattern.compile (sRegExp);
+		Matcher matcher = pattern.matcher (sSrc);
+		boolean bMatched = false;
+		boolean bMatchedEmptyString = false;
+		boolean bMatchedWhitespaceString = false;
+		int nMatch = 0;
+		StringBuffer sbReplaceResult = new StringBuffer ();
+		while (matcher.find ())
+		{
+			bMatched = true;
+			nMatch ++;
+			int iColor = nMatch%12; iColor = (iColor==0 ? 11 : iColor-1); iColor+=2;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用颜色 02-13 （12个颜色）
+			String sMatchedString = matcher.group ();
+			String sColorizedReplacement;
+			if (sReplacement == null)
+			{
+				if (sMatchedString.isEmpty ())	// 空字符串，这个没法显示，只好增加一个可见字符
+				{
+					sColorizedReplacement = Colors.REVERSE + "|" + Colors.REVERSE;
+					bMatchedEmptyString = true;
+				}
+				else if (sMatchedString.matches ("\\s+"))	// 空白字符，用背景色显示
+				{
+					sColorizedReplacement = "\u0003" + IRC_16_BACKGROUND_COLORS[iColor] + sMatchedString + Colors.NORMAL;
+					bMatchedWhitespaceString = true;
+				}
+				else
+					sColorizedReplacement = IRC_16_COLORS[iColor] + Matcher.quoteReplacement (sMatchedString) + Colors.NORMAL;
+			}
+			else
+				sColorizedReplacement = IRC_16_COLORS[iColor] + sReplacement + Colors.NORMAL;
+			matcher.appendReplacement (sbReplaceResult, sColorizedReplacement);	// StringUtils.replaceEach (sMatchedString, new String[]{"\\", "$"}, new String[]{"\\\\", "\\$"})
+
+			if (opt_match_times_specified && nMatch >= opt_max_match_times)
+				break;
+		}
+		if (bMatched)
+			matcher.appendTail (sbReplaceResult);
+
+		String sMemo = "";
+		if (bMatchedEmptyString)
+			sMemo = sMemo + "空字符串已用反色的 '|' 字符标注; ";
+		if (bMatchedWhitespaceString)
+			sMemo = sMemo + "空格等空白字符已用背景色标注; ";
+		result.put ("Matched", bMatched);
+		result.put ("MatchedTimes", nMatch);
+		result.put ("Result", sbReplaceResult.toString ());
+		result.put ("MatchedEmptyString", bMatchedEmptyString);	// 是否匹配到过空字符串
+		result.put ("MatchedWhitespaceString", bMatchedWhitespaceString);	// 是否匹配到过空白字符串
+		result.put ("Memo", sMemo);
+
+		return result;
+	}
+	/**
 	 * 规则表达式
 	 * <li>
 	 * 	<li>匹配 （默认）</li>
@@ -2893,6 +3019,8 @@ System.out.println (sContent_colorizedForShell);
 		String sReplacement = null;
 		Pattern pattern;
 		boolean bColorized = false;	// 是否以颜色的方式显示结果
+		int opt_max_match_times = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“匹配次数”（目前仅当 bColorized = true 时有效）
+		boolean opt_match_times_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
 		if (listCmdEnv!=null && listCmdEnv.size () > 1)
 		{
 			bColorized = listCmdEnv.get (1).equalsIgnoreCase ("color");
@@ -2926,21 +3054,18 @@ System.out.println (sContent_colorizedForShell);
 					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.matches (sRegExp));
 				else
 				{
-					pattern = Pattern.compile (sRegExp);
-					Matcher matcher = pattern.matcher (sSrc);
-					boolean bMatched = false;
-					int nMatch = 0;
-					StringBuffer sbReplaceResult = new StringBuffer ();
-					while (matcher.find ())
+					Map<String, Object> result = IRCColorizedReplace (sSrc, sRegExp, null, opt_match_times_specified, opt_max_match_times);
+					boolean bMatched = (boolean)result.get ("Matched");
+					int nMatch = (int)result.get ("MatchedTimes");
+					String sReplaceResult = (String)result.get ("Result");
+					String sMemo = (String)result.get ("Memo");
+					if (bMatched)
 					{
-						bMatched = true;
-						nMatch ++;
-						int iColor = nMatch%12 + 2;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用颜色 02-13 （12个颜色）
-						String sMatchedString = matcher.group ();
-						matcher.appendReplacement (sbReplaceResult, IRC_16_COLORS[iColor] + Matcher.quoteReplacement (sMatchedString) + Colors.NORMAL);	// StringUtils.replaceEach (sMatchedString, new String[]{"\\", "$"}, new String[]{"\\\\", "\\$"})
+						SendMessage (ch, nick, mapGlobalOptions, sReplaceResult);
+						SendMessage (ch, nick, mapGlobalOptions, "匹配到 " + nMatch + " 次. " + sMemo);
 					}
-					matcher.appendTail (sbReplaceResult);
-					SendMessage (ch, nick, mapGlobalOptions, "" + bMatched + (bMatched ? " -> " + sbReplaceResult : ""));
+					else
+						SendMessage (ch, nick, mapGlobalOptions, "未匹配到");
 				}
 			}
 			else if (botCmdAlias.equalsIgnoreCase ("r") || botCmdAlias.equalsIgnoreCase ("s") || botCmdAlias.equalsIgnoreCase ("替换") || botCmdAlias.equalsIgnoreCase ("replace") || botCmdAlias.equalsIgnoreCase ("subst") || botCmdAlias.equalsIgnoreCase ("substitute") || botCmdAlias.equalsIgnoreCase ("substitution"))
@@ -2958,24 +3083,20 @@ System.out.println (sContent_colorizedForShell);
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (! bColorized)
-					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.replaceAll (sRegExp, sReplacement));
+					SendMessage (ch, nick, mapGlobalOptions, sSrc.replaceAll (sRegExp, sReplacement));
 				else
 				{
-					pattern = Pattern.compile (sRegExp);
-					Matcher matcher = pattern.matcher (sSrc);
-					boolean bMatched = false;
-					int nMatch = 0;
-					StringBuffer sbReplaceResult = new StringBuffer ();
-					while (matcher.find ())
+					Map<String, Object> result = IRCColorizedReplace (sSrc, sRegExp, sReplacement, opt_match_times_specified, opt_max_match_times);
+					boolean bMatched = (boolean)result.get ("Matched");
+					int nMatch = (int)result.get ("MatchedTimes");
+					String sReplaceResult = (String)result.get ("Result");
+					if (bMatched)
 					{
-						bMatched = true;
-						nMatch ++;
-						int iColor = nMatch%12 + 2;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用颜色 02-13 （12个颜色）
-						String sMatchedString = matcher.group ();
-						matcher.appendReplacement (sbReplaceResult, IRC_16_COLORS[iColor] + sReplacement + Colors.NORMAL);	// StringUtils.replaceEach (sMatchedString, new String[]{"\\", "$"}, new String[]{"\\\\", "\\$"})
+						SendMessage (ch, nick, mapGlobalOptions, sReplaceResult);
+						SendMessage (ch, nick, mapGlobalOptions, "替换了 " + nMatch + " 次: ");
 					}
-					matcher.appendTail (sbReplaceResult);
-					SendMessage (ch, nick, mapGlobalOptions, sbReplaceResult.toString ());
+					else
+						SendMessage (ch, nick, mapGlobalOptions, "未替换 / 结果与源字符串相同");
 				}
 			}
 			else if (botCmdAlias.equalsIgnoreCase ("e") || botCmdAlias.equalsIgnoreCase ("explain"))
@@ -4089,11 +4210,11 @@ System.out.println (sContent_colorizedForShell);
 		String encoding = "UTF-8";
 		String geoIPDB = null;
 		String chunzhenIPDB = null;
-		String[] arrayIgnores;
-		String ignores_patterns = null;
+		String[] arrayBans;
+		String banWildcardPatterns = null;
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-i 要封锁的用户名，多个名字用 ',' 分割]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-ban 要封锁的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -4132,14 +4253,14 @@ System.out.println (sContent_colorizedForShell);
 					channels = args[i+1];
 					i ++;
 				}
-				else if (arg.equalsIgnoreCase("i") || arg.equalsIgnoreCase("ignore"))
+				else if (arg.equalsIgnoreCase("ban"))
 				{
 					if (i == args.length-1)
 					{
 						System.err.println ("需要指定要封锁的用户名列表，多个用户名用 ',' 分割");
 						return;
 					}
-					ignores_patterns = args[i+1];
+					banWildcardPatterns = args[i+1];
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("e"))
@@ -4186,14 +4307,14 @@ System.out.println (sContent_colorizedForShell);
 			bot.set纯真IPDatabaseFileName (chunzhenIPDB);
 
 		bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, "名称中含有 bot (被认定为机器人)");
-		if (ignores_patterns != null)
+		if (banWildcardPatterns != null)
 		{
-			arrayIgnores = ignores_patterns.split ("[,;/]+");
-			for (String ignore : arrayIgnores)
+			arrayBans = banWildcardPatterns.split ("[,;/]+");
+			for (String ban : arrayBans)
 			{
-				if (ignore==null || ignore.isEmpty())
+				if (ban==null || ban.isEmpty())
 					continue;
-				bot.AddBan (ignore);
+				bot.AddBan (ban);
 			}
 		}
 
