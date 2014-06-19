@@ -71,6 +71,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Set	= "/set";
 	public static final String BOT_PRIMARY_COMMAND_Raw	= "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version	= "Version";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Say = "say";
 	static final String[][] BOT_COMMAND_NAMES =
 	{
 		{BOT_PRIMARY_COMMAND_Help, },
@@ -100,6 +101,8 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Set, },
 		{BOT_PRIMARY_COMMAND_Raw, },
 		{BOT_PRIMARY_COMMAND_Version, },
+
+		{BOT_PRIMARY_COMMAND_CONSOLE_Say, },
 	};
 
 	// http://en.wikipedia.org/wiki/ANSI_escape_code#CSI_codes
@@ -223,6 +226,12 @@ public class LiuYanBot extends PircBot implements Runnable
 		Colors.YELLOW, Colors.GREEN, COLOR_DARK_CYAN, Colors.CYAN,
 		Colors.BLUE, Colors.MAGENTA, Colors.DARK_GRAY, Colors.LIGHT_GRAY,
 	};
+	public static String[] IRC_Rainbow_COLORS =
+	{
+		COLOR_DARK_RED, Colors.RED, COLOR_ORANGE, Colors.YELLOW, Colors.GREEN,
+		Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.BLUE, COLOR_DARK_CYAN, Colors.CYAN,
+		Colors.PURPLE, Colors.MAGENTA,
+	};
 	/**
 	 * 16 色 IRC 背景颜色数组，便于用索引号访问颜色。
 	 * 注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码
@@ -233,6 +242,12 @@ public class LiuYanBot extends PircBot implements Runnable
 		",04", ",05", ",06", ",07",
 		",08", ",09", ",10", ",11",
 		",12", ",13", ",14", ",15",
+	};
+	public static String[] IRC_BACKGROUND_Rainbow_COLORS =
+	{
+		"05", "04", "07", "08", "09",
+		"03", "02", "12", "10", "11",
+		"06", "13",
 	};
 	/**
 	 * 16 色 IRC 颜色+相同颜色的背景颜色数组，便于用索引号访问颜色
@@ -880,6 +895,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			message = message.substring (getName().length() + 1);	// : 后面的内容
 			message = message.trim ();
 		}
+
 		try
 		{
 			Map<String, Object> banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp);
@@ -889,12 +905,20 @@ public class LiuYanBot extends PircBot implements Runnable
 			botCmd = getBotPrimaryCommand (message);
 			if (botCmd == null)
 			{
+				// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
+				this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
+
 				if (isSayingToMe && banInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 				{
 					SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommand("help") + " 命令显示帮助信息");
 					//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
 				}
 				return;
+			}
+			else if (! botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
+			{
+				// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
+				this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
 			}
 
 			// 先查看封锁列表
@@ -2855,6 +2879,10 @@ public class LiuYanBot extends PircBot implements Runnable
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		if (! opt_max_response_lines_specified)
+			opt_max_response_lines = 2;
 
 		String sGoogleSearchURLBase = "https://ajax.googleapis.com/ajax/services/search/web";
 		String sGoogleSearchAPIVersion = "1.0";
@@ -2973,6 +3001,9 @@ System.out.println (sContent_colorizedForShell);
 				}
 				else
 					SendMessage (ch, nick, mapGlobalOptions, sMessage);
+
+				if ((i+1)>= opt_max_response_lines)
+					break;
 			}
 
 		}
@@ -3012,8 +3043,8 @@ System.out.println (sContent_colorizedForShell);
 		while (matcher.find ())
 		{
 			bMatched = true;
+			int iColor = nMatch%IRC_Rainbow_COLORS.length;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用彩色颜色（12个颜色）
 			nMatch ++;
-			int iColor = nMatch%12; iColor = (iColor==0 ? 11 : iColor-1); iColor+=2;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用颜色 02-13 （12个颜色）
 			String sMatchedString = matcher.group ();
 			String sColorizedReplacement;
 			if (sReplacement == null)
@@ -3025,14 +3056,14 @@ System.out.println (sContent_colorizedForShell);
 				}
 				else if (sMatchedString.matches ("\\s+"))	// 空白字符，用背景色显示
 				{
-					sColorizedReplacement = "\u0003" + IRC_16_BACKGROUND_COLORS[iColor] + sMatchedString + Colors.NORMAL;
+					sColorizedReplacement = "\u0003" + IRC_BACKGROUND_Rainbow_COLORS[iColor] + sMatchedString + Colors.NORMAL;
 					bMatchedWhitespaceString = true;
 				}
 				else
-					sColorizedReplacement = IRC_16_COLORS[iColor] + Matcher.quoteReplacement (sMatchedString) + Colors.NORMAL;
+					sColorizedReplacement = IRC_Rainbow_COLORS[iColor] + Matcher.quoteReplacement (sMatchedString) + Colors.NORMAL;
 			}
 			else
-				sColorizedReplacement = IRC_16_COLORS[iColor] + sReplacement + Colors.NORMAL;
+				sColorizedReplacement = IRC_Rainbow_COLORS[iColor] + sReplacement + Colors.NORMAL;
 			matcher.appendReplacement (sbReplaceResult, sColorizedReplacement);	// StringUtils.replaceEach (sMatchedString, new String[]{"\\", "$"}, new String[]{"\\\\", "\\$"})
 
 			if (opt_match_times_specified && nMatch >= opt_max_match_times)
@@ -3054,6 +3085,32 @@ System.out.println (sContent_colorizedForShell);
 		result.put ("Memo", sMemo);
 
 		return result;
+	}
+
+	// 保留各频道用户的最后一次发言，以供 replace 使用
+	Map<String, Map<String, String>> mapChannelUsersLastMessages = new HashMap<String, Map<String, String>> ();
+	void SaveChannelUserLastMessages (String channel, String nick, String login, String hostname, String msg)
+	{
+		Map<String, String> mapUsersLastMessages = GetChannelUserLastMessages (channel);
+		mapUsersLastMessages.put (login + "@" + hostname, msg);
+	}
+	Map<String, String> GetChannelUserLastMessages (String channel)
+	{
+		Map<String, String> mapUsersLastMessages = mapChannelUsersLastMessages.get (channel);
+		if (mapUsersLastMessages==null)
+		{
+			mapUsersLastMessages = new HashMap<String, String> ();
+			mapChannelUsersLastMessages.put (channel, mapUsersLastMessages);
+		}
+		return mapUsersLastMessages;
+	}
+	String GetUserLastMessage (String channel, String nick, String login, String hostname)
+	{
+		Map<String, String> mapUsersLastMessages = GetChannelUserLastMessages (channel);
+		String sMessage = null;
+		String sUser = login + "@" + hostname;
+		sMessage = mapUsersLastMessages.get (sUser);
+		return sMessage;
 	}
 	/**
 	 * 规则表达式
@@ -3088,6 +3145,7 @@ System.out.println (sContent_colorizedForShell);
 			sRegExpOption = listCmdEnv.get (0);
 		}
 		String sSrc = null;
+		boolean bIsSrcFromLastMessage = false;
 		String sRegExp = null;
 		String sReplacement = null;
 		Pattern pattern;
@@ -3144,20 +3202,65 @@ System.out.println (sContent_colorizedForShell);
 			}
 			else if (botCmdAlias.equalsIgnoreCase ("r") || botCmdAlias.equalsIgnoreCase ("s") || botCmdAlias.equalsIgnoreCase ("替换") || botCmdAlias.equalsIgnoreCase ("replace") || botCmdAlias.equalsIgnoreCase ("subst") || botCmdAlias.equalsIgnoreCase ("substitute") || botCmdAlias.equalsIgnoreCase ("substitution"))
 			{
-				if (listParams.size () < 3)
+				if (listParams.size () < 2)
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "替换 命令需要三个参数。第一个参数为源字符串，第二个参数为 RegExp，第三个参数为要替换的内容（注意：java 中要替换的内容对 \\ 和 $ 有特殊含义，\\ 为转义， $ 为取匹配到的内容，如 $1 $2 .. $9）");
+					SendMessage (ch, nick, mapGlobalOptions, "替换 命令需要 2-3 个参数。源字符串为您所说的最后一句话 或者 第一个参数，RegExp 为第一或者第二个参数，要替换的内容为第二或者第三个参数（注意：java 中要替换的内容对 \\ 和 $ 有特殊含义，\\ 为转义， $ 为取匹配到的内容，如 $1 $2 .. $9）");
 					return;
 				}
-				sSrc = listParams.get (0);
-				sRegExp = listParams.get (1);
-				sReplacement = listParams.get (2);
+
+				String sLastMessage = GetUserLastMessage (ch, nick, login, hostname);
+				String sPrefix = "";
+				if (sLastMessage == null)
+				{
+					if (listParams.size () < 3)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "没记录您最后的发言，因此，替换 命令需要 3 个参数。您只给出了 " + listParams.size () + " 个参数");
+						return;
+					}
+					sSrc = listParams.get (0);
+					sRegExp = listParams.get (1);
+					sReplacement = listParams.get (2);
+				}
+				else
+				{
+					sSrc = sLastMessage;
+					bIsSrcFromLastMessage = true;
+					bColorized = true;	// 强制打开颜色
+					mapGlobalOptions.put ("opt_output_username", false);	// 强制不输出用户昵称
+
+					// 对 src 稍做处理：如果消息前面类似  '名字:' 或 '名字,' 则先分离该名字，替换其余的后，在 '名字:' 后面加上 " xxx 的意思是说：" +　替换结果
+					String regexpToNickname = "^[`\\-\\w\\[\\]\\\\]+[,:]\\s*";
+					if (sSrc.matches (regexpToNickname + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
+					{
+						Pattern pat = Pattern.compile (regexpToNickname);
+						Matcher mat = pat.matcher (sSrc);
+						StringBuffer sb = new StringBuffer ();
+						if (mat.find ())
+						{
+							sPrefix = mat.group ();
+							mat.appendReplacement (sb, "");
+						}
+						mat.appendTail (sb);
+						sSrc = sb.toString ();
+					}
+					else
+					{
+
+					}
+					sRegExp = listParams.get (0);
+					sReplacement = listParams.get (1);
+				}
 
 				if (! sRegExpOption.isEmpty ())
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (! bColorized)
-					SendMessage (ch, nick, mapGlobalOptions, sSrc.replaceAll (sRegExp, sReplacement));
+				{
+					if (bIsSrcFromLastMessage)
+						SendMessage (ch, nick, mapGlobalOptions, sPrefix + nick + "的意思是说: " + sSrc.replaceAll (sRegExp, sReplacement));
+					else
+						SendMessage (ch, nick, mapGlobalOptions, sSrc.replaceAll (sRegExp, sReplacement));
+				}
 				else
 				{
 					Map<String, Object> result = IRCColorizedReplace (sSrc, sRegExp, sReplacement, opt_match_times_specified, opt_max_match_times);
@@ -3166,7 +3269,10 @@ System.out.println (sContent_colorizedForShell);
 					String sReplaceResult = (String)result.get ("Result");
 					if (bMatched)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, sReplaceResult);
+						if (bIsSrcFromLastMessage)
+							SendMessage (ch, nick, mapGlobalOptions, sPrefix + nick + " 的意思是说: " + sReplaceResult);
+						else
+							SendMessage (ch, nick, mapGlobalOptions, sReplaceResult);
 						if (nMatch > 5)
 							SendMessage (ch, nick, mapGlobalOptions, "替换了 " + nMatch + " 次: ");
 					}
@@ -4479,7 +4585,37 @@ System.out.println (sContent_colorizedForShell);
 			BufferedReader reader = new BufferedReader (new InputStreamReader (System.in));
 			while ( (sTerminalInput=reader.readLine ()) != null)
 			{
-				this.onMessage (null, "", "", "", sTerminalInput);
+				try
+				{
+					String cmd = getBotPrimaryCommand (sTerminalInput);
+					if (cmd == null)
+					{
+						System.err.println ("无法识别该命令");
+						continue;
+					}
+
+					if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Ban) || cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Set))
+						this.onMessage (null, "", "", "", sTerminalInput);
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Say))
+					{
+						String[] params = sTerminalInput.split (" +", 3);
+						if (params.length < 2)
+						{
+							System.err.println ("say 命令语法： say <目标(频道或昵称)> [消息]");
+							continue;
+						}
+						this.sendMessage (params[1], params[2]);
+					}
+					else
+					{
+						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set 和 say 命令");
+						continue;
+					}
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace ();
+				}
 			}
 		}
 		catch (IOException e)
