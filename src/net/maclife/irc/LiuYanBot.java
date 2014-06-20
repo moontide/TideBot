@@ -71,7 +71,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Set	= "/set";
 	public static final String BOT_PRIMARY_COMMAND_Raw	= "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version	= "Version";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Say = "say";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Say = "/say";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Name = "/nick";
 	static final String[][] BOT_COMMAND_NAMES =
 	{
 		{BOT_PRIMARY_COMMAND_Help, },
@@ -103,6 +104,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Version, },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Say, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Name, "/name" },
 	};
 
 	// http://en.wikipedia.org/wiki/ANSI_escape_code#CSI_codes
@@ -226,15 +228,10 @@ public class LiuYanBot extends PircBot implements Runnable
 		Colors.YELLOW, Colors.GREEN, COLOR_DARK_CYAN, Colors.CYAN,
 		Colors.BLUE, Colors.MAGENTA, Colors.DARK_GRAY, Colors.LIGHT_GRAY,
 	};
-	public static String[] IRC_Rainbow_COLORS =
-	{
-		COLOR_DARK_RED, Colors.RED, COLOR_ORANGE, Colors.YELLOW, Colors.GREEN,
-		Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.BLUE, COLOR_DARK_CYAN, Colors.CYAN,
-		Colors.PURPLE, Colors.MAGENTA,
-	};
 	/**
 	 * 16 色 IRC 背景颜色数组，便于用索引号访问颜色。
-	 * 注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码
+	 * <br/>
+	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码</span>
 	 */
 	public static String[] IRC_16_BACKGROUND_COLORS =
 	{
@@ -243,11 +240,25 @@ public class LiuYanBot extends PircBot implements Runnable
 		",08", ",09", ",10", ",11",
 		",12", ",13", ",14", ",15",
 	};
+	/**
+	 * IRC 彩虹色（12 个颜色，按“<font color='red'>红</font><font color='orange'>橙</font><font color='yellow'>黄</font><font color='green'>绿</font><font color='blue'>蓝</font><font color='cyan'>青</font><font color='purple'>紫</font>”顺序）
+	 */
+	public static String[] IRC_Rainbow_COLORS =
+	{
+		COLOR_DARK_RED, COLOR_ORANGE, Colors.RED, Colors.YELLOW, Colors.GREEN,
+		Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.BLUE, COLOR_DARK_CYAN, Colors.CYAN,
+		Colors.MAGENTA, Colors.PURPLE,
+	};
+	/**
+	 * IRC 彩虹背景色（12 个颜色，按“<font color='red'>红</font><font color='orange'>橙</font><font color='yellow'>黄</font><font color='green'>绿</font><font color='blue'>蓝</font><font color='cyan'>青</font><font color='purple'>紫</font>”顺序）
+	 * <br/>
+	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码</span>
+	 */
 	public static String[] IRC_BACKGROUND_Rainbow_COLORS =
 	{
-		"05", "04", "07", "08", "09",
+		"05", "07", "04", "08", "09",
 		"03", "02", "12", "10", "11",
-		"06", "13",
+		"13", "06",
 	};
 	/**
 	 * 16 色 IRC 颜色+相同颜色的背景颜色数组，便于用索引号访问颜色
@@ -422,6 +433,13 @@ public class LiuYanBot extends PircBot implements Runnable
 	ChunZhenIPQuery qqwry = null;
 	String chunzhenIPDBVersion = null;
 	long chunzhenIPCount = 0;
+
+	/**
+	 * 执行 Google 搜索时，利用 GoAgent 代理时所使用的 trustStore、trustPassword
+	 * 这里需要记忆在这里，因为命令执行时，可能临时通过 .proxyOff 关闭代理，而关闭代理时，需要从系统属性中删除…… 删除后，下一个命令还需要再加回去……
+	 */
+	public static String sslTrustStore = null;
+	public static String sslTrustPassword = null;
 
 	/**
 	 * StackExchange API 搜索时的每页最大结果数
@@ -2910,9 +2928,17 @@ System.out.println (sGoogleSearchURL);
 			InputStream is = null;
 			URLConnection http = null;
 			if (bProxyOff)
+			{
+				System.clearProperty ("javax.net.ssl.trustStore");
+				System.clearProperty ("javax.net.ssl.trustPassword");
 				http = url.openConnection ();
+			}
 			else
 			{
+				if (sslTrustStore!=null && !sslTrustStore.isEmpty ())
+					System.setProperty ("javax.net.ssl.trustStore", sslTrustStore);
+				if (sslTrustPassword!=null && !sslTrustPassword.isEmpty ())
+					System.setProperty ("javax.net.ssl.trustPassword", sslTrustPassword);
 				// 利用 GoAgent 代理搜索
 				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
 				// keytool -import -alias GoAgentCert -file CA.crt
@@ -4542,6 +4568,8 @@ System.out.println (sContent_colorizedForShell);
 		}
 
 		LiuYanBot bot = new LiuYanBot ();
+		sslTrustStore = System.getProperty ("javax.net.ssl.trustStore");
+		sslTrustPassword = System.getProperty ("javax.net.ssl.trustPassword");
 		bot.setName (nick);
 		bot.setVerbose (true);
 		bot.setAutoNickChange (true);
@@ -4585,6 +4613,8 @@ System.out.println (sContent_colorizedForShell);
 			BufferedReader reader = new BufferedReader (new InputStreamReader (System.in));
 			while ( (sTerminalInput=reader.readLine ()) != null)
 			{
+				if (sTerminalInput.isEmpty ())
+					continue;
 				try
 				{
 					String cmd = getBotPrimaryCommand (sTerminalInput);
@@ -4605,6 +4635,17 @@ System.out.println (sContent_colorizedForShell);
 							continue;
 						}
 						this.sendMessage (params[1], params[2]);
+					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Name) || cmd.equalsIgnoreCase ("/name"))
+					{
+						String[] params = sTerminalInput.split (" +", 2);
+						if (params.length < 2)
+						{
+							System.err.println ("/nick 命令语法： /nick <昵称)>");
+							continue;
+						}
+						String nick = params[1];
+						changeNick (nick);
 					}
 					else
 					{
