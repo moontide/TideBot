@@ -9,6 +9,8 @@ import java.util.concurrent.*;
 import java.util.logging.*;
 import java.util.regex.*;
 
+import javax.script.*;
+
 import org.apache.commons.lang3.*;
 //import org.apache.commons.io.*;
 import org.apache.commons.exec.*;
@@ -22,8 +24,8 @@ import com.temesoft.google.pr.*;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
-
 import com.liuyan.util.qqwry.*;
+
 import net.maclife.seapi.*;
 
 public class LiuYanBot extends PircBot implements Runnable
@@ -54,6 +56,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Google = "/Google";
 	public static final String BOT_PRIMARY_COMMAND_RegExp = "RegExp";
 	public static final String BOT_PRIMARY_COMMAND_Ban	= "/ban";
+	public static final String BOT_PRIMARY_COMMAND_JavaScript	= "JavaScript";
+	public static final String BOT_PRIMARY_COMMAND_Java	= "Java";
 
 	public static final String BOT_PRIMARY_COMMAND_Time	= "Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	= "Action";
@@ -85,6 +89,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Google, "/goo+gle",},
 		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split"},
 		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip"},
+		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -517,7 +522,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	}
 	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
 	{
-		if (msg.contains ("\n"))
+		if (msg.contains ("\r") || msg.contains ("\n"))
 		{	// 部分 java Exception 的错误信息包含多行，这会导致后面的行被 IRC 服务器当做是错误的命令放弃，这里需要处理一下
 			String[]lines = msg.split ("[\r\n]+");
 			for (String line : lines)
@@ -544,7 +549,6 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, byte iMatchMode, List<Map<String, Object>> list, String listName)
 	{
-		boolean bFounded = false;
 		logger.finer ("判断 " + wildcardPatternToFetch + " 是否在" + listName + "中");
 		for (Map<String,Object> userInfo : list)
 		{
@@ -696,9 +700,8 @@ public class LiuYanBot extends PircBot implements Runnable
 				;
 	}
 
-	boolean isUserInList (String host, String login, String nick, List list, String listName)
+	boolean isUserInList (String host, String login, String nick, List<Map<String, Object>> list, String listName)
 	{
-		String sIRCPrefix = nick + "!" + login + "@" + host;
 		Map<String, Object> userInfo = GetUserFromList (nick, login, host, USER_LIST_MATCH_MODE_RegExp, list, listName);
 		return (userInfo != null);
 	}
@@ -1102,8 +1105,7 @@ public class LiuYanBot extends PircBot implements Runnable
 //System.out.println (listEnv);
 //System.out.println (params);
 
-			if (false) {}
-			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Help))
+			if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Help))
 				ProcessCommand_Help (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Cmd))
 				ExecuteCommand (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
@@ -1121,6 +1123,8 @@ public class LiuYanBot extends PircBot implements Runnable
 				ProcessCommand_Google (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
 				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_JavaScript))
+				ProcessCommand_EvaluateJavaScript (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -1261,6 +1265,8 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "match" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ".[" + COLOR_COMMAND_OPTION + "RegExp选项" + Colors.NORMAL + "].[" + COLOR_COMMAND_OPTION_INSTANCE + "color" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数3" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数4" + Colors.NORMAL + "]  -- java RegExp。RegExp选项: i-不分大小写, m-多行模式, s-.也会匹配换行符; " + COLOR_COMMAND_INSTANCE + "regexp" + Colors.NORMAL + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
 			SendMessage (ch, u, mapGlobalOptions, COLOR_COMMAND_INSTANCE + "match" + Colors.NORMAL + ": 参数1 匹配 参数2; " + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "/" + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + ": 参数1 中的 参数2 替换成 参数3; " + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ": 用 参数2 分割 参数1;");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 		}
+		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "javascript 脚本" + Colors.NORMAL + ">    -- 执行 JavaScript 脚本。");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -1637,7 +1643,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		listMessages.add (sb);
 		String[] timezones = TimeZone.getAvailableIDs ();
 		sb.append ("共 " + timezones.length + " 个时区: ");
-		int n = 0, nTotal=0;
+		int nTotal=0;
 		for (String tz : timezones)
 		{
 			if (filters!=null)
@@ -1645,7 +1651,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				for (String filter : filters)
 					if (StringUtils.containsIgnoreCase(tz, filter))
 					{
-						n++; nTotal++;
+						nTotal++;
 						sb.append (tz);
 						sb.append (" ");
 						break;
@@ -1653,7 +1659,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			else
 			{
-				n++; nTotal++;
+				nTotal++;
 				sb.append (tz);
 				sb.append (" ");
 			}
@@ -1664,7 +1670,6 @@ public class LiuYanBot extends PircBot implements Runnable
 //System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
-				n = 0;
 				continue;
 			}
 		}
@@ -1691,7 +1696,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		listMessages.add (sb);
 		Locale[] locales = Locale.getAvailableLocales ();
 		sb.append ("共 " + locales.length + " 个语言: ");
-		int n = 0, nTotal=0;
+		int nTotal=0;
 		for (Locale locale : locales)
 		{
 			String sLocale = locale.toString();
@@ -1700,7 +1705,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				for (String filter : filters)
 					if (StringUtils.containsIgnoreCase(sLocale, filter))
 					{
-						n++; nTotal++;
+						nTotal++;
 						sb.append (sLocale);
 						sb.append (" ");
 						break;
@@ -1708,7 +1713,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			else
 			{
-				n++; nTotal++;
+				nTotal++;
 				sb.append (sLocale);
 				sb.append (" ");
 			}
@@ -1719,7 +1724,6 @@ public class LiuYanBot extends PircBot implements Runnable
 //System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
-				n = 0;
 				continue;
 			}
 		}
@@ -1746,7 +1750,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		listMessages.add (sb);
 		Map<String, String> sys_env = System.getenv ();
 		sb.append ("共 " + sys_env.size() + " 个环境变量: ");
-		int n = 0, nTotal=0;
+		int nTotal=0;
 		for (Map.Entry<String, String> entry : sys_env.entrySet())
 		{
 			String sKey = entry.getKey ();
@@ -1756,7 +1760,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				for (String filter : filters)
 					if (StringUtils.containsIgnoreCase(sKey, filter))
 					{
-						n++; nTotal++;
+						nTotal++;
 						sb.append (sKey);
 						sb.append ("=");
 						sb.append (sValue);
@@ -1766,7 +1770,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			else
 			{
-				n++; nTotal++;
+				nTotal++;
 				sb.append (sKey);
 				sb.append ("=");
 				sb.append (sValue);
@@ -1779,7 +1783,6 @@ public class LiuYanBot extends PircBot implements Runnable
 //System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
-				n = 0;
 				continue;
 			}
 		}
@@ -1806,7 +1809,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		listMessages.add (sb);
 		Properties properties = System.getProperties ();
 		sb.append ("共 " + properties.size() + " 个系统属性: ");
-		int n = 0, nTotal=0;
+		int nTotal=0;
 		for (String propertyName : properties.stringPropertyNames())
 		{
 			String sValue = properties.getProperty (propertyName);
@@ -1815,7 +1818,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				for (String filter : filters)
 					if (StringUtils.containsIgnoreCase(propertyName, filter))
 					{
-						n++; nTotal++;
+						nTotal++;
 						sb.append (propertyName);
 						sb.append ("=");
 						sb.append (sValue);
@@ -1825,7 +1828,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			else
 			{
-				n++; nTotal++;
+				nTotal++;
 				sb.append (propertyName);
 				sb.append ("=");
 				sb.append (sValue);
@@ -1838,7 +1841,6 @@ public class LiuYanBot extends PircBot implements Runnable
 //System.out.println (sb);
 				sb = new StringBuilder ();
 				listMessages.add (sb);
-				n = 0;
 				continue;
 			}
 		}
@@ -1854,6 +1856,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * 查询 IP 地址所在地 (GeoIP2)
 	 */
+	@SuppressWarnings ("unused")
 	void ProcessCommand_GeoIP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params==null)
@@ -2068,6 +2071,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
+	@SuppressWarnings ("deprecation")
 	void ProcessCommand_URLEncodeDecode (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
@@ -2111,9 +2115,9 @@ public class LiuYanBot extends PircBot implements Runnable
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		String sCharset = null;
-		if (listCmdEnv!=null && listCmdEnv.size()>0)
-			sCharset = listCmdEnv.get(0);
+		//String sCharset = null;
+		//if (listCmdEnv!=null && listCmdEnv.size()>0)
+		//	sCharset = listCmdEnv.get(0);
 
 		try
 		{
@@ -2170,8 +2174,6 @@ public class LiuYanBot extends PircBot implements Runnable
 		//
 		String site = null;
 		String action = null;
-		String q = null;
-
 		int i=0;
 		int level = 0;
 		StringBuilder sbQ = new StringBuilder ();
@@ -2546,7 +2548,6 @@ public class LiuYanBot extends PircBot implements Runnable
 		String sSiteNameForAPI = null;
 		String sSiteDomain = null;
 		String sSiteInfo = null;
-		String sURL = null;
 		for (Object[] siteInfo : StackExchangeAPI.arrayStackExchangeSites)
 		{
 			String[] names = (String[])siteInfo[0];
@@ -2646,6 +2647,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		);
 	}
 
+	@SuppressWarnings ("unused")
 	public void processStackExchangeQuestionsNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
 	{
 		if (node == null)
@@ -2748,6 +2750,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
+	@SuppressWarnings ("unused")
 	public void processStackExchangeAnswersNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
 	{
 		if (node == null)
@@ -2808,6 +2811,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
+	@SuppressWarnings ("unused")
 	public void processStackExchangeUsersNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
 	{
 		if (node == null)
@@ -2890,6 +2894,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @throws UnsupportedEncodingException
 	 * @throws MalformedURLException
 	 */
+	@SuppressWarnings ("unused")
 	void ProcessCommand_Google (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
@@ -3174,7 +3179,6 @@ System.out.println (sContent_colorizedForShell);
 		boolean bIsSrcFromLastMessage = false;
 		String sRegExp = null;
 		String sReplacement = null;
-		Pattern pattern;
 		boolean bColorized = false;	// 是否以颜色的方式显示结果
 		int opt_max_match_times = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“匹配次数”（目前仅当 bColorized = true 时有效）
 		boolean opt_match_times_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
@@ -3255,7 +3259,10 @@ System.out.println (sContent_colorizedForShell);
 					mapGlobalOptions.put ("opt_output_username", false);	// 强制不输出用户昵称
 
 					// 对 src 稍做处理：如果消息前面类似  '名字:' 或 '名字,' 则先分离该名字，替换其余的后，在 '名字:' 后面加上 " xxx 的意思是说：" +　替换结果
-					String regexpToNickname = "^[`\\-\\w\\[\\]\\\\]+[,:]\\s*";
+					// http://tools.ietf.org/html/rfc2812#section-2.3.1
+					// nickname   =  ( letter / special ) *8( letter / digit / special / "-" )
+					// special    =  %x5B-60 / %x7B-7D                   ; "[", "]", "\", "`", "_", "^", "{", "|", "}"
+					String regexpToNickname = "^[a-zA-Z_\\[\\\\\\]\\^\\{\\|\\}`][\\[\\\\\\]\\^\\{\\|\\}`\\w\\-]*[,:]\\s*";
 					if (sSrc.matches (regexpToNickname + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
 					{
 						Pattern pat = Pattern.compile (regexpToNickname);
@@ -3378,6 +3385,96 @@ System.out.println (sContent_colorizedForShell);
 					return;
 				}
 				sRegExp = listParams.get (0);
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+		}
+	}
+
+	static ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
+	static ScriptEngine public_jse = scriptEngineManager.getEngineByName("JavaScript");
+	static ScriptContext public_jsContext = (public_jse==null?null:public_jse.getContext ());
+	/**
+	 * 执行 JavaScript 脚本
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_EvaluateJavaScript (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+System.out.println ("JavaScript 脚本：");
+System.out.println (params);
+		ScriptEngine jse = public_jse;
+		ScriptContext jsContext = public_jsContext;
+		if (jse==null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "不能获取 JavaScript 引擎");
+			return;
+		}
+
+		try
+		{
+			StringWriter stdout = new StringWriter ();
+			StringWriter stderr = new StringWriter ();
+			jsContext.setWriter (stdout);
+			jsContext.setErrorWriter (stderr);
+
+			Object evaluateResult = jse.eval (params);
+System.out.println ("执行结果：");
+System.out.println (evaluateResult);
+			if (evaluateResult!=null)
+			{
+				if (stdout.toString ().isEmpty () && stderr.toString ().isEmpty ())
+				{
+					SendMessage (ch, nick, mapGlobalOptions, evaluateResult.toString ());
+					return;
+				}
+
+				String sResult = "";
+				if (stderr.toString ().isEmpty ())
+					sResult = evaluateResult.toString () + "    控制台输出: " + stdout;
+				else if (stdout.toString ().isEmpty ())
+					sResult = evaluateResult.toString () + "    控制台输出: " + Colors.RED + stderr;
+				else
+					sResult = evaluateResult.toString () + "    控制台输出: " + stdout + "  " + Colors.RED + stderr;
+
+				SendMessage (ch, nick, mapGlobalOptions, sResult);
+			}
+			else
+			{
+				if (stdout.toString ().isEmpty () && stderr.toString ().isEmpty ())
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "求值无结果，控制台也没有输出");
+					return;
+				}
+				if (stderr.toString ().isEmpty ())
+				{
+					SendMessage (ch, nick, mapGlobalOptions, stdout.toString ());
+					return;
+				}
+				if (stdout.toString ().isEmpty ())
+				{
+					SendMessage (ch, nick, mapGlobalOptions, Colors.RED + stderr.toString ());
+					return;
+				}
+
+				{
+					SendMessage (ch, nick, mapGlobalOptions, stdout.toString() + "    " + Colors.RED + stderr.toString ());
+					return;
+				}
 			}
 		}
 		catch (Exception e)
