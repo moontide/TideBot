@@ -1158,7 +1158,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "出错：" + e);
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, e.getMessage ());
 		}
 	}
 
@@ -1218,7 +1218,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time  ParseCmd Action Notice TimeZones Locales Env Properties Version Help" + Colors.NORMAL +
+				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time /Google RegExp JavaScript  ParseCmd Action Notice TimeZones Locales Env Properties Version Help" + Colors.NORMAL +
 				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
@@ -1922,7 +1922,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			catch (Exception e)
 			{
 				e.printStackTrace ();
-				SendMessage (ch, u, mapGlobalOptions, host + " 查询出错: " + e);
+				SendMessage (ch, u, mapGlobalOptions, host + " 查询出错: " + e.getMessage ());
 			}
 		}
 	}
@@ -2016,7 +2016,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			catch (Exception e)
 			{
 				e.printStackTrace ();
-				SendMessage (ch, u, mapGlobalOptions, q + " 查询出错: " + e);
+				SendMessage (ch, u, mapGlobalOptions, q + " 查询出错: " + e.getMessage ());
 			}
 		}
 	}
@@ -2067,7 +2067,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "查询出错: " + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -2104,7 +2104,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -2145,7 +2145,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -2620,7 +2620,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -3041,7 +3041,7 @@ System.out.println (sContent_colorizedForShell);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -3390,7 +3390,7 @@ System.out.println (sContent_colorizedForShell);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -3398,7 +3398,13 @@ System.out.println (sContent_colorizedForShell);
 	static ScriptEngine public_jse = scriptEngineManager.getEngineByName("JavaScript");
 	static ScriptContext public_jsContext = (public_jse==null?null:public_jse.getContext ());
 	/**
-	 * 执行 JavaScript 脚本
+	 * 执行 JavaScript 脚本。
+	 *
+	 * 一个 IRC 彩虹函数脚本
+<pre>
+var 彩虹色 = ["05", "07", "04", "08", "09", "03", "02", "12", "10", "11", "13", "06",];
+function 彩虹(s) { var r=""; for (var i=0; i<s.length; i++) { var c = s.charAt(i); r = r + '\x03' + (c==' '||c=='\t'?',':'') + 彩虹色[i%12] + c + '\x0f';} return r; }
+</pre>
 	 * @param ch
 	 * @param nick
 	 * @param login
@@ -3480,7 +3486,7 @@ System.out.println (evaluateResult);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "" + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -3521,10 +3527,11 @@ System.out.println (evaluateResult);
 	String [] arrayBannedCommands =
 	{
 		// 潜在的破坏性命令
-		"rm", "dd", "kill", "killall", "killall5", "pkill", "skill", "chmod", "cp",
+		"kill", "killall", "killall5", "pkill", "skill", "chmod", "cp",
+		//"rm", "shred", "dd",
 
 		// shell
-		"bash", "sh", "dash",
+		//"bash", "sh", "dash",
 
 		// 防止把禁用命令“软连接/改名”
 		"ln", "link",
@@ -3533,7 +3540,8 @@ System.out.println (evaluateResult);
 		"poweroff", "halt", "reboot", "shutdown", "systemctl",
 
 		// 执行脚本、语言编译器
-		"python", "python2", "python2.7", "python3", "python3.3", "python3.3m", "perl", "perl5.18.2", "java", "gcc", "g++", "gcc", "make",
+		//"python", "python2", "python2.7", "python3", "python3.3", "python3.3m", "perl", "perl5.18.2",
+		"java", "gcc", "g++", "make",
 
 		// 可以执行其他命令的命令
 		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install",
@@ -3554,51 +3562,285 @@ System.out.println (evaluateResult);
 		return true;
 	}
 
-	void CheckCommandSecurity (List<String> listCommandArgs)
+	@SuppressWarnings ("unchecked")
+	void CheckCommandsSecurity (List<Map<String, Object>> listCommands)
 	{
-		String cmd = listCommandArgs.get (0);
-		//
-		boolean hasArguments = false;
-		if (cmd.equalsIgnoreCase("find"))
+		int i=0;
+		for (Map<String, Object> mapCommand : listCommands)
 		{
-			for (String arg : listCommandArgs)
-			{
-				hasArguments = true;
-				if (arg.equalsIgnoreCase ("-delete")
-					|| arg.equalsIgnoreCase ("-exec")
-					|| arg.equalsIgnoreCase ("-execdir")
-					|| arg.equalsIgnoreCase ("-ok")
-					|| arg.equalsIgnoreCase ("-okdir")
-					|| arg.equalsIgnoreCase ("-prune")
-					)
-				{
-					System.out.println ("find 命令禁止参数: " + arg);
-				}
-			}
-		}
-		else if (cmd.equalsIgnoreCase("bash") || cmd.equalsIgnoreCase("sh"))
-		{
+			List<String> listCommandArgs = (List<String>)mapCommand.get ("commandargs");
+			String cmd = (String)mapCommand.get ("program");	//listCommandArgs.get (0);
+			// 检查 program 是不是在 /bin /usr/bin  /sbin /usr/sbin  /usr/local/bin  /usr/local/sbin 目录下的，不是的则不允许运行
+			//
+			if (cmd.contains (File.separator))
+				throw new RuntimeException ("禁止在命令中包含路径分隔符。即：只允许执行 $PATH 中的命令，不允许通过相对或绝对路径执行其他文件夹下的程序");
 
-		}
-		else if (cmd.equalsIgnoreCase("dd"))
-		{
-			for (String arg : listCommandArgs)
+			boolean hasArguments = false;
+			if (cmd.equalsIgnoreCase("find"))
 			{
-				hasArguments = true;
-				if (arg.startsWith ("if="))
+				for (i=1; i<listCommandArgs.size(); i++)
 				{
-					System.out.println ("禁止使用 -exec");
-				}
-				if (arg.startsWith ("of="))
-				{
-					// 文件写入权限，
-					// 文件位置：只能写在工作文件夹/工作文件夹的子文件夹？
-					System.out.println ("禁止使用 -exec");
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.equalsIgnoreCase ("-delete")
+						|| arg.equalsIgnoreCase ("-exec")
+						|| arg.equalsIgnoreCase ("-execdir")
+						|| arg.equalsIgnoreCase ("-ok")
+						|| arg.equalsIgnoreCase ("-okdir")
+						|| arg.equalsIgnoreCase ("-prune")
+						)
+					{
+						throw new RuntimeException ("find 命令禁止使用 " + arg + " 参数");
+					}
 				}
 			}
-			if (!hasArguments)
+			else if (cmd.equalsIgnoreCase("bash") || cmd.equalsIgnoreCase("sh"))
 			{
-				System.out.println ("从 IRC 中执行 dd 命令需要输入参数");
+				for (i=1; i<listCommandArgs.size(); i++)
+				{
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.startsWith ("-") || arg.startsWith ("+"))
+					{
+						String arg1 = arg.substring (1);
+						if (arg1.equalsIgnoreCase ("c") || arg1.equalsIgnoreCase ("-init-file") || arg1.equalsIgnoreCase ("-rcfile"))
+						{
+							throw new RuntimeException (cmd + " 命令禁止使用 " + arg + " 参数执行命令");
+						}
+						else if (arg1.equalsIgnoreCase ("O"))
+						{
+							i++;
+							continue;
+						}
+					}
+					else
+						throw new RuntimeException (cmd + " 命令禁止执行脚本文件");
+				}
+			}
+			else if (cmd.equalsIgnoreCase("python") || cmd.equalsIgnoreCase("python2") || cmd.equalsIgnoreCase("python2.7") || cmd.equalsIgnoreCase("python3") || cmd.equalsIgnoreCase("python3.3") || cmd.equalsIgnoreCase("python3.3m"))
+			{
+				for (i=1; i<listCommandArgs.size(); i++)
+				{
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.startsWith ("-"))
+					{
+						String arg1 = arg.substring (1);
+						if (!arg1.startsWith ("-") && arg1.length () > 1)
+							throw new RuntimeException (cmd + " 命令不允许将短参数合并在一起: " + arg);
+
+						if (arg1.equalsIgnoreCase ("m") || arg1.equalsIgnoreCase ("Q") || arg1.equalsIgnoreCase ("W"))
+						{
+							i++;
+							continue;
+						}
+
+						if (arg1.equalsIgnoreCase ("c"))
+						{
+							if (i == listCommandArgs.size()-1)
+								throw new RuntimeException (cmd + " 命令 " + arg + " 参数需要指定脚本");
+
+							i++;	String python_script_string = listCommandArgs.get (i);
+							if (//false
+								//|| StringUtils.containsIgnoreCase (python_script_string, "system")
+								//|| StringUtils.containsIgnoreCase (python_script_string, "Popen")
+								//|| StringUtils.containsIgnoreCase (python_script_string, "call")
+								python_script_string.matches ("^.*(system|[Pp]open|call|fork)\\s*\\(.*$")
+								)
+							{
+								throw new RuntimeException (cmd + " 命令禁止使用脚本执行外部命令或者 fork");
+							}
+						}
+					}
+					else
+					{
+						throw new RuntimeException (cmd + " 命令禁止执行脚本文件");
+					}
+				}
+			}
+			else if (cmd.equalsIgnoreCase("perl") || cmd.equalsIgnoreCase("perl5.18.2"))
+			{
+				for (i=1; i<listCommandArgs.size(); i++)
+				{
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.startsWith ("-"))
+					{
+						String arg1 = arg.substring (1);
+						if (!arg1.startsWith ("-") && arg1.length () > 1)
+							throw new RuntimeException (cmd + " 命令不允许将短参数合并在一起: " + arg);
+
+						if (arg1.equalsIgnoreCase ("m") || arg1.equalsIgnoreCase ("Q") || arg1.equalsIgnoreCase ("W"))
+						{
+							i++;
+							continue;
+						}
+
+						if (arg1.equalsIgnoreCase ("e") || arg1.equalsIgnoreCase ("E"))
+						{
+							if (i == listCommandArgs.size()-1)
+								throw new RuntimeException (cmd + " 命令 " + arg + " 参数需要指定脚本");
+
+							i++;	String perl_script_string = listCommandArgs.get (i);
+							if (false
+								|| StringUtils.containsIgnoreCase (perl_script_string, "system")
+								|| StringUtils.containsIgnoreCase (perl_script_string, "exec")
+								|| StringUtils.containsIgnoreCase (perl_script_string, "fork")
+								)
+							{
+								throw new RuntimeException (cmd + " 命令禁止使用脚本执行外部命令或者 fork");
+							}
+						}
+					}
+					else
+					{
+						throw new RuntimeException (cmd + " 命令禁止执行脚本文件");
+					}
+				}
+			}
+			else if (cmd.equalsIgnoreCase("awk") || cmd.equalsIgnoreCase("gawk") || cmd.equalsIgnoreCase("igawk") || cmd.equalsIgnoreCase("nawk"))
+			{
+				for (i=1; i<listCommandArgs.size(); i++)
+				{
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.startsWith ("-"))
+					{
+						String arg1 = arg.substring (1);
+
+						if (arg1.equalsIgnoreCase ("f") || arg1.equalsIgnoreCase ("-file") || arg1.equalsIgnoreCase ("E") || arg1.equalsIgnoreCase ("-exec"))
+							throw new RuntimeException (cmd + " 命令禁止执行脚本文件");
+
+						if (arg1.equalsIgnoreCase ("F") || arg1.equalsIgnoreCase ("-field-separator")
+							|| arg1.equalsIgnoreCase ("v") || arg1.equalsIgnoreCase ("-assign")
+							|| arg1.equalsIgnoreCase ("i") || arg1.equalsIgnoreCase ("-include")
+							|| arg1.equalsIgnoreCase ("l") || arg1.equalsIgnoreCase ("-load")
+							)
+						{
+							i++;
+							continue;
+						}
+
+						// 可有可无后续参数的选项
+						if (arg1.equalsIgnoreCase ("d") || arg1.equalsIgnoreCase ("-dump-variables")
+							|| arg1.equalsIgnoreCase ("D") || arg1.equalsIgnoreCase ("-debug")
+							|| arg1.equalsIgnoreCase ("L") || arg1.equalsIgnoreCase ("-lint")
+							|| arg1.equalsIgnoreCase ("o") || arg1.equalsIgnoreCase ("-pretty-print")
+							|| arg1.equalsIgnoreCase ("p") || arg1.equalsIgnoreCase ("-profile")
+							)
+						{
+							if (i==listCommandArgs.size()-1)	// 最后一个选项，无后续参数
+								continue;
+							String nextArg = listCommandArgs.get(i+1);
+							if (nextArg.startsWith ("-"))	// 无后续参数
+								continue;
+
+							i++;
+							continue;
+						}
+
+						// 一些不带参数的选项
+						if (arg1.equalsIgnoreCase ("F") || arg1.equalsIgnoreCase ("-characters-as-bytes")
+							|| arg1.equalsIgnoreCase ("c") || arg1.equalsIgnoreCase ("-traditional")
+							|| arg1.equalsIgnoreCase ("C") || arg1.equalsIgnoreCase ("-copyright")
+							|| arg1.equalsIgnoreCase ("g") || arg1.equalsIgnoreCase ("-gen-pot")
+							|| arg1.equalsIgnoreCase ("h") || arg1.equalsIgnoreCase ("-help")
+							|| arg1.equalsIgnoreCase ("n") || arg1.equalsIgnoreCase ("-non-decimal-data")
+							|| arg1.equalsIgnoreCase ("M") || arg1.equalsIgnoreCase ("-bignum")
+							|| arg1.equalsIgnoreCase ("N") || arg1.equalsIgnoreCase ("-use-lc-numeric")
+							|| arg1.equalsIgnoreCase ("O") || arg1.equalsIgnoreCase ("-optimize")
+							|| arg1.equalsIgnoreCase ("P") || arg1.equalsIgnoreCase ("-posix")
+							|| arg1.equalsIgnoreCase ("r") || arg1.equalsIgnoreCase ("-re-interval")
+							|| arg1.equalsIgnoreCase ("S") || arg1.equalsIgnoreCase ("-sandbox")
+							|| arg1.equalsIgnoreCase ("t") || arg1.equalsIgnoreCase ("-lint-old")
+							|| arg1.equalsIgnoreCase ("V") || arg1.equalsIgnoreCase ("-version")
+							)
+						{
+						}
+						else if (arg1.equalsIgnoreCase ("e") || arg1.equalsIgnoreCase ("-source"))
+						{
+							if (i == listCommandArgs.size()-1)
+								throw new RuntimeException (cmd + " 命令 " + arg + " 参数需要指定脚本");
+
+							i++;	String awk_script_string = listCommandArgs.get (i);
+							if (false
+								|| StringUtils.containsIgnoreCase (awk_script_string, "system")
+								)
+							{
+								throw new RuntimeException (cmd + " 命令禁止使用脚本执行外部命令或者 fork");
+							}
+						}
+						else
+							throw new RuntimeException ("不知道/禁止 " + cmd + " 命令的 " + arg + " 选项");
+					}
+				}
+			}
+			else if (cmd.equalsIgnoreCase("dd"))
+			{
+				for (i=1; i<listCommandArgs.size(); i++)
+				{
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.startsWith ("if="))
+					{
+						//throw new RuntimeException ("禁止使用 -exec");
+					}
+					if (arg.startsWith ("of="))
+					{
+						// 文件写入权限，
+						// 文件位置：只能写在工作文件夹/工作文件夹的子文件夹？
+						String sFileName = arg.substring (3);
+						File f = new File (sFileName);
+						if (! f.getPath ().equalsIgnoreCase (System.getProperty ("user.dir")))
+							throw new RuntimeException ("只能输出到工作目录");
+					}
+				}
+				if (!hasArguments)
+				{
+					System.out.println ("从 IRC 中执行 dd 命令需要输入参数");
+				}
+			}
+			else if (cmd.equalsIgnoreCase("rm"))
+			{
+				for (i=1; i<listCommandArgs.size(); i++)
+				{
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.startsWith ("-"))
+						continue;
+
+					File f = new File (arg);
+					if (! f.getPath ().equalsIgnoreCase (System.getProperty ("user.dir")))
+						throw new RuntimeException ("只能删除工作目录下的文件");
+				}
+			}
+			else if (cmd.equalsIgnoreCase("shred"))
+			{
+				for (i=1; i<listCommandArgs.size(); i++)
+				{
+					String arg = listCommandArgs.get (i);
+					hasArguments = true;
+					if (arg.startsWith ("-"))
+					{
+						String arg1 = arg.substring (1);
+
+						// 带参数的选项
+						if (arg1.equalsIgnoreCase ("n") || arg1.equalsIgnoreCase ("-iterations")
+							|| arg1.equalsIgnoreCase ("-random-source")
+							|| arg1.equalsIgnoreCase ("s") || arg1.equalsIgnoreCase ("-size")
+							)
+						{
+							i++;
+							continue;
+						}
+					}
+					else
+					{
+						File f = new File (arg);
+						if (! f.getPath ().equalsIgnoreCase (System.getProperty ("user.dir")))
+							throw new RuntimeException ("只能删除工作目录下的文件");
+					}
+				}
 			}
 		}
 	}
@@ -4088,6 +4330,8 @@ System.out.println (evaluateResult);
 		logger.info (listCommands.toString());
 		try
 		{
+			CheckCommandsSecurity (listCommands);
+
 			for (int i=0; i<listCommands.size(); i++)
 			{
 				mapCommand = listCommands.get (i);
@@ -4107,7 +4351,7 @@ System.out.println (evaluateResult);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "出错: " + e);
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 	}
 
@@ -4141,6 +4385,7 @@ System.out.println (evaluateResult);
 		int lineCounter = 0;
 		int lineCounterIncludingEmptyLines = 0;	// 包含空行的行号计数器，这个行号用在 AnsiEscapeToIrcEscape 中对“设置当前光标位置/CUP”控制序列的转换
 
+		@SuppressWarnings ("unchecked")
 		public CommandRunner (String channel, String nick, Map<String, Object> mapCommand, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, Map<String, Object> mapPreviousCommand, Map<String, Object> mapNextCommand)
 		{
 			this.channel = channel;
@@ -4162,6 +4407,7 @@ System.out.println (evaluateResult);
 			previousCommand = mapPreviousCommand;
 			nextCommand = mapNextCommand;
 		}
+		@SuppressWarnings ("unchecked")
 		@Override
 		public void run ()
 		{
@@ -4169,8 +4415,6 @@ System.out.println (evaluateResult);
 			boolean isPipeOut = false;
 			boolean isPipeIn = false;
 			boolean isRedirectOut = false;
-			boolean isRedirectIn = false;
-			int nRunTimeCost = 0;
 			long nStartTime = System.currentTimeMillis();
 			long nEndTime = nStartTime;
 			ProcessBuilder pb = new ProcessBuilder (commandArgs);
@@ -4216,7 +4460,6 @@ System.out.println (evaluateResult);
 			}
 			if (command.get("isRedirectInput")!=null && (boolean)command.get("isRedirectInput"))
 			{
-				isRedirectIn = true;
 				pb.redirectInput (ProcessBuilder.Redirect.from ((File)command.get("redirectFile")));
 			}
 
@@ -4372,9 +4615,9 @@ System.out.println (evaluateResult);
 				e.printStackTrace();
 
 				if ((nEndTime - nStartTime)/1000 > WATCH_DOG_TIMEOUT_LENGTH)
-					SendMessage (channel, nick, globalOpts, program + " 出错: " + e + "    耗时 " + GetRunTimeString(nStartTime, nEndTime));
+					SendMessage (channel, nick, globalOpts, program + " 出错: " + e.getMessage () + "    耗时 " + GetRunTimeString(nStartTime, nEndTime));
 				else
-					SendMessage (channel, nick, globalOpts, program + " 出错: " + e);
+					SendMessage (channel, nick, globalOpts, program + " 出错: " + e.getMessage ());
 			}
 		}
 	}
@@ -4679,12 +4922,20 @@ System.out.println (evaluateResult);
 		bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, "名称中含有 bot (被认定为机器人)");
 		if (banWildcardPatterns != null)
 		{
-			arrayBans = banWildcardPatterns.split ("[,;/]+");
+			arrayBans = banWildcardPatterns.split ("[,;]+");
 			for (String ban : arrayBans)
 			{
 				if (ban==null || ban.isEmpty())
 					continue;
-				bot.AddBan (ban);
+				if (ban.contains (":"))
+				{
+					String[] arrayBanAndReason = ban.split (":+");
+					ban = arrayBanAndReason[0];
+					String reason = arrayBanAndReason[1];
+					bot.AddBan (ban, reason);
+				}
+				else
+					bot.AddBan (ban);
 			}
 		}
 
