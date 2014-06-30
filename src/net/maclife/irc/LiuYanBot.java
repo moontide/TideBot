@@ -45,6 +45,8 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	java.util.concurrent.Executor executor = Executors.newFixedThreadPool (15);
 
+	public static final String WORKING_DIRECTORY = System.getProperty ("user.dir");
+	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
 	static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	public static final String BOT_PRIMARY_COMMAND_Help	= "Help";
 	public static final String BOT_PRIMARY_COMMAND_Cmd	= "Cmd";
@@ -3563,7 +3565,7 @@ System.out.println (evaluateResult);
 	}
 
 	@SuppressWarnings ("unchecked")
-	void CheckCommandsSecurity (List<Map<String, Object>> listCommands)
+	void CheckCommandsSecurity (List<Map<String, Object>> listCommands) throws IOException
 	{
 		int i=0;
 		for (Map<String, Object> mapCommand : listCommands)
@@ -3765,13 +3767,21 @@ System.out.println (evaluateResult);
 							i++;	String awk_script_string = listCommandArgs.get (i);
 							if (false
 								|| StringUtils.containsIgnoreCase (awk_script_string, "system")
+								|| StringUtils.containsIgnoreCase (awk_script_string, "|")
 								)
-							{
-								throw new RuntimeException (cmd + " 命令禁止使用脚本执行外部命令或者 fork");
-							}
+								throw new RuntimeException (cmd + " 命令 禁止使用脚本执行外部命令、或脚本包含管道符 '|'");
 						}
 						else
 							throw new RuntimeException ("不知道/禁止 " + cmd + " 命令的 " + arg + " 选项");
+					}
+					else
+					{
+						String awk_script_string = listCommandArgs.get (i);
+						if (false
+							|| StringUtils.containsIgnoreCase (awk_script_string, "system")
+							|| StringUtils.containsIgnoreCase (awk_script_string, "|")
+							)
+							throw new RuntimeException (cmd + " 命令 禁止使用脚本执行外部命令、或脚本包含管道符 '|'");
 					}
 				}
 			}
@@ -3791,8 +3801,11 @@ System.out.println (evaluateResult);
 						// 文件位置：只能写在工作文件夹/工作文件夹的子文件夹？
 						String sFileName = arg.substring (3);
 						File f = new File (sFileName);
-						if (! f.getPath ().equalsIgnoreCase (System.getProperty ("user.dir")))
-							throw new RuntimeException ("只能输出到工作目录");
+						File fParent = f.getParentFile ();
+						String path = fParent!=null ? fParent.getCanonicalPath () : null;
+						logger.fine (arg + " 文件所在路径为 " + path);
+						if (path !=null && ! WORKING_DIRECTORY.equals (path))
+							throw new RuntimeException (cmd + " 只能输出到工作目录下。而你指定的文件的路径为: " + path);
 					}
 				}
 				if (!hasArguments)
@@ -3810,8 +3823,11 @@ System.out.println (evaluateResult);
 						continue;
 
 					File f = new File (arg);
-					if (! f.getPath ().equalsIgnoreCase (System.getProperty ("user.dir")))
-						throw new RuntimeException ("只能删除工作目录下的文件");
+					File fParent = f.getParentFile ();
+					String path = fParent!=null ? fParent.getCanonicalPath () : null;
+					logger.fine (arg + " 文件所在路径为 " + path);
+					if (path !=null && ! WORKING_DIRECTORY.equals (path))
+						throw new RuntimeException (cmd + " 只能删除工作目录下的文件。而你指定的文件的路径为: " + path);
 				}
 			}
 			else if (cmd.equalsIgnoreCase("shred"))
@@ -3837,8 +3853,11 @@ System.out.println (evaluateResult);
 					else
 					{
 						File f = new File (arg);
-						if (! f.getPath ().equalsIgnoreCase (System.getProperty ("user.dir")))
-							throw new RuntimeException ("只能删除工作目录下的文件");
+						File fParent = f.getParentFile ();
+						String path = fParent!=null ? fParent.getCanonicalPath () : null;
+						logger.fine (arg + " 文件所在路径为 " + path);
+						if (path !=null && ! WORKING_DIRECTORY.equals (path))
+							throw new RuntimeException (cmd + " 只能删除工作目录下的文件。而你指定的文件的路径为: " + path);
 					}
 				}
 			}
