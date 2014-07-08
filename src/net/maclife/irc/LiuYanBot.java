@@ -3,6 +3,7 @@ package net.maclife.irc;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.*;
+import java.sql.*;
 import java.text.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -12,6 +13,7 @@ import java.util.regex.*;
 import javax.script.*;
 
 import org.apache.commons.lang3.*;
+import org.apache.commons.dbcp2.*;
 //import org.apache.commons.io.*;
 import org.apache.commons.exec.*;
 import org.jibble.pircbot.*;
@@ -49,6 +51,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	public static final String BOT_PRIMARY_COMMAND_Help	= "Help";
+	public static final String BOT_PRIMARY_COMMAND_Alias	= "Alias";
 	public static final String BOT_PRIMARY_COMMAND_Cmd	= "Cmd";
 	public static final String BOT_PRIMARY_COMMAND_ParseCmd	= "ParseCmd";
 	public static final String BOT_PRIMARY_COMMAND_IPLocation	= "IPLocation";
@@ -61,7 +64,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_JavaScript	= "JavaScript";
 	public static final String BOT_PRIMARY_COMMAND_Java	= "Java";
 	public static final String BOT_PRIMARY_COMMAND_TextArt	= "ANSIArt";
-	public static final String BOT_PRIMARY_COMMAND_Tag	= ".tag";
+	public static final String BOT_PRIMARY_COMMAND_Tag	= "/tag";
 
 	public static final String BOT_PRIMARY_COMMAND_Time	= "Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	= "Action";
@@ -84,9 +87,10 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Msg = "/msg";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action = "/me";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick = "/nick";
-	static final String[][] BOT_COMMAND_NAMES =
+	static final String[][] BOT_COMMAND_ALIASES =
 	{
 		{BOT_PRIMARY_COMMAND_Help, },
+		{BOT_PRIMARY_COMMAND_Alias, },
 		{BOT_PRIMARY_COMMAND_Cmd, "exec", },
 		{BOT_PRIMARY_COMMAND_ParseCmd, },
 		{BOT_PRIMARY_COMMAND_IPLocation, "iploc", "ipl",},
@@ -98,7 +102,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip",},
 		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "TextArt", "字符画", "字符艺术", "文字画", "文字艺术",},
-		{BOT_PRIMARY_COMMAND_Tag, "tt", "sm", "sm", "dic", "dd"},
+		{BOT_PRIMARY_COMMAND_Tag, "tt", "sm", "dic", "dd"},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -247,6 +251,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	}
 	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
 	{
+		if (msg == null)
+		{
+			System.err.println ("\u001b[41mmsg 是 null\u001b[m");
+			return;
+		}
 		if (msg.contains ("\r") || msg.contains ("\n"))
 		{	// 部分 java Exception 的错误信息包含多行，这会导致后面的行被 IRC 服务器当做是错误的命令放弃，这里需要处理一下
 			String[]lines = msg.split ("[\r\n]+");
@@ -844,6 +853,8 @@ public class LiuYanBot extends PircBot implements Runnable
 
 			if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Help))
 				ProcessCommand_Help (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Alias))
+				ProcessCommand_Alias (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Cmd))
 				ExecuteCommand (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_ParseCmd))
@@ -915,7 +926,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		// 或者 [“输入”以“命令”开头，且紧接小数点"."字符]，小数点字符用于附加 bot 命令的选项
 		String[] inputs = input.split ("[ .]+", 2);
 		String sInputCmd = inputs[0];
-		for (String[] names : BOT_COMMAND_NAMES)
+		for (String[] names : BOT_COMMAND_ALIASES)
 		{
 			for (String name : names)
 			{
@@ -959,7 +970,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time /Google RegExp JavaScript  ParseCmd Action Notice TimeZones Locales Env Properties Version Help" + Colors.NORMAL +
+				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time /Google RegExp JavaScript  ParseCmd Action Notice TimeZones Locales Env Properties Version Help Alias" + Colors.NORMAL +
 				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
@@ -986,7 +997,9 @@ public class LiuYanBot extends PircBot implements Runnable
 		String primaryCmd;
 		String sColoredCommandPrefix = BOT_COMMAND_PREFIX.isEmpty () ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL;
 		primaryCmd = BOT_PRIMARY_COMMAND_Help;           if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 显示指定的命令的帮助信息. 命令可有多个, 若有多个, 则显示所有这些命令的帮助信息");
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 显示指定的命令的帮助信息. 命令可输入多个, 若有多个, 则显示所有这些命令的帮助信息");
+		primaryCmd = BOT_PRIMARY_COMMAND_Alias;           if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 列出 bot 命令的别名, 多数 bot 命令存在别名, 一些别名可能更容易记住. 命令可输入多个.");
 		primaryCmd = BOT_PRIMARY_COMMAND_Cmd;            if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "exec"))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 之外, shell 中类似变量取值($var) 重定向(><) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 		primaryCmd = BOT_PRIMARY_COMMAND_ParseCmd;       if (isThisCommandSpecified (args, primaryCmd))
@@ -1010,6 +1023,8 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "js" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "javascript 脚本" + Colors.NORMAL + ">    -- 执行 JavaScript 脚本。");
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "字符艺术画文件网址" + Colors.NORMAL + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。");
+		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "反查" + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "详细" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "标签名" + Colors.NORMAL + ">[" + COLOR_COMMAND_PARAMETER + "//" + Colors.NORMAL + "<" + COLOR_COMMAND_PARAMETER + "标签定义" + Colors.NORMAL + ">]    -- 仿 smbot 的 !sm 功能。 选项: ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + ": 反查(模糊查询); ." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + ": 显示详细信息(添加人 时间等); " + COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + " -- 取该数字 ID 指定的标签");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -1034,6 +1049,71 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Version;          if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
+	}
+
+	/**
+	 * 获取输入的命令的所有别名。输入的命令可以是命令、或者命令别名
+	 * @param channel
+	 * @param nick
+	 * @param login
+	 * @param host
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_Alias (String channel, String nick, String login, String host, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (channel, nick, login, host, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+
+		String[] arrayBotCommands = params.split (" +");
+		for (String botCommand : arrayBotCommands)
+		{
+			boolean isCommandExists = false;
+			String[] aliases_exists = null;
+			for (String[] aliases : BOT_COMMAND_ALIASES)
+			{
+				for (String alias : aliases)
+				{
+					if (StringUtils.equalsIgnoreCase (alias, botCommand))
+					{
+						aliases_exists = aliases;
+						isCommandExists = true;
+						break;
+					}
+				}
+			}
+
+			if (! isCommandExists)
+			{
+				SendMessage (channel, nick, mapGlobalOptions, botCommand + " 命令无效");
+				continue;
+			}
+
+			StringBuilder sbAliases = new StringBuilder ();
+			for (int i=0; i<aliases_exists.length; i++)
+			{
+				String alias = aliases_exists[i];
+				if (i==0)
+				{
+					sbAliases.append (Colors.GREEN);
+					sbAliases.append (alias);
+					sbAliases.append (Colors.NORMAL);
+				}
+				else
+				{
+					sbAliases.append (" ");
+					sbAliases.append (Colors.DARK_GREEN);
+					sbAliases.append (alias);
+					sbAliases.append (Colors.NORMAL);
+				}
+			}
+			SendMessage (channel, nick, mapGlobalOptions, botCommand + " 命令别名: " + sbAliases);
+		}
 	}
 
 	void ProcessCommand_ActionNotice (String channel, String nick, String login, String host, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -3343,10 +3423,35 @@ System.out.println (evaluateResult);
 		}
 	}
 
+	BasicDataSource botDS = null;
+	void SetupDataSource ()
+	{
+		if (botDS != null)
+			return;
+		botDS = new BasicDataSource();
+		//botDS.setDriverClassName("org.mariadb.jdbc.Driver");
+		botDS.setDriverClassName("com.mysql.jdbc.Driver");
+		botDS.setUsername("bot");
+		//botDS.setPassword("");
+		// 要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则执行存储过程报错
+		// GRANT SELECT ON mysql.proc TO bot@'192.168.2.%'
+		// 参见: http://stackoverflow.com/questions/986628/cant-execute-a-mysql-stored-procedure-from-java
+		botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull");
+		// 在 prepareCall 时报错:
+		// User does not have access to metadata required to determine stored procedure parameter types. If rights can not be granted, configure connection with "noAccessToProcedureBodies=true" to have driver generate parameters that represent INOUT strings irregardless of actual parameter types.
+		//botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;noAccessToProcedureBodies=true&amp;useInformationSchema=true"); // 没有作用
+
+		// http://thenullhandler.blogspot.com/2012/06/user-does-not-have-access-error-with.html // 没有作用
+		// http://bugs.mysql.com/bug.php?id=61203
+		//botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;useInformationSchema=true");
+
+		//botDS.setMaxTotal (5);
+	}
+
 	/**
 	 * 贴标签。
-	 * 添加标签：.tt a//b
-	 * 查询标签：.tt a
+	 * 添加标签： /tag  a//b
+	 * 查询标签： /tag  a
 	 *
 	 * @param ch
 	 * @param nick
@@ -3364,10 +3469,124 @@ System.out.println (evaluateResult);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		boolean isReverseQuery = false;
-		if (mapGlobalOptions.containsKey ("reverse"))
+		int q_number = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”
+		boolean is_q_number_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
+		boolean isReverseQuery = false, isShowDetail = false;
+		if (mapGlobalOptions.containsKey ("reverse") || mapGlobalOptions.containsKey ("反查"))
 			isReverseQuery = true;
+		if (mapGlobalOptions.containsKey ("detail") || mapGlobalOptions.containsKey ("详细"))
+			isShowDetail = true;
 
+		Connection conn = null;
+		CallableStatement stmt = null;
+		ResultSet rs = null;
+		try
+		{
+			SetupDataSource ();
+			int iParamIndex = 1;
+			int q_sn = 0, updated_times = 0, fetched_times = 0;
+			String sQuestionContent = null, sAnswerContent = null, sAddedTime = "", sAddedBy = "", sLastUpdatedTime = "", sLastUpdatedBy = "";
+			if (params.contains ("//") || params.contains ("@") || params.contains ("%"))	// 添加标签
+			{
+				String[] arrayParams = params.split (" *(//|@|%) *", 2);
+				String q = arrayParams[0];
+				String a = arrayParams[1];
+//System.out.println ("q=" + q);
+//System.out.println ("a=" + a);
+				conn = botDS.getConnection ();
+				stmt = conn.prepareCall ("{CALL p_savedic (?,?,?,?,?)}");
+				stmt.setString (iParamIndex++, q);
+				stmt.setString (iParamIndex++, a);
+				stmt.setString (iParamIndex++, nick);
+				stmt.setString (iParamIndex++, login);
+				stmt.setString (iParamIndex++, hostname);
+				boolean isResultSet = stmt.execute ();
+				rs = stmt.getResultSet ();
+				while (rs.next ())
+				{
+					q_sn = rs.getInt ("q_number");
+					updated_times = rs.getInt ("updated_times");
+					sAddedBy =  rs.getString ("added_by");
+					sAddedTime = rs.getString ("added_time");
+//System.out.println ("q_sn=" + q_sn);
+					break;
+				}
+				if (updated_times == 0)
+					SendMessage (ch, nick, mapGlobalOptions, Colors.GREEN + "标签添加成功" + Colors.NORMAL + ", 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
+				else
+					SendMessage (ch, nick, mapGlobalOptions, "标签已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过, 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 更新次数=" + updated_times);
+			}
+			else	// 查标签
+			{
+				conn = botDS.getConnection ();
+				PreparedStatement stmt_count = null;
+				try
+				{
+					stmt_count = conn.prepareStatement ("SELECT COUNT(*) FROM v_dics WHERE q_digest=sha1(?)");
+					stmt_count.setString (1, params);
+					rs = stmt_count.executeQuery ();
+					while (rs.next ())
+					{
+						System.out.println ("共 " + rs.getInt (1) + " 条");
+						break;
+					}
+					rs.close ();
+					stmt_count.close ();
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace ();
+				}
+				finally
+				{
+					try { if (rs != null) rs.close(); } catch(Exception e) { }
+					try { if (stmt_count != null) stmt_count.close(); } catch(Exception e) { }
+					//try { if (conn != null) conn.close(); } catch(Exception e) { }
+				}
+				stmt = conn.prepareCall ("{CALL p_getdic (?,?,?)}", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+				stmt.setString (iParamIndex++, params);
+				stmt.setObject (iParamIndex++, is_q_number_specified ? q_number : null);
+				stmt.setBoolean (iParamIndex++, isReverseQuery);
+				boolean isResultSet = stmt.execute ();
+				boolean bFound = false;
+				rs = stmt.getResultSet ();
+				while (rs.next ())
+				{
+					bFound = true;
+					sQuestionContent = rs.getString ("q_content");
+					sAnswerContent = rs.getString ("a_content");
+					q_sn = rs.getInt ("q_number");
+					fetched_times = rs.getInt ("fetched_times");
+					sAddedBy =  rs.getString ("added_by");
+					sAddedTime = rs.getString ("added_time");
+					updated_times = rs.getInt ("updated_times");
+					sLastUpdatedTime = rs.getString ("updated_time");
+					sLastUpdatedBy = rs.getString ("updated_by");
+					//rs.updateInt ("fetched_times", fetched_times + 1);
+					break;
+				}
+				if (! bFound)
+					SendMessage (ch, nick, mapGlobalOptions, "无数据");
+				else
+				{
+					if (isReverseQuery)
+						SendMessage (ch, nick, mapGlobalOptions, Colors.GREEN + sQuestionContent + Colors.NORMAL + " #" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " --> " + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL));
+					else
+						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + sAnswerContent + (isShowDetail ? "    添加者: " + sAddedBy + ", 最后更新者: " + sLastUpdatedBy : ""));
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, "" + e.getMessage ());
+		}
+		finally
+		{
+			try { if (rs != null) rs.close(); } catch(Exception e) { }
+			try { if (stmt != null) stmt.close(); } catch(Exception e) { }
+			try { if (conn != null) conn.close(); } catch(Exception e) { }
+		}
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE t.q_id=sha1(?)";
 	}
 
@@ -3472,7 +3691,11 @@ System.out.println (evaluateResult);
 	{
 		if (mapCommand.get ("isPipeInput")!=null && (boolean)mapCommand.get ("isPipeInput") )
 		{
-			throw new RuntimeException ("禁止从管道喂 " + mapCommand.get ("program") + " 命令东西吃");
+			throw new RuntimeException ("禁止从管道喂给 " + mapCommand.get ("program") + " 命令东西吃");
+		}
+		if (mapCommand.get ("isRedirectInput")!=null && (boolean)mapCommand.get ("isRedirectInput") )
+		{
+			throw new RuntimeException ("禁止从文件重定向输入喂给 " + mapCommand.get ("program") + " 命令东西吃");
 		}
 	}
 	@SuppressWarnings ("unchecked")
