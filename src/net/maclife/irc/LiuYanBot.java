@@ -14,18 +14,17 @@ import javax.script.*;
 import org.apache.commons.lang3.*;
 //import org.apache.commons.io.*;
 import org.apache.commons.exec.*;
+import org.jibble.pircbot.*;
 
 import com.maxmind.geoip2.*;
 import com.maxmind.geoip2.model.*;
-
-import org.jibble.pircbot.*;
-
 import com.temesoft.google.pr.*;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
 import com.liuyan.util.qqwry.*;
 
+import net.maclife.ansi.*;
 import net.maclife.seapi.*;
 
 public class LiuYanBot extends PircBot implements Runnable
@@ -47,7 +46,8 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static final String WORKING_DIRECTORY = System.getProperty ("user.dir");
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
-	static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
+
+	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	public static final String BOT_PRIMARY_COMMAND_Help	= "Help";
 	public static final String BOT_PRIMARY_COMMAND_Cmd	= "Cmd";
 	public static final String BOT_PRIMARY_COMMAND_ParseCmd	= "ParseCmd";
@@ -60,6 +60,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Ban	= "/ban";
 	public static final String BOT_PRIMARY_COMMAND_JavaScript	= "JavaScript";
 	public static final String BOT_PRIMARY_COMMAND_Java	= "Java";
+	public static final String BOT_PRIMARY_COMMAND_TextArt	= "ANSIArt";
+	public static final String BOT_PRIMARY_COMMAND_Tag	= ".tag";
 
 	public static final String BOT_PRIMARY_COMMAND_Time	= "Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	= "Action";
@@ -77,8 +79,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Set	= "/set";
 	public static final String BOT_PRIMARY_COMMAND_Raw	= "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version	= "Version";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Say = "/say";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Name = "/nick";
+
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Channel = "/channel";	// 更改当前频道
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Msg = "/msg";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action = "/me";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick = "/nick";
 	static final String[][] BOT_COMMAND_NAMES =
 	{
 		{BOT_PRIMARY_COMMAND_Help, },
@@ -89,9 +94,11 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_PageRank, "pr", },
 		{BOT_PRIMARY_COMMAND_StackExchange, "se",},
 		{BOT_PRIMARY_COMMAND_Google, "/goo+gle",},
-		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split"},
-		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip"},
+		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split",},
+		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip",},
 		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
+		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "TextArt", "字符画", "字符艺术", "文字画", "文字艺术",},
+		{BOT_PRIMARY_COMMAND_Tag, "tt", "sm", "sm", "dic", "dd"},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -110,295 +117,17 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Raw, },
 		{BOT_PRIMARY_COMMAND_Version, },
 
-		{BOT_PRIMARY_COMMAND_CONSOLE_Say, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Name, "/name" },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Channel, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Msg, "/say",},
+		{BOT_PRIMARY_COMMAND_CONSOLE_Action, "/action",},
+		{BOT_PRIMARY_COMMAND_CONSOLE_Nick, "/name" },
 	};
 
-	// http://en.wikipedia.org/wiki/ANSI_escape_code#CSI_codes
-	public static final String ESC = "\u001B";
-	public static final String CSI = ESC + "[";
-	public static final String ESC_REGEXP = "\\e";	// 用于使用规则表达式时
-	public static final String CSI_REGEXP = ESC_REGEXP + "\\[";	// 用于使用规则表达式时
-/*
-	public static final String CSI_CUU_REGEXP_Replace = CSI_REGEXP + "(\\d+)?A";	// CSI n 'A' 	CUU - Cursor Up
-	public static final String CSI_CUU_REGEXP = ".*" + CSI_CUU_REGEXP_Replace + ".*";
-	public static final String CSI_CUD_REGEXP_Replace = CSI_REGEXP + "(\\d+)?B";	// CSI n 'B' 	CUD - Cursor Down
-	public static final String CSI_CUD_REGEXP = ".*" + CSI_CUD_REGEXP_Replace + ".*";
-	public static final String CSI_CUF_REGEXP_Replace = CSI_REGEXP + "(\\d+)?C";	// CSI n 'C' 	CUF - Cursor Forward
-	public static final String CSI_CUF_REGEXP = ".*" + CSI_CUF_REGEXP_Replace + ".*";
-	public static final String CSI_CUB_REGEXP_Replace = CSI_REGEXP + "(\\d+)?D";	// CSI n 'D' 	CUB - Cursor Back
-	public static final String CSI_CUB_REGEXP = ".*" + CSI_CUB_REGEXP_Replace + ".*";
-	public static final String CSI_CNL_REGEXP_Replace = CSI_REGEXP + "(\\d+)?E";	// CSI n 'E' 	CNL – Cursor Next Line
-	public static final String CSI_CNL_REGEXP = ".*" + CSI_CNL_REGEXP_Replace + ".*";
-	public static final String CSI_CPL_REGEXP_Replace = CSI_REGEXP + "(\\d+)?F";	// CSI n 'F' 	CPL – Cursor Previous Line
-	public static final String CSI_CPL_REGEXP = ".*" + CSI_CPL_REGEXP_Replace + ".*";
-	public static final String CSI_CHA_REGEXP_Replace = CSI_REGEXP + "(\\d+)?G";	// CSI n 'G' 	CHA – Cursor Horizontal Absolute
-	public static final String CSI_CHA_REGEXP = ".*" + CSI_CHA_REGEXP_Replace + ".*";
-*/
-	public static final String CSI_CUP_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?H";	// CSI n;m 'H' 	CUP – Cursor Position
-	//public static final String CSI_CUP_REGEXP = ".*" + CSI_CUP_REGEXP_Replace + ".*";
-/*
-	public static final String CSI_ED_REGEXP_Replace = CSI_REGEXP + "([012])?J";	// CSI n 'J' 	ED – Erase Display
-	public static final String CSI_ED_REGEXP = ".*" + CSI_ED_REGEXP_Replace + ".*";
-	public static final String CSI_EL_REGEXP_Replace = CSI_REGEXP + "([012])?K";	// CSI n 'K'	EL - Erase in Line
-	public static final String CSI_EL_REGEXP = ".*" + CSI_EL_REGEXP_Replace + ".*";
-	public static final String CSI_SU_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?S";	// CSI n 'S' 	SU – Scroll Up
-	public static final String CSI_SU_REGEXP = ".*" + CSI_SU_REGEXP_Replace + ".*";
-	public static final String CSI_SD_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?T";	// CSI n 'T' 	SD – Scroll Down
-	public static final String CSI_SD_REGEXP = ".*" + CSI_SD_REGEXP_Replace + ".*";
+	public static String currentChannel = "";
 
-	public static final String CSI_HVP_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?f";	// CSI n 'f'	HVP – Horizontal and Vertical Position, 与 CUP 功能相同
-	public static final String CSI_HVP_REGEXP = ".*" + CSI_HVP_REGEXP_Replace + ".*";
-*/
-	public static final String CSI_VPA_REGEXP_Replace = CSI_REGEXP + "(\\d+)?d";	// CSI n 'd'	VPA – Line/Vertical Position Absolute [row] (default = [1,column]) (VPA).
-
-	public static final String CSI_SGR_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?m";	// CSI n 'm'	SGR - Select Graphic Rendition
-	public static final String CSI_SGR_REGEXP = ".*" + CSI_SGR_REGEXP_Replace + ".*";
-/*
-	public static final String CSI_DSR_REGEXP_Replace = CSI_REGEXP + "6n";	// CSI '6n'	DSR – Device Status Report
-	public static final String CSI_DSR_REGEXP = ".*" + CSI_DSR_REGEXP_Replace + ".*";
-
-	public static final String CSI_SCP_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?s";	// CSI 's' 	SCP – Save Cursor Position
-	public static final String CSI_SCP_REGEXP = ".*" + CSI_SCP_REGEXP_Replace + ".*";
-	public static final String CSI_RCP_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?u";	// CSI 'u'	RCP – Restore Cursor Position
-	public static final String CSI_RCP_REGEXP = ".*" + CSI_RCP_REGEXP_Replace + ".*";
-	public static final String CSI_DECTCEM_HideCursor_REGEXP_Replace = CSI_REGEXP + "\\?([\\d;]+)?l";	// CSI '?25l'	DECTCEM - Hides the cursor. (Note: the trailing character is lowercase L.)
-	public static final String CSI_DECTCEM_HideCursor_REGEXP = ".*" + CSI_DECTCEM_HideCursor_REGEXP_Replace + ".*";
-	public static final String CSI_DECTCEM_ShowCursor_REGEXP_Replace = CSI_REGEXP + "\\?([\\d;]+)?h";	// CSI '?25h' 	DECTCEM - Shows the cursor.
-	public static final String CSI_DECTCEM_ShowCursor_REGEXP = ".*" + CSI_DECTCEM_ShowCursor_REGEXP_Replace + ".*";
-*/
-
-	public static final String CSI_CursorMoving_REGEXP_Replace = CSI_REGEXP + "([\\d;]+)?(A|B|C|D|E|F|G|H|d)";
-
-	public static final String CSI_Others_REGEXP_Replace = CSI_REGEXP + "(\\?)?([\\d;]+)?(J|K|S|T|X|f|h|l|n|r|s|u)";	// 转换为 IRC Escape 序列时只需要删除的 ANSI Escape 序列
-	//public static final String CSI_CursorControlAndOthers_REGEXP = ".*" + CSI_CursorControlAndOthers_REGEXP_Replace + ".*";
-
-	// htop 输出的一些未知的转义序列
-/*
-	public static final String CSI_UNKNOWN_？h_REGEXP_Replace = CSI_REGEXP + "\\?(\\d+)h";
-	public static final String CSI_UNKNOWN_？h_REGEXP = ".*" + CSI_UNKNOWN_？h_REGEXP_Replace + ".*";
-
-	public static final String CSI_UNKNOWN_d_REGEXP_Replace = CSI_REGEXP + "(\\d+)?d";
-	public static final String CSI_UNKNOWN_d_REGEXP = ".*" + CSI_UNKNOWN_d_REGEXP_Replace + ".*";
-	public static final String CSI_UNKNOWN_l_REGEXP_Replace = CSI_REGEXP + "(\\d+)?l";
-	public static final String CSI_UNKNOWN_l_REGEXP = ".*" + CSI_UNKNOWN_l_REGEXP_Replace + ".*";
-	public static final String CSI_UNKNOWN_r_REGEXP_Replace = CSI_REGEXP + "([\\d+;])?r";
-	public static final String CSI_UNKNOWN_r_REGEXP = ".*" + CSI_UNKNOWN_r_REGEXP_Replace + ".*";
-	public static final String CSI_UNKNOWN_X_REGEXP_Replace = CSI_REGEXP + "(\\d+)?d";
-	public static final String CSI_UNKNOWN_X_REGEXP = ".*" + CSI_UNKNOWN_X_REGEXP_Replace + ".*";
-
-	public static final String CSI_UNKNOWN_REGEXP_Replace = CSI_REGEXP + "(\\?)?([\\d+;])?(d|h|l|r|X)";
-	public static final String CSI_UNKNOWN_REGEXP = ".*" + CSI_UNKNOWN_REGEXP_Replace + ".*";
-*/
-	// http://sof2go.net/man/wtn/wtncevt/en/Anx_A_Page.htm
-	//public static final String VT220_SCS_B_REGEXP_Replace = "\u001B[\\(,\\)\\-\\*\\.+/]B";
-	//public static final String VT220_SCS_DECSpecialGraphics_REGEXP_Replace = "\u001B[\\(,\\)\\-\\*\\.+/]\\<";
-	//public static final String VT220_SCS_DECSupplemental_REGEXP_Replace = "\u001B[\\(,\\)\\-\\*\\.+/]0";
-
-	public static final String VT220_SCS_REGEXP_Replace = ESC_REGEXP + "[\\(,\\)\\-\\*\\.+/][B\\<0]";
-	//public static final String VT220_SCS_REGEXP = ".*" + VT220_SCS_REGEXP_Replace + ".*";
-
-	public static final String XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace = ESC_REGEXP + "[=\\>]";
-	//public static final String XTERM_VT100_TwoCharEscapeSequences_REGEXP = ".*" + XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace + ".*";
-
-	//Pattern CSI_SGR_PATTERN = Pattern.compile (CSI_SGR_REGEXP);
-	Pattern CSI_SGR_PATTERN_Replace = Pattern.compile (CSI_SGR_REGEXP_Replace);
-	//Pattern CSI_EL_PATTERN = Pattern.compile (CSI_EL_REGEXP);
-	//Pattern CSI_EL_PATTERN_Replace = Pattern.compile (CSI_EL_REGEXP_Replace);
-
-	//Pattern CSI_CUP_PATTERN_Replace = Pattern.compile (CSI_CUP_REGEXP_Replace);
-	//Pattern CSI_VPA_PATTERN_Replace = Pattern.compile (CSI_VPA_REGEXP_Replace);
-	Pattern CSI_CursorMoving_PATTERN_Replace = Pattern.compile (CSI_CursorMoving_REGEXP_Replace);
-
-	//Pattern CSI_CursorControlAndOthers_PATTERN_Replace = Pattern.compile (CSI_CursorControlAndOthers_REGEXP);
-
-	//Pattern VT220_SCS_PATTERN_Replace = Pattern.compile (VT220_SCS_REGEXP_Replace);
-
-	char[] ASCII_ControlCharacters = {
-		'␀', '␁', '␂', '␃', '␄', '␅', '␆', '␇',
-		'␈', '␉', '␊', '␋', '␌', '␍', '␎', '␏',
-		'␐', '␑', '␒', '␓', '␔', '␕', '␖', '␗',
-		'␘', '␙', '␚', '␛', '␜', '␝', '␞', '␟',
-	};
-
-	Pattern IRC_COLOR_SEQUENCE_PATTERN_Replace = Pattern.compile ("\\d{1,2}(,\\d{1,2})?");	// 0x03 之后的字符串
 	public static final String COLOR_DARK_RED = Colors.BROWN;
 	public static final String COLOR_ORANGE = Colors.OLIVE;
 	public static final String COLOR_DARK_CYAN = Colors.TEAL;
-	/**
-	 * 16 色 IRC 颜色数组，便于用索引号访问颜色
-	 */
-	public static String[] IRC_16_COLORS =
-	{
-		Colors.WHITE, Colors.BLACK, Colors.DARK_BLUE, Colors.DARK_GREEN,
-		Colors.RED, COLOR_DARK_RED, Colors.PURPLE, COLOR_ORANGE,
-		Colors.YELLOW, Colors.GREEN, COLOR_DARK_CYAN, Colors.CYAN,
-		Colors.BLUE, Colors.MAGENTA, Colors.DARK_GRAY, Colors.LIGHT_GRAY,
-	};
-	/**
-	 * 16 色 IRC 背景颜色数组，便于用索引号访问颜色。
-	 * <br/>
-	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码</span>
-	 */
-	public static String[] IRC_16_BACKGROUND_COLORS =
-	{
-		",00", ",01", ",02", ",03",
-		",04", ",05", ",06", ",07",
-		",08", ",09", ",10", ",11",
-		",12", ",13", ",14", ",15",
-	};
-	/**
-	 * IRC 彩虹色（12 个颜色，按“<font color='red'>红</font><font color='orange'>橙</font><font color='yellow'>黄</font><font color='green'>绿</font><font color='blue'>蓝</font><font color='cyan'>青</font><font color='purple'>紫</font>”顺序）
-	 */
-	public static String[] IRC_Rainbow_COLORS =
-	{
-		COLOR_DARK_RED, COLOR_ORANGE, Colors.RED, Colors.YELLOW, Colors.GREEN,
-		Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.BLUE, COLOR_DARK_CYAN, Colors.CYAN,
-		Colors.MAGENTA, Colors.PURPLE,
-	};
-	/**
-	 * IRC 彩虹背景色（12 个颜色，按“<font color='red'>红</font><font color='orange'>橙</font><font color='yellow'>黄</font><font color='green'>绿</font><font color='blue'>蓝</font><font color='cyan'>青</font><font color='purple'>紫</font>”顺序）
-	 * <br/>
-	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码</span>
-	 */
-	public static String[] IRC_BACKGROUND_Rainbow_COLORS =
-	{
-		"05", "07", "04", "08", "09",
-		"03", "02", "12", "10", "11",
-		"13", "06",
-	};
-	/**
-	 * 16 色 IRC 颜色+相同颜色的背景颜色数组，便于用索引号访问颜色
-	 */
-	public static String[] IRC_16_COLORS_WITH_SAME_BACKGROUND_COLORS =
-	{
-		Colors.WHITE + ",00", Colors.BLACK + ",01", Colors.DARK_BLUE + ",02", Colors.DARK_GREEN + ",03",
-		Colors.RED + ",04", COLOR_DARK_RED + ",05", Colors.PURPLE + ",06", COLOR_ORANGE + ",07",
-		Colors.YELLOW + ",08", Colors.GREEN + ",09", COLOR_DARK_CYAN + ",10", Colors.CYAN + ",11",
-		Colors.BLUE + ",12", Colors.MAGENTA + ",13", Colors.DARK_GRAY + ",14", Colors.LIGHT_GRAY + ",15",
-	};
-	/**
-	 * 16 色 ANSI 颜色数组，便于用索引号访问颜色
-	 */
-	public static String[] ANSI_16_COLORS =
-	{
-		"30",   "31",   "32",   "33",   "34",   "35",   "36",   "37",
-		"30;1", "31;1", "32;1", "33;1", "34;1", "35;1", "36;1", "37;1",
-	};
-	/**
-	 * 8 色 ANSI 背景颜色数组，便于用索引号访问颜色
-	 */
-	public static String[] ANSI_8_BACKGROUND_COLORS =
-	{
-		"40",   "41",   "42",   "43",   "44",   "45",   "46",   "47",
-	};
-
-	/**
-	 * 16 色 ANSI 颜色转换到 IRC 颜色索引数组
-	 */
-	public static String[][] ANSI_16_TO_IRC_16_COLORS = {
-		// {普通属性颜色, 带高亮属性的颜色,}
-		{Colors.BLACK, Colors.DARK_GRAY,},	// 黑色 / 深灰
-		{COLOR_DARK_RED, Colors.RED,},	// 深红 / 浅红
-		{Colors.DARK_GREEN, Colors.GREEN,},	// 深绿 / 浅绿
-		{COLOR_ORANGE, Colors.YELLOW,},	// 深黄(橄榄色,橙色) / 浅黄
-		{Colors.DARK_BLUE, Colors.BLUE,},	// 深蓝 / 浅蓝
-		{Colors.PURPLE, Colors.MAGENTA,},	// 紫色 / 粉红
-		{COLOR_DARK_CYAN, Colors.CYAN,},	// 青色
-		{Colors.LIGHT_GRAY, Colors.WHITE,},	// 浅灰 / 白色
-	};
-	public static String[] XTERM_256_TO_IRC_16_COLORS = {
-		// 传统 16 色
-		// 0-7
-		Colors.BLACK, COLOR_DARK_RED, Colors.DARK_GREEN, COLOR_ORANGE, Colors.DARK_BLUE, Colors.PURPLE, COLOR_DARK_CYAN, Colors.LIGHT_GRAY,
-		// 8-15
-		Colors.DARK_GRAY, Colors.RED, Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.MAGENTA, Colors.CYAN, Colors.WHITE,
-
-		// 216 色立方体
-		// 16-21
-		Colors.BLACK, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 22-27
-		Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 28-33
-		Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 34-39
-		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.BLUE, Colors.BLUE,
-		// 40-45
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
-		// 46-51
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
-
-		// 52-57
-		COLOR_DARK_RED, Colors.PURPLE, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 58-63
-		COLOR_ORANGE, Colors.DARK_GRAY, Colors.DARK_BLUE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 64-69
-		Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 70-75
-		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.BLUE, Colors.BLUE,
-		// 76-81
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
-		// 82-87
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
-
-		// 88-93
-		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 94-99
-		COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 100-105
-		COLOR_ORANGE, COLOR_ORANGE, Colors.DARK_GRAY, Colors.DARK_BLUE, Colors.BLUE, Colors.BLUE,
-		// 106-111
-		Colors.DARK_GREEN, Colors.DARK_GREEN, Colors.DARK_GREEN, COLOR_DARK_CYAN, Colors.BLUE, Colors.BLUE,
-		// 112-117
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
-		// 118-123
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
-
-		// 124-129
-		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.BLUE, Colors.BLUE,
-		// 130-135
-		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.BLUE, Colors.BLUE,
-		// 136-141
-		COLOR_DARK_RED, COLOR_DARK_RED, COLOR_DARK_RED, Colors.PURPLE, Colors.BLUE, Colors.BLUE,
-		// 142-147
-		COLOR_ORANGE, COLOR_ORANGE, COLOR_ORANGE, Colors.LIGHT_GRAY, Colors.BLUE, Colors.BLUE,
-		// 148-153
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN, Colors.BLUE,
-		// 154-159
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
-
-		// 160-165
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
-		// 166-171
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
-		// 172-177
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
-		// 178-183
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA, Colors.BLUE,
-		// 184-189
-		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.LIGHT_GRAY, Colors.BLUE,
-		// 190-195
-		Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.GREEN, Colors.CYAN,
-
-		// 196-201
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
-		// 202-207
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
-		// 208-213
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
-		// 214-219
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
-		// 220-225
-		Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.RED, Colors.MAGENTA,
-		// 226-231
-		Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.YELLOW, Colors.WHITE,
-
-		// 24 个灰度阶梯
-		Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK, Colors.BLACK,
-		Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY, Colors.DARK_GRAY,
-		Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY,
-		Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE,
-	};
 
 	public static final String COLOR_BOT_COMMAND = Colors.DARK_GREEN;
 	public static final String COLOR_COMMAND = Colors.DARK_GREEN;
@@ -412,7 +141,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String COLOR_COMMAND_PARAMETER = Colors.BLUE;
 	public static final String COLOR_COMMAND_PARAMETER_INSTANCE = Colors.BLUE;
 
-	Comparator antiFloodComparitor = new AntiFloodComparator ();
+	Comparator<?> antiFloodComparitor = new AntiFloodComparator ();
 	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
 	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 5;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
@@ -469,18 +198,12 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public LiuYanBot ()
 	{
-		setName ("LiuYanBot");
-
 		String botcmd_prefix = System.getProperty ("botcmd.prefix");
 		if (botcmd_prefix!=null && !botcmd_prefix.isEmpty ())
 			BOT_COMMAND_PREFIX = botcmd_prefix;
 
 		// 开启控制台输入线程
 		executor.execute (this);
-	}
-	public void SetName (String n)
-	{
-		setName (n);
 	}
 
 	public void setGeoIPDatabaseFileName (String fn)
@@ -829,7 +552,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	@Override
 	public void onJoin (String ch, String u, String login, String hostname)
 	{
-		if (u.equalsIgnoreCase(this.getName()))
+		if (u.equalsIgnoreCase(this.getNick ()))
 			return;
 		if (geoIP2DatabaseReader==null)
 			return;
@@ -901,6 +624,17 @@ public class LiuYanBot extends PircBot implements Runnable
 	}
 
 	@Override
+	protected void onAction (String sender, String login, String hostname, String target, String action)
+	{
+		super.onAction (sender, login, hostname, target, action);
+
+		if (sender.equalsIgnoreCase ("smbot"))
+		{
+			//this.sendAction (target, action);
+		}
+	}
+
+	@Override
 	public void onPrivateMessage (String nick, String login, String hostname, String message)
 	{
 		onMessage (null, nick, login, hostname, message);
@@ -912,10 +646,10 @@ public class LiuYanBot extends PircBot implements Runnable
 		boolean isSayingToMe = false;	// 是否是指名道姓的对我说
 		//System.out.println ("ch="+channel +",nick="+nick +",login="+login +",hostname="+hostname);
 		// 如果是指名道姓的直接对 Bot 说话，则把机器人用户名去掉
-		if (StringUtils.startsWithIgnoreCase(message, getName()+":") || StringUtils.startsWithIgnoreCase(message, getName()+","))
+		if (StringUtils.startsWithIgnoreCase(message, getNick ()+":") || StringUtils.startsWithIgnoreCase(message, getNick ()+","))
 		{
 			isSayingToMe = true;
-			message = message.substring (getName().length() + 1);	// : 后面的内容
+			message = message.substring (getNick ().length() + 1);	// : 后面的内容
 			message = message.trim ();
 		}
 
@@ -949,7 +683,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			{
 				if (banInfo != null)
 				{
-					System.out.println (CSI + "31;1m" + nick  + CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp"));
+					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp"));
 					//if (banInfo.get ("NotifyTime") == null)
 					{
 						SendMessage (null, nick, true, MAX_RESPONSE_LINES, "你已被封。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
@@ -1050,7 +784,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 						continue;
 					}
-					else if (env.matches("\\d+"))	// 最多输出多少行。当该用户不是管理员时，仍然受到内置的行数限制
+					else if (env.matches("[-+]?\\d+"))	// 最多输出多少行。当该用户不是管理员时，仍然受到内置的行数限制
 					{
 						try
 						{
@@ -1075,6 +809,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					if (listEnv==null)
 						listEnv = new ArrayList<String> ();
 					listEnv.add (env);
+					mapGlobalOptions.put (env, null);
 				}
 			}
 
@@ -1127,6 +862,10 @@ public class LiuYanBot extends PircBot implements Runnable
 				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_JavaScript))
 				ProcessCommand_EvaluateJavaScript (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_TextArt))
+				ProcessCommand_TextArt (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag))
+				ProcessCommand_Tag (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -1264,11 +1003,13 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。");
 		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "match" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ".[" + COLOR_COMMAND_OPTION + "RegExp选项" + Colors.NORMAL + "].[" + COLOR_COMMAND_OPTION_INSTANCE + "color" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数3" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数4" + Colors.NORMAL + "]  -- java RegExp。RegExp选项: i-不分大小写, m-多行模式, s-.也会匹配换行符; " + COLOR_COMMAND_INSTANCE + "regexp" + Colors.NORMAL + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
-			SendMessage (ch, u, mapGlobalOptions, COLOR_COMMAND_INSTANCE + "match" + Colors.NORMAL + ": 参数1 匹配 参数2; " + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "/" + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + ": 参数1 中的 参数2 替换成 参数3; " + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ": 用 参数2 分割 参数1;");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "match" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ".[" + COLOR_COMMAND_OPTION + "RegExp选项" + Colors.NORMAL + "].[" + COLOR_COMMAND_OPTION_INSTANCE + "color" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数3" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数4" + Colors.NORMAL + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + COLOR_COMMAND_OPTION_INSTANCE + "i" + Colors.NORMAL + "-不分大小写, " + COLOR_COMMAND_OPTION_INSTANCE + "m" + Colors.NORMAL + "-多行模式, " + COLOR_COMMAND_OPTION_INSTANCE + "s" + Colors.NORMAL + "-.也会匹配换行符; " + COLOR_COMMAND_INSTANCE + "regexp" + Colors.NORMAL + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
+			SendMessage (ch, u, mapGlobalOptions, COLOR_COMMAND_INSTANCE + "match" + Colors.NORMAL + ": " + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + " 匹配 " + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + "; " + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "/" + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + ": " + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + " 中的 " + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + " 替换成 " + COLOR_COMMAND_PARAMETER + "参数3" + Colors.NORMAL + "; " + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ": 用 " + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + " 分割 " + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + ";");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "javascript 脚本" + Colors.NORMAL + ">    -- 执行 JavaScript 脚本。");
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "js" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "javascript 脚本" + Colors.NORMAL + ">    -- 执行 JavaScript 脚本。");
+		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "字符艺术画文件网址" + Colors.NORMAL + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -1385,6 +1126,8 @@ public class LiuYanBot extends PircBot implements Runnable
 				logger.setLevel (null);	// 继承上级 logger 的日志级别
 			else
 				logger.setLevel (Level.parse(value.toUpperCase()));
+
+			ANSIEscapeTool.logger.setLevel (logger.getLevel ());
 			System.out.println ("日志级别已改为: " + logger.getLevel ());
 		}
 		else if (param.equalsIgnoreCase ("botcmd.prefix"))	// bot 命令前缀
@@ -1535,7 +1278,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				return;
 			}
 			if (list.remove (userInfo))
-				System.out.println (CSI + sNotInListShellColor + wildcardPattern  + CSI + "m 已从" + sListName + "中剔除，当前列表还有 " + list.size () + " 个用户");
+				System.out.println (ANSIEscapeTool.CSI + sNotInListShellColor + wildcardPattern  + ANSIEscapeTool.CSI + "m 已从" + sListName + "中剔除，当前列表还有 " + list.size () + " 个用户");
 			else
 				System.err.println (wildcardPattern + " 从" + sListName + "中删除失败 (未曾添加过？)");
 		}
@@ -1547,7 +1290,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			bFounded = (userInfo != null);
 			System.out.println (
 				wildcardPattern + " " +
-				(bFounded ? CSI+sInListShellColor : CSI+sNotInListShellColor + "不") + "在" + CSI + "m" + sListName + "中。" +
+				(bFounded ? ANSIEscapeTool.CSI+sInListShellColor : ANSIEscapeTool.CSI+sNotInListShellColor + "不") + "在" + ANSIEscapeTool.CSI + "m" + sListName + "中。" +
 				(userInfo==null?"": "匹配的模式=" + userInfo.get("Wildcard") +
 				"，原因=" + userInfo.get ("Reason"))
 			);
@@ -1871,6 +1614,8 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions, " 没有 IP 数据库");
 			return;
 		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 		String lang = "zh-CN";	// GeoIP 所支持的语言见 http://dev.maxmind.com/geoip/geoip2/web-services/，目前有 de, en, es, fr, ja, pt-BR, ru, zh-CN
 		if (listCmdEnv!=null && listCmdEnv.size()>0)
 			lang = listCmdEnv.get(0);
@@ -1881,6 +1626,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		CityResponse city = null;
 		CityIspOrgResponse isp = null;
+		int iCount = 0;
 		for (String host : ips)
 		{
 			try
@@ -1888,6 +1634,9 @@ public class LiuYanBot extends PircBot implements Runnable
 				InetAddress[] netaddrs = InetAddress.getAllByName (host);
 				for (InetAddress netaddr : netaddrs)
 				{
+					iCount++;
+					if (iCount > opt_max_response_lines)
+						break;
 					city = geoIP2DatabaseReader.city (netaddr);
 					isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
 
@@ -1926,6 +1675,11 @@ public class LiuYanBot extends PircBot implements Runnable
 				e.printStackTrace ();
 				SendMessage (ch, u, mapGlobalOptions, host + " 查询出错: " + e.getMessage ());
 			}
+			if (iCount > opt_max_response_lines)
+			{
+				SendMessage (ch, u, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的……");
+				break;
+			}
 		}
 	}
 
@@ -1963,6 +1717,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * 查询 IP 地址所在地 (纯真 IP 数据库，只有 IPv4 数据库)
 	 */
+	@SuppressWarnings ("unused")
 	void ProcessCommand_纯真IP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params==null)
@@ -1975,10 +1730,13 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions, " 没有纯真 IP 数据库");
 			return;
 		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 		String[] queries = null;
 		if (params!=null)
 			queries = params.split (" +");
 
+		int iCount = 0;
 		for (int i=0; i<queries.length; i++)
 		{
 			String q = queries[i];
@@ -1998,6 +1756,10 @@ public class LiuYanBot extends PircBot implements Runnable
 				{
 					for (int j=0; j<qqwry_locations.length; j++)
 					{
+						iCount ++;
+						if (iCount > opt_max_response_lines)
+							break;
+
 						com.liuyan.util.qqwry.Location location = qqwry_locations[j];
 						String addr = formatHostnameAndAddress (q, location.getIPAddressString ());
 						SendMessage (ch, u, mapGlobalOptions,
@@ -2019,6 +1781,11 @@ public class LiuYanBot extends PircBot implements Runnable
 			{
 				e.printStackTrace ();
 				SendMessage (ch, u, mapGlobalOptions, q + " 查询出错: " + e.getMessage ());
+			}
+			if (iCount > opt_max_response_lines)
+			{
+				SendMessage (ch, u, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的……");
+				break;
 			}
 		}
 	}
@@ -3005,10 +2772,10 @@ System.out.println ("更多结果: " + moreResultsURL);
 
 				String sURL = unescapedUrl.asText ();
 				String sTitle = title.asText ();
-				String sTitle_colorizedForShell = StringUtils.replaceEach (sTitle, new String[]{"<b>", "</b>", "\n"}, new String[]{CSI+"1m", CSI+"22m", ""});
+				String sTitle_colorizedForShell = StringUtils.replaceEach (sTitle, new String[]{"<b>", "</b>", "\n"}, new String[]{ANSIEscapeTool.CSI+"1m", ANSIEscapeTool.CSI+"22m", ""});
 				sTitle = StringUtils.replaceEach (sTitle, new String[]{"<b>", "</b>", "\n"}, new String[]{Colors.BOLD, Colors.BOLD, ""});
 				String sContent = content.asText ();
-				String sContent_colorizedForShell = StringUtils.replaceEach (sContent, new String[]{"<b>", "</b>", "\n"}, new String[]{CSI+"1m", CSI+"22m", ""});
+				String sContent_colorizedForShell = StringUtils.replaceEach (sContent, new String[]{"<b>", "</b>", "\n"}, new String[]{ANSIEscapeTool.CSI+"1m", ANSIEscapeTool.CSI+"22m", ""});
 				sContent = StringUtils.replaceEach (sContent, new String[]{"<b>", "</b>", "\n"}, new String[]{Colors.BOLD, Colors.BOLD, ""});
 
 System.out.println ((i+1) +"------------------------");
@@ -3076,7 +2843,7 @@ System.out.println (sContent_colorizedForShell);
 		while (matcher.find ())
 		{
 			bMatched = true;
-			int iColor = nMatch%IRC_Rainbow_COLORS.length;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用彩色颜色（12个颜色）
+			int iColor = nMatch%ANSIEscapeTool.IRC_Rainbow_COLORS.length;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用彩色颜色（12个颜色）
 			nMatch ++;
 			String sMatchedString = matcher.group ();
 			String sColorizedReplacement;
@@ -3089,14 +2856,14 @@ System.out.println (sContent_colorizedForShell);
 				}
 				else if (sMatchedString.matches ("\\s+"))	// 空白字符，用背景色显示
 				{
-					sColorizedReplacement = "\u0003" + IRC_BACKGROUND_Rainbow_COLORS[iColor] + sMatchedString + Colors.NORMAL;
+					sColorizedReplacement = "\u0003" + ANSIEscapeTool.IRC_BACKGROUND_Rainbow_COLORS[iColor] + sMatchedString + Colors.NORMAL;
 					bMatchedWhitespaceString = true;
 				}
 				else
-					sColorizedReplacement = IRC_Rainbow_COLORS[iColor] + Matcher.quoteReplacement (sMatchedString) + Colors.NORMAL;
+					sColorizedReplacement = ANSIEscapeTool.IRC_Rainbow_COLORS[iColor] + Matcher.quoteReplacement (sMatchedString) + Colors.NORMAL;
 			}
 			else
-				sColorizedReplacement = IRC_Rainbow_COLORS[iColor] + sReplacement + Colors.NORMAL;
+				sColorizedReplacement = ANSIEscapeTool.IRC_Rainbow_COLORS[iColor] + sReplacement + Colors.NORMAL;
 			matcher.appendReplacement (sbReplaceResult, sColorizedReplacement);	// StringUtils.replaceEach (sMatchedString, new String[]{"\\", "$"}, new String[]{"\\\\", "\\$"})
 
 			if (opt_match_times_specified && nMatch >= opt_max_match_times)
@@ -3144,6 +2911,19 @@ System.out.println (sContent_colorizedForShell);
 		String sUser = login + "@" + hostname;
 		sMessage = mapUsersLastMessages.get (sUser);
 		return sMessage;
+	}
+
+	boolean isNickExistsInChannel (String channel, String nick)
+	{
+		User [] users = this.getUsers (channel);
+		for (User u : users)
+		{
+			if (u.getNick ().equalsIgnoreCase (nick))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 	/**
 	 * 规则表达式
@@ -3242,6 +3022,7 @@ System.out.println (sContent_colorizedForShell);
 
 				String sLastMessage = GetUserLastMessage (ch, nick, login, hostname);
 				String sPrefix = "";
+				String sSayTo = "";
 				if (sLastMessage == null)
 				{
 					if (listParams.size () < 3)
@@ -3260,23 +3041,40 @@ System.out.println (sContent_colorizedForShell);
 					bColorized = true;	// 强制打开颜色
 					mapGlobalOptions.put ("opt_output_username", false);	// 强制不输出用户昵称
 
-					// 对 src 稍做处理：如果消息前面类似  '名字:' 或 '名字,' 则先分离该名字，替换其余的后，在 '名字:' 后面加上 " xxx 的意思是说：" +　替换结果
-					// http://tools.ietf.org/html/rfc2812#section-2.3.1
-					// nickname   =  ( letter / special ) *8( letter / digit / special / "-" )
-					// special    =  %x5B-60 / %x7B-7D                   ; "[", "]", "\", "`", "_", "^", "{", "|", "}"
-					String regexpToNickname = "^[a-zA-Z_\\[\\\\\\]\\^\\{\\|\\}`][\\[\\\\\\]\\^\\{\\|\\}`\\w\\-]*[,:]\\s*";
-					if (sSrc.matches (regexpToNickname + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
+					if (ch != null)	// 仅仅在频道内才检查是不是对某人说
 					{
-						Pattern pat = Pattern.compile (regexpToNickname);
-						Matcher mat = pat.matcher (sSrc);
-						StringBuffer sb = new StringBuffer ();
-						if (mat.find ())
+						// 对 src 稍做处理：如果消息前面类似  '名字:' 或 '名字,' 则先分离该名字，替换其余的后，在 '名字:' 后面加上 " xxx 的意思是说：" +　替换结果
+						// http://tools.ietf.org/html/rfc2812#section-2.3.1
+						// nickname   =  ( letter / special ) *8( letter / digit / special / "-" )
+						// special    =  %x5B-60 / %x7B-7D                   ; "[", "]", "\", "`", "_", "^", "{", "|", "}"
+						String regexpToNickname = "^([a-zA-Z_\\[\\\\\\]\\^\\{\\|\\}`][\\[\\\\\\]\\^\\{\\|\\}`\\w\\-]*)[,:]\\s*";
+						if (sSrc.matches (regexpToNickname + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
 						{
-							sPrefix = mat.group ();
-							mat.appendReplacement (sb, "");
+							Pattern pat = Pattern.compile (regexpToNickname);
+							Matcher mat = pat.matcher (sSrc);
+							boolean bMatched = false;
+							StringBuffer sb = new StringBuffer ();
+							if (mat.find ())
+							{
+								bMatched = true;
+								sPrefix = mat.group ();
+								sSayTo = mat.group (1);
+								mat.appendReplacement (sb, "");
+							}
+							mat.appendTail (sb);
+							if (bMatched)
+							{
+								boolean isNickSaidToExists = isNickExistsInChannel (ch, sSayTo);
+								if (isNickSaidToExists)
+								{
+									sSrc = sb.toString ();
+								}
+								else
+								{
+									sPrefix = "";
+								}
+							}
 						}
-						mat.appendTail (sb);
-						sSrc = sb.toString ();
 					}
 					else
 					{
@@ -3292,7 +3090,7 @@ System.out.println (sContent_colorizedForShell);
 				if (! bColorized)
 				{
 					if (bIsSrcFromLastMessage)
-						SendMessage (ch, nick, mapGlobalOptions, sPrefix + nick + "的意思是说: " + sSrc.replaceAll (sRegExp, sReplacement));
+						SendMessage (ch, nick, mapGlobalOptions, sPrefix + nick + " 纠正道: " + sSrc.replaceAll (sRegExp, sReplacement));
 					else
 						SendMessage (ch, nick, mapGlobalOptions, sSrc.replaceAll (sRegExp, sReplacement));
 				}
@@ -3305,7 +3103,7 @@ System.out.println (sContent_colorizedForShell);
 					if (bMatched)
 					{
 						if (bIsSrcFromLastMessage)
-							SendMessage (ch, nick, mapGlobalOptions, sPrefix + nick + " 的意思是说: " + sReplaceResult);
+							SendMessage (ch, nick, mapGlobalOptions, sPrefix + nick + " 纠正道: " + sReplaceResult);
 						else
 							SendMessage (ch, nick, mapGlobalOptions, sReplaceResult);
 						if (nMatch > 5)
@@ -3359,11 +3157,11 @@ System.out.println (sContent_colorizedForShell);
 						}
 						else if (s.matches ("\\s+"))	// 空白字符，用背景色显示
 						{
-							sColorizedString = "\u0003" + IRC_16_BACKGROUND_COLORS[iColor] + s + Colors.NORMAL;
+							sColorizedString = "\u0003" + ANSIEscapeTool.IRC_16_BACKGROUND_COLORS[iColor] + s + Colors.NORMAL;
 							bHasWhitespaceString = true;
 						}
 						else
-							sColorizedString = IRC_16_COLORS[iColor] + Matcher.quoteReplacement (s) + Colors.NORMAL;
+							sColorizedString = ANSIEscapeTool.IRC_16_COLORS[iColor] + Matcher.quoteReplacement (s) + Colors.NORMAL;
 
 						if (i!=0)
 							sbResult.append (",");
@@ -3493,6 +3291,112 @@ System.out.println (evaluateResult);
 	}
 
 	/**
+	 * 显示字符艺术画。
+	 * <dl>
+	 * 	<dt>ASCII Art</dt>
+	 * 	<dd>ASCII Art，ASCII 字符艺术，是以 ASCII 码字符组成的字符艺术画。参见: http://en.wikipedia.org/wiki/ASCII_art ，最简单的，类似： <code>^_^</code>  <code>:)</code> ，多行的 ASCII 字符艺术画类似于
+	 * <pre>
+  |\_/|        ****************************    (\_/)
+ / @ @ \       *  "Purrrfectly pleasant"  *   (='.'=)
+( > º < )      *       Poppy Prinz        *   (")_(")
+ `>>x<<´       *   (pprinz@example.com)   *
+ /  O  \       ****************************
+
+▄▄▄▄▄▄▄░▄▄▄▄▄▄▄░▄▄▄▄▄▄░▄▄▄▄▄
+░░▀███░░░░▀██░░░░██▀░░░░██░░
+░░░▀██░░░░░▀██░░▄█░░░░░▄█░░░
+░░░░███░░░░░▀██▄█░░░░░░█░░░░
+░░░░░███░░░░░▀██░░░░░░█▀░░░░
+░░░░░░███░░░░▄███░░░░█▀░░░░░
+░░░░░░░██▄░░▄▀░███░░█▀░░░░░░
+░░░░░░░▀██▄█▀░░░███▄▀░░░░░░░
+░░░░░░░░▀██▀░░░░░███░░░░░░░░
+░░░░░░░░░▀▀░░░░░░░▀░░░░░░░░░
+	 * </pre>
+	 * </dd>
+
+	 * 	<dt>ANSI Art</dt>
+	 * 	<dd>ANSI Art 是以 437 字符集中的字符组成的字符艺术画，并且，还可以包含 ANSI 转义序列，即：可以显示彩色的字符。在终端版本中的 BBS 中最常用。参见: http://en.wikipedia.org/wiki/ANSI_art ，
+	 * 	</dd>
+
+	 * 	<dt>其他字符集的字符艺术</dt>
+	 * 	<dd>
+	 * 	</dd>
+
+	 * </dl>
+	 *
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_TextArt (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+	}
+
+	/**
+	 * 贴标签。
+	 * 添加标签：.tt a//b
+	 * 查询标签：.tt a
+	 *
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_Tag (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		boolean isReverseQuery = false;
+		if (mapGlobalOptions.containsKey ("reverse"))
+			isReverseQuery = true;
+
+		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE t.q_id=sha1(?)";
+	}
+
+	/**
+	 * MySQL
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_MySQL (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (params == null || params.isEmpty())
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		boolean isReverseQuery = false;
+		if (mapGlobalOptions.containsKey ("reverse"))
+			isReverseQuery = true;
+
+		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE tsha1(?)";
+	}
+
+	/**
 	 * 显示 bot 版本
 	 */
 	void ProcessCommand_Version (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -3546,7 +3450,7 @@ System.out.println (evaluateResult);
 		"java", "gcc", "g++", "make",
 
 		// 可以执行其他命令的命令
-		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install",
+		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install", "xargs",
 	};
 	boolean CheckExecuteSafety (String cmd, String ch, String host, String login, String nick)
 	{
@@ -3564,6 +3468,13 @@ System.out.println (evaluateResult);
 		return true;
 	}
 
+	void CheckCommandSecurity_NoPipeIn (Map<String, Object> mapCommand)
+	{
+		if (mapCommand.get ("isPipeInput")!=null && (boolean)mapCommand.get ("isPipeInput") )
+		{
+			throw new RuntimeException ("禁止从管道喂 " + mapCommand.get ("program") + " 命令东西吃");
+		}
+	}
 	@SuppressWarnings ("unchecked")
 	void CheckCommandsSecurity (List<Map<String, Object>> listCommands) throws IOException
 	{
@@ -3598,6 +3509,7 @@ System.out.println (evaluateResult);
 			}
 			else if (cmd.equalsIgnoreCase("bash") || cmd.equalsIgnoreCase("sh"))
 			{
+				CheckCommandSecurity_NoPipeIn (mapCommand);
 				for (i=1; i<listCommandArgs.size(); i++)
 				{
 					String arg = listCommandArgs.get (i);
@@ -3621,6 +3533,7 @@ System.out.println (evaluateResult);
 			}
 			else if (cmd.equalsIgnoreCase("python") || cmd.equalsIgnoreCase("python2") || cmd.equalsIgnoreCase("python2.7") || cmd.equalsIgnoreCase("python3") || cmd.equalsIgnoreCase("python3.3") || cmd.equalsIgnoreCase("python3.3m"))
 			{
+				CheckCommandSecurity_NoPipeIn (mapCommand);
 				for (i=1; i<listCommandArgs.size(); i++)
 				{
 					String arg = listCommandArgs.get (i);
@@ -3662,6 +3575,7 @@ System.out.println (evaluateResult);
 			}
 			else if (cmd.equalsIgnoreCase("perl") || cmd.equalsIgnoreCase("perl5.18.2"))
 			{
+				CheckCommandSecurity_NoPipeIn (mapCommand);
 				for (i=1; i<listCommandArgs.size(); i++)
 				{
 					String arg = listCommandArgs.get (i);
@@ -3823,8 +3737,10 @@ System.out.println (evaluateResult);
 						continue;
 
 					File f = new File (arg);
-					File fParent = f.getParentFile ();
-					String path = fParent!=null ? fParent.getCanonicalPath () : null;
+					File fPath = f;
+					if (! f.isDirectory ())
+						fPath = f.getParentFile ();
+					String path = fPath!=null ? fPath.getCanonicalPath () : null;
 					logger.fine (arg + " 文件所在路径为 " + path);
 					if (path !=null && ! WORKING_DIRECTORY.equals (path))
 						throw new RuntimeException (cmd + " 只能删除工作目录下的文件。而你指定的文件的路径为: " + path);
@@ -3853,8 +3769,10 @@ System.out.println (evaluateResult);
 					else
 					{
 						File f = new File (arg);
-						File fParent = f.getParentFile ();
-						String path = fParent!=null ? fParent.getCanonicalPath () : null;
+						File fPath = f;
+						if (! f.isDirectory ())
+							fPath = f.getParentFile ();
+						String path = fPath!=null ? fPath.getCanonicalPath () : null;
 						logger.fine (arg + " 文件所在路径为 " + path);
 						if (path !=null && ! WORKING_DIRECTORY.equals (path))
 							throw new RuntimeException (cmd + " 只能删除工作目录下的文件。而你指定的文件的路径为: " + path);
@@ -3862,394 +3780,6 @@ System.out.println (evaluateResult);
 				}
 			}
 		}
-	}
-
-	static final int HEX_DUMP_BYTES_PER_LINE = 16;
-	static final int HEX_DUMP_BYTES_PER_HALF_LINE = HEX_DUMP_BYTES_PER_LINE / 2;
-	void HexDump (String s)
-	{
-//System.out.println (s);
-		StringBuilder sb = new StringBuilder ();
-		StringBuilder sb_ascii = new StringBuilder ();
-		byte[] lineBytes = s.getBytes();
-		int i=0;
-		for (byte b : lineBytes)
-		{
-			i++;
-			int b2 = b&0xFF;
-			sb.append (String.format("%02X ", b&0xFF));
-			if (b2 >= ' ' && b2<= '~')	// 0x20 - 0x7E
-				sb_ascii.append ((char)b2);
-			else if (b2 == 0x7F)
-				sb_ascii.append ((char)b2);
-			else if (b2 >= 0 && b2 <= 0x1F)
-				sb_ascii.append (ASCII_ControlCharacters[b2]);
-			else
-				sb_ascii.append (".");
-
-			if (i%HEX_DUMP_BYTES_PER_HALF_LINE ==0)
-			{
-				sb.append (" ");
-				//sb_ascii.append (" ");
-			}
-			if (i%HEX_DUMP_BYTES_PER_LINE==0)
-			{
-				sb.append (sb_ascii);
-				sb_ascii.setLength (0);
-				sb.append ("\n");
-			}
-		}
-		if (sb_ascii.length() > 0)
-		{
-			int j = i%HEX_DUMP_BYTES_PER_LINE;
-			for (int k=0; k<HEX_DUMP_BYTES_PER_LINE - j; k++)	// 补足最后一行的空格，以对齐显示
-				sb.append ("   ");
-
-			sb.append (" ");
-			if (j<=HEX_DUMP_BYTES_PER_HALF_LINE)
-				sb.append (" ");
-			sb.append (sb_ascii);
-			//sb_ascii.setLength (0);
-			//sb.append ("\n");
-		}
-		logger.fine (sb.toString());
-	}
-	/**
-	 * 把 ANSI Escape sequence 转换为 IRC Escape sequence.
-	 * <p>
-	 * <ul>
-	 * <li>最常用的颜色转义序列，即： CSI n 'm'</li>
-	 * <li>光标移动转义序列，但只处理光标前进、向下的移动，不处理回退、向上的移动</li>
-	 * <li>其他的转义序列，全部清空</li>
-	 * </ul>
-	 * </p>
-	 * @param line 原带有 ANSI Escape 序列的字符串
-	 * @param nLineNO 从 1 开始计数的行号，主要用在计算光标移动的控制序列转换
-	 * @return 带有 IRC Escape 序列的字符串
-	 */
-	String AnsiEscapeToIrcEscape (String line, int nLineNO)
-	{
-//HexDump (line);
-		int i = 0;
-		Matcher matcher = null;
-		int iStart = 0;
-		int iEnd = 0;
-		int nCurrentRowNO = nLineNO;
-		int nCurrentColumnNO = 0;
-		int iBold = 0;
-		// CSI n 'm' 序列: SGR – Select Graphic Rendition
-		matcher = CSI_SGR_PATTERN_Replace.matcher (line);
-		while (matcher.find())
-		{
-			String irc_escape_sequence = "";
-			String sgr_parameters;
-			String sIRC_FG = "";	// ANSI 字符颜色
-			int nFG = -1;
-			String sIRC_BG = "";	// ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
-			int nBG = -1;
-
-			//logger.fine ("matched group=");
-			String ansi_escape_sequence = matcher.group();
-//System.out.println (ansi_escape_sequence);
-			//HexDump (ansi_escape_sequence);
-			sgr_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
-			logger.fine ("SGR 所有参数: " + sgr_parameters);
-			String[] arraySGR = sgr_parameters.split (";");
-			for (i=0; i<arraySGR.length; i++)
-			{
-				String sgrParam = arraySGR[i];
-				logger.finer ("SGR 参数 " + (i+1) + ": " + sgrParam);
-				if (sgrParam.isEmpty())
-				{
-					irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
-					continue;
-				}
-				int nSGRParam = 0;
-				try {
-					nSGRParam = Integer.parseInt (sgrParam);
-				} catch (Exception e) {
-					e.printStackTrace ();
-				}
-				switch (nSGRParam)
-				{
-					case 0:	// 关闭
-					case 39:	// 默认前景色
-					case 49:	// 默认背景色
-						iBold = 0;
-						irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
-						break;
-					case 21:	// 关闭高亮 或者 双下划线
-						iBold = 0;
-					case 1:	// 粗体/高亮
-						iBold = 1;
-						irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
-						break;
-					// unbuffer 命令在 TERM=screen 执行 cal 命令时，输出 ESC [3m 和 ESC [23m
-					case 3:	// Italic: on      not widely supported. Sometimes treated as inverse.
-					// unbuffer 命令在 TERM=xterm-256color 或者 TERM=linux 执行 cal 命令时，输出 ESC [7m 和 ESC [27m
-					case 7:	// Image: Negative 前景背景色反转 inverse or reverse; swap foreground and background (reverse video)
-						irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
-						break;
-					case 23:	// Not italic, not Fraktur
-					case 27:	// Image: Positive 前景背景色正常。由于 IRC 没有这一项，所以，应该替换为 Colors.NORMAL 或者 再次翻转(反反得正)
-						irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
-						//irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
-						break;
-					case 4:	// 单下划线
-						irc_escape_sequence = irc_escape_sequence + Colors.UNDERLINE;
-						break;
-					case 30:	// 黑色
-					case 31:	// 深红色 / 浅红色
-					case 32:	// 深绿色 / 浅绿
-					case 33:	// 深黄色(棕色) / 浅黄
-					case 34:	// 深蓝色 / 浅蓝
-					case 35:	// 紫色 / 粉红
-					case 36:	// 青色
-					case 37:	// 浅灰 / 白色
-						nFG = nSGRParam;
-						break;
-					case 40:	// 黑色
-					case 41:	// 深红色 / 浅红色
-					case 42:	// 深绿色 / 浅绿
-					case 43:	// 深黄色(棕色) / 浅黄
-					case 44:	// 深蓝色 / 浅蓝
-					case 45:	// 紫色 / 粉红
-					case 46:	// 青色
-					case 47:	// 浅灰 / 白色
-						nBG = nSGRParam;
-						break;
-					case 38:
-					case 48:	// xterm-256 前景/背景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
-						assert i<arraySGR.length-2;
-						assert arraySGR[i+1].equals("5");
-						try {
-							int iColorIndex = Integer.parseInt (arraySGR[i+2]) % 256;
-							if (nSGRParam==38)
-								sIRC_FG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
-							else if (nSGRParam==48)
-								sIRC_BG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
-						} catch (NumberFormatException e) {
-							e.printStackTrace ();
-						}
-						i += 2;
-						break;
-					default:
-						break;
-				}
-			}
-
-			// 如果这个 SGR 同时含有 16色、256色（虽然从未看到过），则 16 色的颜色设置会覆盖 256 色的颜色设置
-			if (nFG!=-1)
-				sIRC_FG = ANSI_16_TO_IRC_16_COLORS [nFG-30][iBold];
-			if (nBG!=-1)
-				sIRC_BG = ANSI_16_TO_IRC_16_COLORS [nBG-40][0];	// iBold -> 0 背景不高亮
-
-			if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())		// 只有前景色
-				irc_escape_sequence = irc_escape_sequence + sIRC_FG;
-			else if (sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())	// 只有背景色
-			{
-				sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
-				irc_escape_sequence = irc_escape_sequence + "\u0003," + sIRC_BG;
-			}
-			else if (!sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())
-			{
-				sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
-				irc_escape_sequence = irc_escape_sequence + sIRC_FG + "," + sIRC_BG;
-			}
-
-//logger.fine ("irc_escape_sequence: ");	// + irc_escape_sequence);
-//HexDump (irc_escape_sequence);
-			line = matcher.replaceFirst (irc_escape_sequence);
-			matcher.reset (line);
-//HexDump (line);
-		}
-
-		line = line.replaceAll (CSI_Others_REGEXP_Replace, "");
-
-		line = line.replaceAll (VT220_SCS_REGEXP_Replace, "");
-
-		line = line.replaceAll (XTERM_VT100_TwoCharEscapeSequences_REGEXP_Replace, "");
-
-//HexDump (line);
-		// 剔除其他控制序列字符串后，最后再处理光标定位……
-		// 设置光标位置，这个无法在 irc 中实现，现在只是简单的替换为空格或者换行。htop 的转换结果会不尽人意
-		matcher = CSI_CursorMoving_PATTERN_Replace.matcher (line);
-		while (matcher.find())
-		{
-			nCurrentRowNO = nLineNO;
-			nCurrentColumnNO = 1;
-			String cursor_parameters;
-			String sRowNO = "";	// 行号
-			int nRowNO = 1;
-			String sColumnNO = "";	// 列号
-			int nColumnNO = 1;
-			int nDelta = 1;
-
-			String ansi_escape_sequence = matcher.group();
-			char chCursorCommand = ansi_escape_sequence.charAt (ansi_escape_sequence.length()-1);
-			if (chCursorCommand=='A' || chCursorCommand=='D' || chCursorCommand=='F')
-			{
-				line = matcher.replaceFirst ("");
-				matcher.reset (line);
-				logger.fine ("光标向上 或 向左回退，不处理，忽略之");
-				continue;
-			}
-			iStart = matcher.start ();
-			iEnd = matcher.end ();
-//System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentRowNO + "行" + nCurrentColumnNO + "列]");
-//HexDump(ansi_escape_sequence);
-			logger.fine ("光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
-			cursor_parameters = ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
-//System.out.println ("光标移动 所有参数: " + cursor_parameters);
-
-			logger.fine ("先计算当前行号、列号……");
-			for (i=0; i<iStart; i++)
-			{
-				char c = line.charAt(i);
-////System.out.print (String.format("%X ", (int)c));
-				if (c=='\n')
-				{
-					logger.finer ("在 " + i + " 处有换行符");
-					nCurrentRowNO ++;
-					nCurrentColumnNO = 1;
-				}
-				else if (c==0x03)	// 前面已经替换后的 IRC 颜色序列
-				{
-					i++;
-					Matcher matcher2 = IRC_COLOR_SEQUENCE_PATTERN_Replace.matcher (line.substring(i));
-					if (matcher2.find())
-					{
-						logger.finer ("在 " + i + " 处有 IRC 转义序列");
-						i += matcher2.end() - matcher2.start() - 1;	// 忽略列号计数
-					}
-				}
-				//else if (c==0x02 || c==0x0F || c==0x16 || c==0x1F)	// 前面已经替换后的其他 IRC 序列
-				//{
-				//}
-				else if (!Character.isISOControl(c))
-				{
-					nCurrentColumnNO ++;
-////System.out.print ("(" + nCurrentColumnNO + ")");
-				}
-			}
-////System.out.println ();
-			logger.fine ("当前行号列号: " + nCurrentRowNO + " 行, " + nCurrentColumnNO + " 列");
-
-			switch (chCursorCommand)
-			{
-				//case 'A':	// 向上
-				//case 'D':	// 向左/回退
-				//case 'F':	// 向上，光标移动到最前
-				//	// 不处理
-				//	line = line.replaceFirst (CSI_CursorMoving_REGEXP_Replace, "");
-				//	matcher.reset (line);
-				//	continue;
-				case 'B':	// 向下
-					nColumnNO = nCurrentColumnNO;
-					if (!cursor_parameters.isEmpty())
-						nDelta = Integer.parseInt (cursor_parameters);
-
-					nRowNO = nCurrentRowNO + nDelta;
-					logger.fine ("光标向下 " + nDelta + " 行");
-					break;
-				case 'd':	// 光标绝对行号
-					nColumnNO = nCurrentColumnNO;
-					if (!cursor_parameters.isEmpty())
-						nRowNO = Integer.parseInt (cursor_parameters);
-
-					logger.fine ("光标跳至 " + nRowNO + " 行");
-					break;
-				case 'E':	// 向下，光标移动到最前
-					//nColumnNO = 1;
-					if (!cursor_parameters.isEmpty())
-						nDelta = Integer.parseInt (cursor_parameters);
-
-					nRowNO = nCurrentRowNO + nDelta;
-					logger.fine ("光标向下 " + nDelta + " 行, 并移动到行首");
-					break;
-				case 'G':	// 光标水平绝对位置
-					nRowNO = nCurrentRowNO;
-					if (!cursor_parameters.isEmpty())
-						nColumnNO = Integer.parseInt (cursor_parameters);
-
-					logger.fine ("光标水平移动到第 " + nColumnNO + " 列");
-					if (nColumnNO < nCurrentColumnNO)
-					{
-						nColumnNO = nCurrentColumnNO;
-						logger.fine ("    光标水平移动方向是回退方向的，忽略之");
-					}
-					break;
-				case 'C':	// 向右/前进
-					nRowNO = nCurrentRowNO;
-					if (!cursor_parameters.isEmpty())
-						nDelta = Integer.parseInt (cursor_parameters);
-
-					nColumnNO = nCurrentColumnNO + nDelta;
-					logger.fine ("光标向右 " + nDelta + " 列");
-					break;
-				case 'H':	// 指定位置
-					if (!cursor_parameters.isEmpty())
-					{
-						String[] arrayCursorPosition = cursor_parameters.split (";", 2);
-						sRowNO = arrayCursorPosition[0];
-						if (arrayCursorPosition.length>1)
-							sColumnNO = arrayCursorPosition[1];
-					}
-					if (!sRowNO.isEmpty())
-						nRowNO = Integer.parseInt (sRowNO);
-					if (!sColumnNO.isEmpty())
-						nColumnNO = Integer.parseInt (sColumnNO);
-					logger.fine ("光标定位到: " + nRowNO + " 行, " + nColumnNO + " 列");
-					break;
-			}
-
-			// 替换
-			if (nRowNO > nCurrentRowNO)
-			{	// 光标跳到 nRowNO 行，当前列，这里只替换为差异行数的换行符
-				StringBuilder sb = new StringBuilder ();
-				for (i=0; i<(nRowNO-nCurrentRowNO); i++)
-					sb.append ("\n");
-
-				for (i=1; i<nColumnNO; i++)	// 换行后，直接把列号数量的空格补充。 缺陷：如果在屏幕上此位置前已经有内容，则这样处理的结果与屏幕显示的肯定不一致
-					sb.append (" ");
-
-				logger.fine ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
-				line = matcher.replaceFirst (sb.toString());
-				nCurrentRowNO += (nRowNO-nCurrentRowNO);
-				nCurrentColumnNO = 1;
-			}
-			else if (nRowNO == nCurrentRowNO)
-			{
-				logger.fine ("指定跳转的行号 = 传入的行号");
-				if (nColumnNO > nCurrentColumnNO)
-				{	// 如果列号比当前列号大，则补充空格
-					logger.fine ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
-					StringBuilder sb = new StringBuilder ();
-					sb.append (line.substring (0, iStart));
-					for (i=0; i<(nColumnNO-nCurrentColumnNO); i++)
-						sb.append (" ");
-					if (iEnd < line.length())
-						sb.append (line.substring (iEnd));
-
-					line = sb.toString ();
-				}
-				else
-				{
-					logger.fine ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
-					line = matcher.replaceFirst ("");
-				}
-			}
-			else //if (nRowNO < nCurrentRowNO)
-			{
-				logger.fine ("指定跳转的行号 < 传入的行号");
-				line = matcher.replaceFirst ("");
-			}
-
-			matcher.reset (line);
-		}
-
-		HexDump (line);
-		return line;
 	}
 
 	void ExecuteCommand (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -4349,7 +3879,8 @@ System.out.println (evaluateResult);
 		logger.info (listCommands.toString());
 		try
 		{
-			CheckCommandsSecurity (listCommands);
+			if (! isUserInWhiteList(hostname, login, nick))
+				CheckCommandsSecurity (listCommands);
 
 			for (int i=0; i<listCommands.size(); i++)
 			{
@@ -4571,7 +4102,7 @@ System.out.println (evaluateResult);
 							continue;
 
 						if (opt_ansi_escape_to_irc_escape)
-							line = AnsiEscapeToIrcEscape (line, lineCounterIncludingEmptyLines);
+							line = ANSIEscapeTool.AnsiEscapeToIrcEscape (line, lineCounterIncludingEmptyLines);
 
 						if (!line.contains ("\n"))
 						{
@@ -4655,13 +4186,13 @@ System.out.println (evaluateResult);
 			logger.fine ("转换字符集编码: " + src + " -> " + dst);
 			try
 			{
-				HexDump (s);
+				ANSIEscapeTool.HexDump (s);
 				// 这里需要转两次，比如：以 GBK 字符集编码的“中”字，其字节为 0xD6 0xD0，但在 BufferedReader.readLine() 之后变成了 EF BF BD EF BF BD
 				byte[] ba = s.getBytes("Windows-1252");	// JVM_CHARSET
 				s = new String (ba, src);
-				HexDump (s);
+				ANSIEscapeTool.HexDump (s);
 				//s = new String (s.getBytes(src), dst);
-				//HexDump (s);
+				//ANSIEscapeTool.HexDump (s);
 				return s;
 			}
 			catch (UnsupportedEncodingException e)
@@ -4991,21 +4522,48 @@ System.out.println (evaluateResult);
 						continue;
 					}
 
+					String[] params = null;
 					if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Ban) || cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Set))
 						this.onMessage (null, "", "", "", sTerminalInput);
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Say))
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Msg))
 					{
-						String[] params = sTerminalInput.split (" +", 3);
-						if (params.length < 2)
+						if (currentChannel.isEmpty())
 						{
-							System.err.println ("say 命令语法： say <目标(频道或昵称)> [消息]");
-							continue;
+							params = sTerminalInput.split (" +", 3);
+							if (params.length < 3)
+							{
+								System.err.println ("/msg 命令语法：\n\t若未用 /channel 设置默认频道，命令语法为： /msg <目标(#频道或昵称)> <消息>\n\t若已设置默认频道，则命令语法为： /msg [消息]，该消息将发往默认频道");
+								continue;
+							}
+							this.sendMessage (params[1], params[2]);
 						}
-						this.sendMessage (params[1], params[2]);
+						else
+						{
+							params = sTerminalInput.split (" +", 2);
+							this.sendMessage (currentChannel, params[1]);
+						}
 					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Name) || cmd.equalsIgnoreCase ("/name"))
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Action))
 					{
-						String[] params = sTerminalInput.split (" +", 2);
+						if (currentChannel.isEmpty())
+						{
+							params = sTerminalInput.split (" +", 3);
+							if (params.length < 3)
+							{
+								System.err.println ("/me 命令语法：\n\t若未用 /channel 设置默认频道，命令语法为： /me <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： /me <动作>，该动作将发往默认频道");
+								continue;
+							}
+							this.sendAction (params[1], params[2]);
+						}
+						else
+						{
+							params = sTerminalInput.split (" +", 2);
+							this.sendAction (currentChannel, params[1]);
+						}
+					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Nick))
+					{
+						params = sTerminalInput.split (" +", 2);
 						if (params.length < 2)
 						{
 							System.err.println ("/nick 命令语法： /nick <昵称)>");
@@ -5014,9 +4572,25 @@ System.out.println (evaluateResult);
 						String nick = params[1];
 						changeNick (nick);
 					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Channel))
+					{
+						params = sTerminalInput.split (" +", 2);
+						if (params.length < 2)
+						{
+							if (! currentChannel.isEmpty ())
+								System.out.println ("当前频道为: " + currentChannel);
+							System.err.println ("/channel 命令语法： /channel <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
+							continue;
+						}
+						String channel = params[1];
+						if (channel.startsWith ("#"))
+							currentChannel = channel;
+						else
+							currentChannel = "";
+					}
 					else
 					{
-						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set 和 say 命令");
+						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set 和 say /msg  /me 命令");
 						continue;
 					}
 				}
