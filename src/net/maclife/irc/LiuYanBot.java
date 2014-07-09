@@ -102,7 +102,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip",},
 		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "TextArt", "字符画", "字符艺术", "文字画", "文字艺术",},
-		{BOT_PRIMARY_COMMAND_Tag, "tt", "sm", "dic", "dd"},
+		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "dic", "dd"},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -148,7 +148,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	Comparator<?> antiFloodComparitor = new AntiFloodComparator ();
 	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
 	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
-	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 5;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
+	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 3;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
 	Random rand = new Random ();
 
@@ -801,7 +801,8 @@ public class LiuYanBot extends PircBot implements Runnable
 							opt_max_response_lines_specified = true;
 							if (
 								!botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp)	// 2014-06-16 除去 RegExp 命令的响应行数限制，该数值在 RegExp 命令中做匹配次数用途
-								&&!isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
+								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag)	// 2014-07-09 除去 tag bt 命令的响应行数限制，该数值在 bt 命令中有可能做 “标签 ID” 用途
+								&& !isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
 								&& !isUserInWhiteList(hostname, login, nick)	// 不在白名单
 								&& opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT	// 设置的大小超出了上限
 							)
@@ -1009,7 +1010,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_GeoIP;          if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".GeoIP语言代码]" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IP地址/域名" + Colors.NORMAL + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
 		primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "pr" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "网址" + Colors.NORMAL + ">    -- 从 Google 获取网页的 PageRank (网页排名等级)");
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "pr" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "网址" + Colors.NORMAL + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
 		primaryCmd = BOT_PRIMARY_COMMAND_StackExchange;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "se" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "站点名" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER + "list" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "动作" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数" + Colors.NORMAL + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + COLOR_COMMAND_PARAMETER_INSTANCE + "list" + Colors.NORMAL + " 列出， 动作有 " + COLOR_COMMAND_PARAMETER_INSTANCE + "Search" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "s" + Colors.NORMAL + " " + COLOR_COMMAND_PARAMETER_INSTANCE + "Users" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "u" + Colors.NORMAL + "(按ID查询) " + COLOR_COMMAND_PARAMETER_INSTANCE + "AllUsers" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "au" + Colors.NORMAL + "(全站用户，可按姓名查) " + COLOR_COMMAND_PARAMETER_INSTANCE + "Info" + Colors.NORMAL + "(站点信息) ");
 		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
@@ -1024,7 +1025,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "字符艺术画文件网址" + Colors.NORMAL + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "反查" + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "详细" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "标签名" + Colors.NORMAL + ">[" + COLOR_COMMAND_PARAMETER + "//" + Colors.NORMAL + "<" + COLOR_COMMAND_PARAMETER + "标签定义" + Colors.NORMAL + ">]    -- 仿 smbot 的 !sm 功能。 选项: ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + ": 反查(模糊查询); ." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + ": 显示详细信息(添加人 时间等); " + COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + " -- 取该数字 ID 指定的标签");
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "反查" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "详细" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "标签名" + Colors.NORMAL + ">[" + COLOR_COMMAND_PARAMETER + "//" + Colors.NORMAL + "<" + COLOR_COMMAND_PARAMETER + "标签定义" + Colors.NORMAL + ">]    -- 仿 smbot 的 !sm 功能。 选项: ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + ": 根据定义反查标签(模糊查询), 如: 查询含有“学霸”的标签有哪些; ." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + ": 显示详细信息(添加人 时间 ID 总数…); " + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + " -- 默认取该数值编号指定的标签, 但与 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + " 一起使用时，起到限制响应行数的作用");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -1870,6 +1871,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
+	public static PageRankService GOOGLE_PAGE_RANK_SERVICE = new PageRankService();
 	void ProcessCommand_GooglePageRank (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
@@ -1877,40 +1879,53 @@ public class LiuYanBot extends PircBot implements Runnable
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
+		String[] arrayPages = params.split (" +");
 		try
 		{
-			int nPageRank = new PageRankService().getPR (params);
-			if (nPageRank ==-1)
-				SendMessage (ch, nick, mapGlobalOptions, "PageRank 信息不可用，或者出现内部错误");
-			else
+			for (int i=0; i<arrayPages.length; i++)
 			{
-				String sColor = null;
-				switch (nPageRank)
+				if ((i+1) > opt_max_response_lines)
 				{
-					case 9:
-					case 10:
-						sColor = Colors.GREEN;
-						break;
-					case 7:
-					case 8:
-						sColor = Colors.DARK_GREEN;
-						break;
-					case 5:
-					case 6:
-						sColor = Colors.CYAN;
-						break;
-					case 3:
-					case 4:
-						sColor = COLOR_DARK_CYAN;
-						break;
-					case 1:
-					case 2:
-					default:
-						sColor = Colors.DARK_BLUE;
-						break;
+					SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的网址……");
+					break;
 				}
-				SendMessage (ch, nick, mapGlobalOptions, "PageRank = " + sColor + nPageRank + Colors.NORMAL);
+
+				String page = arrayPages[i];
+				int nPageRank = GOOGLE_PAGE_RANK_SERVICE.getPR (page);
+				if (nPageRank == -1)
+					SendMessage (ch, nick, mapGlobalOptions, "PageRank 信息不可用，或者出现内部错误。 <-- " + page);
+				else
+				{
+					String sColor = null;
+					switch (nPageRank)
+					{
+						case 9:
+						case 10:
+							sColor = Colors.GREEN;
+							break;
+						case 7:
+						case 8:
+							sColor = Colors.DARK_GREEN;
+							break;
+						case 5:
+						case 6:
+							sColor = Colors.CYAN;
+							break;
+						case 3:
+						case 4:
+							sColor = COLOR_DARK_CYAN;
+							break;
+						case 1:
+						case 2:
+						default:
+							sColor = Colors.DARK_BLUE;
+							break;
+					}
+					SendMessage (ch, nick, mapGlobalOptions, sColor + String.format ("%2d", nPageRank) + Colors.NORMAL + " <-- " + page);
+				}
 			}
 		}
 		catch (Exception e)
@@ -3469,8 +3484,8 @@ System.out.println (evaluateResult);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		int q_number = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”
-		boolean is_q_number_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
 		boolean isReverseQuery = false, isShowDetail = false;
 		if (mapGlobalOptions.containsKey ("reverse") || mapGlobalOptions.containsKey ("反查"))
 			isReverseQuery = true;
@@ -3485,14 +3500,18 @@ System.out.println (evaluateResult);
 			SetupDataSource ();
 			int iParamIndex = 1;
 			int q_sn = 0, updated_times = 0, fetched_times = 0;
-			String sQuestionContent = null, sAnswerContent = null, sAddedTime = "", sAddedBy = "", sLastUpdatedTime = "", sLastUpdatedBy = "";
+			String sQuestionContent = null, sQuestionDigest = null, sAnswerContent = null, sAddedTime = "", sAddedBy = "", sLastUpdatedTime = "", sLastUpdatedBy = "";
 			if (params.contains ("//") || params.contains ("@") || params.contains ("%"))	// 添加标签
 			{
 				String[] arrayParams = params.split (" *(//|@|%) *", 2);
-				String q = arrayParams[0];
-				String a = arrayParams[1];
-//System.out.println ("q=" + q);
-//System.out.println ("a=" + a);
+				String q = StringUtils.trimToEmpty (arrayParams[0]);
+				String a = StringUtils.trimToEmpty (arrayParams[1]);
+logger.fine ("q=[" + q + "]\na=[" + a + "]");
+				if (q.isEmpty () || a.isEmpty ())
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "标签及其定义不能为空");
+					return;
+				}
 				conn = botDS.getConnection ();
 				stmt = conn.prepareCall ("{CALL p_savedic (?,?,?,?,?)}");
 				stmt.setString (iParamIndex++, q);
@@ -3508,71 +3527,110 @@ System.out.println (evaluateResult);
 					updated_times = rs.getInt ("updated_times");
 					sAddedBy =  rs.getString ("added_by");
 					sAddedTime = rs.getString ("added_time");
-//System.out.println ("q_sn=" + q_sn);
+logger.fine ("保存标签成功后的标签编号=" + q_sn);
 					break;
 				}
 				if (updated_times == 0)
-					SendMessage (ch, nick, mapGlobalOptions, Colors.GREEN + "标签添加成功" + Colors.NORMAL + ", 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
+					SendMessage (ch, nick, mapGlobalOptions, "标签定义" + Colors.GREEN + "新增成功" + Colors.NORMAL + ", 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
 				else
-					SendMessage (ch, nick, mapGlobalOptions, "标签已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过, 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 更新次数=" + updated_times);
+					SendMessage (ch, nick, mapGlobalOptions, "该定义已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过, 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 你将是该定义的最近更新者, 更新次数=" + updated_times);
 			}
 			else	// 查标签
 			{
+				//params = StringUtils.trimToEmpty (params);
 				conn = botDS.getConnection ();
-				PreparedStatement stmt_count = null;
-				try
-				{
-					stmt_count = conn.prepareStatement ("SELECT COUNT(*) FROM v_dics WHERE q_digest=sha1(?)");
-					stmt_count.setString (1, params);
-					rs = stmt_count.executeQuery ();
-					while (rs.next ())
-					{
-						System.out.println ("共 " + rs.getInt (1) + " 条");
-						break;
-					}
-					rs.close ();
-					stmt_count.close ();
-				}
-				catch (Exception e)
-				{
-					e.printStackTrace ();
-				}
-				finally
-				{
-					try { if (rs != null) rs.close(); } catch(Exception e) { }
-					try { if (stmt_count != null) stmt_count.close(); } catch(Exception e) { }
-					//try { if (conn != null) conn.close(); } catch(Exception e) { }
-				}
 				stmt = conn.prepareCall ("{CALL p_getdic (?,?,?)}", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
 				stmt.setString (iParamIndex++, params);
-				stmt.setObject (iParamIndex++, is_q_number_specified ? q_number : null);
+				stmt.setObject (iParamIndex++, opt_max_response_lines_specified ? opt_max_response_lines : null);
 				stmt.setBoolean (iParamIndex++, isReverseQuery);
 				boolean isResultSet = stmt.execute ();
-				boolean bFound = false;
+				boolean bFound = false, bValidRow = false;
+				int nCount = 0, nMaxID = 0;
+
 				rs = stmt.getResultSet ();
-				while (rs.next ())
+				if (isReverseQuery)
 				{
-					bFound = true;
-					sQuestionContent = rs.getString ("q_content");
-					sAnswerContent = rs.getString ("a_content");
-					q_sn = rs.getInt ("q_number");
-					fetched_times = rs.getInt ("fetched_times");
-					sAddedBy =  rs.getString ("added_by");
-					sAddedTime = rs.getString ("added_time");
-					updated_times = rs.getInt ("updated_times");
-					sLastUpdatedTime = rs.getString ("updated_time");
-					sLastUpdatedBy = rs.getString ("updated_by");
-					//rs.updateInt ("fetched_times", fetched_times + 1);
-					break;
+					int nLine = 0;
+					while (rs.next ())
+					{
+						bFound = true;
+						nLine ++;
+						if (nLine > opt_max_response_lines)
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的标签……");
+							break;
+						}
+						nCount = rs.getInt ("COUNT");
+						nMaxID = rs.getInt ("MAX_ID");
+logger.fine (params + " 有 " + nCount + " 条标签, 最大 ID=" + nMaxID);
+						sQuestionContent = rs.getString ("q_content");
+						sAnswerContent = rs.getString ("a_content");
+						q_sn = rs.getInt ("q_number");
+						fetched_times = rs.getInt ("fetched_times");
+						sAddedBy =  rs.getString ("added_by");
+						sAddedTime = rs.getString ("added_time");
+						updated_times = rs.getInt ("updated_times");
+						sLastUpdatedTime = rs.getString ("updated_time");
+						sLastUpdatedBy = rs.getString ("updated_by");
+						SendMessage (ch, nick, mapGlobalOptions, Colors.GREEN + sQuestionContent + Colors.NORMAL + " #" + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL + " --> " + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL));
+					}
+					if (! bFound)
+						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 				}
-				if (! bFound)
-					SendMessage (ch, nick, mapGlobalOptions, "无数据");
 				else
 				{
-					if (isReverseQuery)
-						SendMessage (ch, nick, mapGlobalOptions, Colors.GREEN + sQuestionContent + Colors.NORMAL + " #" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " --> " + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL));
+					while (rs.next ())
+					{
+						bFound = true;
+						nCount = rs.getInt ("COUNT");
+logger.fine (params + " 有 " + nCount + " 条定义");
+						break;
+					}
+					if (bFound)
+					{
+						if (opt_max_response_lines_specified)	// 如果指定了序号，则只返回 1 条数据，不需要随机获取
+						{
+							//bValidRow = rs.first ();
+logger.fine ("指定了序号 " + opt_max_response_lines + "，只有一行");	//，回到首行. bValidRow = " + bValidRow
+						}
+						else
+						{
+							int iRandomRow = new java.util.Random(System.currentTimeMillis ()).nextInt (nCount);
+							int nRandomRow = iRandomRow + 1;
+							bValidRow = rs.absolute (nRandomRow);
+logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bValidRow = " + bValidRow);
+						}
+						//while (rs.next ())
+						{
+							sQuestionDigest = rs.getString ("q_digest");
+							sQuestionContent = rs.getString ("q_content");
+							sAnswerContent = rs.getString ("a_content");
+							q_sn = rs.getInt ("q_number");
+							fetched_times = rs.getInt ("fetched_times");
+							sAddedBy =  rs.getString ("added_by");
+							sAddedTime = rs.getString ("added_time");
+							updated_times = rs.getInt ("updated_times");
+							sLastUpdatedTime = rs.getString ("updated_time");
+							sLastUpdatedBy = rs.getString ("updated_by");
+							//rs.updateInt ("fetched_times", fetched_times + 1);
+							//rs.updateRow ();
+							//break;
+						}
+
+						PreparedStatement stmt_update = conn.prepareStatement ("UPDATE dics SET fetched_times=fetched_times+1 WHERE q_digest=? AND q_number=?");
+						stmt_update.setString (1, sQuestionDigest);
+						stmt_update.setInt (2, q_sn);
+						int iRowsAffected = stmt_update.executeUpdate ();
+						assert iRowsAffected == 1;
+						stmt_update.close ();
+					}
+
+					if (! bFound)
+						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
+					else if (isShowDetail)
+						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + sAnswerContent + "    展示次数: " + (fetched_times+1) + ", 添加者: " + (sAddedBy + " " + sAddedTime) + (sLastUpdatedBy.isEmpty () ? "" : ", 最后更新者: " + sLastUpdatedBy + " " + sLastUpdatedTime) + ", 该标签共有 " + nCount + " 条定义");
 					else
-						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + sAnswerContent + (isShowDetail ? "    添加者: " + sAddedBy + ", 最后更新者: " + sLastUpdatedBy : ""));
+						SendMessage (ch, nick, mapGlobalOptions, sAnswerContent);
 				}
 			}
 		}
