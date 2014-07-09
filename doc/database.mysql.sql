@@ -3,7 +3,7 @@ CREATE TABLE dic_digests
 	content_digest CHAR(40) CHARACTER SET ascii PRIMARY KEY,
 	content VARCHAR(500) NOT NULL DEFAULT '',
 	content_lowercase VARCHAR(500) NOT NULL DEFAULT ''
-) CHARACTER SET UTF8;
+) ENGINE MyISAM CHARACTER SET UTF8;
 
 
 CREATE TABLE dics
@@ -64,19 +64,21 @@ BEGIN
 	SET _a_lowercase_digest_binary = UNHEX(_a_lowercase_digest);
 
 	/* 检查 _q 是否在 digest 中存在 */
+	SET _temp_digest_string = NULL;
 	SELECT content_digest INTO _temp_digest_string FROM dic_digests WHERE content_digest=_q_lowercase_digest;
 	IF _temp_digest_string IS NULL THEN
 		INSERT INTO dic_digests (content_digest, content, content_lowercase) VALUES (_q_lowercase_digest, _q, _q_lowercase);
 	ELSE
-		UPDATE dic_digests SET content=_q WHERE content_digest=_temp_digest_string;
+		UPDATE dic_digests SET content=_q WHERE content_digest=_q_lowercase_digest;
 	END IF;
 
 	/* 检查 _a 是否在 digest 中存在 */
+	SET _temp_digest_string = NULL;
 	SELECT content_digest INTO _temp_digest_string FROM dic_digests WHERE content_digest=_a_lowercase_digest;
 	IF _temp_digest_string IS NULL THEN
 		INSERT INTO dic_digests (content_digest, content, content_lowercase) VALUES (_a_lowercase_digest, _a, _a_lowercase);
 	ELSE
-		UPDATE dic_digests SET content=_a WHERE content_digest=_temp_digest_string;
+		UPDATE dic_digests SET content=_a WHERE content_digest=_a_lowercase_digest;
 	END IF;
 
 	/* 保存 */
@@ -85,7 +87,7 @@ BEGIN
 		ON DUPLICATE KEY UPDATE updated_by=_n, updated_time=NOW(), updated_times=updated_times+1;
 
 	/* 取出 */
-	SELECT * FROM dics WHERE q_digest=_q_lowercase_digest AND q_digest=_q_lowercase_digest;
+	SELECT * FROM dics WHERE q_digest=_q_lowercase_digest AND a_digest=_a_lowercase_digest;
 END
 $$
 DELIMITER ;
@@ -99,28 +101,42 @@ CREATE PROCEDURE p_getdic
 	_reverse BOOLEAN	/* 是否“反查”，如果是“反查”，则搜索 answer 中包含（模糊匹配）查询字符串的 questions */
 )
 BEGIN
-	DECLARE _q_lowercase VARCHAR(500) DEFAULT '';
-	DECLARE _q_lowercase_digest, _temp_digest_string CHAR(40) CHARACTER SET ascii DEFAULT '';
-	DECLARE _q_lowercase_digest_binary BINARY(20) DEFAULT '';
+	DECLARE _q_lowercase VARCHAR(500);
+	DECLARE _q_lowercase_digest CHAR(40) CHARACTER SET ascii;
+	DECLARE _q_lowercase_digest_binary BINARY(20);
+	DECLARE _count, _max_id INT UNSIGNED;	/* max_id 用来计算最大 ID 的字符串长度，用以对齐输出 */
 
 	SET _q = TRIM(_q);
 	SET _q_lowercase = LOWER(_q);
 	SET _q_lowercase_digest = SHA1(_q_lowercase);
 	SET _q_lowercase_digest_binary = UNHEX(_q_lowercase_digest);
 	IF _reverse IS NOT NULL AND _reverse THEN
-		SELECT *
+		SELECT COUNT(*), MAX(q_number) INTO _count, _max_id
 		FROM v_dics
 		WHERE
 			a_content LIKE CONCAT('%', _q, '%');
+
+		SELECT *, _count AS COUNT, _max_id AS MAX_ID
+		FROM v_dics
+		WHERE
+			a_content LIKE CONCAT('%', _q, '%')
+		ORDER BY RAND()
+		;
 	ELSE
+		SELECT COUNT(*), MAX(q_number) INTO _count, _max_id
+		FROM v_dics
+		WHERE
+			q_digest = _q_lowercase_digest
+		;
+
 		IF _q_number IS NULL OR _q_number = 0 THEN
-			SELECT *
+			SELECT *, _count AS COUNT, _max_id AS MAX_ID
 			FROM v_dics
 			WHERE
 				q_digest = _q_lowercase_digest
 			;
 		ELSE
-			SELECT *
+			SELECT *, _count AS COUNT, _max_id AS MAX_ID
 			FROM v_dics
 			WHERE
 				q_digest = _q_lowercase_digest

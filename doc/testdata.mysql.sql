@@ -10,3 +10,8 @@ INSERT INTO dics (q_digest, a_digest, added_by, added_time) VALUES
 	,(sha1('q2'), sha1('a2'), 'test', NOW())
 	,(sha1('q1'), sha1('a2'), 'test', NOW())
 ;
+
+
+/* 清空数据 */
+TRUNCATE TABLE dics;
+TRUNCATE TABLE dic_digests;
