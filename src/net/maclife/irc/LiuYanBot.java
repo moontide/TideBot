@@ -51,7 +51,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	public static final String BOT_PRIMARY_COMMAND_Help	= "Help";
-	public static final String BOT_PRIMARY_COMMAND_Alias	= "Alias";
+	public static final String BOT_PRIMARY_COMMAND_Alias	= "/Alias";
 	public static final String BOT_PRIMARY_COMMAND_Cmd	= "Cmd";
 	public static final String BOT_PRIMARY_COMMAND_ParseCmd	= "ParseCmd";
 	public static final String BOT_PRIMARY_COMMAND_IPLocation	= "IPLocation";
@@ -64,7 +64,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_JavaScript	= "JavaScript";
 	public static final String BOT_PRIMARY_COMMAND_Java	= "Java";
 	public static final String BOT_PRIMARY_COMMAND_TextArt	= "ANSIArt";
-	public static final String BOT_PRIMARY_COMMAND_Tag	= "/tag";
+	public static final String BOT_PRIMARY_COMMAND_Tag	= "dic";
 
 	public static final String BOT_PRIMARY_COMMAND_Time	= "Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	= "Action";
@@ -102,7 +102,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip",},
 		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "TextArt", "字符画", "字符艺术", "文字画", "文字艺术",},
-		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "dic", "dd"},
+		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -801,7 +801,7 @@ public class LiuYanBot extends PircBot implements Runnable
 							opt_max_response_lines_specified = true;
 							if (
 								!botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp)	// 2014-06-16 除去 RegExp 命令的响应行数限制，该数值在 RegExp 命令中做匹配次数用途
-								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag)	// 2014-07-09 除去 tag bt 命令的响应行数限制，该数值在 bt 命令中有可能做 “标签 ID” 用途
+								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag)	// 2014-07-09 除去 tag bt 命令的响应行数限制，该数值在 bt 命令中有可能做 “词条定义 ID” 用途
 								&& !isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
 								&& !isUserInWhiteList(hostname, login, nick)	// 不在白名单
 								&& opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT	// 设置的大小超出了上限
@@ -1025,7 +1025,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "字符艺术画文件网址" + Colors.NORMAL + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "反查" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "详细" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "标签名" + Colors.NORMAL + ">[" + COLOR_COMMAND_PARAMETER + "//" + Colors.NORMAL + "<" + COLOR_COMMAND_PARAMETER + "标签定义" + Colors.NORMAL + ">]    -- 仿 smbot 的 !sm 功能。 选项: ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + ": 根据定义反查标签(模糊查询), 如: 查询含有“学霸”的标签有哪些; ." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + ": 显示详细信息(添加人 时间 ID 总数…); " + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + " -- 默认取该数值编号指定的标签, 但与 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + " 一起使用时，起到限制响应行数的作用");
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "反查" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "详细" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "stats" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "统计" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "名称" + Colors.NORMAL + ">[" + COLOR_COMMAND_PARAMETER_INSTANCE + "//" + Colors.NORMAL + "<" + COLOR_COMMAND_PARAMETER + "定义" + Colors.NORMAL + ">]  -- 仿 smbot 的 !sm 功能。 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + ": 反查(模糊查询), 如: 哪些词条被贴有“学霸”; ." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + ": 显示详细信息(序号 添加者 时间 总数…); " + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + " -- 取该词条指定序号的定义, 但与 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + " 一起使用时，起到限制响应行数的作用");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -1444,7 +1444,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			ch,
 			u,
 			mapGlobalOptions,
-			"[" + Colors.GREEN + sTime + Colors.NORMAL +
+			"[" + Colors.DARK_GREEN + sTime + Colors.NORMAL +
 			"], [" + COLOR_DARK_CYAN + (tz==null  ?
 					(l==null ? DEFAULT_TIME_ZONE.getDisplayName() : DEFAULT_TIME_ZONE.getDisplayName(l)) :
 					(l==null ? tz.getDisplayName() : tz.getDisplayName(l))
@@ -3464,9 +3464,9 @@ System.out.println (evaluateResult);
 	}
 
 	/**
-	 * 贴标签。
-	 * 添加标签： /tag  a//b
-	 * 查询标签： /tag  a
+	 * 贴词条定义。
+	 * 添加词条定义： bt  a//b
+	 * 查询词条定义： bt  a
 	 *
 	 * @param ch
 	 * @param nick
@@ -3479,11 +3479,17 @@ System.out.println (evaluateResult);
 	 */
 	void ProcessCommand_Tag (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		boolean isQueryingStatistics = false;
+		if (mapGlobalOptions.containsKey ("stats") || mapGlobalOptions.containsKey ("统计"))
+		{
+			isQueryingStatistics = true;
+		}
+		else if (params == null || params.isEmpty())
 		{
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
 		boolean isReverseQuery = false, isShowDetail = false;
@@ -3493,15 +3499,83 @@ System.out.println (evaluateResult);
 			isShowDetail = true;
 
 		Connection conn = null;
-		CallableStatement stmt = null;
+		CallableStatement stmt_sp = null;
+		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try
 		{
 			SetupDataSource ();
+
+			// 查询统计信息
+			if (isQueryingStatistics)
+			{
+				//词条定义共 xx 条，词条+定义 hash 条数 yyy 条. 前 5 名添加者: 1=aaa, 2=bbb, 3=ccc, 4=ddd, 5=eee。词条定义统计前 3 名： [dic1]=40条，[dic2]=30条，[dic3]=50条。
+				conn = botDS.getConnection ();
+				StringBuilder sbStats = new StringBuilder ();
+				stmt = conn.prepareStatement ("SELECT COUNT(*), (SELECT COUNT(*) FROM dics) FROM dic_digests");
+				rs = stmt.executeQuery ();
+				while (rs.next ())
+				{
+					sbStats.append ("词条定义共 ");
+					sbStats.append (rs.getInt (1));
+					sbStats.append (" 条, 词条+定义 hash 共 ");
+					sbStats.append (rs.getInt (2));
+					sbStats.append (" 条.");
+					break;
+				}
+				rs.close ();
+				stmt.close ();
+
+				stmt = conn.prepareStatement ("SELECT added_by, COUNT(*) FROM dics GROUP BY added_by ORDER BY COUNT(*) DESC LIMIT 0,5");
+				sbStats.append (" 前 5 名添加者: ");
+				int n = 0;
+				rs = stmt.executeQuery ();
+				while (rs.next ())
+				{
+					n++;
+					sbStats.append ("#");
+					sbStats.append (n);
+					sbStats.append (":");
+					sbStats.append (rs.getString ("added_by"));
+					sbStats.append ("=");
+					sbStats.append (rs.getInt (2));
+					sbStats.append (", ");
+				}
+				sbStats.delete (sbStats.length () - 2, sbStats.length ());	// 去掉最后的 ", " 分隔字符串
+				sbStats.append (".");
+				rs.close ();
+				stmt.close ();
+
+				stmt = conn.prepareStatement ("SELECT q_content, COUNT(*) FROM v_dics GROUP BY q_content ORDER BY COUNT(*) DESC LIMIT 0,5");
+				sbStats.append (" 前 5 名词条: ");
+				n = 0;
+				rs = stmt.executeQuery ();
+				while (rs.next ())
+				{
+					n++;
+					sbStats.append ("#");
+					sbStats.append (n);
+					sbStats.append (":[");
+					sbStats.append (rs.getString ("q_content"));
+					sbStats.append (Colors.NORMAL);	// 防止个别词条带颜色，且未结束
+					sbStats.append ("]=");
+					sbStats.append (rs.getInt (2));
+					sbStats.append (", ");
+				}
+				sbStats.delete (sbStats.length () - 2, sbStats.length ());	// 去掉最后的 ", " 分隔字符串
+				rs.close ();
+				stmt.close ();
+				conn.close ();
+
+				SendMessage (ch, nick, mapGlobalOptions, sbStats.toString ());
+				return;
+			}
+
 			int iParamIndex = 1;
 			int q_sn = 0, updated_times = 0, fetched_times = 0;
 			String sQuestionContent = null, sQuestionDigest = null, sAnswerContent = null, sAddedTime = "", sAddedBy = "", sLastUpdatedTime = "", sLastUpdatedBy = "";
-			if (params.contains ("//") || params.contains ("@") || params.contains ("%"))	// 添加标签
+			// 添加词条定义
+			if (params.contains ("//") || params.contains ("@") || params.contains ("%"))
 			{
 				String[] arrayParams = params.split (" *(//|@|%) *", 2);
 				String q = StringUtils.trimToEmpty (arrayParams[0]);
@@ -3509,45 +3583,46 @@ System.out.println (evaluateResult);
 logger.fine ("q=[" + q + "]\na=[" + a + "]");
 				if (q.isEmpty () || a.isEmpty ())
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "标签及其定义不能为空");
+					SendMessage (ch, nick, mapGlobalOptions, "词条及其定义不能为空");
 					return;
 				}
 				conn = botDS.getConnection ();
-				stmt = conn.prepareCall ("{CALL p_savedic (?,?,?,?,?)}");
-				stmt.setString (iParamIndex++, q);
-				stmt.setString (iParamIndex++, a);
-				stmt.setString (iParamIndex++, nick);
-				stmt.setString (iParamIndex++, login);
-				stmt.setString (iParamIndex++, hostname);
-				boolean isResultSet = stmt.execute ();
-				rs = stmt.getResultSet ();
+				stmt_sp = conn.prepareCall ("{CALL p_savedic (?,?,?,?,?)}");
+				stmt_sp.setString (iParamIndex++, q);
+				stmt_sp.setString (iParamIndex++, a);
+				stmt_sp.setString (iParamIndex++, nick);
+				stmt_sp.setString (iParamIndex++, login);
+				stmt_sp.setString (iParamIndex++, hostname);
+				boolean isResultSet = stmt_sp.execute ();
+				rs = stmt_sp.getResultSet ();
 				while (rs.next ())
 				{
 					q_sn = rs.getInt ("q_number");
 					updated_times = rs.getInt ("updated_times");
 					sAddedBy =  rs.getString ("added_by");
 					sAddedTime = rs.getString ("added_time");
-logger.fine ("保存标签成功后的标签编号=" + q_sn);
+logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 					break;
 				}
 				if (updated_times == 0)
-					SendMessage (ch, nick, mapGlobalOptions, "标签定义" + Colors.GREEN + "新增成功" + Colors.NORMAL + ", 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
+					SendMessage (ch, nick, mapGlobalOptions, "词条定义" + Colors.GREEN + "新增成功" + Colors.NORMAL + ", 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
 				else
 					SendMessage (ch, nick, mapGlobalOptions, "该定义已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过, 序号=" + COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 你将是该定义的最近更新者, 更新次数=" + updated_times);
 			}
-			else	// 查标签
+			// 查词条
+			else
 			{
 				//params = StringUtils.trimToEmpty (params);
 				conn = botDS.getConnection ();
-				stmt = conn.prepareCall ("{CALL p_getdic (?,?,?)}", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
-				stmt.setString (iParamIndex++, params);
-				stmt.setObject (iParamIndex++, opt_max_response_lines_specified ? opt_max_response_lines : null);
-				stmt.setBoolean (iParamIndex++, isReverseQuery);
-				boolean isResultSet = stmt.execute ();
+				stmt_sp = conn.prepareCall ("{CALL p_getdic (?,?,?)}", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+				stmt_sp.setString (iParamIndex++, params);
+				stmt_sp.setObject (iParamIndex++, opt_max_response_lines_specified ? opt_max_response_lines : null);
+				stmt_sp.setBoolean (iParamIndex++, isReverseQuery);
+				boolean isResultSet = stmt_sp.execute ();
 				boolean bFound = false, bValidRow = false;
 				int nCount = 0, nMaxID = 0;
 
-				rs = stmt.getResultSet ();
+				rs = stmt_sp.getResultSet ();
 				if (isReverseQuery)
 				{
 					int nLine = 0;
@@ -3557,12 +3632,12 @@ logger.fine ("保存标签成功后的标签编号=" + q_sn);
 						nLine ++;
 						if (nLine > opt_max_response_lines)
 						{
-							SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的标签……");
+							SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的词条定义……");
 							break;
 						}
 						nCount = rs.getInt ("COUNT");
 						nMaxID = rs.getInt ("MAX_ID");
-logger.fine (params + " 有 " + nCount + " 条标签, 最大 ID=" + nMaxID);
+logger.fine (params + " 有 " + nCount + " 条词条定义, 最大 ID=" + nMaxID);
 						sQuestionContent = rs.getString ("q_content");
 						sAnswerContent = rs.getString ("a_content");
 						q_sn = rs.getInt ("q_number");
@@ -3617,18 +3692,18 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							//break;
 						}
 
-						PreparedStatement stmt_update = conn.prepareStatement ("UPDATE dics SET fetched_times=fetched_times+1 WHERE q_digest=? AND q_number=?");
-						stmt_update.setString (1, sQuestionDigest);
-						stmt_update.setInt (2, q_sn);
-						int iRowsAffected = stmt_update.executeUpdate ();
+						stmt = conn.prepareStatement ("UPDATE dics SET fetched_times=fetched_times+1 WHERE q_digest=? AND q_number=?");
+						stmt.setString (1, sQuestionDigest);
+						stmt.setInt (2, q_sn);
+						int iRowsAffected = stmt.executeUpdate ();
 						assert iRowsAffected == 1;
-						stmt_update.close ();
+						stmt.close ();
 					}
 
 					if (! bFound)
 						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 					else if (isShowDetail)
-						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + sAnswerContent + "    展示次数: " + (fetched_times+1) + ", 添加者: " + (sAddedBy + " " + sAddedTime) + (sLastUpdatedBy.isEmpty () ? "" : ", 最后更新者: " + sLastUpdatedBy + " " + sLastUpdatedTime) + ", 该标签共有 " + nCount + " 条定义");
+						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + sAnswerContent + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (sLastUpdatedBy.isEmpty () ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)) + ", 共有" + nCount + "条定义");
 					else
 						SendMessage (ch, nick, mapGlobalOptions, sAnswerContent);
 				}
@@ -3642,7 +3717,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		finally
 		{
 			try { if (rs != null) rs.close(); } catch(Exception e) { }
-			try { if (stmt != null) stmt.close(); } catch(Exception e) { }
+			try { if (stmt_sp != null) stmt_sp.close(); } catch(Exception e) { }
 			try { if (conn != null) conn.close(); } catch(Exception e) { }
 		}
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE t.q_id=sha1(?)";
@@ -3727,7 +3802,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		"java", "gcc", "g++", "make",
 
 		// 可以执行其他命令的命令
-		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install", "xargs",
+		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install", "xargs", "expect",
+		"nc", "ncat",
 	};
 	boolean CheckExecuteSafety (String cmd, String ch, String host, String login, String nick)
 	{
@@ -3745,7 +3821,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		return true;
 	}
 
-	void CheckCommandSecurity_NoPipeIn (Map<String, Object> mapCommand)
+	void CheckCommandSecurity_PipeAndRedirection (Map<String, Object> mapCommand)
 	{
 		if (mapCommand.get ("isPipeInput")!=null && (boolean)mapCommand.get ("isPipeInput") )
 		{
@@ -3756,6 +3832,37 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			throw new RuntimeException ("禁止从文件重定向输入喂给 " + mapCommand.get ("program") + " 命令东西吃");
 		}
 	}
+
+	/**
+	 * 获取文件名所在的绝对路径
+	 * @param sFileName 文件名，如：<code>test.doc</code> <code>./test.doc</code> <code>../user1/test.doc</code> <code>/home/user1/test.doc</code>
+	 * @return
+	 *  <ul>
+	 *  	<li><code>null</code> - 文件名位于工作目录</li>
+	 *  	<li>其他 - 文件名所在的绝对路径</li>
+	 * </ul>
+	 * @throws IOException
+	 */
+	public static String GetFileDirectory (String sFileName) throws IOException
+	{
+		File f = new File (sFileName);
+		File fPath = f;
+		if (! f.isDirectory ())
+			fPath = f.getParentFile ();
+		String path = fPath!=null ? fPath.getCanonicalPath () : null;
+		logger.fine (sFileName + " 文件所在路径为 " + path);
+		return path;
+	}
+	public static boolean IsFileInWorkingDirectory (String sFileName) throws IOException
+	{
+		String path = GetFileDirectory (sFileName);
+		return path !=null && ! WORKING_DIRECTORY.equals (path);
+	}
+	public static boolean IsDirectoryWorkingDirectory (String sDirectory)
+	{
+		return sDirectory !=null && ! WORKING_DIRECTORY.equals (sDirectory);
+	}
+
 	@SuppressWarnings ("unchecked")
 	void CheckCommandsSecurity (List<Map<String, Object>> listCommands) throws IOException
 	{
@@ -3790,7 +3897,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 			else if (cmd.equalsIgnoreCase("bash") || cmd.equalsIgnoreCase("sh"))
 			{
-				CheckCommandSecurity_NoPipeIn (mapCommand);
+				CheckCommandSecurity_PipeAndRedirection (mapCommand);
 				for (i=1; i<listCommandArgs.size(); i++)
 				{
 					String arg = listCommandArgs.get (i);
@@ -3814,7 +3921,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 			else if (cmd.equalsIgnoreCase("python") || cmd.equalsIgnoreCase("python2") || cmd.equalsIgnoreCase("python2.7") || cmd.equalsIgnoreCase("python3") || cmd.equalsIgnoreCase("python3.3") || cmd.equalsIgnoreCase("python3.3m"))
 			{
-				CheckCommandSecurity_NoPipeIn (mapCommand);
+				CheckCommandSecurity_PipeAndRedirection (mapCommand);
 				for (i=1; i<listCommandArgs.size(); i++)
 				{
 					String arg = listCommandArgs.get (i);
@@ -3856,7 +3963,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 			else if (cmd.equalsIgnoreCase("perl") || cmd.equalsIgnoreCase("perl5.18.2"))
 			{
-				CheckCommandSecurity_NoPipeIn (mapCommand);
+				CheckCommandSecurity_PipeAndRedirection (mapCommand);
 				for (i=1; i<listCommandArgs.size(); i++)
 				{
 					String arg = listCommandArgs.get (i);
@@ -3995,11 +4102,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						// 文件写入权限，
 						// 文件位置：只能写在工作文件夹/工作文件夹的子文件夹？
 						String sFileName = arg.substring (3);
-						File f = new File (sFileName);
-						File fParent = f.getParentFile ();
-						String path = fParent!=null ? fParent.getCanonicalPath () : null;
-						logger.fine (arg + " 文件所在路径为 " + path);
-						if (path !=null && ! WORKING_DIRECTORY.equals (path))
+						String path = GetFileDirectory (sFileName);
+						if (! IsDirectoryWorkingDirectory (path))
 							throw new RuntimeException (cmd + " 只能输出到工作目录下。而你指定的文件的路径为: " + path);
 					}
 				}
@@ -4017,12 +4121,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (arg.startsWith ("-"))
 						continue;
 
-					File f = new File (arg);
-					File fPath = f;
-					if (! f.isDirectory ())
-						fPath = f.getParentFile ();
-					String path = fPath!=null ? fPath.getCanonicalPath () : null;
-					logger.fine (arg + " 文件所在路径为 " + path);
+					String path = GetFileDirectory (arg);
 					if (path !=null && ! WORKING_DIRECTORY.equals (path))
 						throw new RuntimeException (cmd + " 只能删除工作目录下的文件。而你指定的文件的路径为: " + path);
 				}
@@ -4049,13 +4148,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					}
 					else
 					{
-						File f = new File (arg);
-						File fPath = f;
-						if (! f.isDirectory ())
-							fPath = f.getParentFile ();
-						String path = fPath!=null ? fPath.getCanonicalPath () : null;
-						logger.fine (arg + " 文件所在路径为 " + path);
-						if (path !=null && ! WORKING_DIRECTORY.equals (path))
+						String path = GetFileDirectory (arg);
+						if (! IsDirectoryWorkingDirectory (path))
 							throw new RuntimeException (cmd + " 只能删除工作目录下的文件。而你指定的文件的路径为: " + path);
 					}
 				}
