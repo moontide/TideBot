@@ -12,6 +12,7 @@ import java.util.regex.*;
 
 import javax.script.*;
 
+import org.apache.commons.io.*;
 import org.apache.commons.lang3.*;
 import org.apache.commons.dbcp2.*;
 //import org.apache.commons.io.*;
@@ -976,7 +977,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time /Google RegExp JavaScript  ParseCmd Action Notice TimeZones Locales Env Properties Version Help Alias" + Colors.NORMAL +
+				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time /Google RegExp JavaScript  ParseCmd Action Notice TimeZones Locales Env Properties Version Help /Alias" + Colors.NORMAL +
 				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
@@ -1028,7 +1029,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "js" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "javascript 脚本" + Colors.NORMAL + ">    -- 执行 JavaScript 脚本。");
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "字符艺术画文件网址" + Colors.NORMAL + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。");
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION + "字符集" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "COLUMNS" + Colors.NORMAL + "=" + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "字符艺术画文件 URL 地址(http:// file://)" + Colors.NORMAL + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + COLOR_COMMAND_OPTION + "字符集" + Colors.NORMAL + " 如果不指定，默认为 " + COLOR_COMMAND_OPTION_INSTANCE + "437" + Colors.NORMAL + " 字符集。 ." + COLOR_COMMAND_OPTION_INSTANCE + "COLUMNS" + Colors.NORMAL + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "反查" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "详细" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "stats" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "统计" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "名称" + Colors.NORMAL + ">[" + COLOR_COMMAND_PARAMETER_INSTANCE + "//" + Colors.NORMAL + "<" + COLOR_COMMAND_PARAMETER + "定义" + Colors.NORMAL + ">]  -- 仿 smbot 的 !sm 功能。 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + ": 反查(模糊查询), 如: 哪些词条被贴有“学霸”; ." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + ": 显示详细信息(添加者 时间…); " + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + " -- 取该词条指定序号的定义, 但与 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + " 一起使用时，起到限制响应行数的作用");
 
@@ -1712,7 +1713,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			ips = params.split (" +");
 
 		CityResponse city = null;
-		CityIspOrgResponse isp = null;
+		//CityIspOrgResponse isp = null;
 		int iCount = 0;
 		for (String host : ips)
 		{
@@ -1725,7 +1726,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					if (iCount > opt_max_response_lines)
 						break;
 					city = geoIP2DatabaseReader.city (netaddr);
-					isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
+					//isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
 
 					String sContinent=null, sCountry=null, sProvince=null, sCity=null, sCountry_iso_code=null, sISPName=null;
 					double latitude=0, longitude=0;
@@ -1738,7 +1739,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					sCountry = city.getCountry().getNames().get(lang);
 					sProvince = city.getMostSpecificSubdivision().getNames().get(lang);
 					sCity = city.getCity().getNames().get(lang);
-					sISPName = isp.getTraits().getIsp();
+					//sISPName = isp.getTraits().getIsp();
 					//sISPName = city.getTraits().getIsp();
 
 					if (sContinent==null) sContinent = "";
@@ -2889,7 +2890,7 @@ System.out.println (sTitle_colorizedForShell);
 System.out.println (sContent_colorizedForShell);
 //System.out.println (GsearchResultClass);
 
-				String sMessage = (i+1) + "  " + URLDecoder.decode (sURL, "UTF-8") + "  " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringEscapeUtils.unescapeHtml4 (sTitle) + Colors.DARK_GREEN + "]" + Colors.NORMAL + "  " + sContent;
+				String sMessage = (i+1) + "  " + URLDecoder.decode (sURL, "UTF-8") + "  " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringEscapeUtils.unescapeHtml4 (sTitle) + Colors.DARK_GREEN + "]" + Colors.NORMAL + "  " + StringEscapeUtils.unescapeHtml4 (sContent);
 				byte[] messageBytes = sMessage.getBytes (getEncoding());
 				if (! b其他信息已显示 && messageBytes.length<300)	// 仅当 (1)未显示过其他信息，且当前行的内容比较少的时候，才显示其他信息
 				{
@@ -3464,6 +3465,77 @@ System.out.println (evaluateResult);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get("env");
+		int COLUMNS = 80;
+		if (mapUserEnv.get ("COLUMNS") != null)
+		{
+			COLUMNS = Integer.parseInt (mapUserEnv.get ("COLUMNS"));
+		}
+		String sCharSet = "437";
+		boolean bProxyOff = false;
+		try
+		{
+			if (listCmdEnv != null)
+			{
+				for (String env : listCmdEnv)
+				{
+					if (env.equalsIgnoreCase ("ProxyOff"))
+						bProxyOff = true;
+					else
+						sCharSet = env;
+				}
+			}
+
+			URL url = new URL (params);
+
+			//Reader reader = null;
+			InputStream is = null;
+			URLConnection conn = null;
+			if (bProxyOff)
+			{
+				System.clearProperty ("javax.net.ssl.trustStore");
+				System.clearProperty ("javax.net.ssl.trustPassword");
+				conn = url.openConnection ();
+			}
+			else
+			{
+				if (sslTrustStore!=null && !sslTrustStore.isEmpty ())
+					System.setProperty ("javax.net.ssl.trustStore", sslTrustStore);
+				if (sslTrustPassword!=null && !sslTrustPassword.isEmpty ())
+					System.setProperty ("javax.net.ssl.trustPassword", sslTrustPassword);
+				// 利用 GoAgent 代理搜索
+				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
+				// keytool -import -alias GoAgentCert -file CA.crt
+				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress("192.168.2.1", 8087));
+				System.out.println (proxy);
+				conn = url.openConnection (proxy);
+			}
+			conn.setConnectTimeout (30000);
+			conn.setReadTimeout (30000);
+			if (conn instanceof HttpURLConnection)
+			{
+				((HttpURLConnection)conn).setInstanceFollowRedirects (true);
+			}
+			is = conn.getInputStream ();
+
+			String sANSIString = IOUtils.toString (is, sCharSet);
+			List<String> listLines = ANSIEscapeTool.ConvertAnsiEscapeTo (sANSIString, COLUMNS);
+			int nLine = 0;
+			for (String line : listLines)
+			{
+				SendMessage (ch, nick, mapGlobalOptions, line);
+				nLine ++;
+				if (nLine >= opt_max_response_lines)
+					break;
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+		}
 	}
 
 	BasicDataSource botDS = null;
@@ -3830,7 +3902,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		"java", "gcc", "g++", "make",
 
 		// 可以执行其他命令的命令
-		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install", "xargs", "expect", "script",
+		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install", "xargs", "expect", "script", "setarch",
 		"nc", "ncat",
 	};
 	boolean CheckExecuteSafety (String cmd, String ch, String host, String login, String nick)
@@ -3983,10 +4055,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 								//|| StringUtils.containsIgnoreCase (python_script_string, "system")
 								//|| StringUtils.containsIgnoreCase (python_script_string, "Popen")
 								//|| StringUtils.containsIgnoreCase (python_script_string, "call")
-								python_script_string.matches ("^.*(system|[Pp]open|call|fork).*$")
+								python_script_string.matches ("^.*(system|[Pp]open|call|fork|eval|exec|import|getattr).*$")
 								)
 							{
-								throw new RuntimeException (cmd + " 命令禁止使用脚本中含有 system、Popen、call、fork 字样");
+								throw new RuntimeException (cmd + " 命令禁止使用脚本中含有 system、Popen、call、fork、exec、eval、import 字样");
 							}
 						}
 					}
@@ -4158,7 +4230,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						continue;
 
 					String path = GetFileDirectory (arg);
-					if (! IsDirectoryWorkingDirectory (arg))
+					if (! IsDirectoryWorkingDirectory (path))
 						throw new RuntimeException (cmd + " 只能删除工作目录下的文件。而你指定的文件的路径为: " + path);
 				}
 			}
@@ -4589,7 +4661,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		int timelength = (int)( end - start) / 1000;
 		int nMinute = timelength/60;
 		int nSeconds = timelength%60;
-		return (nMinute==0?"":""+nMinute+"分钟") + (nSeconds==0?"":""+nSeconds+"秒");
+		return (nMinute==0?"":""+nMinute+" 分钟") + (nSeconds==0?"":""+nSeconds+" 秒");
 	}
 
 	String ConvertCharsetEncoding (String s, String src, String dst)
