@@ -1008,7 +1008,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_Alias;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 列出 bot 命令的别名, 多数 bot 命令存在别名, 一些别名可能更容易记住. 命令可输入多个.");
 		primaryCmd = BOT_PRIMARY_COMMAND_Cmd;            if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "exec"))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 之外, shell 中类似变量取值($var) 重定向(><) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 重定向(><) 之外, shell 中类似变量取值($var) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 		primaryCmd = BOT_PRIMARY_COMMAND_ParseCmd;       if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析 " + COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令的参数");
 		primaryCmd = BOT_PRIMARY_COMMAND_IPLocation;          if (isThisCommandSpecified (args, primaryCmd))
@@ -3725,6 +3725,8 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 				rs = stmt_sp.getResultSet ();
 				if (isReverseQuery)
 				{
+					if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT && !isUserInWhiteList(hostname, login, nick))	// 设置的大小超出了上限（因为在 bot 命令统一处理参数的地方跳过了 tag 命令，所以需要在此重做）
+						opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 					int nLine = 0;
 					while (rs.next ())
 					{
@@ -3732,7 +3734,7 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 						nLine ++;
 						if (nLine > opt_max_response_lines)
 						{
-							SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的词条定义……");
+							SendMessage (ch, nick, mapGlobalOptions, "略…");
 							break;
 						}
 						nCount = rs.getInt ("COUNT");
@@ -3898,11 +3900,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		"poweroff", "halt", "reboot", "shutdown", "systemctl",
 
 		// 执行脚本、语言编译器
-		//"python", "python2", "python2.7", "python3", "python3.3", "python3.3m", "perl", "perl5.18.2",
-		"java", "gcc", "g++", "make",
+		//"python", "python2", "python2.7", "python3", "python3.3", "python3.3m",
+		"java", "gcc", "g++", "make", "gmake", "perl", "perl5.18.2",
 
 		// 可以执行其他命令的命令
-		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install", "xargs", "expect", "script", "setarch",
+		"env", "watch", "nohup", "stdbuf", "unbuffer", "time", "install", "xargs", "expect", "script", "tclsh", "tclsh8.5",
+		"setarch", "linux32", "linux64", "i386", "x86_64",
 		"nc", "ncat",
 	};
 	boolean CheckExecuteSafety (String cmd, String ch, String host, String login, String nick)
@@ -4055,10 +4058,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 								//|| StringUtils.containsIgnoreCase (python_script_string, "system")
 								//|| StringUtils.containsIgnoreCase (python_script_string, "Popen")
 								//|| StringUtils.containsIgnoreCase (python_script_string, "call")
-								python_script_string.matches ("^.*(system|[Pp]open|call|fork|eval|exec|import|getattr).*$")
+								python_script_string.matches ("^.*(system|[Pp]open|call|fork|eval|exec|import|getattr|__builtins__).*$")
 								)
 							{
-								throw new RuntimeException (cmd + " 命令禁止使用脚本中含有 system、Popen、call、fork、exec、eval、import 字样");
+								throw new RuntimeException (cmd + " 命令禁止使用脚本中含有 system、Popen、call、fork、exec、eval、import 等等字样");
 							}
 						}
 					}
