@@ -367,6 +367,15 @@ public class ANSIEscapeTool
 	 * 用当前属性向缓冲区中输出字符串。
 	 * 当缓冲区不足时（行数或者列数），会自动补充缓冲区。输出结束后，当前属性中的当前行号、当前列号变为输出结束后的行号、列号位置。
 	 *
+	 * <h3>此缓冲区与实际 terminal 输出的区别</h3>
+	 * <dl>
+	 * 	<dt>换行</dt>
+	 * 	<dd>实际 terminal 输出时，即使换行，其字符属性也继承上一行（光标跳转之前的行）的属性。但在 IRC 中每行都是一个新的开始，所以不能/无法继承之前行的属性，需要特殊处理</dd>
+	 *
+	 * 	<dt>无输出的地方</dt>
+	 * 	<dd>实际 terminal 输出时，如果光标跳过了一段区域（比如：光标向后跳了 n 列），那么中间的内容是“空的”，而在 IRC 中，这些“空的”内容必须以空格补充，而补充的空格如果不做特殊处理，将会产生意外的效果（比如前面已有背景色，那么输出空格会导致背景色输出）</dd>
+	 * </dl>
+	 *
 	 * @param listVirtualTerminalBuffer 字符缓冲区。List 类型，每行占用 list 的一个元素。每个元素代表一行，其类型是 CharBuffer
 	 * @param sbSrc 要输出的源字符串
 	 * @param currentAttribute “屏幕”当前属性。当前属性中的 key 定义
@@ -402,9 +411,9 @@ public class ANSIEscapeTool
 	 * 	<dd>字符颜色/前景色。整数类型。该数值为 ANSI 的颜色数值。如 31 37 38 或 256 色的 100 等。</dd>
 	 * </dl>
 	 */
-	public static void PutsToScreenBuffer (List<CharBuffer> listVirtualTerminalBuffer, List<List<Map<String, Object>>>listLinesCharactersAttributes, StringBuffer sbSrc, Map<String, Object> currentAttribute)
+	public static void PutsToScreenBuffer (List<CharBuffer> listVirtualTerminalBuffer, List<List<Map<String, Object>>>listLinesCharactersAttributes, StringBuffer sbSrc, final Map<String, Object> currentAttribute)
 	{
-		int i=0;
+		int i=0, j=0;
 		int nRowNO = 1;
 		int nColumnNO = 1;
 		int TERMINAL_COLUMNS = DEFAULT_SCREEN_COLUMNS;
@@ -469,11 +478,15 @@ public class ANSIEscapeTool
 			// 先准备好足够多的空间
 			if (nRowNO > listVirtualTerminalBuffer.size ())
 			{
-				cbLine = CharBuffer.allocate (TERMINAL_COLUMNS);
-				listVirtualTerminalBuffer.add (cbLine);
+				int nSupplement = nRowNO - listVirtualTerminalBuffer.size ();
+				for (j=0; j<nSupplement; j++)
+				{
+					cbLine = CharBuffer.allocate (TERMINAL_COLUMNS);
+					listVirtualTerminalBuffer.add (cbLine);
 
-				listLineCharactersAttributes = new ArrayList<Map<String, Object>>();
-				listLinesCharactersAttributes.add (listLineCharactersAttributes);
+					listLineCharactersAttributes = new ArrayList<Map<String, Object>>();
+					listLinesCharactersAttributes.add (listLineCharactersAttributes);
+				}
 			}
 			else
 			{
@@ -483,23 +496,28 @@ public class ANSIEscapeTool
 
 			if (isOutputingFirstCharacterInThisLine)	// 当前行写入第一个字符前，先在前面 null 的地方填充空格； 属性列表中补充 null
 			{
-				for (int j=0; j<iColumnIndex; j++)
+				for (j=0; j<iColumnIndex; j++)
 				{
 					if (cbLine.get (j) == 0)
 						cbLine.put (j, ' ');	// 如果没有数据，则用空格填充
 				}
-				for (int j=listLineCharactersAttributes.size (); j<iColumnIndex; j++)
+				for (j=listLineCharactersAttributes.size (); j<iColumnIndex; j++)
 				{
 					listLineCharactersAttributes.add (null);
 				}
 			}
 
 			cbLine.put (iColumnIndex, ch);
+			Map<String, Object> attr = new HashMap<String, Object> ();
+			attr.putAll (currentAttribute);	// 复制一份属性，不共用原来属性，避免修改一个属性影响到其他
 			System.err.print (nRowNO + " 行已有属性数量 " + listLineCharactersAttributes.size () + " 个, iColumnIndex 索引=" + iColumnIndex + ", 输出字符=[" + String.format ("%c 0x%02X", ch, (int)ch) + "].");	// 复位=" + currentAttribute.get ("reset"
 			if (listLineCharactersAttributes.size () <= iColumnIndex)
-				listLineCharactersAttributes.add (currentAttribute);
+				listLineCharactersAttributes.add (attr);
 			else
-				listLineCharactersAttributes.set (iColumnIndex, currentAttribute);
+				listLineCharactersAttributes.set (iColumnIndex, attr);
+
+			if (currentAttribute.containsKey ("reset"))
+				currentAttribute.remove ("reset");	// 去掉属性。在组成字符串时，只需要判断当前属性有没有 reset，有就输出相应的 reset 属性。
 
 			isOutputingFirstCharacterInThisLine = false;
 			nColumnNO ++;	iColumnIndex++;
@@ -575,52 +593,98 @@ public class ANSIEscapeTool
 					r_bg = attr.get ("bg")==null ? 0 : (int)attr.get ("bg");
 				}
 				// 输出属性字符串
+				String sIRC_FG = "", sIRC_BG = "";
 				//System.err.print (" 前irc复位=" + l_reset + " 本复位=" + r_reset);
-				if (r_reset > 0)
+				if (r_reset > 0
+					|| (previous_attr!=null && attr==null && l_bg!=0 && l_reverse!=1)
+					)	// attr==null 表示没有属性 (可能是输出到缓冲区时填充的空格字符)，并且前面有背景色，此时需要清除其属性，否则如果前面有背景
 				{
 					sb.append (Colors.NORMAL);
 					System.err.print (" irc复位(之后，要清除该属性)");
-					attr.remove ("reset");
-				}
-				if (l_bold != r_bold)	// bold 有变动，要输出 bold 属性 (irc 两次/偶数次 bold 后关闭 bold)
-				{
-					sb.append (Colors.BOLD);
-					System.err.print (" irc高亮");
-				}
-				if (l_reverse != r_reverse)	// reverse 有变动，要输出 reverse 属性 (irc 两次/偶数次 reverse 后关闭 reverse)
-				{
-					sb.append (Colors.REVERSE);
-					System.err.print (" irc反色");
-				}
-				if (l_underline != r_underline)	// underline 有变动，要输出 underline 属性 (irc 两次/偶数次 underline 后关闭 underline)
-				{
-					sb.append (Colors.UNDERLINE);
-					System.err.print (" irc下划线");
-				}
+					//if (attr!=null) attr.remove ("reset");
 
-				String sIRC_FG = "", sIRC_BG = "";
-				if (l_fg != r_fg)
-				{	// 前景色变化了
-					if (r_256color_fg)
+					// 复位后，不管前面的属性，本属性有啥就输出啥
+
+					if (r_bold==1)
 					{
-						sIRC_FG = XTERM_256_TO_IRC_16_COLORS [r_fg];
+						sb.append (Colors.BOLD);
+						System.err.print (" 复位后irc高亮");
 					}
-					else
+					if (r_reverse == 1)
 					{
-						sIRC_FG = ANSI_16_TO_IRC_16_COLORS [r_fg-30][r_bold==1?1:0];
+						sb.append (Colors.REVERSE);
+						System.err.print (" 复位后irc反色");
 					}
-					System.err.print (" irc前景色 " + sIRC_FG);
-				}
-				if (l_bg != r_bg)
-				{	// 背景色变化了
-					if (r_256color_bg)
-						sIRC_BG = XTERM_256_TO_IRC_16_COLORS [r_bg];
-					else
-						sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
+					if (r_underline == 1)	// underline 有变动，要输出 underline 属性 (irc 两次/偶数次 underline 后关闭 underline)
+					{
+						sb.append (Colors.UNDERLINE);
+						System.err.print (" 复位后irc下划线");
+					}
+					System.err.print (" (复位后颜色 " + r_fg + "," + r_bg + ")");
+					if (r_fg != 0)
+					{	// 有前景色
+						if (r_256color_fg)
+						{
+							sIRC_FG = XTERM_256_TO_IRC_16_COLORS [r_fg];
+						}
+						else
+						{
+							sIRC_FG = ANSI_16_TO_IRC_16_COLORS [r_fg-30][r_bold==1?1:0];
+						}
+						System.err.print (" 复位后irc前景色 " + sIRC_FG);
+					}
+					if (r_bg != 0)
+					{	// 有背景色
+						if (r_256color_bg)
+							sIRC_BG = XTERM_256_TO_IRC_16_COLORS [r_bg];
+						else
+							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
 
-					System.err.print (" irc背景色 " + sIRC_BG);
+						System.err.print (" 复位后irc背景色 " + sIRC_BG);
+					}
 				}
+				else
+				{
+					System.err.print (" 前bold=" + l_bold + " 本bold=" + r_bold);
+					if (l_bold != r_bold)	// bold 有变动，要输出 bold 属性 (irc 两次/偶数次 bold 后关闭 bold)
+					{
+						sb.append (Colors.BOLD);
+						System.err.print (" irc高亮");
+					}
+					if (l_reverse != r_reverse)	// reverse 有变动，要输出 reverse 属性 (irc 两次/偶数次 reverse 后关闭 reverse)
+					{
+						sb.append (Colors.REVERSE);
+						System.err.print (" irc反色");
+					}
+					if (l_underline != r_underline)	// underline 有变动，要输出 underline 属性 (irc 两次/偶数次 underline 后关闭 underline)
+					{
+						sb.append (Colors.UNDERLINE);
+						System.err.print (" irc下划线");
+					}
 
+					System.err.print (" (颜色 " + l_fg + "," + l_bg + "->" + r_fg + "," + r_bg + ")");
+					if (l_fg != r_fg)
+					{	// 前景色变化了
+						if (r_256color_fg)
+						{
+							sIRC_FG = XTERM_256_TO_IRC_16_COLORS [r_fg];
+						}
+						else if (r_fg != 0)
+						{
+							sIRC_FG = ANSI_16_TO_IRC_16_COLORS [r_fg-30][r_bold==1?1:0];
+						}
+						System.err.print (" irc前景色 " + sIRC_FG);
+					}
+					if (l_bg != r_bg)
+					{	// 背景色变化了
+						if (r_256color_bg)
+							sIRC_BG = XTERM_256_TO_IRC_16_COLORS [r_bg];
+						else if (r_bg != 0)
+							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
+
+						System.err.print (" irc背景色 " + sIRC_BG);
+					}
+				}
 				if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())		// 只有前景色
 					sb.append (sIRC_FG);
 				else if (sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())	// 只有背景色
@@ -777,6 +841,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				System.err.println ("写入缓冲区前的光标位置=" + nCurrentRowNO + " 行 " + nCurrentColumnNO + " 列");
 				previousCharacterAttribute.put ("ROW_NO", nCurrentRowNO);
 				previousCharacterAttribute.put ("COLUMN_NO", nCurrentColumnNO);
+				previousCharacterAttribute.put ("TERMINAL_COLUMNS", TERMINAL_COLUMNS);
 				PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute);	// 因为 regexp 每次遇到新的 ANSI Escape 时，之前的字符串还没输出，所以，需要用前面的属性输出前面的字符串
 				nCurrentRowNO = (int)previousCharacterAttribute.get ("ROW_NO");	// 因为写入字符串后，“光标”位置会变化，所以，要再读出来，供下次计算位置
 				nCurrentColumnNO = (int)previousCharacterAttribute.get ("COLUMN_NO");
@@ -941,6 +1006,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 					}
 				}
 
+				/*
 				// 如果同一批 SGR 参数中既包含了”0--复位“，又包含了其他属性，则去除”0--复位“属性
 				// 较详细: CSI 参数: [0;1;36;44m
 				if ( currentCharacterAttribute.get ("reset")!=null
@@ -958,6 +1024,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 					currentCharacterAttribute.remove ("reset");
 					logger.fine ("去掉 复位 属性");
 				}
+				//*/
 	/*
 				// 如果这个 SGR 同时含有 16色、256色（虽然从未看到过），则 16 色的颜色设置会覆盖 256 色的颜色设置
 				if (nFG!=-1)
@@ -1155,6 +1222,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 		matcher.appendTail (sbReplace);
 		previousCharacterAttribute.put ("ROW_NO", nCurrentRowNO);
 		previousCharacterAttribute.put ("COLUMN_NO", nCurrentColumnNO);
+		previousCharacterAttribute.put ("TERMINAL_COLUMNS", TERMINAL_COLUMNS);
 		logger.finer ("光标在将最后一个字符串写入缓冲区前的位置=" + nCurrentRowNO + " 行 " + nCurrentColumnNO + " 列");
 		PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute);
 
