@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.logging.*;
 import java.util.regex.*;
 
+import org.apache.commons.lang3.*;
 import org.jibble.pircbot.*;
 
 public class ANSIEscapeTool
@@ -383,7 +384,7 @@ public class ANSIEscapeTool
 	 * 	<dt>TERMINAL_COLUMNS</dt>
 	 * 	<dd>“终端/屏幕”最大宽度（单位: 字符，每个汉字占 2 个字符宽度）。整数类型。</dd>
 	 *
-	 * 	<dt>ROW_NO</dt>
+	 * 	<dt>LINE_NO</dt>
 	 * 	<dd>当前行号。整数类型。行号列号从 1 开始计数。</dd>
 	 *
 	 * 	<dt>COLUMN_NO</dt>
@@ -411,25 +412,25 @@ public class ANSIEscapeTool
 	 * 	<dd>字符颜色/前景色。整数类型。该数值为 ANSI 的颜色数值。如 31 37 38 或 256 色的 100 等。</dd>
 	 * </dl>
 	 */
-	public static void PutsToScreenBuffer (List<CharBuffer> listVirtualTerminalBuffer, List<List<Map<String, Object>>>listLinesCharactersAttributes, StringBuffer sbSrc, final Map<String, Object> currentAttribute)
+	public static void PutsToScreenBuffer (List<CharBuffer> listVirtualTerminalBuffer, List<List<Map<String, Object>>>listLinesCharactersAttributes, StringBuffer sbSrc, final Map<String, Object> currentAttribute, int TERMINAL_COLUMNS)
 	{
 		int i=0, j=0;
-		int nRowNO = 1;
+		int nLineNO = 1;
 		int nColumnNO = 1;
-		int TERMINAL_COLUMNS = DEFAULT_SCREEN_COLUMNS;
-		if (currentAttribute.get ("ROW_NO") != null)
-			nRowNO = (int)currentAttribute.get ("ROW_NO");
+		//int TERMINAL_COLUMNS = DEFAULT_SCREEN_COLUMNS;
+		if (currentAttribute.get ("LINE_NO") != null)
+			nLineNO = (int)currentAttribute.get ("LINE_NO");
 		if (currentAttribute.get ("COLUMN_NO") != null)
 			nColumnNO = (int)currentAttribute.get ("COLUMN_NO");
-		if (currentAttribute.get ("TERMINAL_COLUMNS") != null)
-			TERMINAL_COLUMNS = (int)currentAttribute.get ("TERMINAL_COLUMNS");
+		//if (currentAttribute.get ("TERMINAL_COLUMNS") != null)
+		//	TERMINAL_COLUMNS = (int)currentAttribute.get ("TERMINAL_COLUMNS");
 
-		int iRowIndex = nRowNO - 1, iColumnIndex = nColumnNO - 1;
+		int iLineIndex = nLineNO - 1, iColumnIndex = nColumnNO - 1;
 		boolean isOutputingFirstCharacterInThisLine = true;
 
-		System.err.println (nRowNO + " 行 " + nColumnNO + " 列 输出：" + sbSrc);
-		System.err.println ("属性: " + currentAttribute);
-		System.err.println ("-------------------------------------------------");
+		//System.err.println (nLineNO + " 行 " + nColumnNO + " 列 输出：" + sbSrc);
+		//System.err.println ("属性: " + currentAttribute);
+		//System.err.println ("-------------------------------------------------");
 
 		CharBuffer cbLine = null;
 		List<Map<String, Object>> listLineCharactersAttributes = null;
@@ -463,22 +464,22 @@ public class ANSIEscapeTool
 			if (nColumnNO > TERMINAL_COLUMNS)
 			{	// 当前列号超过屏幕宽度后，自动换到下一行，光标到行首
 				logger.fine ("当前列号 " + nColumnNO + " 已超过屏幕宽度 " + TERMINAL_COLUMNS + "，将光标移到下一行行首");
-				nRowNO ++;	iRowIndex++;
+				nLineNO ++;	iLineIndex++;
 				nColumnNO = 1;	iColumnIndex = 0;
 			}
 			if (ch == '\r' || ch == '\n' )
 			{
-				nRowNO ++;	iRowIndex++;
+				nLineNO ++;	iLineIndex++;
 				nColumnNO = 1;	iColumnIndex = 0;
 				isOutputingFirstCharacterInThisLine = true;
-				logger.fine ("当前字符是回车/换行符，换到新一行 " + nRowNO + ", 并跳过输出该符号");
+				logger.fine ("当前字符是回车/换行符，换到新一行 " + nLineNO + ", 并跳过输出该符号");
 				continue;
 			}
 
 			// 先准备好足够多的空间
-			if (nRowNO > listVirtualTerminalBuffer.size ())
+			if (nLineNO > listVirtualTerminalBuffer.size ())
 			{
-				int nSupplement = nRowNO - listVirtualTerminalBuffer.size ();
+				int nSupplement = nLineNO - listVirtualTerminalBuffer.size ();
 				for (j=0; j<nSupplement; j++)
 				{
 					cbLine = CharBuffer.allocate (TERMINAL_COLUMNS);
@@ -490,8 +491,8 @@ public class ANSIEscapeTool
 			}
 			else
 			{
-				cbLine = listVirtualTerminalBuffer.get (iRowIndex);
-				listLineCharactersAttributes = listLinesCharactersAttributes.get (iRowIndex);
+				cbLine = listVirtualTerminalBuffer.get (iLineIndex);
+				listLineCharactersAttributes = listLinesCharactersAttributes.get (iLineIndex);
 			}
 
 			if (isOutputingFirstCharacterInThisLine)	// 当前行写入第一个字符前，先在前面 null 的地方填充空格； 属性列表中补充 null
@@ -510,7 +511,7 @@ public class ANSIEscapeTool
 			cbLine.put (iColumnIndex, ch);
 			Map<String, Object> attr = new HashMap<String, Object> ();
 			attr.putAll (currentAttribute);	// 复制一份属性，不共用原来属性，避免修改一个属性影响到其他
-			System.err.print (nRowNO + " 行已有属性数量 " + listLineCharactersAttributes.size () + " 个, iColumnIndex 索引=" + iColumnIndex + ", 输出字符=[" + String.format ("%c 0x%02X", ch, (int)ch) + "].");	// 复位=" + currentAttribute.get ("reset"
+			//System.err.print (nLineNO + " 行已有属性数量 " + listLineCharactersAttributes.size () + " 个, iColumnIndex 索引=" + iColumnIndex + ", 输出字符=[" + String.format ("%c 0x%02X", ch, (int)ch) + "].");	// 复位=" + currentAttribute.get ("reset"
 			if (listLineCharactersAttributes.size () <= iColumnIndex)
 				listLineCharactersAttributes.add (attr);
 			else
@@ -521,11 +522,11 @@ public class ANSIEscapeTool
 
 			isOutputingFirstCharacterInThisLine = false;
 			nColumnNO ++;	iColumnIndex++;
-			System.err.println ("光标移到 " + nRowNO + " 行 " + nColumnNO + " 列");
+			//System.err.println ("光标移到 " + nLineNO + " 行 " + nColumnNO + " 列");
 			//if (ch > 256)	// 汉字，占两个字符宽度...
 			//	nCurrentColumnNO ++;
 		}
-		currentAttribute.put ("ROW_NO", nRowNO);
+		currentAttribute.put ("LINE_NO", nLineNO);
 		currentAttribute.put ("COLUMN_NO", nColumnNO);
 
 		//System.err.println ("----");
@@ -549,13 +550,13 @@ public class ANSIEscapeTool
 				if (ch == 0)	// null，结束，换下一行
 					break;
 
-				System.err.print ((iLine+1) + "行" + (iColumn+1) + "列");
-				int l_reset = 0;
+				//System.err.print ((iLine+1) + "行" + (iColumn+1) + "列");
+				//int l_reset = 0;
 				int l_bold = 0;
 				int l_reverse = 0;
 				int l_underline = 0;
-				boolean l_256color_fg = false;
-				boolean l_256color_bg = false;
+				//boolean l_256color_fg = false;
+				//boolean l_256color_bg = false;
 				int l_fg = 0;
 				int l_bg = 0;
 
@@ -570,13 +571,13 @@ public class ANSIEscapeTool
 
 				if (previous_attr != null)
 				{
-					l_reset = previous_attr.get ("reset")==null ? 0 : ((boolean)previous_attr.get ("reset") ?  1 : -1);
+					//l_reset = previous_attr.get ("reset")==null ? 0 : ((boolean)previous_attr.get ("reset") ?  1 : -1);
 					l_bold = previous_attr.get ("bold")==null ? 0 : ((boolean)previous_attr.get ("bold") ?  1 : -1);
 					l_reverse = previous_attr.get ("reverse")==null ? 0 : ((boolean)previous_attr.get ("reverse") ?  1 : -1);
 					l_underline = previous_attr.get ("underline")==null ? 0 : ((boolean)previous_attr.get ("underline") ?  1 : -1);
 
-					l_256color_fg = (Boolean)previous_attr.get ("256color_fg")==null ? false : (boolean)previous_attr.get ("256color_fg");
-					l_256color_bg = (Boolean)previous_attr.get ("256color_bg")==null ? false : (boolean)previous_attr.get ("256color_bg");
+					//l_256color_fg = (Boolean)previous_attr.get ("256color_fg")==null ? false : (boolean)previous_attr.get ("256color_fg");
+					//l_256color_bg = (Boolean)previous_attr.get ("256color_bg")==null ? false : (boolean)previous_attr.get ("256color_bg");
 					l_fg = previous_attr.get ("fg")==null ? 0 : (int)previous_attr.get ("fg");
 					l_bg = previous_attr.get ("bg")==null ? 0 : (int)previous_attr.get ("bg");
 				}
@@ -600,7 +601,7 @@ public class ANSIEscapeTool
 					)	// attr==null 表示没有属性 (可能是输出到缓冲区时填充的空格字符)，并且前面有背景色，此时需要清除其属性，否则如果前面有背景
 				{
 					sb.append (Colors.NORMAL);
-					System.err.print (" irc复位(之后，要清除该属性)");
+					//System.err.print (" irc复位(之后，要清除该属性)");
 					//if (attr!=null) attr.remove ("reset");
 
 					// 复位后，不管前面的属性，本属性有啥就输出啥
@@ -608,19 +609,19 @@ public class ANSIEscapeTool
 					if (r_bold==1)
 					{
 						sb.append (Colors.BOLD);
-						System.err.print (" 复位后irc高亮");
+						//System.err.print (" 复位后irc高亮");
 					}
 					if (r_reverse == 1)
 					{
 						sb.append (Colors.REVERSE);
-						System.err.print (" 复位后irc反色");
+						//System.err.print (" 复位后irc反色");
 					}
 					if (r_underline == 1)	// underline 有变动，要输出 underline 属性 (irc 两次/偶数次 underline 后关闭 underline)
 					{
 						sb.append (Colors.UNDERLINE);
-						System.err.print (" 复位后irc下划线");
+						//System.err.print (" 复位后irc下划线");
 					}
-					System.err.print (" (复位后颜色 " + r_fg + "," + r_bg + ")");
+					//System.err.print (" (复位后颜色 " + r_fg + "," + r_bg + ")");
 					if (r_fg != 0)
 					{	// 有前景色
 						if (r_256color_fg)
@@ -631,7 +632,7 @@ public class ANSIEscapeTool
 						{
 							sIRC_FG = ANSI_16_TO_IRC_16_COLORS [r_fg-30][r_bold==1?1:0];
 						}
-						System.err.print (" 复位后irc前景色 " + sIRC_FG);
+						//System.err.print (" 复位后irc前景色 " + sIRC_FG);
 					}
 					if (r_bg != 0)
 					{	// 有背景色
@@ -640,29 +641,29 @@ public class ANSIEscapeTool
 						else
 							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
 
-						System.err.print (" 复位后irc背景色 " + sIRC_BG);
+						//System.err.print (" 复位后irc背景色 " + sIRC_BG);
 					}
 				}
 				else
 				{
-					System.err.print (" 前bold=" + l_bold + " 本bold=" + r_bold);
+					//System.err.print (" 前bold=" + l_bold + " 本bold=" + r_bold);
 					if (l_bold != r_bold)	// bold 有变动，要输出 bold 属性 (irc 两次/偶数次 bold 后关闭 bold)
 					{
 						sb.append (Colors.BOLD);
-						System.err.print (" irc高亮");
+						//System.err.print (" irc高亮");
 					}
 					if (l_reverse != r_reverse)	// reverse 有变动，要输出 reverse 属性 (irc 两次/偶数次 reverse 后关闭 reverse)
 					{
 						sb.append (Colors.REVERSE);
-						System.err.print (" irc反色");
+						//System.err.print (" irc反色");
 					}
 					if (l_underline != r_underline)	// underline 有变动，要输出 underline 属性 (irc 两次/偶数次 underline 后关闭 underline)
 					{
 						sb.append (Colors.UNDERLINE);
-						System.err.print (" irc下划线");
+						//System.err.print (" irc下划线");
 					}
 
-					System.err.print (" (颜色 " + l_fg + "," + l_bg + "->" + r_fg + "," + r_bg + ")");
+					//System.err.print (" (颜色 " + l_fg + "," + l_bg + "->" + r_fg + "," + r_bg + ")");
 					if (l_fg != r_fg)
 					{	// 前景色变化了
 						if (r_256color_fg)
@@ -673,7 +674,7 @@ public class ANSIEscapeTool
 						{
 							sIRC_FG = ANSI_16_TO_IRC_16_COLORS [r_fg-30][r_bold==1?1:0];
 						}
-						System.err.print (" irc前景色 " + sIRC_FG);
+						//System.err.print (" irc前景色 " + sIRC_FG);
 					}
 					if (l_bg != r_bg)
 					{	// 背景色变化了
@@ -682,7 +683,7 @@ public class ANSIEscapeTool
 						else if (r_bg != 0)
 							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
 
-						System.err.print (" irc背景色 " + sIRC_BG);
+						//System.err.print (" irc背景色 " + sIRC_BG);
 					}
 				}
 				if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())		// 只有前景色
@@ -698,7 +699,7 @@ public class ANSIEscapeTool
 					sb.append (sIRC_FG + "," + sIRC_BG);
 				}
 
-				System.err.println ();
+				//System.err.println ();
 				// 输出字符
 				sb.append (ch);
 
@@ -763,15 +764,15 @@ public class ANSIEscapeTool
 		//  (2). 当前的行号、列号实际上是下一个输出的字符所处的位置，而不是当前字符的位置，所以，相对于当前字符的位置，又大了 1
 		//
 		// 所以，如果 行号=1，列号=2，实际上，里面只有 1 个字符，而这个字符的索引号是 0 (buf[0])
-		int nCurrentRowNO = 1;	// 当前行号，行号从 1 开始
+		int nCurrentLineNO = 1;	// 当前行号，行号从 1 开始
 		int nCurrentColumnNO = 1;	// 当前列号，列号从 1 开始
 
-		String sNewRowNO = "";	// 行号
+		String sNewLineNO = "";	// 行号
 		String sNewColumnNO = "";	// 列号
-		int nNewRowNO = 1;
+		int nNewLineNO = 1;
 		int nNewColumnNO = 1;
 
-		int nSavedRowNO = 1;
+		int nSavedLineNO = 1;
 		int nSavedColumnNO = 1;
 
 		int nDelta = 1;
@@ -838,12 +839,12 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 			matcher.appendReplacement (sbReplace, "");
 			if (sbReplace.length () > 0)
 			{
-				System.err.println ("写入缓冲区前的光标位置=" + nCurrentRowNO + " 行 " + nCurrentColumnNO + " 列");
-				previousCharacterAttribute.put ("ROW_NO", nCurrentRowNO);
+				//System.err.println ("写入缓冲区前的光标位置=" + nCurrentLineNO + " 行 " + nCurrentColumnNO + " 列");
+				previousCharacterAttribute.put ("LINE_NO", nCurrentLineNO);
 				previousCharacterAttribute.put ("COLUMN_NO", nCurrentColumnNO);
 				previousCharacterAttribute.put ("TERMINAL_COLUMNS", TERMINAL_COLUMNS);
-				PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute);	// 因为 regexp 每次遇到新的 ANSI Escape 时，之前的字符串还没输出，所以，需要用前面的属性输出前面的字符串
-				nCurrentRowNO = (int)previousCharacterAttribute.get ("ROW_NO");	// 因为写入字符串后，“光标”位置会变化，所以，要再读出来，供下次计算位置
+				PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute, TERMINAL_COLUMNS);	// 因为 regexp 每次遇到新的 ANSI Escape 时，之前的字符串还没输出，所以，需要用前面的属性输出前面的字符串
+				nCurrentLineNO = (int)previousCharacterAttribute.get ("LINE_NO");	// 因为写入字符串后，“光标”位置会变化，所以，要再读出来，供下次计算位置
 				nCurrentColumnNO = (int)previousCharacterAttribute.get ("COLUMN_NO");
 
 				sbReplace.delete (0, sbReplace.length ());
@@ -862,8 +863,9 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 			String sEscCmd = matcher.group (2);
 			if (sEscParams == null)
 				sEscParams = "";
+			char chEscCmd = sEscCmd.charAt (0);
 
-			if (sEscCmd.equals ("m"))
+			if (chEscCmd=='m')
 			{
 				// CSI n 'm' 序列: SGR – Select Graphic Rendition
 				String sgr_parameters;
@@ -871,7 +873,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				//String sIRC_FG = "", sIRC_BG = "";	// ANSI 字符颜色 / ANSI 背景颜色，之所以要加这两个变量，因为: 在 ANSI Escape 中，前景背景并无前后顺序之分，而 IRC Escape 则有顺序
 
 				sgr_parameters = sEscParams;
-				logger.fine ("SGR 所有参数: " + sgr_parameters);
+				//logger.fine ("SGR 所有参数: " + sgr_parameters);
 				String[] arraySGR = sgr_parameters.split (";");
 				for (i=0; i<arraySGR.length; i++)
 				{
@@ -883,46 +885,30 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 						if (! sgrParam.isEmpty())
 							nSGRParam = Integer.parseInt (sgrParam);
 					} catch (Exception e) {
-						e.printStackTrace ();
+						//e.printStackTrace ();
 					}
 					switch (nSGRParam)
 					{
 						case 0:	// 关闭
-							//currentCharacterAttribute.remove ("bold");
-							//currentCharacterAttribute.remove ("reverse");
-							//currentCharacterAttribute.remove ("underline");
-							//currentCharacterAttribute.remove ("italic");
-							//currentCharacterAttribute.remove ("256color-fg");
-							//currentCharacterAttribute.remove ("fg");
-							//currentCharacterAttribute.remove ("256color-bg");
-							//currentCharacterAttribute.remove ("bg");
 							currentCharacterAttribute.clear ();
 							currentCharacterAttribute.put ("reset", true);
-							logger.fine ("复位/关闭所有属性");
+							logger.finer ("复位/关闭所有属性");
 							break;
 
 						case 39:	// 默认前景色
-							//currentCharacterAttribute.put ("fg", DEFAULT_FOREGROUND_COLOR);
 							currentCharacterAttribute.remove ("fg");
-							logger.fine ("默认前景色");
+							logger.finer ("默认前景色");
 							break;
 						case 49:	// 默认背景色
-							//currentCharacterAttribute.clear ();
-							//iBold = 0;
-							//irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
-							//currentCharacterAttribute.put ("bg", DEFAULT_BACKGROUND_COLOR);
 							currentCharacterAttribute.remove ("bg");
-							logger.fine ("默认背景色");
+							logger.finer ("默认背景色");
 							break;
 
 						case 1:	// 粗体/高亮
-							//iBold = 1;
 							currentCharacterAttribute.put ("bold", true);
-							//irc_escape_sequence = irc_escape_sequence + Colors.BOLD;
-							logger.fine ("高亮 开");
+							logger.finer ("高亮 开");
 							break;
 						case 21:	// 关闭高亮 或者 双下划线
-							//iBold = 0;
 							currentCharacterAttribute.put ("bold", false);
 							logger.finer ("高亮 关");
 							break;
@@ -931,25 +917,21 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 						case 3:	// Italic: on      not widely supported. Sometimes treated as inverse.
 						// unbuffer 命令在 TERM=xterm-256color 或者 TERM=linux 执行 cal 命令时，输出 ESC [7m 和 ESC [27m
 						case 7:	// Image: Negative 前景背景色反转 inverse or reverse; swap foreground and background (reverse video)
-							//irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
 							currentCharacterAttribute.put ("reverse", true);
-							logger.fine ("反色 开");
+							logger.finer ("反色 开");
 							break;
 						case 23:	// Not italic, not Fraktur
 						case 27:	// Image: Positive 前景背景色正常。由于 IRC 没有这一项，所以，应该替换为 Colors.NORMAL 或者 再次翻转(反反得正)
-							//irc_escape_sequence = irc_escape_sequence + Colors.REVERSE;
-							//irc_escape_sequence = irc_escape_sequence + Colors.NORMAL;
 							currentCharacterAttribute.put ("reverse", false);
-							logger.fine ("反色 关");
+							logger.finer ("反色 关");
 							break;
 						case 4:	// 单下划线
-							//irc_escape_sequence = irc_escape_sequence + Colors.UNDERLINE;
 							currentCharacterAttribute.put ("underline", true);
 							logger.finer ("下划线 开");
 							break;
 						case 24:	// 下划线关闭
 							currentCharacterAttribute.put ("underline", false);
-							logger.fine ("下划线 关");
+							logger.finer ("下划线 关");
 							break;
 						case 30:	// 黑色
 						case 31:	// 深红色 / 浅红色
@@ -961,7 +943,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 						case 37:	// 浅灰 / 白色
 							nFG = nSGRParam;
 							currentCharacterAttribute.put ("fg", nFG);
-							logger.fine (GetANSIColorName(true, nSGRParam));
+							logger.finer (GetANSIColorName(true, nSGRParam));
 							break;
 						case 40:	// 黑色
 						case 41:	// 深红色 / 浅红色
@@ -973,7 +955,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 						case 47:	// 浅灰 / 白色
 							nBG = nSGRParam;
 							currentCharacterAttribute.put ("bg", nBG);
-							logger.fine (GetANSIColorName(false, nSGRParam) + "　背景");
+							logger.finer (GetANSIColorName(false, nSGRParam) + "　背景");
 							break;
 						case 38:
 						case 48:	// xterm-256 前景/背景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
@@ -985,15 +967,13 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 								{
 									currentCharacterAttribute.put ("256color-fg", true);
 									currentCharacterAttribute.put ("fg", iColorIndex);
-									//sIRC_FG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
-									logger.fine ("256　色前景色 " + iColorIndex);
+									logger.finer ("256　色前景色 " + iColorIndex);
 								}
 								else if (nSGRParam==48)
 								{
 									currentCharacterAttribute.put ("256color-bg", true);
 									currentCharacterAttribute.put ("bg", iColorIndex);
-									//sIRC_BG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
-									logger.fine ("256　色背景色 " + iColorIndex);
+									logger.finer ("256　色背景色 " + iColorIndex);
 								}
 							} catch (NumberFormatException e) {
 								e.printStackTrace ();
@@ -1005,66 +985,21 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 							break;
 					}
 				}
-
-				/*
-				// 如果同一批 SGR 参数中既包含了”0--复位“，又包含了其他属性，则去除”0--复位“属性
-				// 较详细: CSI 参数: [0;1;36;44m
-				if ( currentCharacterAttribute.get ("reset")!=null
-					&& (boolean)currentCharacterAttribute.get ("reset")
-					&& (
-						currentCharacterAttribute.get ("bold")!=null
-						|| currentCharacterAttribute.get ("reverse")!=null
-						|| currentCharacterAttribute.get ("underline")!=null
-						|| currentCharacterAttribute.get ("italic")!=null
-						|| currentCharacterAttribute.get ("fg")!=null
-						|| currentCharacterAttribute.get ("bg")!=null
-							)
-				)
-				{
-					currentCharacterAttribute.remove ("reset");
-					logger.fine ("去掉 复位 属性");
-				}
-				//*/
-	/*
-				// 如果这个 SGR 同时含有 16色、256色（虽然从未看到过），则 16 色的颜色设置会覆盖 256 色的颜色设置
-				if (nFG!=-1)
-					sIRC_FG = ANSI_16_TO_IRC_16_COLORS [nFG-30][iBold];
-				if (nBG!=-1)
-					sIRC_BG = ANSI_16_TO_IRC_16_COLORS [nBG-40][0];	// iBold -> 0 背景不高亮
-
-				if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())		// 只有前景色
-					irc_escape_sequence = irc_escape_sequence + sIRC_FG;
-				else if (sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())	// 只有背景色
-				{
-					sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
-					irc_escape_sequence = irc_escape_sequence + "\u0003," + sIRC_BG;
-				}
-				else if (!sIRC_FG.isEmpty() && !sIRC_BG.isEmpty())
-				{
-					sIRC_BG = sIRC_BG.substring (1);	// 去掉首个\u0003 字符
-					irc_escape_sequence = irc_escape_sequence + sIRC_FG + "," + sIRC_BG;
-				}
-
-	//logger.fine ("irc_escape_sequence: ");	// + irc_escape_sequence);
-	//HexDump (irc_escape_sequence);
-				matcher.appendReplacement (sbReplace, irc_escape_sequence);
-	//*/
-	//HexDump (line);
 			}
 
 			else if (
-					sEscCmd.equals ("A") || sEscCmd.equals ("B") || sEscCmd.equals ("C") || sEscCmd.equals ("D")
-					|| sEscCmd.equals ("E") || sEscCmd.equals ("F") || sEscCmd.equals ("G") || sEscCmd.equals ("H") || sEscCmd.equals ("f")
-					|| sEscCmd.equals ("d")|| sEscCmd.equals ("e")
-					|| sEscCmd.equals ("s")|| sEscCmd.equals ("u")
+					chEscCmd=='A' || chEscCmd=='B' || chEscCmd=='C' || chEscCmd=='D'
+					|| chEscCmd=='E' || chEscCmd=='F' || chEscCmd=='G' || chEscCmd=='H' || chEscCmd=='f'
+					|| chEscCmd=='d'|| chEscCmd=='e'
+					|| chEscCmd=='s'|| chEscCmd=='u'
 				)
 			{
-				logger.fine ("↑↓←→光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
-				nNewRowNO = nCurrentRowNO;
+				//logger.fine ("↑↓←→光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
+				nNewLineNO = nCurrentLineNO;
 				nNewColumnNO = nCurrentColumnNO;
 				nDelta = 1;
 
-				char chCursorCommand = sEscCmd.charAt (0);
+				char chCursorCommand = chEscCmd;;
 				try
 				{
 					if (!sEscParams.isEmpty())
@@ -1072,7 +1007,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				}
 				catch (Exception e)
 				{
-					e.printStackTrace ();
+					//e.printStackTrace ();
 				}
 				switch (chCursorCommand)
 				{
@@ -1083,10 +1018,10 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 						else
 							nNewColumnNO = nCurrentColumnNO;
 
-						nNewRowNO = nCurrentRowNO - nDelta;
-						if (nNewRowNO < 1)
-							nNewRowNO = 1;
-						logger.fine ("↑光标从当前行 " + nCurrentRowNO + " 向上 " + nDelta + " 行，到 " + nNewRowNO + " 行" + (chCursorCommand == 'F' ? "，光标移动到行首" : ""));
+						nNewLineNO = nCurrentLineNO - nDelta;
+						if (nNewLineNO < 1)
+							nNewLineNO = 1;
+						logger.finer ("↑光标从当前行 " + nCurrentLineNO + " 向上 " + nDelta + " 行，到 " + nNewLineNO + " 行" + (chCursorCommand == 'F' ? "，光标移动到行首" : ""));
 						break;
 					case 'B':	// 向下
 					case 'E':	// 向下，光标移动到最前
@@ -1095,159 +1030,224 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 						else
 							nNewColumnNO = nCurrentColumnNO;
 
-						nNewRowNO = nCurrentRowNO + nDelta;
-						logger.fine ("↓光标从当前行 " + nCurrentRowNO + " 向下 " + nDelta + " 行，到 " + nNewRowNO + " 行" + (chCursorCommand == 'E' ? "，光标移动到行首" : ""));
+						nNewLineNO = nCurrentLineNO + nDelta;
+						logger.finer ("↓光标从当前行 " + nCurrentLineNO + " 向下 " + nDelta + " 行，到 " + nNewLineNO + " 行" + (chCursorCommand == 'E' ? "，光标移动到行首" : ""));
 						break;
 					case 'C':	// 向右/前进
-						nNewRowNO = nCurrentRowNO;
+						nNewLineNO = nCurrentLineNO;
 						nNewColumnNO = nCurrentColumnNO + nDelta;
 						if (nNewColumnNO > TERMINAL_COLUMNS)
 							nNewColumnNO = TERMINAL_COLUMNS;
-						logger.fine ("→光标从当前列 " + nCurrentColumnNO + " 向右 " + nDelta + " 列，到 " + nNewColumnNO + " 列");
+						logger.finer ("→光标从当前列 " + nCurrentColumnNO + " 向右 " + nDelta + " 列，到 " + nNewColumnNO + " 列");
 						break;
 					case 'D':	// 向左/回退
-						nNewRowNO = nCurrentRowNO;
+						nNewLineNO = nCurrentLineNO;
 						nNewColumnNO = nCurrentColumnNO - nDelta;
 						if (nNewColumnNO < 1)
 							nNewColumnNO = 1;
-						logger.fine ("←光标从当前列 " + nCurrentColumnNO + " 向左 " + nDelta + " 列，到 " + nNewColumnNO + " 列");
+						logger.finer ("←光标从当前列 " + nCurrentColumnNO + " 向左 " + nDelta + " 列，到 " + nNewColumnNO + " 列");
 						break;
 					case 'G':	// 光标水平绝对位置
-						nNewRowNO = nCurrentRowNO;
+						nNewLineNO = nCurrentLineNO;
 						nNewColumnNO = nDelta;
 						if (nNewColumnNO < 1)
 							nNewColumnNO = 1;
 						else if (nNewColumnNO > TERMINAL_COLUMNS)
 							nNewColumnNO = TERMINAL_COLUMNS;
-						logger.fine ("←→光标从当前列 " + nCurrentColumnNO + " 水平移动到第 " + nNewColumnNO + " 列");
+						logger.finer ("←→光标从当前列 " + nCurrentColumnNO + " 水平移动到第 " + nNewColumnNO + " 列");
 						break;
 					case 'H':	// 指定位置 CUP – Cursor Position
 					case 'f':	// 指定位置 HVP – Horizontal and Vertical Position
-						nNewRowNO = 1;
+						nNewLineNO = 1;
 						nNewColumnNO = 1;
+						sNewLineNO = "";
+						sNewColumnNO = "";
 						if (!sEscParams.isEmpty())
 						{
 							String[] arrayCursorPosition = sEscParams.split (";", 2);
-							sNewRowNO = arrayCursorPosition[0];
+							sNewLineNO = arrayCursorPosition[0];
 							if (arrayCursorPosition.length>1)
 								sNewColumnNO = arrayCursorPosition[1];
 						}
-						if (!sNewRowNO.isEmpty())
-							nNewRowNO = Integer.parseInt (sNewRowNO);
+						if (!sNewLineNO.isEmpty())
+							nNewLineNO = Integer.parseInt (sNewLineNO);
 						if (!sNewColumnNO.isEmpty())
 							nNewColumnNO = Integer.parseInt (sNewColumnNO);
-						logger.fine ("光标定位到: " + nNewRowNO + " 行 " + nNewColumnNO + " 列");
+						logger.finer ("光标定位到: " + nNewLineNO + " 行 " + nNewColumnNO + " 列");
 						break;
 					case 'd':	// 光标绝对行号 VPA – Line/Vertical Position Absolute [row] (default = [1,column]) (VPA).
 					case 'e':	// 光标相对行号 VPR - Line Position Relative [rows] (default = [row+1,column]) (VPR).
 						nNewColumnNO = nCurrentColumnNO;
 						if (chCursorCommand == 'd')
 						{
-							nNewRowNO = nDelta;
-							logger.fine ("↑↓光标跳至 " + nNewRowNO + " 行");
+							nNewLineNO = nDelta;
+							logger.fine ("↑↓光标跳至 " + nNewLineNO + " 行");
 						}
 						else if (chCursorCommand == 'e')
 						{
-							nNewRowNO += nDelta;
-							logger.fine ("↑↓光标跳 " + nDelta + " 行，到 " + nNewRowNO + " 行");
+							nNewLineNO += nDelta;
+							logger.finer ("↑↓光标跳 " + nDelta + " 行，到 " + nNewLineNO + " 行");
 						}
 						break;
 					case 's':
-						logger.fine ("记忆光标位置: " + nCurrentRowNO + " 行 " + nCurrentColumnNO + " 列");
-						nSavedRowNO = nCurrentRowNO;
+						logger.finer ("记忆光标位置: " + nCurrentLineNO + " 行 " + nCurrentColumnNO + " 列");
+						nSavedLineNO = nCurrentLineNO;
 						nSavedColumnNO = nCurrentColumnNO;
 						break;
 					case 'u':
-						nNewRowNO = nSavedRowNO;
+						nNewLineNO = nSavedLineNO;
 						nNewColumnNO = nSavedColumnNO;
-						logger.fine ("光标位置恢复到记忆位置 " + nNewRowNO + " 行 " + nNewColumnNO + " 列");
+						logger.finer ("光标位置恢复到记忆位置 " + nNewLineNO + " 行 " + nNewColumnNO + " 列");
 						break;
 				}
 
-				nCurrentRowNO = nNewRowNO;
+				nCurrentLineNO = nNewLineNO;
 				nCurrentColumnNO = nNewColumnNO;
-				System.err.println ("光标移动后的位置=" + nCurrentRowNO + " 行 " + nCurrentColumnNO + " 列");
-				/*
-				// 光标替换
-				if (nNewRowNO > nCurrentRowNO)
-				{	// 光标跳到 nRowNO 行，当前列，这里只替换为差异行数的换行符
-					//StringBuilder sb = new StringBuilder ();
-					for (i=0; i<(nNewRowNO-nCurrentRowNO); i++)
-						sbReplace.append ("\n");
-
-					for (i=1; i<nNewColumnNO; i++)	// 换行后，直接把列号数量的空格补充。 缺陷：如果在屏幕上此位置前已经有内容，则这样处理的结果与屏幕显示的肯定不一致
-						sbReplace.append (" ");
-
-					logger.fine ("指定跳转的行号比传入的行号多了: " + (nNewRowNO-nCurrentRowNO) + " 行");
-					//matcher.appendReplacement (sbReplace, "");
-					nCurrentRowNO += (nNewRowNO-nCurrentRowNO);
-					nCurrentColumnNO = 1;
-				}
-				else if (nNewRowNO == nCurrentRowNO)
-				{
-					logger.fine ("指定跳转的行号 = 传入的行号");
-					if (nNewColumnNO > nCurrentColumnNO)
-					{	// 如果列号比当前列号大，则补充空格
-						logger.fine ("  指定的列号 " + nNewColumnNO + " > 计算的列号 " + nCurrentColumnNO);
-						//StringBuilder sb = new StringBuilder ();
-						//sb.append (line.substring (0, iStart));
-						for (i=0; i<(nNewColumnNO-nCurrentColumnNO); i++)
-							sbReplace.append (" ");	// 在计算的列和指定的列之间填充空格
-						//if (iEnd < line.length())
-						//	sb.append (line.substring (iEnd));
-
-						//line = sb.toString ();
-						//matcher.appendReplacement (sbReplace, "");
-					}
-					else
-					{
-						logger.fine ("  指定的列号 " + nNewColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
-						//matcher.appendReplacement (sbReplace, "");
-					}
-				}
-				else //if (nRowNO < nCurrentRowNO)
-				{
-					logger.fine ("指定跳转的行号 < 传入的行号");
-					//matcher.appendReplacement (sbReplace, "");
-				}
-				//*/
 			}
-			else if (
-					sEscCmd.equals ("J") || sEscCmd.equals ("K")
-				)
+
+			else if (chEscCmd=='J' || chEscCmd=='K')
 			{
-				//matcher.appendReplacement (sbReplace, "");
+				nDelta = 0;
+				try
+				{
+					if (!sEscParams.isEmpty())
+						nDelta = Integer.parseInt (sEscParams);
+				}
+				catch (Exception e)
+				{
+					//e.printStackTrace ();
+				}
+
+				ClearText (listScreenBuffer, listAttributes, currentCharacterAttribute, chEscCmd, nDelta, nCurrentLineNO, nCurrentColumnNO, TERMINAL_COLUMNS);
 			}
 		}
 		matcher.appendTail (sbReplace);
-		previousCharacterAttribute.put ("ROW_NO", nCurrentRowNO);
+		previousCharacterAttribute.put ("LINE_NO", nCurrentLineNO);
 		previousCharacterAttribute.put ("COLUMN_NO", nCurrentColumnNO);
 		previousCharacterAttribute.put ("TERMINAL_COLUMNS", TERMINAL_COLUMNS);
-		logger.finer ("光标在将最后一个字符串写入缓冲区前的位置=" + nCurrentRowNO + " 行 " + nCurrentColumnNO + " 列");
-		PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute);
+		logger.finer ("光标在将最后一个字符串写入缓冲区前的位置=" + nCurrentLineNO + " 行 " + nCurrentColumnNO + " 列");
+		PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute, TERMINAL_COLUMNS);
 
-		//sANSIString = sbReplace.toString ();
-		//sbReplace = new StringBuffer ();
-
-//HexDump (line);
-		/*
-		// 剔除其他控制序列字符串后，最后再处理光标定位……
-		// 设置光标位置，这个无法在 irc 中实现，现在只是简单的替换为空格或者换行。htop 的转换结果会不尽人意
-		matcher = CSI_CursorMoving_PATTERN_Replace.matcher (sANSIString);
-		while (matcher.find())
-		{
-
-			//matcher.reset (line);
-		}
-		matcher.appendTail (sbReplace);
-		sANSIString = sbReplace.toString ();
-		sbReplace = new StringBuffer ();
-		//*/
-		//HexDump (line);
-		//return sANSIString;
 		return ToIRCEscapeSequence (listScreenBuffer, listAttributes);
 	}
 
+	/**
+	 * 清除文字。
+	 * 用空格清除屏幕
+	 * @param listScreenBuffer 屏幕缓冲区
+	 * @param listAttributes 屏幕缓冲区的字符属性
+	 * @param currentCharacterAttribute 当前字符属性
+	 * @param cmd 清除命令，只能为 <code>J</code>--屏幕内清除 或者 <code>K</code>--行内清除
+	 * @param param 只能为 <code>0</code> 或者 <code>1</code> 或者 <code>2</code>
+	 * @param nLineNO 当前行号
+	 * @param nColumnNO 当前列号
+	 * @param TERMINAL_COLUMNS 屏幕宽度（每行字符数量）
+	 */
+	public static void ClearText (List<CharBuffer> listScreenBuffer, List<List<Map<String, Object>>>listAttributes, Map<String, Object> currentCharacterAttribute, char cmd, int param, int nLineNO, int nColumnNO, final int TERMINAL_COLUMNS)
+	{
+		if (param > 2)
+		{
+			//throw new RuntimeException ("文本清除 ANSI 序列的数字参数为 " + nDelta + ", 是无效的");
+			param = 2;
+		}
+
+		CharBuffer cbLine = null;
+		List<Map<String, Object>> lineAttrs = null;
+		int i=0, nStartLineNO=0, nStartColumnNO=0, nEndLineNO=0, nEndColumnNO=0, nOtherLines=0;
+		StringBuffer sb = new StringBuffer ();	// 用空格去“清除/覆盖”字符，而不是把字符+属性全部删除
+
+		// 设置行内列号取值范围
+		if (param == 0 || param == 1)
+		{
+			if (param == 0)
+			{
+				nStartColumnNO = nColumnNO;
+				nEndColumnNO = TERMINAL_COLUMNS + 1;
+			}
+			else if (param == 1)
+			{
+				nStartColumnNO = 1;
+				nEndColumnNO = nColumnNO;
+			}
+			for (int col=nStartColumnNO; col<nEndColumnNO; col++)	// 行内应该覆盖的字符数量
+				sb.append (" ");
+		}
+
+		Map<String, Object> attr = new HashMap<String, Object> ();
+		attr.putAll (currentCharacterAttribute);
+		attr.remove ("reset");
+
+		if (cmd=='J')
+		{
+			switch (param)
+			{
+				case 0:
+				case 1:
+					if (param == 0)
+					{
+						nStartLineNO = nLineNO;
+						//nEndLineNO = listScreenBuffer.size () + 1;
+						if (nLineNO >= listScreenBuffer.size ())	// 如果当前行已经 是/超过 最后一行，则没有其他行需要清除
+							nOtherLines = 0;
+						else
+							nOtherLines = listScreenBuffer.size() - nLineNO;
+						logger.finer ("从 " + nLineNO + " 行 " + nColumnNO + " 列向下向后 清屏，到最后一行 " + listScreenBuffer.size () + " 行为止");
+					}
+					else if (param == 1)
+					{
+						nStartLineNO = 1;
+						//nEndLineNO = nLineNO;
+						nOtherLines = nLineNO - 1;
+						logger.finer ("从 " + nLineNO + " 行 " + nColumnNO + " 列向上向前 清屏，到第一行");
+					}
+					for (i=0; i<nOtherLines; i++)	// 本行外其他行覆盖的字符数量
+					{
+						for (int col=0; col<TERMINAL_COLUMNS; col++)
+							sb.append (" ");
+					}
+					break;
+				case 2:
+					logger.finer (nLineNO + " 行 " + nColumnNO + " 列 全部清屏");
+					//sb.delete (0, sb.length ());
+					nStartLineNO = 1;
+					nStartColumnNO = 1;
+					nOtherLines = listScreenBuffer.size ();
+					for (i=0; i<nOtherLines; i++)	// 全屏幕（不完全正确，确切的说是全缓冲区，因为这不是真实屏幕，没有“高度”这个概念）
+					{
+						for (int col=0; col<TERMINAL_COLUMNS; col++)
+							sb.append (" ");
+					}
+					break;
+			}
+			attr.put ("LINE_NO", nStartLineNO);
+			attr.put ("COLUMN_NO", nStartColumnNO);
+
+			PutsToScreenBuffer (listScreenBuffer, listAttributes, sb, attr, TERMINAL_COLUMNS);	// 覆盖/清屏
+		}
+		else if (cmd=='K')
+		{
+			switch (param)
+			{
+				case 0:
+				case 1:
+					if (param == 0)
+						logger.finer (nLineNO + " 行从 " + nColumnNO + " 列 向后/向右清除字符");
+					else if (param == 1)
+						logger.finer (nLineNO + " 行从 " + nColumnNO + " 列 向前/向左清除字符");
+					break;
+				case 2:
+					logger.finer (nLineNO + " 行 全部清除");
+					nStartColumnNO = 1;
+					for (int col=0; col<TERMINAL_COLUMNS; col++)
+						sb.append (" ");
+					break;
+			}
+			attr.put ("LINE_NO", nLineNO);
+			attr.put ("COLUMN_NO", nStartColumnNO);
+
+			PutsToScreenBuffer (listScreenBuffer, listAttributes, sb, attr, TERMINAL_COLUMNS);	// 覆盖/清屏
+		}
+	}
 
 
 
@@ -1275,7 +1275,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 		StringBuffer sbReplace = new StringBuffer ();
 
 		int iStart = 0;
-		int nCurrentRowNO = nLineNO;
+		int nCurrentLineNO = nLineNO;
 		int nCurrentColumnNO = 0;
 		int iBold = 0;
 		// CSI n 'm' 序列: SGR – Select Graphic Rendition
@@ -1421,13 +1421,13 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 		matcher = CSI_CursorMoving_PATTERN_Replace.matcher (line);
 		while (matcher.find())
 		{
-			nCurrentRowNO = nLineNO;
+			nCurrentLineNO = nLineNO;
 			nCurrentColumnNO = 1;
 			String cursor_parameters;
-			String sRowNO = "";	// 行号
-			int nRowNO = 1;
-			String sColumnNO = "";	// 列号
-			int nColumnNO = 1;
+			String sNewLineNO = "";	// 行号
+			int nNewLineNO = 1;
+			String sNewColumnNO = "";	// 列号
+			int nNewColumnNO = 1;
 			int nDelta = 1;
 
 			String ansi_escape_sequence = matcher.group();
@@ -1441,7 +1441,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				continue;
 			}
 			iStart = matcher.start ();
-			//System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentRowNO + "行" + nCurrentColumnNO + "列]");
+			//System.out.println ("匹配到的字符串=[" + ansi_escape_sequence + "], 匹配到的位置=[" + iStart + "-" + iEnd + "], 计算行号列号=[" + nCurrentLineNO + "行" + nCurrentColumnNO + "列]");
 //HexDump(ansi_escape_sequence);
 			logger.fine ("↑↓←→光标移动 ANSI 转义序列: " + ansi_escape_sequence.substring(1));
 			cursor_parameters = sCursorDelta;	//ansi_escape_sequence.substring (2, ansi_escape_sequence.length()-1);
@@ -1457,7 +1457,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				if (c=='\n')
 				{
 					logger.finer ("在 " + i + " 处有换行符");
-					nCurrentRowNO ++;
+					nCurrentLineNO ++;
 					nCurrentColumnNO = 1;
 				}
 				else if (c==0x03)	// 前面已经替换后的 IRC 颜色序列
@@ -1480,7 +1480,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				}
 			}
 ////System.out.println ();
-			logger.fine ("当前行号列号: " + nCurrentRowNO + " 行, " + nCurrentColumnNO + " 列");
+			logger.fine ("当前行号列号: " + nCurrentLineNO + " 行, " + nCurrentColumnNO + " 列");
 
 			switch (chCursorCommand)
 			{
@@ -1491,88 +1491,88 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				//  matcher.appendReplacement (sbReplace, "");
 				//	continue;
 				case 'B':	// 向下
-					nColumnNO = nCurrentColumnNO;
+					nNewColumnNO = nCurrentColumnNO;
 					if (!cursor_parameters.isEmpty())
 						nDelta = Integer.parseInt (cursor_parameters);
 
-					nRowNO = nCurrentRowNO + nDelta;
+					nNewLineNO = nCurrentLineNO + nDelta;
 					logger.fine ("↓光标向下 " + nDelta + " 行");
 					break;
 				case 'd':	// 光标绝对行号
-					nColumnNO = nCurrentColumnNO;
+					nNewColumnNO = nCurrentColumnNO;
 					if (!cursor_parameters.isEmpty())
-						nRowNO = Integer.parseInt (cursor_parameters);
+						nNewLineNO = Integer.parseInt (cursor_parameters);
 
-					logger.fine ("光标跳至 " + nRowNO + " 行");
+					logger.fine ("光标跳至 " + nNewLineNO + " 行");
 					break;
 				case 'E':	// 向下，光标移动到最前
 					//nColumnNO = 1;
 					if (!cursor_parameters.isEmpty())
 						nDelta = Integer.parseInt (cursor_parameters);
 
-					nRowNO = nCurrentRowNO + nDelta;
+					nNewLineNO = nCurrentLineNO + nDelta;
 					logger.fine ("↓光标向下 " + nDelta + " 行, 并移动到行首");
 					break;
 				case 'G':	// 光标水平绝对位置
-					nRowNO = nCurrentRowNO;
+					nNewLineNO = nCurrentLineNO;
 					if (!cursor_parameters.isEmpty())
-						nColumnNO = Integer.parseInt (cursor_parameters);
+						nNewColumnNO = Integer.parseInt (cursor_parameters);
 
-					logger.fine ("←→光标水平移动到第 " + nColumnNO + " 列");
-					if (nColumnNO < nCurrentColumnNO)
+					logger.fine ("←→光标水平移动到第 " + nNewColumnNO + " 列");
+					if (nNewColumnNO < nCurrentColumnNO)
 					{
-						nColumnNO = nCurrentColumnNO;
+						nNewColumnNO = nCurrentColumnNO;
 						logger.fine ("    光标水平移动方向是回退方向的，忽略之");
 					}
 					break;
 				case 'C':	// 向右/前进
-					nRowNO = nCurrentRowNO;
+					nNewLineNO = nCurrentLineNO;
 					if (!cursor_parameters.isEmpty())
 						nDelta = Integer.parseInt (cursor_parameters);
 
-					nColumnNO = nCurrentColumnNO + nDelta;
+					nNewColumnNO = nCurrentColumnNO + nDelta;
 					logger.fine ("→光标向右 " + nDelta + " 列");
 					break;
 				case 'H':	// 指定位置
 					if (!cursor_parameters.isEmpty())
 					{
 						String[] arrayCursorPosition = cursor_parameters.split (";", 2);
-						sRowNO = arrayCursorPosition[0];
+						sNewLineNO = arrayCursorPosition[0];
 						if (arrayCursorPosition.length>1)
-							sColumnNO = arrayCursorPosition[1];
+							sNewColumnNO = arrayCursorPosition[1];
 					}
-					if (!sRowNO.isEmpty())
-						nRowNO = Integer.parseInt (sRowNO);
-					if (!sColumnNO.isEmpty())
-						nColumnNO = Integer.parseInt (sColumnNO);
-					logger.fine ("光标定位到: " + nRowNO + " 行, " + nColumnNO + " 列");
+					if (!sNewLineNO.isEmpty())
+						nNewLineNO = Integer.parseInt (sNewLineNO);
+					if (!sNewColumnNO.isEmpty())
+						nNewColumnNO = Integer.parseInt (sNewColumnNO);
+					logger.fine ("光标定位到: " + nNewLineNO + " 行, " + nNewColumnNO + " 列");
 					break;
 			}
 
 			// 替换
-			if (nRowNO > nCurrentRowNO)
-			{	// 光标跳到 nRowNO 行，当前列，这里只替换为差异行数的换行符
+			if (nNewLineNO > nCurrentLineNO)
+			{	// 光标跳到 nLineNO 行，当前列，这里只替换为差异行数的换行符
 				//StringBuilder sb = new StringBuilder ();
-				for (i=0; i<(nRowNO-nCurrentRowNO); i++)
+				for (i=0; i<(nNewLineNO-nCurrentLineNO); i++)
 					sbReplace.append ("\n");
 
-				for (i=1; i<nColumnNO; i++)	// 换行后，直接把列号数量的空格补充。 缺陷：如果在屏幕上此位置前已经有内容，则这样处理的结果与屏幕显示的肯定不一致
+				for (i=1; i<nNewColumnNO; i++)	// 换行后，直接把列号数量的空格补充。 缺陷：如果在屏幕上此位置前已经有内容，则这样处理的结果与屏幕显示的肯定不一致
 					sbReplace.append (" ");
 
-				logger.fine ("指定跳转的行号比传入的行号多了: " + (nRowNO-nCurrentRowNO) + " 行");
+				logger.fine ("指定跳转的行号比传入的行号多了: " + (nNewLineNO-nCurrentLineNO) + " 行");
 				matcher.appendReplacement (sbReplace, "");
-				nCurrentRowNO += (nRowNO-nCurrentRowNO);
+				nCurrentLineNO += (nNewLineNO-nCurrentLineNO);
 				nCurrentColumnNO = 1;
 			}
-			else if (nRowNO == nCurrentRowNO)
+			else if (nNewLineNO == nCurrentLineNO)
 			{
 				logger.fine ("指定跳转的行号 = 传入的行号");
-				if (nColumnNO > nCurrentColumnNO)
+				if (nNewColumnNO > nCurrentColumnNO)
 				{	// 如果列号比当前列号大，则补充空格
-					logger.fine ("  指定的列号 " + nColumnNO + " > 计算的列号 " + nCurrentColumnNO);
+					logger.fine ("  指定的列号 " + nNewColumnNO + " > 计算的列号 " + nCurrentColumnNO);
 					//StringBuilder sb = new StringBuilder ();
 					//sb.append (line.substring (0, iStart));
-					for (i=0; i<(nColumnNO-nCurrentColumnNO); i++)
+					for (i=0; i<(nNewColumnNO-nCurrentColumnNO); i++)
 						sbReplace.append (" ");	// 在计算的列和指定的列之间填充空格
 					//if (iEnd < line.length())
 					//	sb.append (line.substring (iEnd));
@@ -1582,11 +1582,11 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				}
 				else
 				{
-					logger.fine ("  指定的列号 " + nColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
+					logger.fine ("  指定的列号 " + nNewColumnNO + " <= 计算的列号 " + nCurrentColumnNO);
 					matcher.appendReplacement (sbReplace, "");
 				}
 			}
-			else //if (nRowNO < nCurrentRowNO)
+			else //if (nLineNO < nCurrentLineNO)
 			{
 				logger.fine ("指定跳转的行号 < 传入的行号");
 				matcher.appendReplacement (sbReplace, "");
@@ -1600,6 +1600,92 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 
 		//HexDump (line);
 		return line;
+	}
+
+	public static String[] IBM_437_ControlCharacters =
+	{
+		"\u0001",
+		"\u0002",
+		"\u0003",
+		"\u0004",
+		"\u0005",
+		"\u0006",
+		"\u0007",
+		"\u0008",
+		//"\u0009",	// \t
+		//"\n",	// \u000A
+
+		//"\u000B",
+		"\u000C",
+		//"\r",	// \u000D
+		"\u000E",
+		"\u000F",
+		"\u0010",
+		"\u0011",
+		"\u0012",
+		"\u0013",
+		"\u0014",
+
+		"\u0015",
+		"\u0016",
+		"\u0017",
+		"\u0018",
+		"\u0019",
+		"\u001A",
+		//"\u001B",
+		"\u001C",
+		"\u001D",
+		"\u001E",
+
+		"\u001F",
+		"\u007F",
+	};
+
+	// http://stackoverflow.com/questions/14553178/encoding-%E2%98%BA-as-ibm-437-fails-while-other-valid-characters-like-%C3%A9-succeed
+	// http://stackoverflow.com/questions/14553178/encoding-☺-as-ibm-437-fails-while-other-valid-characters-like-é-succeed
+	public static String[] IBM_437_ControlCharacters_Translate =
+	{
+		// echo -ne '\x26\x3A\x26\x3B\x26\x65\x26\x66\x26\x63\x26\x60\x20\x22\x25\xD8\x25\xCB\x25\xD9\x26\x42\x26\x40\x26\x6A\x26\x6B\x26\x3C\x25\xBA\x25\xC4\x21\x95\x20\x3C\x00\xB6\x00\xA7\x25\xAC\x21\xA8\x21\x91\x21\x93\x21\x92\x21\x90\x22\x1F\x21\x94\x25\xB2\x25\xBC\x23\x02' | iconv -f utf16be
+		//
+		"\u263A",	// ☺
+		"\u263B",	// ☻
+		"\u2665",	// ♥
+		"\u2666",	// ♦
+		"\u2663",	// ♣
+		"\u2660",	// ♠
+		"\u2022",	// •
+		"\u25D8",	// ◘
+		//"\u25CB",	// ○
+		//"\u25D9",	// ◙
+
+		//"\u2642",	// ♂
+		"\u2640",	// ♀
+		//"\u266A",	// ♪
+		"\u266B",	// ♫
+		"\u263C",	// ☼
+		"\u25BA",	// ►
+		"\u25C4",	// ◄
+		"\u2195",	// ↕
+		"\u203C",	// ‼
+		"\u00B6",	// ¶
+
+		"\u00A7",	// §
+		"\u25AC",	// ▬
+		"\u21A8",	// ↨
+		"\u2191",	// ↑
+		"\u2193",	// ↓
+		"\u2192",	// →
+		//"\u2190",	// ←
+		"\u221F",	// ∟
+		"\u2194",	// ↔
+		"\u25B2",	// ▲
+
+		"\u25BC",	// ▼
+		"\u2302",	// ⌂
+	};
+	public static String Fix437Characters (String src)
+	{
+		return StringUtils.replaceEach (src, IBM_437_ControlCharacters, IBM_437_ControlCharacters_Translate);
 	}
 
 	public static void main (String[] args) throws IOException
@@ -1635,6 +1721,10 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 		fis.read (buf);
 
 		String sSrc = new String (buf, sCharSet);
+		if (cs.equals (Charset.forName("437")))
+		{
+			sSrc = Fix437Characters (sSrc);
+		}
 
 		Handler[] handlers = logger.getHandlers ();
 		for (Handler handler : handlers)
