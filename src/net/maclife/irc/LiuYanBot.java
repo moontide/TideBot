@@ -13,6 +13,7 @@ import java.util.regex.*;
 import javax.script.*;
 
 import org.apache.commons.io.*;
+import org.apache.commons.io.output.*;
 import org.apache.commons.lang3.*;
 import org.apache.commons.dbcp2.*;
 //import org.apache.commons.io.*;
@@ -42,6 +43,9 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 15;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
 	public static final int WATCH_DOG_TIMEOUT_LENGTH_LIMIT = 300;
 
+	public static final int MAX_SCREEN_LINES = 200;	// 最大屏幕高度
+	public static final int MAX_SCREEN_COLUMNS = 400;	// 最大屏幕宽度
+
 	public final Charset JVM_CHARSET = Charset.defaultCharset();
 	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
 
@@ -51,43 +55,43 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
 
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
-	public static final String BOT_PRIMARY_COMMAND_Help	= "Help";
-	public static final String BOT_PRIMARY_COMMAND_Alias	= "/Alias";
-	public static final String BOT_PRIMARY_COMMAND_Cmd	= "Cmd";
-	public static final String BOT_PRIMARY_COMMAND_ParseCmd	= "ParseCmd";
-	public static final String BOT_PRIMARY_COMMAND_IPLocation	= "IPLocation";
-	public static final String BOT_PRIMARY_COMMAND_GeoIP	= "GeoIP";
-	public static final String BOT_PRIMARY_COMMAND_PageRank = "PageRank";
-	public static final String BOT_PRIMARY_COMMAND_StackExchange = "StackExchange";
-	public static final String BOT_PRIMARY_COMMAND_Google = "/Google";
-	public static final String BOT_PRIMARY_COMMAND_RegExp = "RegExp";
-	public static final String BOT_PRIMARY_COMMAND_Ban	= "/ban";
-	public static final String BOT_PRIMARY_COMMAND_JavaScript	= "JavaScript";
-	public static final String BOT_PRIMARY_COMMAND_Java	= "Java";
-	public static final String BOT_PRIMARY_COMMAND_TextArt	= "ANSIArt";
-	public static final String BOT_PRIMARY_COMMAND_Tag	= "dic";
+	public static final String BOT_PRIMARY_COMMAND_Help	            = "Help";
+	public static final String BOT_PRIMARY_COMMAND_Alias	        = "/Alias";
+	public static final String BOT_PRIMARY_COMMAND_Cmd	            = "Cmd";
+	public static final String BOT_PRIMARY_COMMAND_ParseCmd	        = "ParseCmd";
+	public static final String BOT_PRIMARY_COMMAND_IPLocation	    = "IPLocation";
+	public static final String BOT_PRIMARY_COMMAND_GeoIP	        = "GeoIP";
+	public static final String BOT_PRIMARY_COMMAND_PageRank         = "PageRank";
+	public static final String BOT_PRIMARY_COMMAND_StackExchange    = "StackExchange";
+	public static final String BOT_PRIMARY_COMMAND_Google           = "/Google";
+	public static final String BOT_PRIMARY_COMMAND_RegExp           = "RegExp";
+	public static final String BOT_PRIMARY_COMMAND_Ban	            = "/ban";
+	public static final String BOT_PRIMARY_COMMAND_JavaScript	    = "JavaScript";
+	public static final String BOT_PRIMARY_COMMAND_Java	            = "Java";
+	public static final String BOT_PRIMARY_COMMAND_TextArt	        = "ANSIArt";
+	public static final String BOT_PRIMARY_COMMAND_Tag	            = "dic";
 
-	public static final String BOT_PRIMARY_COMMAND_Time	= "Time";
-	public static final String BOT_PRIMARY_COMMAND_Action	= "Action";
-	public static final String BOT_PRIMARY_COMMAND_Notice	= "Notice";
+	public static final String BOT_PRIMARY_COMMAND_Time	            = "/Time";
+	public static final String BOT_PRIMARY_COMMAND_Action	        = "Action";
+	public static final String BOT_PRIMARY_COMMAND_Notice	        = "Notice";
 
-	public static final String BOT_PRIMARY_COMMAND_URLDecode = "URLDecode";
-	public static final String BOT_PRIMARY_COMMAND_URLEecode = "URLEecode";
-	public static final String BOT_PRIMARY_COMMAND_HTTPHead = "HTTPHead";
+	public static final String BOT_PRIMARY_COMMAND_URLDecode        = "URLDecode";
+	public static final String BOT_PRIMARY_COMMAND_URLEecode        = "URLEecode";
+	public static final String BOT_PRIMARY_COMMAND_HTTPHead         = "HTTPHead";
 
-	public static final String BOT_PRIMARY_COMMAND_TimeZones	= "TimeZones";
-	public static final String BOT_PRIMARY_COMMAND_Locales	= "Locales";
-	public static final String BOT_PRIMARY_COMMAND_Env	= "Env";
-	public static final String BOT_PRIMARY_COMMAND_Properties	= "Properties";
+	public static final String BOT_PRIMARY_COMMAND_TimeZones	    = "TimeZones";
+	public static final String BOT_PRIMARY_COMMAND_Locales	        = "Locales";
+	public static final String BOT_PRIMARY_COMMAND_Env	            = "Env";
+	public static final String BOT_PRIMARY_COMMAND_Properties	    = "Properties";
 
-	public static final String BOT_PRIMARY_COMMAND_Set	= "/set";
-	public static final String BOT_PRIMARY_COMMAND_Raw	= "/raw";
-	public static final String BOT_PRIMARY_COMMAND_Version	= "Version";
+	public static final String BOT_PRIMARY_COMMAND_Set	            = "/set";
+	public static final String BOT_PRIMARY_COMMAND_Raw	            = "/raw";
+	public static final String BOT_PRIMARY_COMMAND_Version	        = "/Version";
 
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Channel = "/channel";	// 更改当前频道
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Msg = "/msg";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action = "/me";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick = "/nick";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Channel  = "/channel";	// 更改当前频道
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Msg      = "/msg";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action   = "/me";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick     = "/nick";
 	static final String[][] BOT_COMMAND_ALIASES =
 	{
 		{BOT_PRIMARY_COMMAND_Help, },
@@ -102,7 +106,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split",},
 		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip",},
 		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
-		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "字符画", "字符艺术", "文字画", "文字艺术",},
+		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术",},
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
@@ -724,6 +728,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			boolean opt_output_username = true;
 			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
+			boolean opt_escape_for_cursor_moving = false;	// 第二种方式 escape，此方式需要先把数据全部读完，然后再 escape，不能逐行处理。这是为了处理带有光标移动的 ANSI 转义序列而设置的
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
 			boolean opt_max_response_lines_specified = false;	// 是否指定了最大响应行数，如果指定了的话，达到行数后，就不再提示“[已达到响应行数限制，剩余的行将被忽略]”
 			int opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH;
@@ -757,9 +762,11 @@ public class LiuYanBot extends PircBot implements Runnable
 						logger.finer ("cmd 命令“输出 stderr”设置为: " + opt_ansi_escape_to_irc_escape);
 						continue;
 					}
-					else if (env.equalsIgnoreCase("esc") || env.equalsIgnoreCase("escape"))	// 转换 ANSI Escape 序列到 IRC Escape 序列
+					else if (env.equalsIgnoreCase("esc") || env.equalsIgnoreCase("escape") || env.equalsIgnoreCase("esc2") || env.equalsIgnoreCase("escape2"))	// 转换 ANSI Escape 序列到 IRC Escape 序列
 					{
 						opt_ansi_escape_to_irc_escape = true;
+						if (env.equalsIgnoreCase("esc2") || env.equalsIgnoreCase("escape2"))
+							opt_escape_for_cursor_moving = true;
 						logger.finer ("cmd 命令“对输出进行 ANSI 转义序列转换为 IRC 序列”设置为: " + opt_ansi_escape_to_irc_escape);
 						continue;
 					}
@@ -794,6 +801,19 @@ public class LiuYanBot extends PircBot implements Runnable
 							opt_charset = varValue;
 							logger.finer ("cmd 命令“输出字符集”设置为: " + opt_charset);
 							continue;
+						}
+
+						// 检查 COLUMNS LINES 环境变量大小，但不跳过 放入 userEnv 中
+						if (varName.equals("LINES") || varName.equalsIgnoreCase("COLUMNS"))
+						{	// 不能超过最大行数、最大列数
+							int nValue = Integer.parseInt (varValue);
+							if (varName.equals("LINES") && nValue>MAX_SCREEN_LINES)
+								nValue = MAX_SCREEN_LINES;
+							else if (varName.equals("COLUMNS") && nValue>MAX_SCREEN_COLUMNS)
+								nValue = MAX_SCREEN_COLUMNS;
+
+							varValue = String.valueOf (nValue);
+							logger.finer ("“屏幕最大" + (varName.equals("LINES") ? "行" : "列") + "数”设置为: " + varValue);
 						}
 						mapUserEnv.put (varName, varValue);
 
@@ -848,6 +868,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			mapGlobalOptions.put ("opt_output_username", opt_output_username);
 			mapGlobalOptions.put ("opt_output_stderr", opt_output_stderr);
 			mapGlobalOptions.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
+			mapGlobalOptions.put ("opt_escape_for_cursor_moving", opt_escape_for_cursor_moving);
 			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
 			mapGlobalOptions.put ("opt_max_response_lines_specified", opt_max_response_lines_specified);
 			mapGlobalOptions.put ("opt_timeout_length_seconds", opt_timeout_length_seconds);
@@ -977,7 +998,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank Time /Google RegExp JavaScript  ParseCmd Action Notice TimeZones Locales Env Properties Version Help /Alias" + Colors.NORMAL +
+				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank /Time /Google RegExp JavaScript TextArt  ParseCmd Action Notice TimeZones Locales Env Properties /Version Help /Alias" + Colors.NORMAL +
 				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
@@ -3441,6 +3462,7 @@ System.out.println (evaluateResult);
 
 	 * 	<dt>ANSI Art</dt>
 	 * 	<dd>ANSI Art 是以 437 字符集中的字符组成的字符艺术画，并且，还可以包含 ANSI 转义序列，即：可以显示彩色的字符。在终端版本中的 BBS 中最常用。参见: http://en.wikipedia.org/wiki/ANSI_art ，
+	 * 在 Java 中，将 437 字符集转换为 UTF-8 字符集时，1-31 0x7f 等字符不会转换，所以需要进行额外处理。
 	 * 	</dd>
 
 	 * 	<dt>其他字符集的字符艺术</dt>
@@ -3474,15 +3496,15 @@ System.out.println (evaluateResult);
 			COLUMNS = Integer.parseInt (mapUserEnv.get ("COLUMNS"));
 		}
 		String sCharSet = "437";
-		boolean bProxyOff = false;
+		boolean bProxyOn = false;
 		try
 		{
 			if (listCmdEnv != null)
 			{
 				for (String env : listCmdEnv)
 				{
-					if (env.equalsIgnoreCase ("ProxyOff"))
-						bProxyOff = true;
+					if (env.equalsIgnoreCase ("ProxyOn"))
+						bProxyOn = true;
 					else
 						sCharSet = env;
 				}
@@ -3493,13 +3515,7 @@ System.out.println (evaluateResult);
 			//Reader reader = null;
 			InputStream is = null;
 			URLConnection conn = null;
-			if (bProxyOff)
-			{
-				System.clearProperty ("javax.net.ssl.trustStore");
-				System.clearProperty ("javax.net.ssl.trustPassword");
-				conn = url.openConnection ();
-			}
-			else
+			if (bProxyOn)
 			{
 				if (sslTrustStore!=null && !sslTrustStore.isEmpty ())
 					System.setProperty ("javax.net.ssl.trustStore", sslTrustStore);
@@ -3512,6 +3528,12 @@ System.out.println (evaluateResult);
 				System.out.println (proxy);
 				conn = url.openConnection (proxy);
 			}
+			else
+			{
+				System.clearProperty ("javax.net.ssl.trustStore");
+				System.clearProperty ("javax.net.ssl.trustPassword");
+				conn = url.openConnection ();
+			}
 			conn.setConnectTimeout (30000);
 			conn.setReadTimeout (30000);
 			if (conn instanceof HttpURLConnection)
@@ -3521,7 +3543,22 @@ System.out.println (evaluateResult);
 			is = conn.getInputStream ();
 
 			String sANSIString = IOUtils.toString (is, sCharSet);
+			if (sCharSet.equalsIgnoreCase ("437")
+				|| sCharSet.equalsIgnoreCase ("CP437")
+				|| sCharSet.equalsIgnoreCase ("IBM437")
+				|| sCharSet.equalsIgnoreCase ("IBM-437")
+				|| sCharSet.equalsIgnoreCase ("Windows-437")
+				|| sCharSet.equalsIgnoreCase ("cspc8codepage437")
+				)
+			{
+				sANSIString = ANSIEscapeTool.Fix437Characters (sANSIString);
+			}
 			List<String> listLines = ANSIEscapeTool.ConvertAnsiEscapeTo (sANSIString, COLUMNS);
+			if (listLines.size () == 0)
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "无输出");
+				return;
+			}
 			int nLine = 0;
 			for (String line : listLines)
 			{
@@ -3805,9 +3842,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (! bFound)
 						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 					else if (isShowDetail)
-						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " + sAnswerContent + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (sLastUpdatedBy.isEmpty () ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
+						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (sLastUpdatedBy.isEmpty () ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
 					else
-						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " + sAnswerContent);
+						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]");
 				}
 			}
 		}
@@ -4058,7 +4095,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 								//|| StringUtils.containsIgnoreCase (python_script_string, "system")
 								//|| StringUtils.containsIgnoreCase (python_script_string, "Popen")
 								//|| StringUtils.containsIgnoreCase (python_script_string, "call")
-								python_script_string.matches ("^.*(system|[Pp]open|call|fork|eval|exec|import|getattr|__builtins__).*$")
+								python_script_string.matches ("^.*(system|[Pp]open|call|fork|eval|exec|import|getattr|__builtins__|globals).*$")
 								)
 							{
 								throw new RuntimeException (cmd + " 命令禁止使用脚本中含有 system、Popen、call、fork、exec、eval、import 等等字样");
@@ -4401,13 +4438,17 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		Map<String, Object> globalOpts = null;	// bot 命令全局选项
 		List<String> cmdEnv = null;	// bot 命令局部参数
 
+		Map<String, String> mapUserEnv = null;
 		boolean opt_output_username = true;
 		boolean opt_output_stderr = false;
 		boolean opt_ansi_escape_to_irc_escape = false;
+		boolean opt_escape_for_cursor_moving = false;
 		int opt_max_response_lines = 0;
 		boolean opt_max_response_lines_specified = false;
 		int opt_timeout_length_seconds = 0;
 		String opt_charset = null;
+		Charset charset = JVM_CHARSET;
+		int COLUMNS = ANSIEscapeTool.DEFAULT_SCREEN_COLUMNS;
 
 		Map<String, Object> previousCommand = null;	// 上个命令
 		Map<String, Object> nextCommand = null;	// 下个命令
@@ -4438,14 +4479,21 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				opt_max_response_lines = (int)globalOpts.get("opt_max_response_lines");
 				opt_max_response_lines_specified = (boolean)globalOpts.get("opt_max_response_lines_specified");
 				opt_ansi_escape_to_irc_escape = (boolean)globalOpts.get("opt_ansi_escape_to_irc_escape");
+				opt_escape_for_cursor_moving = (boolean)globalOpts.get("opt_escape_for_cursor_moving");
 				opt_timeout_length_seconds = (int)globalOpts.get("opt_timeout_length_seconds");
 				opt_charset = (String)globalOpts.get("opt_charset");
+				if (opt_charset != null  && !opt_charset.isEmpty ())
+					charset = Charset.forName (opt_charset);
+				mapUserEnv = (Map<String, String>)globalOpts.get ("env");
+				if (mapUserEnv.get ("COLUMNS") != null)
+				{
+					COLUMNS = Integer.parseInt (mapUserEnv.get ("COLUMNS"));
+				}
 
 			cmdEnv = listCmdEnv;
 			previousCommand = mapPreviousCommand;
 			nextCommand = mapNextCommand;
 		}
-		@SuppressWarnings ("unchecked")
 		@Override
 		public void run ()
 		{
@@ -4471,10 +4519,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				env.put ("LC_MESSAGES", lang);
 			}
 
-			if (globalOpts.get("env")!=null)
+			if (mapUserEnv!=null)
 			{
 //System.out.println (program + " 传入的环境变量: " + globalOpts.get("env"));
-				env.putAll ((Map<String, String>)globalOpts.get("env"));
+				env.putAll (mapUserEnv);
 			}
 
 			pb.redirectErrorStream (opt_output_stderr);
@@ -4565,52 +4613,86 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				if (!isPipeOut && !isRedirectOut)
 				{	// 需要把 stdout stderr 吃掉，否则进程不会结束
 					String line = null;
+					BufferedReader br = null;
 					logger.finer (program + " 开始读取 stdout 流……");
 
-					BufferedReader br = null;
-					br = new BufferedReader (
-							(opt_charset==null || opt_charset.isEmpty()) ?
-							new InputStreamReader(in) :
-							new InputStreamReader(in, opt_charset)
-							);
-					//LineIterator li = IOUtils.lineIterator (in, opt_charset);
-		otherLines:
-					while ((line = br.readLine()) != null)
-					//while (li.hasNext())
-					{
-						//line = li.nextLine ();
-						lineCounterIncludingEmptyLines ++;
-						if (!opt_output_username && line.isEmpty())	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
-							continue;
-
-						lineCounter ++;
-						if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
-							SendMessage (channel, nick, globalOpts, "略...");
-						if (lineCounter > opt_max_response_lines)
-							continue;
-
-						if (opt_ansi_escape_to_irc_escape)
-							line = ANSIEscapeTool.AnsiEscapeToIrcEscape (line, lineCounterIncludingEmptyLines);
-
-						if (!line.contains ("\n"))
+					if (opt_escape_for_cursor_moving)
+					{	// 一次性把输出全部读出，然后转义，然后输出
+						SendMessage (channel, nick, globalOpts, "请注意: .esc2 选项需要等待命令结束后才有输出...");
+						String sANSIString = null;
+						StringBuilderWriter sbw = new StringBuilderWriter ();
+						try
 						{
-							//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
+							IOUtils.copy (in, sbw, charset);
+						}
+						catch (Exception e)
+						{
+							e.printStackTrace ();
+						}
+
+						sANSIString = sbw.toString ();
+						if (charset.equals (Charset.forName("437")))
+							sANSIString = ANSIEscapeTool.Fix437Characters (sANSIString);
+
+						List<String> listLines = ANSIEscapeTool.ConvertAnsiEscapeTo (sANSIString, COLUMNS);
+						if (listLines.size () == 0)
+						{
+							SendMessage (channel, nick, globalOpts, "无输出");
+							return;
+						}
+
+						for (lineCounter=0; lineCounter<listLines.size (); lineCounter++)
+						{
+							if (lineCounter >= opt_max_response_lines)
+								break;
+
+							line = listLines.get (lineCounter);
 							SendMessage (channel, nick, globalOpts, line);
 						}
-						else	// 这里包含的换行符可能是 AnsiEscapeToIrcEscape 转换时遇到 CSI n;m 'H' (设置光标位置)、CSI n 'd' (行跳转) 等光标移动转义序列 而导致的换行 (比如: htop 的输出)
+					}
+					else
+					{
+						br = new BufferedReader (new InputStreamReader(in, charset)
+								);
+						//LineIterator li = IOUtils.lineIterator (in, opt_charset);
+			otherLines:
+						while ((line = br.readLine()) != null)
+						//while (li.hasNext())
 						{
-							String[] arrayLines = line.split ("\n");
-							for (String newLine : arrayLines)
-							{
-								if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
-									SendMessage (channel, nick, globalOpts, "略...");
-								if (lineCounter > opt_max_response_lines)
-									continue otherLines;	// java 的标签只有跳循环这个用途，这还是第一次实际应用……
+							//line = li.nextLine ();
+							lineCounterIncludingEmptyLines ++;
+							if (!opt_output_username && line.isEmpty())	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
+								continue;
 
+							lineCounter ++;
+							if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
+								SendMessage (channel, nick, globalOpts, "略...");
+							if (lineCounter > opt_max_response_lines)
+								continue;
+
+							if (opt_ansi_escape_to_irc_escape)
+								line = ANSIEscapeTool.AnsiEscapeToIrcEscape (line, lineCounterIncludingEmptyLines);
+
+							if (!line.contains ("\n"))
+							{
 								//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
-								SendMessage (channel, nick, globalOpts, newLine);
-								lineCounter ++;
-								lineCounterIncludingEmptyLines++;
+								SendMessage (channel, nick, globalOpts, line);
+							}
+							else	// 这里包含的换行符可能是 AnsiEscapeToIrcEscape 转换时遇到 CSI n;m 'H' (设置光标位置)、CSI n 'd' (行跳转) 等光标移动转义序列 而导致的换行 (比如: htop 的输出)
+							{
+								String[] arrayLines = line.split ("\n");
+								for (String newLine : arrayLines)
+								{
+									if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
+										SendMessage (channel, nick, globalOpts, "略...");
+									if (lineCounter > opt_max_response_lines)
+										continue otherLines;	// java 的标签只有跳循环这个用途，这还是第一次实际应用……
+
+									//line = ConvertCharsetEncoding (line, opt_charset, getEncoding());
+									SendMessage (channel, nick, globalOpts, newLine);
+									lineCounter ++;
+									lineCounterIncludingEmptyLines++;
+								}
 							}
 						}
 					}
