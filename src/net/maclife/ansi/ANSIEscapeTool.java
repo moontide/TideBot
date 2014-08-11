@@ -551,12 +551,12 @@ public class ANSIEscapeTool
 					break;
 
 				//System.err.print ((iLine+1) + "行" + (iColumn+1) + "列");
-				//int l_reset = 0;
+				int l_reset = 0;
 				int l_bold = 0;
 				int l_reverse = 0;
 				int l_underline = 0;
-				//boolean l_256color_fg = false;
-				//boolean l_256color_bg = false;
+				boolean l_256color_fg = false;
+				boolean l_256color_bg = false;
 				int l_fg = 0;
 				int l_bg = 0;
 
@@ -571,7 +571,7 @@ public class ANSIEscapeTool
 
 				if (previous_attr != null)
 				{
-					//l_reset = previous_attr.get ("reset")==null ? 0 : ((boolean)previous_attr.get ("reset") ?  1 : -1);
+					l_reset = previous_attr.get ("reset")==null ? 0 : ((boolean)previous_attr.get ("reset") ?  1 : -1);
 					l_bold = previous_attr.get ("bold")==null ? 0 : ((boolean)previous_attr.get ("bold") ?  1 : -1);
 					l_reverse = previous_attr.get ("reverse")==null ? 0 : ((boolean)previous_attr.get ("reverse") ?  1 : -1);
 					l_underline = previous_attr.get ("underline")==null ? 0 : ((boolean)previous_attr.get ("underline") ?  1 : -1);
@@ -595,13 +595,14 @@ public class ANSIEscapeTool
 				}
 				// 输出属性字符串
 				String sIRC_FG = "", sIRC_BG = "";
-				//System.err.print (" 前irc复位=" + l_reset + " 本复位=" + r_reset);
+				StringBuilder sbLog = new StringBuilder ();
+				sbLog.append (" 前irc复位=" + l_reset + " 本复位=" + r_reset);
 				if (r_reset > 0
 					|| (previous_attr!=null && attr==null && l_bg!=0 && l_reverse!=1)
 					)	// attr==null 表示没有属性 (可能是输出到缓冲区时填充的空格字符)，并且前面有背景色，此时需要清除其属性，否则如果前面有背景
 				{
 					sb.append (Colors.NORMAL);
-					//System.err.print (" irc复位(之后，要清除该属性)");
+					sbLog.append (" irc复位(之后，要清除该属性)");
 					//if (attr!=null) attr.remove ("reset");
 
 					// 复位后，不管前面的属性，本属性有啥就输出啥
@@ -609,19 +610,19 @@ public class ANSIEscapeTool
 					if (r_bold==1)
 					{
 						sb.append (Colors.BOLD);
-						//System.err.print (" 复位后irc高亮");
+						sbLog.append (" 复位后irc高亮");
 					}
 					if (r_reverse == 1)
 					{
 						sb.append (Colors.REVERSE);
-						//System.err.print (" 复位后irc反色");
+						sbLog.append (" 复位后irc反色");
 					}
 					if (r_underline == 1)	// underline 有变动，要输出 underline 属性 (irc 两次/偶数次 underline 后关闭 underline)
 					{
 						sb.append (Colors.UNDERLINE);
-						//System.err.print (" 复位后irc下划线");
+						sbLog.append (" 复位后irc下划线");
 					}
-					//System.err.print (" (复位后颜色 " + r_fg + "," + r_bg + ")");
+					sbLog.append (" (复位后颜色 " + r_fg + "," + r_bg + ")");
 					if (r_fg != 0)
 					{	// 有前景色
 						if (r_256color_fg)
@@ -632,7 +633,7 @@ public class ANSIEscapeTool
 						{
 							sIRC_FG = ANSI_16_TO_IRC_16_COLORS [r_fg-30][r_bold==1?1:0];
 						}
-						//System.err.print (" 复位后irc前景色 " + sIRC_FG);
+						sbLog.append (" 复位后irc前景色 " + sIRC_FG);
 					}
 					if (r_bg != 0)
 					{	// 有背景色
@@ -641,29 +642,29 @@ public class ANSIEscapeTool
 						else
 							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
 
-						//System.err.print (" 复位后irc背景色 " + sIRC_BG);
+						sbLog.append (" 复位后irc背景色 " + sIRC_BG);
 					}
 				}
 				else
 				{
-					//System.err.print (" 前bold=" + l_bold + " 本bold=" + r_bold);
+					sbLog.append (" 前bold=" + l_bold + " 本bold=" + r_bold);
 					if (l_bold != r_bold)	// bold 有变动，要输出 bold 属性 (irc 两次/偶数次 bold 后关闭 bold)
 					{
 						sb.append (Colors.BOLD);
-						//System.err.print (" irc高亮");
+						sbLog.append (" irc高亮");
 					}
 					if (l_reverse != r_reverse)	// reverse 有变动，要输出 reverse 属性 (irc 两次/偶数次 reverse 后关闭 reverse)
 					{
 						sb.append (Colors.REVERSE);
-						//System.err.print (" irc反色");
+						sbLog.append (" irc反色");
 					}
 					if (l_underline != r_underline)	// underline 有变动，要输出 underline 属性 (irc 两次/偶数次 underline 后关闭 underline)
 					{
 						sb.append (Colors.UNDERLINE);
-						//System.err.print (" irc下划线");
+						sbLog.append (" irc下划线");
 					}
 
-					//System.err.print (" (颜色 " + l_fg + "," + l_bg + "->" + r_fg + "," + r_bg + ")");
+					sbLog.append (" (颜色 " + l_fg + "," + l_bg + "->" + r_fg + "," + r_bg + ")");
 					if (l_fg != r_fg)
 					{	// 前景色变化了
 						if (r_256color_fg)
@@ -674,7 +675,7 @@ public class ANSIEscapeTool
 						{
 							sIRC_FG = ANSI_16_TO_IRC_16_COLORS [r_fg-30][r_bold==1?1:0];
 						}
-						//System.err.print (" irc前景色 " + sIRC_FG);
+						sbLog.append (" irc前景色 " + sIRC_FG);
 					}
 					if (l_bg != r_bg)
 					{	// 背景色变化了
@@ -683,7 +684,7 @@ public class ANSIEscapeTool
 						else if (r_bg != 0)
 							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
 
-						//System.err.print (" irc背景色 " + sIRC_BG);
+						sbLog.append (" irc背景色 " + sIRC_BG);
 					}
 				}
 				if (!sIRC_FG.isEmpty() && sIRC_BG.isEmpty())		// 只有前景色
@@ -699,7 +700,7 @@ public class ANSIEscapeTool
 					sb.append (sIRC_FG + "," + sIRC_BG);
 				}
 
-				//System.err.println ();
+				logger.finest (sbLog.toString ());
 				// 输出字符
 				sb.append (ch);
 
@@ -853,7 +854,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 			// 然后，当前(或者说： 下一个)属性
 			currentCharacterAttribute = new HashMap<String, Object> ();
 			currentCharacterAttribute.putAll (previousCharacterAttribute);	// 复制前面的属性
-			currentCharacterAttribute.remove ("reset");
+			//currentCharacterAttribute.remove ("reset");
 			previousCharacterAttribute = currentCharacterAttribute;
 
 			// 处理下一个属性
@@ -1175,7 +1176,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 
 		Map<String, Object> attr = new HashMap<String, Object> ();
 		attr.putAll (currentCharacterAttribute);
-		attr.remove ("reset");
+		//attr.remove ("reset");
 
 		if (cmd=='J')
 		{
