@@ -55,7 +55,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
 
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
-	public static final String BOT_PRIMARY_COMMAND_Help	            = "Help";
+	public static final String BOT_PRIMARY_COMMAND_Help	            = "/Help";
 	public static final String BOT_PRIMARY_COMMAND_Alias	        = "/Alias";
 	public static final String BOT_PRIMARY_COMMAND_Cmd	            = "Cmd";
 	public static final String BOT_PRIMARY_COMMAND_ParseCmd	        = "ParseCmd";
@@ -289,22 +289,33 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * 根据给定的用户名 wildcardPatternToFetch 从列表中获取相应的用户名信息
 	 * @param wildcardPatternToFetch 要获取的通配符表达式。参见 ProcessCommand_BanOrWhite 的描述
+	 * @param iMatchMode
+	 * @param botCmd 与用户相关的命令。如果为 null 或者空字符串，则返回 null。如果为 <code>*</code> 或 <code>.</code>，则匹配任何命令。 如果为其他，则仅仅匹配该命令。
+	 * @param list 名单列表
+	 * @param listName 名单列表的名称
 	 * @return null - 不存在； not null - 存在
 	 */
-	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, byte iMatchMode, List<Map<String, Object>> list, String listName)
+	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, byte iMatchMode, String botCmd, List<Map<String, Object>> list, String listName)
 	{
 		logger.finer ("判断 " + wildcardPatternToFetch + " 是否在" + listName + "中");
+		if (botCmd == null || botCmd.isEmpty ())
+		{
+			logger.finer ("botCmd 为空 (可能用户不是输入的本 bot 所识别的命令)，所以返回 null");
+			return null;
+		}
 		for (Map<String,Object> userInfo : list)
 		{
 			String wildcard = (String)userInfo.get("Wildcard");
 			String regExp = (String)userInfo.get("RegExp");
+			String user_botcmd = (String)userInfo.get("BotCmd");
+			boolean isBotCmdMatched = ("*".equals (user_botcmd) || ".".equals (user_botcmd) || botCmd.equalsIgnoreCase (user_botcmd));
 			String sMatchInfo = "wildcard=" + wildcard + ", regexp=" + regExp + ", 匹配模式=" + iMatchMode;
-			if ( ((iMatchMode & USER_LIST_MATCH_MODE_Equals) != 0) && wildcardPatternToFetch.equalsIgnoreCase (wildcard) )
+			if ( ((iMatchMode & USER_LIST_MATCH_MODE_Equals) != 0) && wildcardPatternToFetch.equalsIgnoreCase (wildcard) && isBotCmdMatched)
 			{
 				logger.finer (sMatchInfo + " 结果=true");
 				return userInfo;
 			}
-			if ( ((iMatchMode & USER_LIST_MATCH_MODE_RegExp) != 0) && wildcardPatternToFetch.matches ("(?i)^"+regExp + "$") )
+			if ( ((iMatchMode & USER_LIST_MATCH_MODE_RegExp) != 0) && wildcardPatternToFetch.matches ("(?i)^"+regExp + "$") && isBotCmdMatched)
 			{
 				logger.finer (sMatchInfo + " 结果=true");
 				return userInfo;
@@ -314,88 +325,97 @@ public class LiuYanBot extends PircBot implements Runnable
 		return null;
 	}
 
-	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, List<Map<String, Object>> list, String listName)
+	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, String botCmd, List<Map<String, Object>> list, String listName)
 	{
-		return GetUserFromList (wildcardPatternToFetch, USER_LIST_MATCH_MODE_Equals, list, listName);
+		return GetUserFromList (wildcardPatternToFetch, USER_LIST_MATCH_MODE_Equals, botCmd, list, listName);
 	}
 
-	Map<String, Object> GetUserFromList (String nick, String login, String host, byte iMatchMode, List<Map<String, Object>> list, String listName)
+	Map<String, Object> GetUserFromList (String nick, String login, String host, byte iMatchMode, String botCmd, List<Map<String, Object>> list, String listName)
 	{
 		String sIRCPrefix = nick + "!" + login + "@" + host;
-		return GetUserFromList (sIRCPrefix, iMatchMode, list, listName);
+		return GetUserFromList (sIRCPrefix, iMatchMode, botCmd, list, listName);
 	}
 
-	Map<String, Object> GetUserFromList (String nick, String login, String host, List<Map<String, Object>> list, String listName)
+	Map<String, Object> GetUserFromList (String nick, String login, String host, String botCmd, List<Map<String, Object>> list, String listName)
 	{
-		return GetUserFromList (nick, login, host, USER_LIST_MATCH_MODE_Equals, list, listName);
+		return GetUserFromList (nick, login, host, USER_LIST_MATCH_MODE_Equals, botCmd, list, listName);
 	}
 
-	Map<String, Object> GetBan (String nick, String login, String host, byte iMatchMode)
+	Map<String, Object> GetBan (String nick, String login, String host, byte iMatchMode, String botCmd)
 	{
-		return GetUserFromList (nick, login, host, iMatchMode, listBannedPatterns, "黑名单列表");
+		return GetUserFromList (nick, login, host, iMatchMode, botCmd, listBannedPatterns, "黑名单列表");
 	}
 
-	Map<String, Object> GetBan (String nick, String login, String host)
+	Map<String, Object> GetBan (String nick, String login, String host, String botCmd)
 	{
-		return GetBan (nick, login, host, USER_LIST_MATCH_MODE_Equals);
+		return GetBan (nick, login, host, USER_LIST_MATCH_MODE_Equals, botCmd);
 	}
 
-	Map<String, Object> GetBan (String wildcardPatternToFetch, byte iMatchMode)
+	Map<String, Object> GetBan (String wildcardPatternToFetch, byte iMatchMode, String botCmd)
 	{
-		return GetUserFromList (wildcardPatternToFetch, iMatchMode, listBannedPatterns, "白名单列表");
+		return GetUserFromList (wildcardPatternToFetch, iMatchMode, botCmd, listBannedPatterns, "白名单列表");
 	}
 
-	Map<String, Object> GetBan (String wildcardPatternToFetch)
+	Map<String, Object> GetBan (String wildcardPatternToFetch, String botCmd)
 	{
-		return GetBan (wildcardPatternToFetch, USER_LIST_MATCH_MODE_Equals);
+		return GetBan (wildcardPatternToFetch, USER_LIST_MATCH_MODE_Equals, botCmd);
 	}
 
 
-	Map<String, Object> GetWhiteUser (String nick, String login, String host, byte iMatchMode)
+	Map<String, Object> GetWhiteUser (String nick, String login, String host, byte iMatchMode, String botCmd)
 	{
-		return GetUserFromList (nick, login, host, iMatchMode, listWhiteListPatterns, "白名单列表");
+		return GetUserFromList (nick, login, host, iMatchMode, botCmd, listWhiteListPatterns, "白名单列表");
 	}
 
-	Map<String, Object> GetWhiteUser (String nick, String login, String host)
+	Map<String, Object> GetWhiteUser (String nick, String login, String host, String botCmd)
 	{
-		return GetWhiteUser (nick, login, host, USER_LIST_MATCH_MODE_Equals);
+		return GetWhiteUser (nick, login, host, USER_LIST_MATCH_MODE_Equals, botCmd);
 	}
 
-	Map<String, Object> GetWhiteUser (String wildcardPatternToFetch, byte iMatchMode)
+	Map<String, Object> GetWhiteUser (String wildcardPatternToFetch, byte iMatchMode, String botCmd)
 	{
-		return GetUserFromList (wildcardPatternToFetch, iMatchMode, listWhiteListPatterns, "白名单列表");
+		return GetUserFromList (wildcardPatternToFetch, iMatchMode, botCmd, listWhiteListPatterns, "白名单列表");
 	}
 
-	Map<String, Object> GetWhiteUser (String wildcardPatternToFetch)
+	Map<String, Object> GetWhiteUser (String wildcardPatternToFetch, String botCmd)
 	{
-		return GetWhiteUser (wildcardPatternToFetch, USER_LIST_MATCH_MODE_Equals);
+		return GetWhiteUser (wildcardPatternToFetch, USER_LIST_MATCH_MODE_Equals, botCmd);
 	}
 
 	/**
 	 * 将用户添加到列表
 	 * @param wildcardPattern 要添加的 用户名/主机/IP/网段 表达式。具体格式参见 ProcessCommand_BanOrWhite 中的描述
+	 * @param botCmd 该用户的 Bot 命令(加入黑名单时……，加入白名单时……)
 	 * @param reason 添加的原因
 	 * @param list 列表
 	 * @param sListName 列表名
 	 * @return
 	 */
-	boolean AddUserToList (String wildcardPattern, String reason, List<Map<String, Object>> list, String sListName)
+	boolean AddUserToList (String channel, String nick, String login, String hostname, String wildcardPattern, String botCmd, String reason, List<Map<String, Object>> list, String sListName)
 	{
 		boolean bFounded = false;
 		Map<String,Object> userToAdd = null;
+		String msg = null;
 
+		if (botCmd==null || botCmd.isEmpty ())
+			botCmd = "*";
+		if (reason==null)
+			reason = "";
 		// 检查是否已经添加过
-		Map<String,Object> userInfo = GetUserFromList (wildcardPattern, list, sListName);
+		Map<String,Object> userInfo = GetUserFromList (wildcardPattern, botCmd, list, sListName);
 		bFounded = (userInfo != null);
 		if (bFounded)
 		{
 			userToAdd = userInfo;
-			System.err.println ("要添加的用户名表达式已经被添加过，更新之");
-			userToAdd.put ("UpdatedTime", System.currentTimeMillis ());
+			msg = "要添加的用户名表达式已经被添加过，更新之";
+			System.err.println (msg);
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, msg);
+			userToAdd.put ("UpdatedTime", new Timestamp(System.currentTimeMillis ()));
 			int nTimes = userToAdd.get ("AddedTimes")==null ? 1 : (int)userToAdd.get ("AddedTimes");
 			nTimes ++;
 			userToAdd.put ("AddedTimes", nTimes);
-			userToAdd.put ("Reason", reason==null?"":reason);
+			userToAdd.put ("BotCmd", botCmd);
+			userToAdd.put ("Reason", reason);
 			return true;
 		}
 
@@ -403,17 +423,34 @@ public class LiuYanBot extends PircBot implements Runnable
 		userToAdd = new HashMap<String, Object> ();
 		userToAdd.put ("Wildcard", wildcardPattern);
 		userToAdd.put ("RegExp", WildcardToRegularExpression(wildcardPattern));
-		userToAdd.put ("AddedTime", System.currentTimeMillis ());
+		userToAdd.put ("BotCmd", botCmd);
+		userToAdd.put ("AddedTime", new Timestamp(System.currentTimeMillis ()));
 		userToAdd.put ("AddedTimes", 1);
-		userToAdd.put ("Reason", reason==null?"":reason);
+		userToAdd.put ("Reason", reason);
 		list.add (userToAdd);
-		System.out.println ("已把 " + wildcardPattern + " 加入到" + sListName + "中。" + ((userToAdd.get ("Reason")==null || ((String)userToAdd.get ("Reason")).isEmpty()) ? "无原因" : "原因=" + userToAdd.get ("Reason")) );
+
+		msg = "已把 " + wildcardPattern + " 加入到" + sListName + "中。" +
+			((botCmd.equals ("*") || botCmd.equals (".") ? "所有命令" : "命令=" + botCmd)) +
+			"。" +
+			(reason.isEmpty() ? "无原因" : "原因=" + userToAdd.get ("Reason")) +
+			"";
+
+		System.out.println (msg);
+		if (!nick.isEmpty ())
+		{
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, msg);
+		}
 		return true;
 	}
 
-	boolean AddBan (String wildcardPattern, String reason)
+	boolean AddBan (String wildcardPattern, String botCmd, String reason)
 	{
-		return AddUserToList (wildcardPattern, reason, listBannedPatterns, "黑名单列表");
+		return AddUserToList (null, "", "", "", wildcardPattern, botCmd, reason, listBannedPatterns, "黑名单列表");
+	}
+
+	boolean AddBan (String wildcardPattern, String botCmd)
+	{
+		return AddBan (wildcardPattern, botCmd, null);
 	}
 
 	boolean AddBan (String wildcardPattern)
@@ -421,15 +458,20 @@ public class LiuYanBot extends PircBot implements Runnable
 		return AddBan (wildcardPattern, null);
 	}
 
-	boolean AddWhiteUser (String wildcardPattern, String reason)
-	{
-		return AddUserToList (wildcardPattern, reason, listWhiteListPatterns, "白名单列表");
-	}
+	//boolean AddWhiteUser (String wildcardPattern, String botCmd, String reason)
+	//{
+	//	return AddUserToList (wildcardPattern, botCmd, reason, listWhiteListPatterns, "白名单列表");
+	//}
 
-	boolean AddWhiteUser (String wildcardPattern)
-	{
-		return AddWhiteUser (wildcardPattern, null);
-	}
+	//boolean AddWhiteUser (String wildcardPattern, String botCmd)
+	//{
+	//	return AddWhiteUser (wildcardPattern, botCmd, null);
+	//}
+
+	//boolean AddWhiteUser (String wildcardPattern)
+	//{
+	//	return AddWhiteUser (wildcardPattern, "*", null);
+	//}
 
 	public static String WildcardToRegularExpression (String wildcardPattern)
 	{
@@ -444,9 +486,9 @@ public class LiuYanBot extends PircBot implements Runnable
 				;
 	}
 
-	boolean isUserInList (String host, String login, String nick, List<Map<String, Object>> list, String listName)
+	boolean isUserInList (String host, String login, String nick, String botCmd, List<Map<String, Object>> list, String listName)
 	{
-		Map<String, Object> userInfo = GetUserFromList (nick, login, host, USER_LIST_MATCH_MODE_RegExp, list, listName);
+		Map<String, Object> userInfo = GetUserFromList (nick, login, host, USER_LIST_MATCH_MODE_RegExp, botCmd, list, listName);
 		return (userInfo != null);
 	}
 
@@ -455,13 +497,14 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @param host
 	 * @param user
 	 * @param nick
+	 * @param botCmd
 	 * @return
 	 */
-	boolean isUserInWhiteList (String host, String user, String nick)
+	boolean isUserInWhiteList (String host, String user, String nick, String botCmd)
 	{
 		if (user==null || user.isEmpty())
 			return false;
-		return isUserInList (host, user, nick, listWhiteListPatterns, "白名单列表");	//user.equalsIgnoreCase ("~LiuYan") || user.equalsIgnoreCase ("~biergaizi");
+		return isUserInList (host, user, nick, botCmd, listWhiteListPatterns, "白名单列表");
 	}
 
 	/**
@@ -674,11 +717,11 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		try
 		{
-			Map<String, Object> banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp);
-
-			//  再判断是不是 bot 命令
 			String botCmd;
 			botCmd = getBotPrimaryCommand (message);
+			Map<String, Object> banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp, botCmd);
+
+			//  再判断是不是 bot 命令
 			if (botCmd == null)
 			{
 				// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
@@ -697,16 +740,16 @@ public class LiuYanBot extends PircBot implements Runnable
 				this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
 			}
 
-			// 先查看封锁列表
-			if (!isFromConsole(channel, nick, login, hostname) && !isUserInWhiteList(hostname, login, nick))
+			// 先查看封锁列表 (白名单优先于黑名单，类似 apache httpd 里的 Order Deny,Allow)
+			if (!isFromConsole(channel, nick, login, hostname) && !isUserInWhiteList(hostname, login, nick, botCmd))
 			{
 				if (banInfo != null)
 				{
 					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp"));
-					//if (banInfo.get ("NotifyTime") == null)
+					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
 					{
-						SendMessage (null, nick, true, MAX_RESPONSE_LINES, "你已被封。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
-						banInfo.put ("NotifyTime", System.currentTimeMillis ());
+						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "你已被加入黑名单。 命令: " + banInfo.get ("BotCmd") + " 。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
+						banInfo.put ("NotifyTime", new Timestamp(System.currentTimeMillis ()));
 					}
 					return;
 				}
@@ -789,7 +832,10 @@ public class LiuYanBot extends PircBot implements Runnable
 							try {
 								opt_timeout_length_seconds = Integer.parseInt (varValue);
 								if (opt_timeout_length_seconds > WATCH_DOG_TIMEOUT_LENGTH_LIMIT)
+								{
 									opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH_LIMIT;
+									SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "cmd 命令“执行超时时长”被重新调整到: " + opt_timeout_length_seconds + " 秒");
+								}
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
@@ -829,10 +875,13 @@ public class LiuYanBot extends PircBot implements Runnable
 								!botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp)	// 2014-06-16 除去 RegExp 命令的响应行数限制，该数值在 RegExp 命令中做匹配次数用途
 								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag)	// 2014-07-09 除去 tag bt 命令的响应行数限制，该数值在 bt 命令中有可能做 “词条定义 ID” 用途
 								&& !isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
-								&& !isUserInWhiteList(hostname, login, nick)	// 不在白名单
+								&& !isUserInWhiteList(hostname, login, nick, botCmd)	// 不在白名单
 								&& opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT	// 设置的大小超出了上限
 							)
+							{
 								opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
+								SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "“最大响应行数”被重新调整到: " + opt_max_response_lines);
+							}
 						}
 						catch (Exception e)
 						{
@@ -998,8 +1047,29 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
 				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				"命令列表: " + COLOR_COMMAND_INSTANCE + "Cmd StackExchange GeoIP IPLocation PageRank /Time /Google RegExp JavaScript TextArt  ParseCmd Action Notice TimeZones Locales Env Properties /Version Help /Alias" + Colors.NORMAL +
-				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + "help" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				"命令列表: " + COLOR_COMMAND_INSTANCE +
+				BOT_PRIMARY_COMMAND_Cmd + " " +
+				BOT_PRIMARY_COMMAND_StackExchange + " " +
+				BOT_PRIMARY_COMMAND_GeoIP + " " +
+				BOT_PRIMARY_COMMAND_IPLocation + " " +
+				BOT_PRIMARY_COMMAND_PageRank + " " +
+				BOT_PRIMARY_COMMAND_Time + " " +
+				BOT_PRIMARY_COMMAND_Google + " " +
+				BOT_PRIMARY_COMMAND_RegExp + " " +
+				BOT_PRIMARY_COMMAND_JavaScript + " " +
+				BOT_PRIMARY_COMMAND_TextArt + " " +
+				BOT_PRIMARY_COMMAND_ParseCmd + " " +
+				BOT_PRIMARY_COMMAND_Action + " " +
+				BOT_PRIMARY_COMMAND_Notice + " " +
+				BOT_PRIMARY_COMMAND_TimeZones + " " +
+				BOT_PRIMARY_COMMAND_Locales + " " +
+				BOT_PRIMARY_COMMAND_Env + " " +
+				BOT_PRIMARY_COMMAND_Properties + " " +
+				BOT_PRIMARY_COMMAND_Version + " " +
+				BOT_PRIMARY_COMMAND_Help + " " +
+				BOT_PRIMARY_COMMAND_Alias + " " +
+				Colors.NORMAL +
+				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + BOT_PRIMARY_COMMAND_Help + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令名" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
@@ -1168,7 +1238,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			sendAction (target, msg);
 		else if (botcmd.equalsIgnoreCase("notice"))
 		{
-			if (isUserInWhiteList (host, login, nick))
+			if (isUserInWhiteList (host, login, nick, botcmd))
 				sendNotice (target, msg);
 			else
 				SendMessage (channel, nick, mapGlobalOptions, "notice 命令已关闭 (会造成部分用户客户端有提醒信息出现)");
@@ -1208,7 +1278,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	{
 		if (! (
 			isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
-			|| isUserInWhiteList(hostname, login, nick)
+			|| isUserInWhiteList(hostname, login, nick, botcmd)
 			)
 		)
 		{
@@ -1260,24 +1330,27 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @param botcmd
 	 * @param mapGlobalOptions
 	 * @param listCmdEnv
-	 * @param params Ban/White 命令参数，格式： &lt;动作&gt; [参数]
+	 * @param params Ban/White 命令参数，格式： &lt;动作&gt; [参数]...
 	 * <br/>
 	 * 动作有
 	 * <dl>
-	 * 	<dt><code>l</code> <code>ls</code> <code>list</code></dt>
+	 * 	<dt><code>l</code> <code>ls</code> <code>list</code> <code>列</code> <code>列表</code> <code>列出</code></dt>
 	 * 	<dd>列出用户列表。无参数</dd>
 	 * 	<dt><code>c</code> <code>clear</code></dt>
 	 * 	<dd>清空用户列表。无参数</dd>
-	 * 	<dt><code>a</code> <code>+</code> <code>add</code></dt>
-	 * 	<dd>增加用户。后面的参数是通配符表达式，格式如：
+	 * 	<dt><code>a</code> <code>+</code> <code>add</code> <code>加</code> <code>添加</code></dt>
+	 * 	<dd>增加用户。后面的参数 1 是用户通配符表达式，格式如：
 	 * 		<ul>
 	 * 			<li><code>badNick!*@*</code> - Ban/White <b>昵称</b> badNick</li>
 	 * 			<li><code>*!~badLogin@*</code> - Ban/White <b>登录名</b> ~badLogin</li>
 	 * 			<li><code>*!*@8.8.8.8</code> - Ban/White <b>主机 IP</b> 8.8.8.8</li>
 	 * 			<li><code>*!*@8.8.8.*</code> - Ban/White <b>网段</b> 8.8.8</li>
 	 * 		</ul>
+	 * 	参数 2 和参数 3 是可选的。
+	 * 	参数 2 是与用户相关的 bot 命令，如果为空 或者 '*' 或者 '.'，则表示所有命令（黑名单或白名单）。
+	 * 	参数 3 为原因信息。
 	 * 	</dd>
-	 * 	<dt><code>d</code> <code>r</code> <code>-</code> <code>del</code> <code>rm</code> <code>delete</code> <code>remove</code></dt>
+	 * 	<dt><code>d</code> <code>r</code> <code>-</code> <code>del</code> <code>rm</code> <code>delete</code> <code>remove</code> <code>删</code> <code>删除</code></dt>
 	 * 	<dd>删除某个用户。后面的参数是之前添加过的通配符表达式</dd>
 	 * 	<dt>其他未识别的动作</dt>
 	 * 	<dd>其他未识别的动作将被当成用户名，并查询该用户是否在用户列表内</dd>
@@ -1285,19 +1358,23 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	void ProcessCommand_BanOrWhite (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		String msg = null;
 		//System.out.println ("ban params = [" + params + "]");
 		if (! (
 			isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
-			|| isUserInWhiteList(hostname, login, nick)
+			|| isUserInWhiteList(hostname, login, nick, botcmd)
 			)
 		)
 		{
-			System.err.println ("用户不在白名单， 而且 也不是从控制台执行的");
+			msg = "用户不在白名单， 而且 也不是从控制台执行的";
+			System.err.println (msg);
+			if (!nick.isEmpty ())
+				SendMessage (channel, nick, mapGlobalOptions, msg);
 			return;
 		}
 		String[] arrayParams = null;
 		if (params!=null && !params.isEmpty())
-			arrayParams = params.split (" +", 3);
+			arrayParams = params.split (" +", 4);
 		if (arrayParams == null || arrayParams.length<1)
 		{
 			ProcessCommand_Help (channel, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
@@ -1305,104 +1382,151 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 
 		List<Map<String, Object>> list = listBannedPatterns;
-		String sListName = "封锁用户列表";
-		String sInListShellColor = "31;1m";
-		String sNotInListShellColor = "32;1m";
+		String sListName = "黑名单用户列表";
+		String sShellColor_InList = "31;1m";
+		String sShellColor_NotInList = "32;1m";
 		if (botCmdAlias.equalsIgnoreCase ("/white") || botCmdAlias.equalsIgnoreCase ("/vip"))
 		{
 			list = listWhiteListPatterns;
 			sListName = "白名单用户列表";
-			sInListShellColor = "32;1m";
-			sNotInListShellColor = "31;1m";
+			sShellColor_InList = "32;1m";
+			sShellColor_NotInList = "31;1m";
 		}
 		Map<String, Object> userInfo = null;
 
-		String action = arrayParams[0];
-		String wildcardPattern = null;
-		String reason = null;
-		if (arrayParams.length >= 2) wildcardPattern = arrayParams[1];
-		if (arrayParams.length >= 3) reason = arrayParams[2];
+		String paramAction = arrayParams[0];
+		String paramWildcardPattern = null;
+		String paramCmd = null;
+		String paramReason = null;
+		if (arrayParams.length >= 2) paramWildcardPattern = arrayParams[1];
+		if (arrayParams.length >= 3) paramCmd = arrayParams[2];
+		if (arrayParams.length >= 4) paramReason = arrayParams[3];
 
 		boolean bFounded = false;
 
-		if (action.equalsIgnoreCase ("l") || action.equalsIgnoreCase ("ls") || action.equalsIgnoreCase ("list"))	// 列出被封锁的用户名
+		if (paramAction.equalsIgnoreCase ("l") || paramAction.equalsIgnoreCase ("ls") || paramAction.equalsIgnoreCase ("list") || paramAction.equalsIgnoreCase ("列") || paramAction.equalsIgnoreCase ("列表") || paramAction.equalsIgnoreCase ("列出"))	// 列出被封锁的用户名
 		{
 			if (list.size () == 0)
 			{
-				System.out.println (sListName + " 是空的");
+				msg = sListName + " 是空的";
+				System.out.println (msg);
+				if (!nick.isEmpty ())
+					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
 
-			System.out.println ("列出" + sListName);
+			msg = "列出" + sListName + " (格式: 1通配符表达式    2规则表达式    3Bot命令    4原因    5添加时间    6次数    7更新时间)";
+			System.out.println (msg);
+			if (!nick.isEmpty ())
+				SendMessage (channel, nick, mapGlobalOptions, msg);
+			StringBuilder sb = null;
 			for (Map<String, Object> u : list)
 			{
 				userInfo = u;
-				System.out.print (userInfo.get("Wildcard"));
-				System.out.print ("	");
-				System.out.print (userInfo.get("RegExp"));
-				System.out.print ("	");
-				System.out.print (userInfo.get("AddedTime"));
-				System.out.print ("	");
-				System.out.print (userInfo.get("AddedTimes"));
-				System.out.print ("	");
-				System.out.print (userInfo.get("UpdatedTime"));
-				System.out.print ("	");
-				System.out.println (userInfo.get("Reason"));
+				sb = new StringBuilder ();
+				sb.append (userInfo.get("Wildcard"));
+				sb.append ("    ");
+				sb.append (userInfo.get("RegExp"));
+				sb.append ("    ");
+				sb.append (userInfo.get("BotCmd"));
+				sb.append ("    ");
+				sb.append (userInfo.get("Reason"));
+				sb.append ("    ");
+				sb.append (userInfo.get("AddedTime"));
+				sb.append ("    ");
+				sb.append (userInfo.get("AddedTimes"));
+				sb.append ("    ");
+				sb.append (userInfo.get("UpdatedTime"));
+				msg = sb.toString ();
+
+				System.out.println (msg);
+				if (!nick.isEmpty ())
+					SendMessage (channel, nick, mapGlobalOptions, msg);
 			}
 		}
-		else if (action.equalsIgnoreCase ("c") || action.equalsIgnoreCase ("clear"))	// 清空
+		else if (paramAction.equalsIgnoreCase ("c") || paramAction.equalsIgnoreCase ("clear") || paramAction.equalsIgnoreCase ("清空"))	// 清空
 		{
 			list.clear ();
-			System.out.println ("已清空 " + sListName);
+			msg = "已清空 " + sListName;
+			System.out.println (msg);
+			if (!nick.isEmpty ())
+				SendMessage (channel, nick, mapGlobalOptions, msg);
 		}
-		else if (action.equalsIgnoreCase ("a") || action.equalsIgnoreCase ("+") || action.equalsIgnoreCase ("add"))	// 添加
+		else if (paramAction.equalsIgnoreCase ("a") || paramAction.equalsIgnoreCase ("+") || paramAction.equalsIgnoreCase ("add") || paramAction.equalsIgnoreCase ("加") || paramAction.equalsIgnoreCase ("添加"))	// 添加
 		{
-			if (wildcardPattern==null || wildcardPattern.isEmpty ())
+			if (paramWildcardPattern==null || paramWildcardPattern.isEmpty ())
 			{
-				System.err.println ("要添加的用户不能为空");
+				msg = "要添加的用户不能为空";
+				System.err.println (msg);
+				if (!nick.isEmpty ())
+					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
-			AddUserToList (wildcardPattern, reason, list, sListName);
+			AddUserToList (channel, nick, login, hostname, paramWildcardPattern, paramCmd, paramReason, list, sListName);
 		}
-		else if (action.equalsIgnoreCase ("d")
-			|| action.equalsIgnoreCase ("-")
-			|| action.equalsIgnoreCase ("r")
-			|| action.equalsIgnoreCase ("rm")
-			|| action.equalsIgnoreCase ("del")
-			|| action.equalsIgnoreCase ("remove")
-			|| action.equalsIgnoreCase ("delete")
+		else if (paramAction.equalsIgnoreCase ("d")
+			|| paramAction.equalsIgnoreCase ("-")
+			|| paramAction.equalsIgnoreCase ("r")
+			|| paramAction.equalsIgnoreCase ("rm")
+			|| paramAction.equalsIgnoreCase ("del")
+			|| paramAction.equalsIgnoreCase ("remove")
+			|| paramAction.equalsIgnoreCase ("delete")
+			|| paramAction.equalsIgnoreCase ("删")
+			|| paramAction.equalsIgnoreCase ("删除")
 			)	// 删除
 		{
-			if (wildcardPattern==null || wildcardPattern.isEmpty ())
+			if (paramWildcardPattern==null || paramWildcardPattern.isEmpty ())
 			{
-				System.err.println ("要删除的用户不能为空");
+				msg = "要删除的用户不能为空";
+				System.err.println (msg);
+				if (!nick.isEmpty ())
+					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
 
 			// 检查是否已经添加过
-			userInfo = GetUserFromList (wildcardPattern, list, sListName);
+			userInfo = GetUserFromList (paramWildcardPattern, paramCmd, list, sListName);
 			if (userInfo==null)
 			{
-				System.err.println (wildcardPattern + " 不在" + sListName + "中");
+				msg = paramWildcardPattern + " 不在" + sListName + "中";
+				System.err.println (msg);
+				if (!nick.isEmpty ())
+					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
 			if (list.remove (userInfo))
-				System.out.println (ANSIEscapeTool.CSI + sNotInListShellColor + wildcardPattern  + ANSIEscapeTool.CSI + "m 已从" + sListName + "中剔除，当前列表还有 " + list.size () + " 个用户");
+			{
+				System.out.println (ANSIEscapeTool.CSI + sShellColor_NotInList + paramWildcardPattern + ANSIEscapeTool.CSI + "m 已从 " + sListName + " 中剔除，当前列表还有 " + list.size () + " 个用户");
+				if (!nick.isEmpty ())
+					SendMessage (channel, nick, mapGlobalOptions, Colors.GREEN + paramWildcardPattern + Colors.NORMAL + " 已从 " + sListName + " 中剔除，当前列表还有 " + list.size () + " 个用户");
+			}
 			else
-				System.err.println (wildcardPattern + " 从" + sListName + "中删除失败 (未曾添加过？)");
+			{
+				msg = paramWildcardPattern + " 从 " + sListName + " 中删除失败 (未曾添加过？)";
+				System.err.println (msg);
+				if (!nick.isEmpty ())
+					SendMessage (channel, nick, mapGlobalOptions, msg);
+			}
 		}
 		else
 		{
 			// 此时，action 参数被当做 用户名。。。
-			wildcardPattern = action;
-			userInfo = GetUserFromList (wildcardPattern, list, sListName);
+			paramWildcardPattern = paramAction;
+			userInfo = GetUserFromList (paramWildcardPattern, paramCmd, list, sListName);
 			bFounded = (userInfo != null);
 			System.out.println (
-				wildcardPattern + " " +
-				(bFounded ? ANSIEscapeTool.CSI+sInListShellColor : ANSIEscapeTool.CSI+sNotInListShellColor + "不") + "在" + ANSIEscapeTool.CSI + "m" + sListName + "中。" +
-				(userInfo==null?"": "匹配的模式=" + userInfo.get("Wildcard") +
-				"，原因=" + userInfo.get ("Reason"))
+				paramWildcardPattern + " " +
+				(bFounded ? ANSIEscapeTool.CSI+sShellColor_InList : ANSIEscapeTool.CSI+sShellColor_NotInList + "不") +
+				"在" + ANSIEscapeTool.CSI + "m" + sListName + "中。" +
+				(userInfo==null?"": "匹配的模式=" + userInfo.get("Wildcard") + "，原因=" + userInfo.get ("Reason"))
 			);
+			if (!nick.isEmpty ())
+				SendMessage (channel, nick, mapGlobalOptions,
+					paramWildcardPattern + " " +
+					(bFounded ? Colors.RED : Colors.GREEN + "不") +
+					"在" + Colors.NORMAL + " " + sListName + " 中。" +
+					(userInfo==null?"": "匹配的模式=" + userInfo.get("Wildcard") + "，原因=" + userInfo.get ("Reason"))
+				);
 		}
 	}
 
@@ -3762,7 +3886,7 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 				rs = stmt_sp.getResultSet ();
 				if (isReverseQuery)
 				{
-					if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT && !isUserInWhiteList(hostname, login, nick))	// 设置的大小超出了上限（因为在 bot 命令统一处理参数的地方跳过了 tag 命令，所以需要在此重做）
+					if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT && !isUserInWhiteList(hostname, login, nick, botcmd))	// 设置的大小超出了上限（因为在 bot 命令统一处理参数的地方跳过了 tag 命令，所以需要在此重做）
 						opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 					int nLine = 0;
 					while (rs.next ())
@@ -3956,7 +4080,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				break;
 			}
 		}
-		if (bBanned && !isUserInWhiteList(host, login, nick))
+		if (bBanned && !isUserInWhiteList(host, login, nick, cmd))
 			return false;
 		return true;
 	}
@@ -4404,7 +4528,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		logger.info (listCommands.toString());
 		try
 		{
-			if (! isUserInWhiteList(hostname, login, nick))
+			if (! isUserInWhiteList(hostname, login, nick, BOT_PRIMARY_COMMAND_Cmd))
 				CheckCommandsSecurity (listCommands);
 
 			for (int i=0; i<listCommands.size(); i++)
@@ -5039,7 +5163,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		if (chunzhenIPDB != null)
 			bot.set纯真IPDatabaseFileName (chunzhenIPDB);
 
-		bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, "名称中含有 bot (被认定为机器人)");
+		bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, null, "名称中含有 bot (被认定为机器人)");
 		if (banWildcardPatterns != null)
 		{
 			arrayBans = banWildcardPatterns.split ("[,;]+");
