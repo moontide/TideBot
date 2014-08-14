@@ -428,9 +428,9 @@ public class ANSIEscapeTool
 		int iLineIndex = nLineNO - 1, iColumnIndex = nColumnNO - 1;
 		boolean isOutputingFirstCharacterInThisLine = true;
 
-		//System.err.println (nLineNO + " 行 " + nColumnNO + " 列 输出：" + sbSrc);
-		//System.err.println ("属性: " + currentAttribute);
-		//System.err.println ("-------------------------------------------------");
+		logger.finest (nLineNO + " 行 " + nColumnNO + " 列 输出：" + sbSrc);
+		logger.finest ("属性: " + currentAttribute);
+		logger.finest ("-------------------------------------------------");
 
 		CharBuffer cbLine = null;
 		List<Map<String, Object>> listLineCharactersAttributes = null;
@@ -444,7 +444,7 @@ public class ANSIEscapeTool
 					if (i < sbSrc.length () - 1  && sbSrc.charAt (i+1) == '\n')
 					{
 						i++;
-						logger.fine (i + " 处为 Windows 回车换行符号，只计做一个回车符");
+						logger.finer (i + " 处为 Windows 回车换行符号，只计做一个回车符");
 					}
 					else
 						logger.warning ((i+1) + " 处只遇到了 \\r 回车符号");
@@ -454,10 +454,10 @@ public class ANSIEscapeTool
 					if (i < sbSrc.length () - 1  && sbSrc.charAt (i+1) == '\r')
 					{
 						i++;
-						logger.fine (i + " 处为 MacOS 换行回车符号，只计做一个回车符");
+						logger.finer (i + " 处为 MacOS 换行回车符号，只计做一个回车符");
 					}
 					else
-						logger.fine ((i+1) + " 处遇到了 \\n 换行符号");
+						logger.finer ((i+1) + " 处遇到了 \\n 换行符号");
 				}
 			}
 
@@ -571,10 +571,10 @@ public class ANSIEscapeTool
 
 				if (previous_attr != null)
 				{
-					l_reset = previous_attr.get ("reset")==null ? 0 : ((boolean)previous_attr.get ("reset") ?  1 : -1);
-					l_bold = previous_attr.get ("bold")==null ? 0 : ((boolean)previous_attr.get ("bold") ?  1 : -1);
-					l_reverse = previous_attr.get ("reverse")==null ? 0 : ((boolean)previous_attr.get ("reverse") ?  1 : -1);
-					l_underline = previous_attr.get ("underline")==null ? 0 : ((boolean)previous_attr.get ("underline") ?  1 : -1);
+					l_reset = previous_attr.get ("reset")==null ? 0 : ((boolean)previous_attr.get ("reset") ?  1 : 0);
+					l_bold = previous_attr.get ("bold")==null ? 0 : ((boolean)previous_attr.get ("bold") ?  1 : 0);
+					l_reverse = previous_attr.get ("reverse")==null ? 0 : ((boolean)previous_attr.get ("reverse") ?  1 : 0);
+					l_underline = previous_attr.get ("underline")==null ? 0 : ((boolean)previous_attr.get ("underline") ?  1 : 0);
 
 					//l_256color_fg = (Boolean)previous_attr.get ("256color_fg")==null ? false : (boolean)previous_attr.get ("256color_fg");
 					//l_256color_bg = (Boolean)previous_attr.get ("256color_bg")==null ? false : (boolean)previous_attr.get ("256color_bg");
@@ -583,10 +583,10 @@ public class ANSIEscapeTool
 				}
 				if (attr != null)
 				{
-					r_reset = attr.get ("reset")==null ? 0 : ((boolean)attr.get ("reset") ?  1 : -1);
-					r_bold = attr.get ("bold")==null ? 0 : ((boolean)attr.get ("bold") ?  1 : -1);
-					r_reverse = attr.get ("reverse")==null ? 0 : ((boolean)attr.get ("reverse") ?  1 : -1);
-					r_underline = attr.get ("underline")==null ? 0 : ((boolean)attr.get ("underline") ?  1 : -1);
+					r_reset = attr.get ("reset")==null ? 0 : ((boolean)attr.get ("reset") ?  1 : 0);
+					r_bold = attr.get ("bold")==null ? 0 : ((boolean)attr.get ("bold") ?  1 : 0);
+					r_reverse = attr.get ("reverse")==null ? 0 : ((boolean)attr.get ("reverse") ?  1 : 0);
+					r_underline = attr.get ("underline")==null ? 0 : ((boolean)attr.get ("underline") ?  1 : 0);
 
 					r_256color_fg = (Boolean)attr.get ("256color_fg")==null ? false : (boolean)attr.get ("256color_fg");
 					r_256color_bg = (Boolean)attr.get ("256color_bg")==null ? false : (boolean)attr.get ("256color_bg");
