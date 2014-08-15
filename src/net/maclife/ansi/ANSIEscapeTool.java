@@ -926,6 +926,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 							currentCharacterAttribute.put ("reverse", false);
 							logger.finer ("反色 关");
 							break;
+
 						case 4:	// 单下划线
 							currentCharacterAttribute.put ("underline", true);
 							logger.finer ("下划线 开");
@@ -934,6 +935,17 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 							currentCharacterAttribute.put ("underline", false);
 							logger.finer ("下划线 关");
 							break;
+
+						case 5:
+							logger.finer ("闪烁 开(作废，IRC 不支持)");
+							break;
+						case 6:
+							logger.finer ("闪烁 开(作废，IRC 不支持)");
+							break;
+						case 25:	// blink off
+							logger.finer ("闪烁 关(作废，IRC 不支持)");
+							break;
+
 						case 30:	// 黑色
 						case 31:	// 深红色 / 浅红色
 						case 32:	// 深绿色 / 浅绿
