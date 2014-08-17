@@ -822,7 +822,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 				if (isSayingToMe && banInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 				{
-					SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommand("help") + " 命令显示帮助信息");
+					SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_Help, true) + " 命令显示帮助信息");
 					//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
 				}
 				return;
@@ -1089,7 +1089,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @param input
 	 * @return 如果存在合法的命令，则返回 BOT_COMMAND_NAMES 数组中的第一个元素（即：首选的命令，命令别名不返回）；如果不存在合法的命令，则返回 null
 	 */
-	String getBotPrimaryCommand (String input)
+	public static String getBotPrimaryCommand (String input)
 	{
 		// [“输入”与“命令”完全相等]，
 		// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
@@ -1100,7 +1100,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{
 			for (String name : names)
 			{
-				String regular_cmd_pattern = formatBotCommand (name);
+				String regular_cmd_pattern = formatBotCommandInstance (name);
 				if (
 					   StringUtils.equalsIgnoreCase (sInputCmd, regular_cmd_pattern)
 					|| sInputCmd.matches ("(?i)^" + regular_cmd_pattern + "$")
@@ -1110,9 +1110,95 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		return null;
 	}
-	String formatBotCommand (String cmd)
+
+	public static String formatBotCommand (String cmd, boolean colorized)
 	{
-		return BOT_COMMAND_PREFIX + cmd;
+		if (colorized)
+			return (BOT_COMMAND_PREFIX.isEmpty () ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) + COLOR_COMMAND + cmd + Colors.NORMAL;
+		else
+			return BOT_COMMAND_PREFIX.isEmpty () ? cmd : BOT_COMMAND_PREFIX + cmd;
+	}
+	public static String formatBotCommand (String cmd)
+	{
+		return formatBotCommand (cmd, false);
+	}
+
+	public static String formatBotCommandInstance (String cmd, boolean colorized)
+	{
+		if (colorized)
+			return (BOT_COMMAND_PREFIX.isEmpty () ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) + COLOR_COMMAND_INSTANCE + cmd + Colors.NORMAL;
+		else
+			return BOT_COMMAND_PREFIX.isEmpty () ? cmd : BOT_COMMAND_PREFIX + cmd;
+	}
+	public static String formatBotCommandInstance (String cmd)
+	{
+		return formatBotCommandInstance (cmd, false);
+	}
+
+	public static String formatBotOptOrParam (String optOrParam, String color, String value, String valueColor, boolean colorized)
+	{
+		if (colorized)
+		{
+			if (value==null || value.isEmpty ())
+				return color + optOrParam + Colors.NORMAL;
+			else
+				return color + optOrParam + "=" + valueColor + value + Colors.NORMAL;
+		}
+		else
+		{
+			if (value==null || value.isEmpty ())
+				return optOrParam;
+			else
+				return color + "=" + value;
+		}
+	}
+	public static String formatBotOptOrParam (String optOrParam, String color, boolean colorized)
+	{
+		return formatBotOptOrParam (optOrParam, color, null, null, colorized);
+	}
+
+	public static String formatBotOption (String option, String value, boolean colorized)
+	{
+		return formatBotOptOrParam (option, COLOR_COMMAND_OPTION, value, COLOR_COMMAND_OPTION_VALUE, colorized);
+	}
+	public static String formatBotOption (String option, boolean colorized)
+	{
+		return formatBotOptOrParam (option, COLOR_COMMAND_OPTION, colorized);
+	}
+	public static String formatBotOption (String option)
+	{
+		return formatBotOption (option, false);
+	}
+
+	public static String formatBotOptionInstance (String option, String value, boolean colorized)
+	{
+		return formatBotOptOrParam (option, COLOR_COMMAND_OPTION_INSTANCE, value, COLOR_COMMAND_OPTION_VALUE, colorized);
+	}
+	public static String formatBotOptionInstance (String option, boolean colorized)
+	{
+		return formatBotOptOrParam (option, COLOR_COMMAND_OPTION_INSTANCE, colorized);
+	}
+	public static String formatBotOptionInstance (String option)
+	{
+		return formatBotOptionInstance (option, false);
+	}
+
+	public static String formatBotParameter (String param, boolean colorized)
+	{
+		return formatBotOptOrParam (param, COLOR_COMMAND_PARAMETER, colorized);
+	}
+	public static String formatBotParameter (String option)
+	{
+		return formatBotParameter (option, false);
+	}
+
+	public static String formatBotParameterInstance (String param, boolean colorized)
+	{
+		return formatBotOptOrParam (param, COLOR_COMMAND_PARAMETER_INSTANCE, colorized);
+	}
+	public static String formatBotParameterInstance (String param)
+	{
+		return formatBotParameterInstance (param, false);
 	}
 
 	/**
@@ -1127,7 +1213,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			return false;
 		for (String s : inputs)
 		{
-			s = getBotPrimaryCommand (formatBotCommand(s));
+			s = getBotPrimaryCommand (formatBotCommandInstance(s));
 			if (primaryCmd.equalsIgnoreCase(s))
 				return true;
 		}
@@ -1138,108 +1224,109 @@ public class LiuYanBot extends PircBot implements Runnable
 		if (params==null)
 		{
 			SendMessage (ch, u, mapGlobalOptions,
-				"本 bot 命令格式: " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + "<" + COLOR_BOT_COMMAND + "命令" + Colors.NORMAL + ">[" +
-				COLOR_COMMAND_OPTION + ".选项" + Colors.NORMAL + "]... [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    " +
-				"命令列表: " + COLOR_COMMAND_INSTANCE +
-				BOT_PRIMARY_COMMAND_Cmd + " " +
-				BOT_PRIMARY_COMMAND_StackExchange + " " +
-				BOT_PRIMARY_COMMAND_GeoIP + " " +
-				BOT_PRIMARY_COMMAND_IPLocation + " " +
-				BOT_PRIMARY_COMMAND_PageRank + " " +
-				BOT_PRIMARY_COMMAND_Time + " " +
-				BOT_PRIMARY_COMMAND_Google + " " +
-				BOT_PRIMARY_COMMAND_RegExp + " " +
-				BOT_PRIMARY_COMMAND_JavaScript + " " +
-				BOT_PRIMARY_COMMAND_TextArt + " " +
-				BOT_PRIMARY_COMMAND_ParseCmd + " " +
-				BOT_PRIMARY_COMMAND_Action + " " +
-				BOT_PRIMARY_COMMAND_Notice + " " +
-				BOT_PRIMARY_COMMAND_TimeZones + " " +
-				BOT_PRIMARY_COMMAND_Locales + " " +
-				BOT_PRIMARY_COMMAND_Env + " " +
-				BOT_PRIMARY_COMMAND_Properties + " " +
-				BOT_PRIMARY_COMMAND_Version + " " +
-				BOT_PRIMARY_COMMAND_Help + " " +
-				BOT_PRIMARY_COMMAND_Alias + " " +
+				"本 bot 命令格式: " + "<" + formatBotCommand ("命令", true) + ">[" +
+				formatBotOption (".选项", true) + "]... [" + formatBotParameter ("命令参数", true) + "]...    " +
+				"命令列表:" + COLOR_COMMAND_INSTANCE +
+				" " + BOT_PRIMARY_COMMAND_Cmd +
+				" " + BOT_PRIMARY_COMMAND_StackExchange +
+				" " + BOT_PRIMARY_COMMAND_GeoIP +
+				" " + BOT_PRIMARY_COMMAND_IPLocation +
+				" " + BOT_PRIMARY_COMMAND_PageRank +
+				" " + BOT_PRIMARY_COMMAND_Time +
+				" " + BOT_PRIMARY_COMMAND_Google +
+				" " + BOT_PRIMARY_COMMAND_RegExp +
+				" " + BOT_PRIMARY_COMMAND_JavaScript +
+				" " + BOT_PRIMARY_COMMAND_TextArt +
+				" " + BOT_PRIMARY_COMMAND_ParseCmd +
+				" " + BOT_PRIMARY_COMMAND_Action +
+				" " + BOT_PRIMARY_COMMAND_Notice +
+				" " + BOT_PRIMARY_COMMAND_TimeZones +
+				" " + BOT_PRIMARY_COMMAND_Locales +
+				" " + BOT_PRIMARY_COMMAND_Env +
+				" " + BOT_PRIMARY_COMMAND_Properties +
+				" " + BOT_PRIMARY_COMMAND_Version +
+				" " + BOT_PRIMARY_COMMAND_Help +
+				" " + BOT_PRIMARY_COMMAND_Alias +
 				Colors.NORMAL +
-				", 可用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL + COLOR_COMMAND_INSTANCE + BOT_PRIMARY_COMMAND_Help + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令名" + Colors.NORMAL + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				", 可用 " + formatBotCommand (BOT_PRIMARY_COMMAND_Help, true) + " [" + formatBotParameter ("命令名", true) + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
-				COLOR_COMMAND_OPTION_INSTANCE + "to" + Colors.NORMAL + "--将输出重定向(需要加额外的“目标”参数); " +
-				COLOR_COMMAND_OPTION_INSTANCE + "nou" + Colors.NORMAL + "--不输出用户名(NO Username), 该选项覆盖 " + COLOR_COMMAND_OPTION_INSTANCE + "to" + Colors.NORMAL + " 选项; " +
-				COLOR_COMMAND_OPTION + "纯数字" + Colors.NORMAL + "--修改响应行数或其他上限(不超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
+				formatBotOptionInstance ("to", true) + "--将输出重定向(需要加额外的“目标”参数); " +
+				formatBotOptionInstance ("nou", true) + "--不输出用户名(NO Username), 该选项覆盖 " + formatBotOptionInstance ("to", true) + " 选项; " +
+				formatBotOption ("纯数字", true) + "--修改响应行数或其他上限(不超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
 				"全局选项的顺序无关紧要, 私有选项需按命令要求的顺序出现"
-				);
-
-			SendMessage (ch, u, mapGlobalOptions,
-				COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令特有的全局选项: " +
-				COLOR_COMMAND_OPTION_INSTANCE + "esc" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "escape" + Colors.NORMAL + "--将 ANSI 颜色转换为 IRC 颜色(ESC'[01;33;41m' -> 0x02 0x03 '08,04'); " +
-				COLOR_COMMAND_OPTION_INSTANCE + "err" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "stderr" + Colors.NORMAL + "--输出 stderr; " +
-				COLOR_COMMAND_OPTION_INSTANCE + "timeout=" + COLOR_COMMAND_OPTION_VALUE + "N" + Colors.NORMAL + "--将超时时间改为 N 秒); " +
-				COLOR_COMMAND_OPTION + "变量名=" + COLOR_COMMAND_OPTION_VALUE + "变量值" + Colors.NORMAL + "--设置环境变量); " +
-				""
 				);
 			return;
 		}
 		String[] args = params.split (" +");
 		//System.out.println (Arrays.toString (args));
 
-		String primaryCmd;
-		String sColoredCommandPrefix = BOT_COMMAND_PREFIX.isEmpty () ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL;
+		String primaryCmd = null;
 		primaryCmd = BOT_PRIMARY_COMMAND_Help;           if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 显示指定的命令的帮助信息. 命令可输入多个, 若有多个, 则显示所有这些命令的帮助信息");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("命令(不需要加 bot 命令前缀)", true) + "]...    -- 显示指定的命令的帮助信息. 命令可输入多个, 若有多个, 则显示所有这些命令的帮助信息");
 		primaryCmd = BOT_PRIMARY_COMMAND_Alias;           if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "命令(不需要加 bot 命令前缀)" + Colors.NORMAL + "]...    -- 列出 bot 命令的别名, 多数 bot 命令存在别名, 一些别名可能更容易记住. 命令可输入多个.");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("命令(不需要加 bot 命令前缀)",true) + "]...    -- 列出 bot 命令的别名, 多数 bot 命令存在别名, 一些别名可能更容易记住. 命令可输入多个.");
 		primaryCmd = BOT_PRIMARY_COMMAND_Cmd;            if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "exec"))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "exec" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".语言" + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "]] <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 重定向(><) 之外, shell 中类似变量取值($var) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+		{
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("exec", true) + "[" + formatBotOption (".全局选项", true) + "][" + formatBotOption (".语言", true) + "[" + formatBotOption (".字符集", true) + "]] <" + formatBotParameter ("命令", true) + "> [" + formatBotParameter ("命令参数", true) + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 重定向(><) 之外, shell 中类似变量取值($var) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotCommandInstance (BOT_PRIMARY_COMMAND_Cmd, true) + " 命令特有的全局选项: " +
+				formatBotOptionInstance ("esc", true) + "|" + formatBotOptionInstance ("escape", true) + "|" + formatBotOptionInstance ("esc2", true) + "--将 ANSI 颜色转换为 IRC 颜色(ESC'[01;33;41m' -> 0x02 0x03 '08,04'); " +
+				formatBotOptionInstance ("err", true) + "|" + formatBotOptionInstance ("stderr", true) + "--输出 stderr; " +
+				formatBotOptionInstance ("timeout", "N", true) + "--将超时时间改为 N 秒; " +
+				formatBotOption ("变量名", "变量值", true) + "--设置环境变量; " +
+				""
+				);
+		}
 		primaryCmd = BOT_PRIMARY_COMMAND_ParseCmd;       if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "命令" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "命令参数" + Colors.NORMAL + "]...    -- 分析 " + COLOR_COMMAND_INSTANCE + "cmd" + Colors.NORMAL + " 命令的参数");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("命令", true) + "> [" + formatBotParameter ("命令参数", true) + "]...    -- 分析 " + formatBotCommandInstance (BOT_PRIMARY_COMMAND_Cmd, true) + " 命令的参数");
 		primaryCmd = BOT_PRIMARY_COMMAND_IPLocation;          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "iploc" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "ipl" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IPv4地址/域名" + Colors.NORMAL + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个.");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("iploc", true) + "|" + formatBotCommandInstance ("ipl", true) + " [" + formatBotParameter ("IPv4地址/域名", true) + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个.");
 		primaryCmd = BOT_PRIMARY_COMMAND_GeoIP;          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".GeoIP语言代码]" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "IP地址/域名" + Colors.NORMAL + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".GeoIP语言代码", true) + "] [" + formatBotParameter ("IP地址/域名", true) + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
 		primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "pr" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "网址" + Colors.NORMAL + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("pr", true) + " <" + formatBotParameter ("网址", true) + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
 		primaryCmd = BOT_PRIMARY_COMMAND_StackExchange;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "se" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "站点名" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER + "list" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "动作" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数" + Colors.NORMAL + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + COLOR_COMMAND_PARAMETER_INSTANCE + "list" + Colors.NORMAL + " 列出， 动作有 " + COLOR_COMMAND_PARAMETER_INSTANCE + "Search" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "s" + Colors.NORMAL + " " + COLOR_COMMAND_PARAMETER_INSTANCE + "Users" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "u" + Colors.NORMAL + "(按ID查询) " + COLOR_COMMAND_PARAMETER_INSTANCE + "AllUsers" + Colors.NORMAL + "|" + COLOR_COMMAND_PARAMETER_INSTANCE + "au" + Colors.NORMAL + "(全站用户，可按姓名查) " + COLOR_COMMAND_PARAMETER_INSTANCE + "Info" + Colors.NORMAL + "(站点信息) ");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("se", true) + " <" + formatBotParameter ("站点名", true) + "|" + formatBotParameter ("list", true) + "> [" + formatBotParameter ("动作", true) + "] [" + formatBotParameter ("参数", true) + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + formatBotParameterInstance ("list", true) + " 列出， 动作有 " + formatBotParameterInstance ("Search", true) + "|" + formatBotParameterInstance ("s", true) + " " + formatBotParameterInstance ("Users", true) + "|" + formatBotParameterInstance ("u", true) + "(按ID查询) " + formatBotParameterInstance ("AllUsers", true) + "|" + formatBotParameterInstance ("au", true) + "(全站用户，可按姓名查) " + formatBotParameterInstance ("Info", true) + "(站点信息) ");
 		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 ." + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + " -- 返回几条搜索结果，默认是 2 条; 因 Google 的 API 返回结果不超过 4 条，所以，该数值超过 4 也不起作用。");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("正整数", true) + "] <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 ." + formatBotOption ("正整数", true) + " -- 返回几条搜索结果，默认是 2 条; 因 Google 的 API 返回结果不超过 4 条，所以，该数值超过 4 也不起作用。");
 		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "match" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ".[" + COLOR_COMMAND_OPTION + "RegExp选项" + Colors.NORMAL + "].[" + COLOR_COMMAND_OPTION_INSTANCE + "color" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + "> [" + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数3" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "参数4" + Colors.NORMAL + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + COLOR_COMMAND_OPTION_INSTANCE + "i" + Colors.NORMAL + "-不分大小写, " + COLOR_COMMAND_OPTION_INSTANCE + "m" + Colors.NORMAL + "-多行模式, " + COLOR_COMMAND_OPTION_INSTANCE + "s" + Colors.NORMAL + "-.也会匹配换行符; " + COLOR_COMMAND_INSTANCE + "regexp" + Colors.NORMAL + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
-			SendMessage (ch, u, mapGlobalOptions, COLOR_COMMAND_INSTANCE + "match" + Colors.NORMAL + ": " + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + " 匹配 " + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + "; " + COLOR_COMMAND_INSTANCE + "replace" + Colors.NORMAL + "/" + COLOR_COMMAND_INSTANCE + "substitute" + Colors.NORMAL + ": " + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + " 中的 " + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + " 替换成 " + COLOR_COMMAND_PARAMETER + "参数3" + Colors.NORMAL + "; " + COLOR_COMMAND_INSTANCE + "split" + Colors.NORMAL + ": 用 " + COLOR_COMMAND_PARAMETER + "参数2" + Colors.NORMAL + " 分割 " + COLOR_COMMAND_PARAMETER + "参数1" + Colors.NORMAL + ";");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("match", true) + "|" + formatBotCommandInstance ("replace", true) + "|" + formatBotCommandInstance ("substitute", true) + "|" + formatBotCommandInstance ("split", true) + ".[" + formatBotOption ("RegExp选项", true) + "].[" + formatBotOptionInstance ("color", true) + "] <" + formatBotParameter ("参数1", true) + "> [" + formatBotParameter ("参数2", true) + "] [" + formatBotParameter ("参数3", true) + "] [" + formatBotParameter ("参数4", true) + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + formatBotOptionInstance ("i", true) + "-不分大小写, " + formatBotOptionInstance ("m", true) + "-多行模式, " + formatBotOptionInstance ("s", true) + "-.也会匹配换行符; " + formatBotCommandInstance ("regexp", true) + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance ("match", true) + ": " + formatBotParameter ("参数1", true) + " 匹配 " + formatBotParameter ("参数2", true) + "; " + formatBotCommandInstance ("replace", true) + "/" + formatBotCommandInstance ("substitute", true) + ": " + formatBotParameter ("参数1", true) + " 中的 " + formatBotParameter ("参数2", true) + " 替换成 " + formatBotParameter ("参数3", true) + "; " + formatBotCommandInstance ("split", true) + ": 用 " + formatBotParameter ("参数2", true) + " 分割 " + formatBotParameter ("参数1", true) + ";");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "js" + Colors.NORMAL + " <" + COLOR_COMMAND_PARAMETER + "javascript 脚本" + Colors.NORMAL + ">    -- 执行 JavaScript 脚本。");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("js", true) + " <" + formatBotParameter ("javascript 脚本", true) + ">    -- 执行 JavaScript 脚本。");
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION + "字符集" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "COLUMNS" + Colors.NORMAL + "=" + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "字符艺术画文件 URL 地址(http:// file://)" + Colors.NORMAL + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + COLOR_COMMAND_OPTION + "字符集" + Colors.NORMAL + " 如果不指定，默认为 " + COLOR_COMMAND_OPTION_INSTANCE + "437" + Colors.NORMAL + " 字符集。 ." + COLOR_COMMAND_OPTION_INSTANCE + "COLUMNS" + Colors.NORMAL + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("字符集", true) + "][." + formatBotOptionInstance ("COLUMNS", true) + "=" + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("字符艺术画文件 URL 地址(http:// file://)", true) + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + formatBotOption ("字符集", true) + " 如果不指定，默认为 " + formatBotOptionInstance ("437", true) + " 字符集。 ." + formatBotOptionInstance ("COLUMNS", true) + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "反查" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "详细" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION_INSTANCE + "stats" + Colors.NORMAL + "|" + COLOR_COMMAND_OPTION_INSTANCE + "统计" + Colors.NORMAL + "][." + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "名称" + Colors.NORMAL + ">[" + COLOR_COMMAND_PARAMETER_INSTANCE + "//" + Colors.NORMAL + "<" + COLOR_COMMAND_PARAMETER + "定义" + Colors.NORMAL + ">]  -- 仿 smbot 的 !sm 功能。 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + ": 反查(模糊查询), 如: 哪些词条被贴有“学霸”; ." + COLOR_COMMAND_OPTION_INSTANCE + "detail" + Colors.NORMAL + ": 显示详细信息(添加者 时间…); " + COLOR_COMMAND_OPTION + "正整数" + Colors.NORMAL + " -- 取该词条指定序号的定义, 但与 ." + COLOR_COMMAND_OPTION_INSTANCE + "reverse" + Colors.NORMAL + " 一起使用时，起到限制响应行数的作用");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true)+ "[." + formatBotOptionInstance ("reverse", true) + "|" + formatBotOptionInstance ("反查", true) + "][." + formatBotOptionInstance ("detail", true) + "|" + formatBotOptionInstance ("详细", true) + "][." + formatBotOptionInstance ("stats", true) + "|" + formatBotOptionInstance ("统计", true) + "][." + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("名称", true) + ">[" + formatBotParameterInstance ("//", true) + "<" + formatBotParameter ("定义", true) + ">]  -- 仿 smbot 的 !sm 功能。 ." + formatBotOptionInstance ("reverse", true) + ": 反查(模糊查询), 如: 哪些词条被贴有“学霸”; ." + formatBotOptionInstance ("detail", true) + ": 显示详细信息(添加者 时间…); " + formatBotOption ("正整数", true) + " -- 取该词条指定序号的定义, 但与 ." + formatBotOptionInstance ("reverse", true) + " 一起使用时，起到限制响应行数的作用");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".Java语言区域" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时区(区分大小写)" + Colors.NORMAL + "] [" + COLOR_COMMAND_PARAMETER + "Java时间格式" + Colors.NORMAL + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		primaryCmd = BOT_PRIMARY_COMMAND_Action;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
 		primaryCmd = BOT_PRIMARY_COMMAND_Notice;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "目标(#频道或昵称)" + Colors.NORMAL + "] <" + COLOR_COMMAND_PARAMETER + "消息" + Colors.NORMAL + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + COLOR_COMMAND_OPTION_INSTANCE + ".to" + Colors.NORMAL + " 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_URLEecode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE + BOT_PRIMARY_COMMAND_URLDecode + Colors.NORMAL + "[" + COLOR_COMMAND_OPTION + ".字符集" + Colors.NORMAL + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "|" + formatBotCommandInstance (BOT_PRIMARY_COMMAND_URLDecode, true) + "[" + formatBotOption (".字符集", true) + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
 		primaryCmd = BOT_PRIMARY_COMMAND_HTTPHead;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " <HTTP 网址>    -- 显示指定网址的 HTTP 响应头");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " <" + formatBotParameter ("HTTP 网址", true) + ">    -- 显示指定网址的 HTTP 响应头");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Locales;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaLocales"))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javalocales" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "|" + formatBotCommandInstance ("javalocales", true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
 		primaryCmd = BOT_PRIMARY_COMMAND_TimeZones;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaTimeZones"))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "|" + sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  "javatimezones" + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "|" + formatBotCommandInstance ("javatimezones", true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
 		primaryCmd = BOT_PRIMARY_COMMAND_Env;            if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
 		primaryCmd = BOT_PRIMARY_COMMAND_Properties;     if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + " [" + COLOR_COMMAND_PARAMETER + "过滤字" + Colors.NORMAL + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Version;          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, sColoredCommandPrefix + COLOR_COMMAND_INSTANCE +  primaryCmd + Colors.NORMAL + "    -- 显示 bot 版本信息");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "    -- 显示 bot 版本信息");
 	}
 
 	/**
