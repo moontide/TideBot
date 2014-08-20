@@ -147,8 +147,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String COLOR_COMMAND_OPTION_INSTANCE = Colors.CYAN;	// 指具体选项值
 	public static final String COLOR_COMMAND_OPTION_VALUE = Colors.PURPLE;
 	public static final String COLOR_COMMAND_OPTION_VALUE_INSTANCE = Colors.MAGENTA;
-	public static final String COLOR_COMMAND_PARAMETER = Colors.BLUE;
-	public static final String COLOR_COMMAND_PARAMETER_INSTANCE = Colors.BLUE;
+	public static final String COLOR_COMMAND_PARAMETER = Colors.DARK_BLUE;	//Colors.PURPLE;
+	public static final String COLOR_COMMAND_PARAMETER_INSTANCE = Colors.BLUE;	//Colors.MAGENTA;
 
 	Comparator<?> antiFloodComparitor = new AntiFloodComparator ();
 	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
@@ -1289,7 +1289,26 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("pr", true) + " <" + formatBotParameter ("网址", true) + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
 		primaryCmd = BOT_PRIMARY_COMMAND_StackExchange;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("se", true) + " <" + formatBotParameter ("站点名", true) + "|" + formatBotParameter ("list", true) + "> [" + formatBotParameter ("动作", true) + "] [" + formatBotParameter ("参数", true) + "]...    -- 搜索 StackExchange 专业问答站点群的问题、答案信息。 站点名可用 " + formatBotParameterInstance ("list", true) + " 列出， 动作有 " + formatBotParameterInstance ("Search", true) + "|" + formatBotParameterInstance ("s", true) + " " + formatBotParameterInstance ("Users", true) + "|" + formatBotParameterInstance ("u", true) + "(按ID查询) " + formatBotParameterInstance ("AllUsers", true) + "|" + formatBotParameterInstance ("au", true) + "(全站用户，可按姓名查) " + formatBotParameterInstance ("Info", true) + "(站点信息) ");
+		{
+			SendMessage (ch, u, mapGlobalOptions,
+					formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("se", true) +
+					" <" + formatBotParameter ("站点名", true) + "|" + formatBotParameterInstance ("sites", true) + "|" + formatBotParameterInstance ("params", true) + "> [" + formatBotParameter ("动作", true) + "] [" +
+					formatBotParameter ("参数", true) + "]...    -- 搜索 StackExchange 专业问答站点群的问题 答案信息. 站点名可用 " + formatBotParameterInstance ("list", true) + " 列出, 参数可用 " + formatBotParameterInstance ("params", true) + " 列出. 动作有 " +
+					formatBotParameterInstance ("s", true) +
+						"|" + formatBotParameterInstance ("Search", true) +
+						"|" + formatBotParameterInstance ("搜", true) +
+						"|" + formatBotParameterInstance ("查", true) +
+						" [" + formatBotParameter ("关键字", true) + "] --搜索; " +
+					formatBotParameterInstance ("u", true) + "|" + formatBotParameterInstance ("users", true) + " [" + formatBotParameter ("ID", true) + "]... --按UserID查询, 多个ID用空格或分号分割; " +
+					""
+					);
+			SendMessage (ch, u, mapGlobalOptions,
+					formatBotParameterInstance ("q", true) + "|" + formatBotParameterInstance ("questions", true) + " [" + formatBotParameter ("ID", true) + "]... --按问题ID查询, 多个ID用空格或分号分割; " +
+					formatBotParameterInstance ("a", true) + "|" + formatBotParameterInstance ("answers", true) + " [" + formatBotParameter ("ID", true) + "]... --按答案ID查询, 多个ID用空格或分号分割; " +
+					formatBotParameterInstance ("au", true) + "|" + formatBotParameterInstance ("AllUsers", true) + "|" + formatBotParameterInstance ("全站用户", true) + " [" + formatBotParameter ("姓名", true) + "] --全站用户, 可按姓名查; " +
+					formatBotParameterInstance ("Info", true) + "|" + formatBotParameterInstance ("SiteInfo", true) + "|" + formatBotParameterInstance ("站点信息", true)  + "--站点信息 "
+					);
+		}
 		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("正整数", true) + "] <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 ." + formatBotOption ("正整数", true) + " -- 返回几条搜索结果，默认是 2 条; 因 Google 的 API 返回结果不超过 4 条，所以，该数值超过 4 也不起作用。");
 		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
@@ -2430,7 +2449,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 第几页
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定结果页码数" + Colors.NORMAL);
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定结果页码数");
 						return;
 					}
 					//searchOption_page = args [++i];
@@ -2440,7 +2459,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 每页多少条记录
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定每页记录数" + Colors.NORMAL);
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定每页记录数");
 						return;
 					}
 					//searchOption_pagesize = args [++i];
@@ -2450,7 +2469,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 从哪天开始
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定开始日期，日期格式必须为 yyyy-MM-dd" + Colors.NORMAL);
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定开始日期" + Colors.NORMAL + "，日期格式必须为 yyyy-MM-dd");
 						return;
 					}
 					String searchOption_fromdate = arrayParams [++i];
@@ -2461,7 +2480,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 从哪天开始
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, Colors.RED + "需要指定结束日期，日期格式必须为 yyyy-MM-dd" + Colors.NORMAL);
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定结束日期" + Colors.NORMAL + "，日期格式必须为 yyyy-MM-dd");
 						return;
 					}
 					String searchOption_todate = arrayParams [++i];
@@ -2481,7 +2500,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					// modified: 最后修改日期
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段名，排序字段有： " + Colors.GREEN + "activity" + Colors.NORMAL + ": 活动时间; " + Colors.GREEN + "creation" + Colors.NORMAL + ": 创建时间; " + Colors.GREEN + "votes" + Colors.NORMAL + ": 得分; " + Colors.BLUE + "relevance" + Colors.NORMAL + ": 相关度;  如果指定了排序字段，则还可以在 /min /max 中指定其取值范围 (" + Colors.BLUE + "relevance" + Colors.NORMAL + " 除外)。");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段名" + Colors.NORMAL + "，排序字段有： " + Colors.GREEN + "activity" + Colors.NORMAL + ": 活动时间; " + Colors.GREEN + "creation" + Colors.NORMAL + ": 创建时间; " + Colors.GREEN + "votes" + Colors.NORMAL + ": 得分; " + Colors.BLUE + "relevance" + Colors.NORMAL + ": 相关度;  如果指定了排序字段，则还可以在 /min /max 中指定其取值范围 (" + Colors.BLUE + "relevance" + Colors.NORMAL + " 除外)。");
 						return;
 					}
 					//searchOption_sort = args [++i];
@@ -2491,7 +2510,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 顺序还是倒序排列，取值: asc: 顺序; desc: 倒序
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段的排序类型，排序类型有： " + Colors.GREEN + "asc" + Colors.NORMAL + ": 顺序; " + Colors.GREEN + "desc" + Colors.NORMAL + ": 倒序;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段的排序类型" + Colors.NORMAL + "，排序类型有： " + Colors.GREEN + "asc" + Colors.NORMAL + ": 顺序; " + Colors.GREEN + "desc" + Colors.NORMAL + ": 倒序;");
 						return;
 					}
 					//searchOption_order = args [++i];
@@ -2502,7 +2521,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					if (i == arrayParams.length-1)
 					{
 						System.err.println ();
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段的最小值;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段的最小值");
 						return;
 					}
 					//searchOption_min = args [++i];
@@ -2512,7 +2531,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 根据排序字段，指定数据范围的最大值
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定排序字段的最大值;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段的最大值");
 						return;
 					}
 					//searchOption_max = args [++i];
@@ -2530,7 +2549,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题标题 必须包含
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定标题包含的内容;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定标题包含的内容");
 						return;
 					}
 					//searchOption_title = args [++i];
@@ -2540,7 +2559,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题内容 必须包含
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定正文包含的内容;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定正文包含的内容");
 						return;
 					}
 					//searchOption_body = args [++i];
@@ -2551,7 +2570,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题所有者 / 问题属于哪个人
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定用户 ID;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定用户 ID");
 						return;
 					}
 					//searchOption_user = args [++i];
@@ -2561,7 +2580,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题包含某个网址，网址可以包含通配符
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题包含的网址;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题包含的网址");
 						return;
 					}
 					//searchOption_url = args [++i];
@@ -2572,7 +2591,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 返回的问题必须包含**至少有（>=）**多少个答案
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题的答案的最少数量;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题的答案的最少数量");
 						return;
 					}
 					//searchOption_answers = args [++i];
@@ -2582,7 +2601,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 返回的问题必须被查看了**至少（>=）**多少次
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题被查看的最少数量;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题被查看的最少数量");
 						return;
 					}
 					//searchOption_views = args [++i];
@@ -2593,7 +2612,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题包含任意一个标签，多个标签用分号分割，如“java;sql;mysql”
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题的标签，多个标签用分号 ';' 分割;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题的标签" + Colors.NORMAL + "，多个标签用分号 ';' 分割;");
 						return;
 					}
 					//searchOption_tagged = args [++i];
@@ -2603,7 +2622,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题不应该包含任何指定的标签，多个标签用分号分割，如“browser;database”
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题不应该包含的标签，多个标签用分号 ';' 分割;");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题不应该包含的标签" + Colors.NORMAL + "，多个标签用分号 ';' 分割;");
 						return;
 					}
 					//searchOption_notTagged = args [++i];
@@ -2614,7 +2633,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题是否已采用答案，True: 已采用采用答案的问题 | False: 没有采用答案的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否已采用答案， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否已采用答案" + Colors.NORMAL + "，" + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_accepted = args [++i];
@@ -2624,7 +2643,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题是否关闭，True: 已关闭的问题 | False: 未关闭的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否已关闭， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否已关闭" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_closed = args [++i];
@@ -2634,7 +2653,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题是否从其他网站转过来的，True: 是转移过来的问题 | False: 不是转移过来的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否是从其他网站转移过来的， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否是从其他网站转移过来的" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_migrated = args [++i];
@@ -2644,7 +2663,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题是否是被关注的/有奖励的，True: 被关注/有奖励的 | False: 没被关注/没有奖励的，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否是被关注的/有奖励的， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否是被关注的/有奖励的" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_notice = args [++i];
@@ -2654,7 +2673,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				{	// 问题是否是社区维基，True: 是 | False: 不是，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, "需要指定问题是否是社区维基， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否是社区维基" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_wiki = args [++i];
@@ -2761,6 +2780,49 @@ public class LiuYanBot extends PircBot implements Runnable
 				SendMessage (ch, nick, mapGlobalOptions, sbSiteInfo.toString ());
 			return;
 		}
+		else if (site.equalsIgnoreCase ("params") || site.equalsIgnoreCase ("list-params") || site.equalsIgnoreCase ("listParams"))
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "公共参数: " +
+					formatBotParameterInstance ("/sort", true) + " " +
+						formatBotParameterInstance ("activity", true) +
+						"|" +formatBotParameterInstance ("creation", true) +
+						"|" +formatBotParameterInstance ("votes", true) +
+						"|" +formatBotParameterInstance ("relevance", true) +
+						"|" +formatBotParameterInstance ("reputation", true) +
+						"|" +formatBotParameterInstance ("name", true) +
+						"|" +formatBotParameterInstance ("modified", true) +
+						"--按什么信息排序,后三个是用在搜索用户时,其他的是用在搜索问题时. " +
+					formatBotParameterInstance ("/order", true) + " " +
+						formatBotParameterInstance ("asc", true) +
+						"|" + formatBotParameterInstance ("desc", true) +
+						"--排序顺序. " +
+					formatBotParameterInstance ("/page", true) + " " + formatBotParameter ("页号", true) + "--返回第几页数据. " +
+					formatBotParameterInstance ("/pagesize", true) + " " + formatBotParameter ("每页条数", true) + "--设置每页返回的结果数. " +
+					""
+					);
+			SendMessage (ch, nick, mapGlobalOptions,
+					formatBotParameterInstance ("/fromdate", true) + "|" + formatBotParameterInstance ("/todate", true) + " " + formatBotParameter ("日期", true) + "--起、止日期,日期字符串格式为 yyyy-MM-dd. " +
+					formatBotParameterInstance ("/min", true) + "|" + formatBotParameterInstance ("/max", true) + " " + formatBotParameter ("参数", true) + "--排序字段的 最小值|最大值. " +
+					"搜索参数: " +
+					formatBotParameterInstance ("/tagged", true) + "|" + formatBotParameterInstance ("/notTagged", true) + " " + formatBotParameter ("问题标签", true) + "--问题(应该|不应该)包含哪些标签, 多个标签用;分割开. " +
+					formatBotParameterInstance ("/user", true) + " " + formatBotParameter ("UserID", true) + "--问题由谁发问. " +
+					formatBotParameterInstance ("/views", true) + "|" + formatBotParameterInstance ("/answers", true) + " " + formatBotParameter ("数量", true) + "--问题的(被浏览次数|答案数量)不少于... " +
+					""
+					);
+			SendMessage (ch, nick, mapGlobalOptions,
+					formatBotParameterInstance ("/title", true) + "|" + formatBotParameterInstance ("/body", true) + " " + formatBotParameter ("内容", true) + "--问题的(标题|正文|)是否包含内容. " +
+					formatBotParameterInstance ("/url", true) + " " + formatBotParameter ("网址", true) + "--问题正文是否包含网址. " +
+					formatBotParameterInstance ("/accepted", true) +
+						"|" + formatBotParameterInstance ("/closed", true) +
+						"|" + formatBotParameterInstance ("/migrated", true) +
+						"|" + formatBotParameterInstance ("/notice", true) +
+						"|" + formatBotParameterInstance ("/wiki", true) +
+							" " + formatBotParameterInstance ("true", true) + "|" + formatBotParameterInstance ("false", true) +
+						",问题是否是(已采用答案|被关闭|被转移|有奖励|社区维基)的. " +
+					""
+					);
+			return;
+		}
 
 		if (action == null)
 		{
@@ -2816,12 +2878,12 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			else if (action.equalsIgnoreCase("q") || action.equalsIgnoreCase("question") || action.equalsIgnoreCase("questions") || action.equalsIgnoreCase("问题"))
 			{
-				node = StackExchangeAPI.questionsInfo (sSiteNameForAPI, sbQ.toString ().split (" +"));
+				node = StackExchangeAPI.questionsInfo (sSiteNameForAPI, mapParams, sbQ.toString ().split (" +"));
 				processStackExchangeQuestionsNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else if (action.equalsIgnoreCase("a") || action.equalsIgnoreCase("answer") || action.equalsIgnoreCase("answers") || action.equalsIgnoreCase("答案"))
 			{
-				node = StackExchangeAPI.answersInfo (sSiteNameForAPI, sbQ.toString ().split (" +"));
+				node = StackExchangeAPI.answersInfo (sSiteNameForAPI, mapParams, sbQ.toString ().split (" +"));
 				processStackExchangeAnswersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else if (action.equalsIgnoreCase ("u") || action.equalsIgnoreCase ("user") || action.equalsIgnoreCase ("users") || action.equalsIgnoreCase ("用户"))
