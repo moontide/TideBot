@@ -1221,7 +1221,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	}
 	void ProcessCommand_Help (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params==null)
+		if (StringUtils.isEmpty (params))
 		{
 			SendMessage (ch, u, mapGlobalOptions,
 				"本 bot 命令格式: " + "<" + formatBotCommand ("命令", true) + ">[" +
@@ -1499,7 +1499,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			return;
 		}
 		String[] arrayParams = null;
-		if (params!=null && !params.isEmpty())
+		if (! StringUtils.isEmpty (params))
 			arrayParams = params.split (" ", 2);
 		if (arrayParams == null || arrayParams.length<1)
 		{
@@ -1607,7 +1607,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 		}
 		String[] arrayParams = null;
-		if (params!=null && !params.isEmpty())
+		if (! StringUtils.isEmpty (params))
 			arrayParams = params.split (" +", 4);
 		if (arrayParams == null || arrayParams.length<1)
 		{
@@ -1804,7 +1804,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				l = new Locale (sLang);
 		}
 
-		if (params!=null)
+		if (! StringUtils.isEmpty (params))
 		{
 			String[] args = params.split (" +", 2);
 			if (args.length >= 1)
@@ -1854,7 +1854,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	void ProcessCommand_TimeZones (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (params!=null)
+		if (! StringUtils.isEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -1907,7 +1907,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	void ProcessCommand_Locales (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (params!=null)
+		if (! StringUtils.isEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -1961,7 +1961,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	void ProcessCommand_Environment (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (params!=null)
+		if (! StringUtils.isEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -2020,7 +2020,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	void ProcessCommand_Properties (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (params!=null)
+		if (! StringUtils.isEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -2087,14 +2087,14 @@ public class LiuYanBot extends PircBot implements Runnable
 				if (env.equalsIgnoreCase ("me"))
 				{
 					show_my_ip = true;
-					params = hostname + " " + params;
+					params = StringUtils.isEmpty (params) ? hostname : hostname + " " + params;
 					continue;
 				}
 				lang = env;
 			}
 		}
 
-		if (params==null && !show_my_ip)
+		if (StringUtils.isEmpty (params) && !show_my_ip)
 		{
 			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -2108,7 +2108,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
 		String[] ips = null;
-		if (params!=null)
+		if (! StringUtils.isEmpty (params))
 			ips = params.split (" +");
 
 		CityResponse city = null;
@@ -2224,13 +2224,13 @@ public class LiuYanBot extends PircBot implements Runnable
 				if (env.equalsIgnoreCase ("me"))
 				{
 					show_my_ip = true;
-					params = hostname + " " + params;
+					params = StringUtils.isEmpty (params) ? hostname : hostname + " " + params;
 					continue;
 				}
 			}
 		}
 
-		if (params==null && !show_my_ip)
+		if (StringUtils.isEmpty (params) && !show_my_ip)
 		{
 			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -2244,7 +2244,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
 		String[] queries = null;
-		if (params!=null)
+		if (! StringUtils.isEmpty (params))
 			queries = params.split (" +");
 
 		int iCount = 0;
@@ -2464,7 +2464,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	void ProcessCommand_StackExchange (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
-		if (params!=null && !params.isEmpty())
+		if (! StringUtils.isEmpty (params))
 			arrayParams = params.split (" +");
 		if (arrayParams == null || arrayParams.length<1)
 		{
@@ -4354,7 +4354,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	 */
 	void ProcessCommand_ParseCommand (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params==null)
+		if (StringUtils.isEmpty (params))
 		{
 			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -4761,7 +4761,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 	void ExecuteCommand (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params==null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
