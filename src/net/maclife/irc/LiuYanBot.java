@@ -1282,32 +1282,46 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_ParseCmd;       if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("命令", true) + "> [" + formatBotParameter ("命令参数", true) + "]...    -- 分析 " + formatBotCommandInstance (BOT_PRIMARY_COMMAND_Cmd, true) + " 命令的参数");
-		primaryCmd = BOT_PRIMARY_COMMAND_IPLocation;          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("iploc", true) + "|" + formatBotCommandInstance ("ipl", true) + " [" + formatBotParameter ("IPv4地址/域名", true) + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个.");
 		primaryCmd = BOT_PRIMARY_COMMAND_GeoIP;          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".GeoIP语言代码", true) + "] [" + formatBotParameter ("IP地址/域名", true) + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages");
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotCommandInstance (primaryCmd, true) +
+					"[" + formatBotOptionInstance(".me", true) + "][" +
+					formatBotOption (".GeoIP语言代码", true) + "] [" +
+				formatBotParameter ("IP地址/域名", true) + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. " +
+					formatBotOptionInstance(".me", true) + ":查询自己的 IP (穿隐身衣时查不到); " +
+					"GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages"
+			);
+		primaryCmd = BOT_PRIMARY_COMMAND_IPLocation;          if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotCommandInstance (primaryCmd, true) +
+				"|" + formatBotCommandInstance ("iploc", true) +
+				"|" + formatBotCommandInstance ("ipl", true) +
+					"[" + formatBotOptionInstance(".me", true) + "] [" +
+				formatBotParameter ("IPv4地址/域名", true) + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个. " +
+					formatBotOptionInstance(".me", true) + ":查询自己的 IP (穿隐身衣时查不到);"
+			);
 		primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("pr", true) + " <" + formatBotParameter ("网址", true) + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
 		primaryCmd = BOT_PRIMARY_COMMAND_StackExchange;        if (isThisCommandSpecified (args, primaryCmd))
 		{
 			SendMessage (ch, u, mapGlobalOptions,
-					formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("se", true) +
-					" <" + formatBotParameter ("站点名", true) + "|" + formatBotParameterInstance ("sites", true) + "|" + formatBotParameterInstance ("params", true) + "> [" + formatBotParameter ("动作", true) + "] [" +
-					formatBotParameter ("参数", true) + "]...    -- 搜索 StackExchange 专业问答站点群的问题 答案信息. 站点名可用 " + formatBotParameterInstance ("list", true) + " 列出, 参数可用 " + formatBotParameterInstance ("params", true) + " 列出. 动作有 " +
-					formatBotParameterInstance ("s", true) +
-						"|" + formatBotParameterInstance ("Search", true) +
-						"|" + formatBotParameterInstance ("搜", true) +
-						"|" + formatBotParameterInstance ("查", true) +
-						" [" + formatBotParameter ("关键字", true) + "] --搜索; " +
-					formatBotParameterInstance ("u", true) + "|" + formatBotParameterInstance ("users", true) + " [" + formatBotParameter ("ID", true) + "]... --按UserID查询, 多个ID用空格或分号分割; " +
-					""
-					);
+				formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("se", true) +
+				" <" + formatBotParameter ("站点名", true) + "|" + formatBotParameterInstance ("sites", true) + "|" + formatBotParameterInstance ("params", true) + "> [" + formatBotParameter ("动作", true) + "] [" +
+				formatBotParameter ("参数", true) + "]...    -- 搜索 StackExchange 专业问答站点群的问题 答案信息. 站点名可用 " + formatBotParameterInstance ("list", true) + " 列出, 参数可用 " + formatBotParameterInstance ("params", true) + " 列出. 动作有 " +
+				formatBotParameterInstance ("s", true) +
+					"|" + formatBotParameterInstance ("Search", true) +
+					"|" + formatBotParameterInstance ("搜", true) +
+					"|" + formatBotParameterInstance ("查", true) +
+					" [" + formatBotParameter ("关键字", true) + "] --搜索; " +
+				formatBotParameterInstance ("u", true) + "|" + formatBotParameterInstance ("users", true) + " [" + formatBotParameter ("ID", true) + "]... --按UserID查询, 多个ID用空格或分号分割; " +
+				""
+			);
 			SendMessage (ch, u, mapGlobalOptions,
-					formatBotParameterInstance ("q", true) + "|" + formatBotParameterInstance ("questions", true) + " [" + formatBotParameter ("ID", true) + "]... --按问题ID查询, 多个ID用空格或分号分割; " +
-					formatBotParameterInstance ("a", true) + "|" + formatBotParameterInstance ("answers", true) + " [" + formatBotParameter ("ID", true) + "]... --按答案ID查询, 多个ID用空格或分号分割; " +
-					formatBotParameterInstance ("au", true) + "|" + formatBotParameterInstance ("AllUsers", true) + "|" + formatBotParameterInstance ("全站用户", true) + " [" + formatBotParameter ("姓名", true) + "] --全站用户, 可按姓名查; " +
-					formatBotParameterInstance ("Info", true) + "|" + formatBotParameterInstance ("SiteInfo", true) + "|" + formatBotParameterInstance ("站点信息", true)  + "--站点信息 "
-					);
+				formatBotParameterInstance ("q", true) + "|" + formatBotParameterInstance ("questions", true) + " [" + formatBotParameter ("ID", true) + "]... --按问题ID查询, 多个ID用空格或分号分割; " +
+				formatBotParameterInstance ("a", true) + "|" + formatBotParameterInstance ("answers", true) + " [" + formatBotParameter ("ID", true) + "]... --按答案ID查询, 多个ID用空格或分号分割; " +
+				formatBotParameterInstance ("au", true) + "|" + formatBotParameterInstance ("AllUsers", true) + "|" + formatBotParameterInstance ("全站用户", true) + " [" + formatBotParameter ("姓名", true) + "] --全站用户, 可按姓名查; " +
+				formatBotParameterInstance ("Info", true) + "|" + formatBotParameterInstance ("SiteInfo", true) + "|" + formatBotParameterInstance ("站点信息", true)  + "--站点信息 "
+			);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_Google;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("正整数", true) + "] <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 ." + formatBotOption ("正整数", true) + " -- 返回几条搜索结果，默认是 2 条; 因 Google 的 API 返回结果不超过 4 条，所以，该数值超过 4 也不起作用。");
@@ -2064,7 +2078,23 @@ public class LiuYanBot extends PircBot implements Runnable
 	@SuppressWarnings ("unused")
 	void ProcessCommand_GeoIP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params==null)
+		boolean show_my_ip = false;
+		String lang = "zh-CN";	// GeoIP 所支持的语言见 http://dev.maxmind.com/geoip/geoip2/web-services/，目前有 de, en, es, fr, ja, pt-BR, ru, zh-CN
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		{
+			for (String env : listCmdEnv)
+			{
+				if (env.equalsIgnoreCase ("me"))
+				{
+					show_my_ip = true;
+					params = hostname + " " + params;
+					continue;
+				}
+				lang = env;
+			}
+		}
+
+		if (params==null && !show_my_ip)
 		{
 			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -2076,9 +2106,6 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
-		String lang = "zh-CN";	// GeoIP 所支持的语言见 http://dev.maxmind.com/geoip/geoip2/web-services/，目前有 de, en, es, fr, ja, pt-BR, ru, zh-CN
-		if (listCmdEnv!=null && listCmdEnv.size()>0)
-			lang = listCmdEnv.get(0);
 
 		String[] ips = null;
 		if (params!=null)
@@ -2089,6 +2116,15 @@ public class LiuYanBot extends PircBot implements Runnable
 		int iCount = 0;
 		for (String host : ips)
 		{
+			if (show_my_ip && iCount==0)
+			{	// 如果是查询自己的 IP (自己的 IP 放在第一个)，先检查是不是隐身衣
+				if (host.contains ("/"))
+				{
+					iCount++;
+					SendMessage (ch, u, mapGlobalOptions, "您的地址 " + host + " 看起来像是隐身衣，无法查询");
+					continue;
+				}
+			}
 			try
 			{
 				InetAddress[] netaddrs = InetAddress.getAllByName (host);
@@ -2180,7 +2216,21 @@ public class LiuYanBot extends PircBot implements Runnable
 	@SuppressWarnings ("unused")
 	void ProcessCommand_纯真IP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params==null)
+		boolean show_my_ip = false;
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		{
+			for (String env : listCmdEnv)
+			{
+				if (env.equalsIgnoreCase ("me"))
+				{
+					show_my_ip = true;
+					params = hostname + " " + params;
+					continue;
+				}
+			}
+		}
+
+		if (params==null && !show_my_ip)
 		{
 			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -2192,6 +2242,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+
 		String[] queries = null;
 		if (params!=null)
 			queries = params.split (" +");
@@ -2200,6 +2251,15 @@ public class LiuYanBot extends PircBot implements Runnable
 		for (int i=0; i<queries.length; i++)
 		{
 			String q = queries[i];
+			if (show_my_ip && iCount==0)
+			{	// 如果是查询自己的 IP (自己的 IP 放在第一个)，先检查是不是隐身衣
+				if (q.contains ("/"))
+				{
+					iCount++;
+					SendMessage (ch, u, mapGlobalOptions, "您的地址 " + q + " 看起来像是隐身衣，无法查询");
+					continue;
+				}
+			}
 			try
 			{
 				com.liuyan.util.qqwry.Location[] qqwry_locations = null;
@@ -2783,44 +2843,44 @@ public class LiuYanBot extends PircBot implements Runnable
 		else if (site.equalsIgnoreCase ("params") || site.equalsIgnoreCase ("list-params") || site.equalsIgnoreCase ("listParams"))
 		{
 			SendMessage (ch, nick, mapGlobalOptions, "公共参数: " +
-					formatBotParameterInstance ("/sort", true) + " " +
-						formatBotParameterInstance ("activity", true) +
-						"|" +formatBotParameterInstance ("creation", true) +
-						"|" +formatBotParameterInstance ("votes", true) +
-						"|" +formatBotParameterInstance ("relevance", true) +
-						"|" +formatBotParameterInstance ("reputation", true) +
-						"|" +formatBotParameterInstance ("name", true) +
-						"|" +formatBotParameterInstance ("modified", true) +
-						"--按什么信息排序,后三个是用在搜索用户时,其他的是用在搜索问题时. " +
-					formatBotParameterInstance ("/order", true) + " " +
-						formatBotParameterInstance ("asc", true) +
-						"|" + formatBotParameterInstance ("desc", true) +
-						"--排序顺序. " +
-					formatBotParameterInstance ("/page", true) + " " + formatBotParameter ("页号", true) + "--返回第几页数据. " +
-					formatBotParameterInstance ("/pagesize", true) + " " + formatBotParameter ("每页条数", true) + "--设置每页返回的结果数. " +
-					""
-					);
+				formatBotParameterInstance ("/sort", true) + " " +
+					formatBotParameterInstance ("activity", true) +
+					"|" +formatBotParameterInstance ("creation", true) +
+					"|" +formatBotParameterInstance ("votes", true) +
+					"|" +formatBotParameterInstance ("relevance", true) +
+					"|" +formatBotParameterInstance ("reputation", true) +
+					"|" +formatBotParameterInstance ("name", true) +
+					"|" +formatBotParameterInstance ("modified", true) +
+					"--按什么信息排序,后三个是用在搜索用户时,其他的是用在搜索问题时. " +
+				formatBotParameterInstance ("/order", true) + " " +
+					formatBotParameterInstance ("asc", true) +
+					"|" + formatBotParameterInstance ("desc", true) +
+					"--排序顺序. " +
+				formatBotParameterInstance ("/page", true) + " " + formatBotParameter ("页号", true) + "--返回第几页数据. " +
+				formatBotParameterInstance ("/pagesize", true) + " " + formatBotParameter ("每页条数", true) + "--设置每页返回的结果数. " +
+				""
+			);
 			SendMessage (ch, nick, mapGlobalOptions,
-					formatBotParameterInstance ("/fromdate", true) + "|" + formatBotParameterInstance ("/todate", true) + " " + formatBotParameter ("日期", true) + "--起、止日期,日期字符串格式为 yyyy-MM-dd. " +
-					formatBotParameterInstance ("/min", true) + "|" + formatBotParameterInstance ("/max", true) + " " + formatBotParameter ("参数", true) + "--排序字段的 最小值|最大值. " +
-					"搜索参数: " +
-					formatBotParameterInstance ("/tagged", true) + "|" + formatBotParameterInstance ("/notTagged", true) + " " + formatBotParameter ("问题标签", true) + "--问题(应该|不应该)包含哪些标签, 多个标签用;分割开. " +
-					formatBotParameterInstance ("/user", true) + " " + formatBotParameter ("UserID", true) + "--问题由谁发问. " +
-					formatBotParameterInstance ("/views", true) + "|" + formatBotParameterInstance ("/answers", true) + " " + formatBotParameter ("数量", true) + "--问题的(被浏览次数|答案数量)不少于... " +
-					""
-					);
+				formatBotParameterInstance ("/fromdate", true) + "|" + formatBotParameterInstance ("/todate", true) + " " + formatBotParameter ("日期", true) + "--起、止日期,日期字符串格式为 yyyy-MM-dd. " +
+				formatBotParameterInstance ("/min", true) + "|" + formatBotParameterInstance ("/max", true) + " " + formatBotParameter ("参数", true) + "--排序字段的 最小值|最大值. " +
+				"搜索参数: " +
+				formatBotParameterInstance ("/tagged", true) + "|" + formatBotParameterInstance ("/notTagged", true) + " " + formatBotParameter ("问题标签", true) + "--问题(应该|不应该)包含哪些标签, 多个标签用;分割开. " +
+				formatBotParameterInstance ("/user", true) + " " + formatBotParameter ("UserID", true) + "--问题由谁发问. " +
+				formatBotParameterInstance ("/views", true) + "|" + formatBotParameterInstance ("/answers", true) + " " + formatBotParameter ("数量", true) + "--问题的(被浏览次数|答案数量)不少于... " +
+				""
+			);
 			SendMessage (ch, nick, mapGlobalOptions,
-					formatBotParameterInstance ("/title", true) + "|" + formatBotParameterInstance ("/body", true) + " " + formatBotParameter ("内容", true) + "--问题的(标题|正文|)是否包含内容. " +
-					formatBotParameterInstance ("/url", true) + " " + formatBotParameter ("网址", true) + "--问题正文是否包含网址. " +
-					formatBotParameterInstance ("/accepted", true) +
-						"|" + formatBotParameterInstance ("/closed", true) +
-						"|" + formatBotParameterInstance ("/migrated", true) +
-						"|" + formatBotParameterInstance ("/notice", true) +
-						"|" + formatBotParameterInstance ("/wiki", true) +
-							" " + formatBotParameterInstance ("true", true) + "|" + formatBotParameterInstance ("false", true) +
-						",问题是否是(已采用答案|被关闭|被转移|有奖励|社区维基)的. " +
-					""
-					);
+				formatBotParameterInstance ("/title", true) + "|" + formatBotParameterInstance ("/body", true) + " " + formatBotParameter ("内容", true) + "--问题的(标题|正文|)是否包含内容. " +
+				formatBotParameterInstance ("/url", true) + " " + formatBotParameter ("网址", true) + "--问题正文是否包含网址. " +
+				formatBotParameterInstance ("/accepted", true) +
+					"|" + formatBotParameterInstance ("/closed", true) +
+					"|" + formatBotParameterInstance ("/migrated", true) +
+					"|" + formatBotParameterInstance ("/notice", true) +
+					"|" + formatBotParameterInstance ("/wiki", true) +
+						" " + formatBotParameterInstance ("true", true) + "|" + formatBotParameterInstance ("false", true) +
+					",问题是否是(已采用答案|被关闭|被转移|有奖励|社区维基)的. " +
+				""
+			);
 			return;
 		}
 
