@@ -838,7 +838,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			{
 				if (banInfo != null)
 				{
-					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp"));
+					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
 					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
 					{
 						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "你已被加入黑名单。 命令: " + banInfo.get ("BotCmd") + " 。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
@@ -1248,7 +1248,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				" " + BOT_PRIMARY_COMMAND_Help +
 				" " + BOT_PRIMARY_COMMAND_Alias +
 				Colors.NORMAL +
-				", 可用 " + formatBotCommand (BOT_PRIMARY_COMMAND_Help, true) + " [" + formatBotParameter ("命令名", true) + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
+				", 可用 " + formatBotCommandInstance (BOT_PRIMARY_COMMAND_Help, true) + " [" + formatBotParameter ("命令名", true) + "]... 查看详细用法. 选项有全局和 bot 命令私有两种, 全局选项有: " +
 				""
 					);
 			SendMessage (ch, u, mapGlobalOptions,
@@ -2411,6 +2411,22 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
+	public static URLConnection GetURLConnection (String sURL) throws IOException
+	{
+		URL url = new URL (sURL);
+		URLConnection conn = null;
+		if (System.getProperty ("http.proxyHost")!=null && !System.getProperty ("http.proxyHost").isEmpty () && System.getProperty ("http.proxyPort")!=null && !System.getProperty ("http.proxyPort").isEmpty ())
+		{	// 用 http 代理
+			SocketAddress proxy_addr = new InetSocketAddress (System.getProperty ("http.proxyHost"), Integer.parseInt (System.getProperty ("http.proxyPort")));
+			Proxy proxy = new Proxy (Proxy.Type.HTTP, proxy_addr);
+			conn = url.openConnection (proxy);
+		}
+		else	// 直连
+			conn = url.openConnection ();
+
+		return conn;
+	}
+
 	void ProcessCommand_HTTPHead (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (params == null || params.isEmpty())
@@ -2424,8 +2440,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		try
 		{
-			URL url = new URL (params);
-			URLConnection conn = url.openConnection ();
+			URLConnection conn = GetURLConnection (params);
 			if (! (conn instanceof HttpURLConnection))
 			{
 				SendMessage (ch, nick, mapGlobalOptions, "URL 地址不是 HTTP 地址。 URLConnection 类名: " + conn.getClass().getName());
@@ -3293,7 +3308,7 @@ System.out.println (sGoogleSearchURL);
 				// 利用 GoAgent 代理搜索
 				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
 				// keytool -import -alias GoAgentCert -file CA.crt
-				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress("192.168.2.1", 8087));
+				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress(System.getProperty ("GoAgent.proxyHost"), Integer.parseInt (System.getProperty ("GoAgent.proxyPort"))));
 				System.out.println (proxy);
 				http = url.openConnection (proxy);
 			}
@@ -3446,6 +3461,7 @@ System.out.println (sContent_colorizedForShell);
 			nMatch ++;
 			String sMatchedString = matcher.group ();
 			String sColorizedReplacement;
+System.out.println (nMatch + ": " + sMatchedString);
 			if (sReplacement == null)
 			{
 				if (sMatchedString.isEmpty ())	// 空字符串，这个没法显示，只好增加一个可见字符
@@ -3978,7 +3994,7 @@ System.out.println (evaluateResult);
 				// 利用 GoAgent 代理搜索
 				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
 				// keytool -import -alias GoAgentCert -file CA.crt
-				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress("192.168.2.1", 8087));
+				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress(System.getProperty ("GoAgent.proxyHost"), Integer.parseInt (System.getProperty ("GoAgent.proxyPort"))));
 				System.out.println (proxy);
 				conn = url.openConnection (proxy);
 			}
@@ -4036,13 +4052,14 @@ System.out.println (evaluateResult);
 			return;
 		botDS = new BasicDataSource();
 		//botDS.setDriverClassName("org.mariadb.jdbc.Driver");
-		botDS.setDriverClassName("com.mysql.jdbc.Driver");
-		botDS.setUsername("bot");
-		//botDS.setPassword("");
+		botDS.setDriverClassName (System.getProperty ("database.driver", "com.mysql.jdbc.Driver"));
+		botDS.setUsername (System.getProperty ("database.username", "bot"));
+		if (System.getProperty ("database.userpassword") != null && !System.getProperty ("database.userpassword").isEmpty ())
+			botDS.setPassword (System.getProperty ("database.userpassword"));
 		// 要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则执行存储过程报错
 		// GRANT SELECT ON mysql.proc TO bot@'192.168.2.%'
 		// 参见: http://stackoverflow.com/questions/986628/cant-execute-a-mysql-stored-procedure-from-java
-		botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull");
+		botDS.setUrl (System.getProperty ("database.url", "jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"));
 		// 在 prepareCall 时报错:
 		// User does not have access to metadata required to determine stored procedure parameter types. If rights can not be granted, configure connection with "noAccessToProcedureBodies=true" to have driver generate parameters that represent INOUT strings irregardless of actual parameter types.
 		//botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;noAccessToProcedureBodies=true&amp;useInformationSchema=true"); // 没有作用
@@ -5505,8 +5522,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				{
 					String[] arrayBanAndReason = ban.split (":+");
 					ban = arrayBanAndReason[0];
-					String reason = arrayBanAndReason[1];
-					bot.AddBan (ban, reason);
+					String bannedBotCmd = "*";
+					String reason = null;
+					if (arrayBanAndReason.length >= 2)
+						bannedBotCmd = arrayBanAndReason[1];
+					if (arrayBanAndReason.length >= 3)
+						reason = arrayBanAndReason[2];
+					bot.AddBan (ban, bannedBotCmd, reason);
 				}
 				else
 					bot.AddBan (ban);
@@ -5618,9 +5640,17 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							System.out.println ("已取消当前频道");
 						}
 					}
+					else if (cmd.equalsIgnoreCase ("/reconnect"))
+					{
+						reconnect ();
+					}
+					else if (cmd.equalsIgnoreCase ("/verbose"))
+					{
+						toggleVerbose ();;
+					}
 					else
 					{
-						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set 和 say /msg  /me 命令");
+						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set 和 say /msg  /me /reconnect 命令");
 						continue;
 					}
 				}
