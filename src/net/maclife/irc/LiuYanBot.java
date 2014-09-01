@@ -1895,6 +1895,11 @@ public class LiuYanBot extends PircBot implements Runnable
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个, 共 " + timezones.length + " 个");
 //System.out.println (sb);
+		if (listMessages.size () > 1)
+		{
+			SendMessage (ch, u, mapGlobalOptions, "符合条件的时区有 " + nTotal + " 个, 共 " + timezones.length + " 个时区. 分 " + listMessages.size () + " 条发送. 条数较多, 私信之...");
+			ch = null;	// 私信去
+		}
 		for (StringBuilder s : listMessages)
 		{
 			SendMessage (ch, u, mapGlobalOptions, s.toString());
@@ -1949,6 +1954,11 @@ public class LiuYanBot extends PircBot implements Runnable
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个， 共 " + locales.length + " 个");
 //System.out.println (sb);
+		if (listMessages.size () > 1)
+		{
+			SendMessage (ch, u, mapGlobalOptions, "符合条件的区域有 " + nTotal + " 个, 共 " + locales.length + " 个区域. 分 " + listMessages.size () + " 条发送. 条数较多, 私信之...");
+			ch = null;	// 私信去
+		}
 		for (StringBuilder s : listMessages)
 		{
 			SendMessage (ch, u, mapGlobalOptions, s.toString());
@@ -2008,9 +2018,14 @@ public class LiuYanBot extends PircBot implements Runnable
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个, 共 " + sys_env.size() + " 个");
 //System.out.println (sb);
+		if (listMessages.size () > 1)
+		{
+			SendMessage (ch, u, mapGlobalOptions, "符合条件的环境变量有 " + nTotal + " 个, 共 " + sys_env.size() + " 个环境变量. 分 " + listMessages.size () + " 条发送. 条数较多, 私信之...");
+			ch = null;	// 私信去
+		}
 		for (StringBuilder s : listMessages)
 		{
-			SendMessage (null, u, mapGlobalOptions, s.toString());
+			SendMessage (ch, u, mapGlobalOptions, s.toString());
 		}
 	}
 
@@ -2066,9 +2081,14 @@ public class LiuYanBot extends PircBot implements Runnable
 //sb.append ("第 " + listMessages.size() + " 批: ");
 		sb.append ("符合条件的有 " + nTotal + " 个, 共 " + properties.size() + " 个");
 //System.out.println (sb);
+		if (listMessages.size () > 1)
+		{
+			SendMessage (ch, u, mapGlobalOptions, "符合条件的系统属性有 " + nTotal + " 个, 共 " + properties.size() + " 个系统属性. 分 " + listMessages.size () + " 条发送. 条数较多, 私信之...");
+			ch = null;	// 私信去
+		}
 		for (StringBuilder s : listMessages)
 		{
-			SendMessage (null, u, mapGlobalOptions, s.toString());
+			SendMessage (ch, u, mapGlobalOptions, s.toString());
 		}
 	}
 
@@ -3471,7 +3491,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				}
 				else if (sMatchedString.matches ("\\s+"))	// 空白字符，用背景色显示
 				{
-					sColorizedReplacement = "\u0003" + ANSIEscapeTool.IRC_BACKGROUND_Rainbow_COLORS[iColor] + sMatchedString + Colors.NORMAL;
+					sColorizedReplacement = "\u0003," + ANSIEscapeTool.IRC_BACKGROUND_Rainbow_COLORS[iColor] + sMatchedString + Colors.NORMAL;
 					bMatchedWhitespaceString = true;
 				}
 				else
