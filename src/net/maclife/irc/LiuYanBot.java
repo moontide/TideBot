@@ -88,10 +88,17 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Raw	            = "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version	        = "/Version";
 
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Reconnect = "/Reconnect";	// 重新连接
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Join     = "/Join";	    // 进入频道
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Part     = "/Part";	    // 离开频道
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Quit     = "/Quit";	    // 退出 IRC，退出程序
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Channel  = "/channel";	// 更改当前频道
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Msg      = "/msg";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action   = "/me";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick     = "/nick";
+
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Verbose	= "/Verbose";	// 调试开关切换
+
 	static final String[][] BOT_COMMAND_ALIASES =
 	{
 		{BOT_PRIMARY_COMMAND_Help, },
@@ -126,10 +133,16 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Raw, },
 		{BOT_PRIMARY_COMMAND_Version, },
 
+		{BOT_PRIMARY_COMMAND_CONSOLE_Reconnect, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Join, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Part, "/leave"},
+		{BOT_PRIMARY_COMMAND_CONSOLE_Quit, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Channel, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Msg, "/say",},
 		{BOT_PRIMARY_COMMAND_CONSOLE_Action, "/action",},
 		{BOT_PRIMARY_COMMAND_CONSOLE_Nick, "/name" },
+
+		{BOT_PRIMARY_COMMAND_CONSOLE_Verbose, "/debug"},
 	};
 
 	public static String currentChannel = "";
@@ -5584,7 +5597,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					String cmd = getBotPrimaryCommand (sTerminalInput);
 					if (cmd == null)
 					{
-						System.err.println ("无法识别该命令");
+						System.err.println ("无法识别该命令: [" + cmd + "]");
 						continue;
 					}
 
@@ -5598,7 +5611,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							params = sTerminalInput.split (" +", 3);
 							if (params.length < 3)
 							{
-								System.err.println ("/msg 命令语法：\n\t若未用 /channel 设置默认频道，命令语法为： /msg <目标(#频道或昵称)> <消息>\n\t若已设置默认频道，则命令语法为： /msg [消息]，该消息将发往默认频道");
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Msg + " -- 发送消息。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " <目标(#频道或昵称)> <消息>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " [消息]，该消息将发往默认频道");
 								continue;
 							}
 							this.sendMessage (params[1], params[2]);
@@ -5616,7 +5629,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							params = sTerminalInput.split (" +", 3);
 							if (params.length < 3)
 							{
-								System.err.println ("/me 命令语法：\n\t若未用 /channel 设置默认频道，命令语法为： /me <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： /me <动作>，该动作将发往默认频道");
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Action + " -- 发送动作表情。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Action + " <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Action + " <动作>，该动作将发往默认频道");
 								continue;
 							}
 							this.sendAction (params[1], params[2]);
@@ -5632,7 +5645,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						params = sTerminalInput.split (" +", 2);
 						if (params.length < 2)
 						{
-							System.err.println ("/nick 命令语法： /nick <昵称)>");
+							System.err.println ( BOT_PRIMARY_COMMAND_CONSOLE_Nick + " -- 更改姓名。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Nick + " <昵称)>");
 							continue;
 						}
 						String nick = params[1];
@@ -5645,7 +5658,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						{
 							if (! currentChannel.isEmpty ())
 								System.out.println ("当前频道为: " + currentChannel);
-							System.err.println ("/channel 命令语法： /channel <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
+							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Channel + " -- 更改默认频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
 							continue;
 						}
 						String channel = params[1];
@@ -5660,13 +5673,73 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							System.out.println ("已取消当前频道");
 						}
 					}
-					else if (cmd.equalsIgnoreCase ("/reconnect"))
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Join))
 					{
+						params = sTerminalInput.split (" +", 2);
+						if (params.length < 2)
+						{
+							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Join + " -- 加入频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Join + " <#频道名>...");
+							continue;
+						}
+						String[] arrayChannels = params[1].split ("\\s+");
+						for (int i=0; i<arrayChannels.length; i++)
+						{
+							String channel = arrayChannels[i];
+							if (! channel.startsWith ("#"))
+								channel = "#" + channel;
+							joinChannel (channel);
+						}
+					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Part))
+					{
+						params = sTerminalInput.split (" +", 3);
+						if (params.length < 2)
+						{
+							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Part + " -- 离开频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Part + " <#频道名，多个频道用 ,;/ 等字符分割开> [原因]");
+							continue;
+						}
+						String channels = params[1];
+						String reason = params.length >= 3 ? params[2] : "";
+						String[] arrayChannels = channels.split ("[,;/]+");
+						for (int i=0; i<arrayChannels.length; i++)
+						{
+							String channel = arrayChannels[i];
+							if (! channel.startsWith ("#"))
+								channel = "#" + channel;
+							if (reason.isEmpty ())
+								partChannel (channel);
+							else
+								partChannel (channel, reason);
+						}
+					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quit))
+					{
+						params = sTerminalInput.split (" +", 2);
+						if (params.length < 2)
+						{
+							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Quit + " -- 从 IRC 服务器退出，然后退出程序。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " 原因]");
+							continue;
+						}
+						String reason = null;
+						if (params.length >= 2)
+							reason = params[1];
+						if (reason!=null && !reason.isEmpty ())
+							quitServer (reason);
+						else
+							quitServer ();
+
+						TimeUnit.SECONDS.sleep (2);
+						System.exit (0);
+					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Reconnect))
+					{
+						System.err.println ("开始重连……");
 						reconnect ();
 					}
-					else if (cmd.equalsIgnoreCase ("/verbose"))
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Verbose))
 					{
 						toggleVerbose ();;
+						System.err.println ("verbose 改为 " + getVerbose ());
 					}
 					else
 					{
