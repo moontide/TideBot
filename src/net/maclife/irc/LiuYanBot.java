@@ -26,8 +26,12 @@ import com.temesoft.google.pr.*;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
-import com.liuyan.util.qqwry.*;
 
+//import org.jsoup.*;
+import org.jsoup.nodes.*;
+import org.jsoup.select.*;
+
+import net.maclife.util.qqwry.*;
 import net.maclife.ansi.*;
 import net.maclife.seapi.*;
 
@@ -70,6 +74,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Java	            = "Java";
 	public static final String BOT_PRIMARY_COMMAND_TextArt	        = "ANSIArt";
 	public static final String BOT_PRIMARY_COMMAND_Tag	            = "dic";
+	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "GitHub";
 
 	public static final String BOT_PRIMARY_COMMAND_Time	            = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	        = "Action";
@@ -88,7 +93,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Raw	            = "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version	        = "/Version";
 
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Reconnect = "/Reconnect";	// 重新连接
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Reconnect= "/Reconnect";	// 重新连接
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Join     = "/Join";	    // 进入频道
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Part     = "/Part";	    // 离开频道
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Quit     = "/Quit";	    // 退出 IRC，退出程序
@@ -111,10 +116,11 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_StackExchange, "se",},
 		{BOT_PRIMARY_COMMAND_Google, "/goo+gle",},
 		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split",},
-		{BOT_PRIMARY_COMMAND_Ban, "/ignore", "/white", "/vip",},
+		{BOT_PRIMARY_COMMAND_Ban, "/vip",},
 		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术",},
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
+		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel"},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -194,7 +200,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	DatabaseReader geoIP2DatabaseReader = null;
 
 	String chunzhenIPDatabaseFileName = null;
-	ChunZhenIPQuery qqwry = null;
+	ChunZhenIP qqwry = null;
 	String chunzhenIPDBVersion = null;
 	long chunzhenIPCount = 0;
 
@@ -256,7 +262,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		chunzhenIPDatabaseFileName = fn;
 		try
 		{
-			qqwry = new ChunZhenIPQuery (chunzhenIPDatabaseFileName);
+			qqwry = new ChunZhenIP (chunzhenIPDatabaseFileName);
 			qqwry.setResolveInternetName (true);
 			chunzhenIPDBVersion = qqwry.GetDatabaseInfo ().getRegionName();
 			chunzhenIPCount = qqwry.GetDatabaseInfo ().getTotalRecordNumber();
@@ -1060,6 +1066,8 @@ public class LiuYanBot extends PircBot implements Runnable
 				ProcessCommand_TextArt (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag))
 				ProcessCommand_Tag (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_GithubCommitLogs))
+				ProcessCommand_GithubCommitLogs (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -1250,6 +1258,8 @@ public class LiuYanBot extends PircBot implements Runnable
 				" " + BOT_PRIMARY_COMMAND_RegExp +
 				" " + BOT_PRIMARY_COMMAND_JavaScript +
 				" " + BOT_PRIMARY_COMMAND_TextArt +
+				" " + BOT_PRIMARY_COMMAND_GithubCommitLogs +
+
 				" " + BOT_PRIMARY_COMMAND_ParseCmd +
 				" " + BOT_PRIMARY_COMMAND_Action +
 				" " + BOT_PRIMARY_COMMAND_Notice +
@@ -1349,6 +1359,10 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("字符集", true) + "][." + formatBotOptionInstance ("COLUMNS", true) + "=" + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("字符艺术画文件 URL 地址(http:// file://)", true) + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + formatBotOption ("字符集", true) + " 如果不指定，默认为 " + formatBotOptionInstance ("437", true) + " 字符集。 ." + formatBotOptionInstance ("COLUMNS", true) + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true)+ "[." + formatBotOptionInstance ("reverse", true) + "|" + formatBotOptionInstance ("反查", true) + "][." + formatBotOptionInstance ("detail", true) + "|" + formatBotOptionInstance ("详细", true) + "][." + formatBotOptionInstance ("stats", true) + "|" + formatBotOptionInstance ("统计", true) + "][." + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("名称", true) + ">[" + formatBotParameterInstance ("//", true) + "<" + formatBotParameter ("定义", true) + ">]  -- 仿 smbot 的 !sm 功能。 ." + formatBotOptionInstance ("reverse", true) + ": 反查(模糊查询), 如: 哪些词条被贴有“学霸”; ." + formatBotOptionInstance ("detail", true) + ": 显示详细信息(添加者 时间…); " + formatBotOption ("正整数", true) + " -- 取该词条指定序号的定义, 但与 ." + formatBotOptionInstance ("reverse", true) + " 一起使用时，起到限制响应行数的作用");
+		primaryCmd = BOT_PRIMARY_COMMAND_GithubCommitLogs;        if (isThisCommandSpecified (args, primaryCmd))
+		{
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("gh", true) + "|" + formatBotCommandInstance ("LinuxKernel", true) + "|" + formatBotCommandInstance ("lk", true) + "|" + formatBotCommandInstance ("kernel", true) + "<." + formatBotOptionInstance ("tag", true) + "|." + formatBotOptionInstance ("log", true) + "> [" + formatBotParameter ("GitHub 项目的提交日志网址 URI，如 torvalds/linux 或 torvalds/linux/commits/master", true) + "]  -- 获取 Github 项目的打标标签、提交日志。 如果命令为 LinuxKernel 或者 lk 或者 kernel，则不需要提供网址 URI");
+		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -2295,7 +2309,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			try
 			{
-				com.liuyan.util.qqwry.Location[] qqwry_locations = null;
+				net.maclife.util.qqwry.Location[] qqwry_locations = null;
 				try
 				{
 					qqwry_locations = qqwry.QueryAll (q);
@@ -2313,7 +2327,7 @@ public class LiuYanBot extends PircBot implements Runnable
 						if (iCount > opt_max_response_lines)
 							break;
 
-						com.liuyan.util.qqwry.Location location = qqwry_locations[j];
+						net.maclife.util.qqwry.Location location = qqwry_locations[j];
 						String addr = formatHostnameAndAddress (q, location.getIPAddressString ());
 						SendMessage (ch, u, mapGlobalOptions,
 								addr + "    " +
@@ -4366,6 +4380,210 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE t.q_id=sha1(?)";
 	}
 
+	public static final String GITHUB_TIME_FORMAT_STRING = "yyyy-MM-dd'T'HH:mm:ssX";
+	public static final String LOCAL_TIME_FORMAT_STRING = "yyyy-MM-dd HH:mm:ss";
+	public static final java.text.SimpleDateFormat GITHUB_TIME_FORMAT = new java.text.SimpleDateFormat (GITHUB_TIME_FORMAT_STRING);
+	public static final java.text.SimpleDateFormat LOCAL_TIME_FORMAT = new java.text.SimpleDateFormat (LOCAL_TIME_FORMAT_STRING);
+	/**
+	 * 获取 Github 项目提交日志。
+	 * 如果命令别名为 LinuxKernelLogs lkl KernelLogs kl 或者是 LinuxKernelTags lkt KernelTags kt，则不需要提供网址。否则，需要提供项目网址 URI，如
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_GithubCommitLogs (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+
+		boolean isLogs = false;
+		boolean isTags = false;
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		{
+			for (int i=0; i<listCmdEnv.size (); i++)
+			{
+				String env = listCmdEnv.get (i);
+				if (env.equalsIgnoreCase ("tag") || env.equalsIgnoreCase ("tags"))
+					isTags = true;
+				else if (env.equalsIgnoreCase ("log") || env.equalsIgnoreCase ("logs"))
+					isLogs = true;
+				else
+					continue;
+			}
+		}
+		if ( ! (isLogs || isTags))
+		{
+			SendMessage (ch, nick, mapGlobalOptions, botCmdAlias + " 命令需要至少指定 ." + formatBotOptionInstance ("tag", true) + " 或 " + formatBotOptionInstance ("log", true) + " 选项中的一个");
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+
+		try
+		{
+			Document doc = null;
+			String sURL = "";
+			String sProjectURI = "";
+			if (botCmdAlias.equalsIgnoreCase ("LinuxKernel") || botCmdAlias.equalsIgnoreCase ("lk") || botCmdAlias.equalsIgnoreCase ("kernel"))
+			{
+				sURL = "https://github.com/torvalds/linux/commits/master";
+				sProjectURI = "torvalds/linux";
+			}
+			else
+			{
+				if (params != null && !params.isEmpty())
+				{
+					sProjectURI = params;
+					if (sProjectURI.startsWith ("/"))
+						sProjectURI = sProjectURI.substring (1);	// "account/project/sub-paths/..."
+					if (sProjectURI.isEmpty() || !sProjectURI.contains("/"))
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "总得指定个项目网址吧");
+						return;
+					}
+					if (sProjectURI.indexOf('/', sProjectURI.indexOf('/') + 1) != -1)
+						sProjectURI = sProjectURI.substring (0, sProjectURI.indexOf('/', sProjectURI.indexOf('/') + 1));	// "account/project"
+					else
+						params = params + "/commits";
+				}
+				if (params == null || params.isEmpty())
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "需要指定项目在 github.com 上的路径，如 torvalds/linux");
+					ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+					return;
+				}
+				sURL = "https://github.com/" + params;
+			}
+
+			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+			System.clearProperty ("javax.net.ssl.trustPassword");
+			doc = org.jsoup.Jsoup.connect (sURL).get();
+			//doc = org.jsoup.Jsoup.parse(input, "UTF-8");
+
+			int nLines = 0;
+			if (isTags)
+			{
+				Elements tags = doc.select ("div.select-menu-item a[href^=/" + sProjectURI + "/tree]");
+				System.out.println ("--tags--");
+				if (tags.size () == 0)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "在 html 中没搜索到标签");
+				}
+				else
+				{
+					for (Element tag_a : tags)
+					{
+						System.out.println (tag_a.text());
+
+						if (nLines >= opt_max_response_lines)
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "略……");
+							break;
+						}
+
+						SendMessage (ch, nick, mapGlobalOptions, "https://github.com" + tag_a.attr("href") + "    " + Colors.BOLD + tag_a.text());
+
+						nLines ++;
+					}
+				}
+			}
+			if (isLogs)
+			{
+				Elements commit_logs = doc.select ("li.commit");
+				System.out.println ("--commit logs--");
+				if (commit_logs.size () == 0)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "在 html 中没搜索到提交日志");
+				}
+				else
+				{
+					nLines = 0;
+					for (Element log : commit_logs)
+					{
+						if (nLines >= opt_max_response_lines)
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "略……");
+							break;
+						}
+
+						Element authorship = log.select (".authorship").first ();
+							Element authorship_img_author_avatar = authorship.select ("img.avatar").first ();
+							Element authorship_img_committer_avatar = authorship.select ("img.committer-avatar").first ();
+						Element commit_a = log.select (".commit-title a").first ();
+							String commit_title = commit_a.attr("title").split("[\\r\\n]+")[0];
+							String commit_url = "https://github.com" + commit_a.attr("href");
+						Element metadata = log.select (".commit-meta").first ();
+
+							Element time_author = log.select (".commit-meta time").first ();
+
+							Element a_author = log.select ("a.commit-author").first ();
+							Element span_author = log.select ("span.commit-author").first ();
+							Element span_committer = log.select ("span.committer").first ();
+
+						String author_account = "";
+						String author_name = "";
+						java.util.Date date_author_time = GITHUB_TIME_FORMAT.parse (time_author.attr("datetime"));
+						String author_time = LOCAL_TIME_FORMAT.format (date_author_time);
+						if (a_author!=null)
+						{
+							author_account = a_author.text ();
+						}
+						else if (span_author!=null)
+						{
+							author_account = span_author.text ();
+						}
+
+						String committer_account = "";
+						String committer_name = "";
+						java.util.Date date_commit_time = null;
+						String commit_time = "";
+						if (span_committer==null)
+						{	// 1 人的情况
+						}
+						else
+						{	// 两人的情况
+							Element a_commiter = span_committer.select ("a.commit-author").first ();
+							Element span_commiter = span_committer.select ("span.commit-author").first ();
+							Element time_commit = span_committer.select ("time").first ();
+							date_commit_time = GITHUB_TIME_FORMAT.parse (time_commit.attr("datetime"));
+							commit_time = LOCAL_TIME_FORMAT.format (date_commit_time);
+
+							if (a_commiter!=null)
+							{
+								committer_account = a_commiter.text ();
+							}
+							else if (span_commiter != null)
+							{
+								committer_account = span_commiter.text ();
+							}
+						}
+
+						author_name = author_account;	// 作者姓名 默认等于 github 帐号名
+						committer_name = committer_account;	// 提交者姓名 默认等于 github 帐号名
+						if (authorship_img_author_avatar!=null && !authorship_img_author_avatar.attr("alt").isEmpty())	// 如果有作者有图片，且图片的 alt 包含了全名
+							author_name = authorship_img_author_avatar.attr("alt");
+						if (authorship_img_committer_avatar!=null && !authorship_img_committer_avatar.attr("alt").isEmpty())	// 如果有作者有图片，且图片的 alt 包含了全名
+							committer_name = authorship_img_committer_avatar.attr("alt");
+
+						//System.out.println (author + " " + msg + " " + time);
+						SendMessage (ch, nick, mapGlobalOptions, commit_url + " " + author_account + (!author_name.equals(author_account) ? " (" + author_name + ")" : "") + " 在 " + author_time + (committer_name.isEmpty() || author_name.equals(committer_name) ? " 提交了: " : " 创作, 由 " + committer_account + (!committer_name.equals(committer_account) ? " (" + committer_name + ")" : "") + " 在 " + commit_time + " 代提交: ") + Colors.BOLD + commit_title);	// msg.text() + "\n" + msg.attr("title"));
+						nLines ++;
+					}
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+		}
+	}
+
 	/**
 	 * MySQL
 	 * @param ch
@@ -5728,7 +5946,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						else
 							quitServer ();
 
-						TimeUnit.SECONDS.sleep (2);
+						System.err.println ("等几秒钟 (等连接关闭完毕)……");
+						TimeUnit.SECONDS.sleep (1);
 						System.exit (0);
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Reconnect))
