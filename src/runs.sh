@@ -1,11 +1,11 @@
 echo -e '\e[31;1m禁用掉一些命令，以较安全的方式执行\e[m'
-export botdir=${botdir-$(dirname $0)}
-export nick=Svr-FedBot
+#export botdir=${botdir-/home/liuyan/ircbot/src}
+export botdir=$(dirname $0)
+export nick=HtmlBot-sayJsoup
 export botcmdPrefix=
 export channels=LiuYanBot,linuxba
-export ban="*:cmd:服务器上运行，怕被玩坏，全部禁止 Cmd 命令;*:javascript"
+export ban="*:cmd:怕被玩坏，禁止所有人执行 Cmd 命令;*:javascript"
 export LANG=zh_CN.UTF-8
-export _JAVA_OPTIONS="-Dhttp.proxyHost=192.168.115.245 -Dhttp.proxyPort=9999 -Dhttps.proxyHost=192.168.115.245 -Dhttps.proxyPort=9999  -Dhttp.nonProxyHosts= -Dhttp.proxyUser= -Dhttp.proxyPassword="
 
 #export database_driver=com.mysql.jdbc.Driver
 export database_username=bot

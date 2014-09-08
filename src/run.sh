@@ -1,4 +1,4 @@
-botdir=${botdir-.}
+botdir=${botdir-$(dirname $0)}
 libdir=$(readlink -e "$botdir/../lib")
 dbdir=$(readlink -e "$botdir/../db")
 nick=${nick-CmdBot}
