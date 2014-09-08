@@ -1,3 +1,39 @@
+/**
+要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则 bot 执行存储过程报错。例如：
+	CREATE USER bot@localhost;
+	GRANT ALL ON bot.* TO bot@localhost;
+	GRANT SELECT ON mysql.proc TO bot@localhost;
+
+	CREATE USER ''@localhost;
+	GRANT ALL ON bot.* TO ''@localhost;
+	GRANT SELECT ON mysql.proc TO ''@localhost;
+
+	CREATE USER bot@'192.168.2.%';
+	GRANT ALL ON bot.* TO bot@'192.168.2.%';
+	GRANT SELECT ON mysql.proc TO bot@'192.168.2.%';
+
+	CREATE USER bot@'%';
+	GRANT ALL ON bot.* TO bot@'%';
+	GRANT SELECT ON mysql.proc TO bot@'%';
+
+*/
+
+CREATE TABLE ban
+(
+	ban VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	cmd VARCHAR(20) NOT NULL DEFAULT '',
+	disabled BOOLEAN NOT NULL DEFAULT false,	/* */
+	ban_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	ban_time_length INT	/* 分钟 */
+);
+
+
+/*******************************************************************************
+
+词条/标签
+
+*******************************************************************************/
+
 CREATE TABLE dic_digests
 (
 	content_digest CHAR(40) CHARACTER SET ascii PRIMARY KEY,
@@ -146,3 +182,111 @@ BEGIN
 	END IF;
 END
 $$
+DELIMITER ;
+
+
+
+
+/*******************************************************************************
+
+	HTML 解析器模板
+
+*******************************************************************************/
+CREATE TABLE html_parser_templates
+(
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	name VARCHAR(50) NOT NULL DEFAULT '' UNIQUE KEY,
+
+	url VARCHAR(300) NOT NULL DEFAULT '',
+	url_param_usage VARCHAR(100) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
+	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的选择器表达式',
+	sub_selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	extract ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') NOT NULL DEFAULT '',
+	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
+
+	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
+	method ENUM('','GET', 'POST') NOT NULL DEFAULT '' COMMENT 'HTTP 方法，只允许 GET 和 POST',
+	referer VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'Referer 头',
+
+	max TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT '最多获取/显示多少行。注意: 此数值仍然受 bot 最大响应行数上限的限制',
+
+	added_by VARCHAR(16) NOT NULL DEFAULT '',
+	added_by_user VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
+	added_by_host VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	added_time datetime,
+	updated_by VARCHAR(16) NOT NULL DEFAULT '',
+	updated_by_user VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
+	updated_by_host VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	updated_time datetime,
+	updated_times INT NOT NULL DEFAULT 0,
+
+	PRIMARY KEY PK__html_parser_templates (id),
+	UNIQUE KEY UQ__html_parser_templates (name)
+) ENGINE MyISAM CHARACTER SET UTF8;
+
+
+DELIMITER $$
+CREATE PROCEDURE p_save_html_parser_template
+(
+	_id INT UNSIGNED,
+	_name VARCHAR(50),
+
+	_url VARCHAR(300),
+	_url_param_usage VARCHAR(100),
+	_selector VARCHAR(100),
+	_sub_selector VARCHAR(100),
+	_extract VARCHAR(20),
+	_attr VARCHAR(20),
+
+	_ua VARCHAR(100),
+	_method VARCHAR(10),
+	_referer VARCHAR(100),
+
+	_max TINYINT,
+
+	_nick VARCHAR(16),
+	_user VARCHAR(16) CHARACTER SET ascii,
+	_host VARCHAR(100) CHARACTER SET ascii
+)
+BEGIN
+	DECLARE _temp_id INT DEFAULT 0;
+
+	/* 检查模板是否在已存在 */
+	SET _temp_id = NULL;
+	IF _id IS NOT NULL AND _id<>0 THEN
+		SELECT id INTO _temp_id FROM html_parser_templates WHERE id=_id;
+	ELSE
+		SELECT id INTO _temp_id FROM html_parser_templates WHERE name=_name;
+	END IF;
+
+	IF _temp_id IS NULL THEN
+		INSERT html_parser_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, method, referer, max, added_by, added_by_user, added_by_host, added_time)
+		VALUES (_name, _url, _url_param_usage, _selector, _sub_selector, _extract, _attr, _ua, _method, _referer, _max, _nick, _user, _host, CURRENT_TIMESTAMP)
+		;
+		SELECT LAST_INSERT_ID();
+	ELSE
+		UPDATE html_parser_templates
+		SET
+			name = _name,
+			url = _url,
+			url_param_usage = _url_param_usage,
+			selector = _selector,
+			sub_selector = _sub_selector,
+			extract = _extract,
+			attr = _attr,
+			ua = _ua,
+			method = _method,
+			referer = _referer,
+			max = _max,
+			updated_by = _nick,
+			updated_by_user = _user,
+			updated_by_host = _host,
+			updated_time = CURRENT_TIMESTAMP,
+			updated_times = updated_time + 1
+		WHERE id=_id
+		;
+		SELECT _id;
+	END IF;
+END
+$$
+DELIMITER ;

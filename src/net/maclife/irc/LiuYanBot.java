@@ -75,6 +75,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_TextArt	        = "ANSIArt";
 	public static final String BOT_PRIMARY_COMMAND_Tag	            = "dic";
 	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "GitHub";
+	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
 
 	public static final String BOT_PRIMARY_COMMAND_Time	            = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	        = "Action";
@@ -120,7 +121,8 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术",},
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
-		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel"},
+		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel",},
+		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "/ht",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -238,7 +240,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public LiuYanBot ()
 	{
 		String botcmd_prefix = System.getProperty ("botcmd.prefix");
-		if (botcmd_prefix!=null && !botcmd_prefix.isEmpty ())
+		if (! StringUtils.isEmpty (botcmd_prefix))
 			BOT_COMMAND_PREFIX = botcmd_prefix;
 
 		// 开启控制台输入线程
@@ -323,7 +325,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, String botCmd, byte iMatchMode, List<Map<String, Object>> list, String listName)
 	{
 		logger.finer ("判断 " + wildcardPatternToFetch + " 是否在" + listName + "中");
-		if (botCmd == null || botCmd.isEmpty ())
+		if (StringUtils.isEmpty (botCmd))
 		{
 			logger.finer ("botCmd 为空 (可能用户不是输入的本 bot 所识别的命令)，所以返回 null");
 			return null;
@@ -491,7 +493,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		Map<String,Object> userToAdd = null;
 		String msg = null;
 
-		if (botCmd==null || botCmd.isEmpty () || botCmd.equals ("."))
+		if (StringUtils.isEmpty (botCmd) || botCmd.equals ("."))
 			botCmd = "*";
 		if (reason==null)
 			reason = "";
@@ -528,11 +530,11 @@ public class LiuYanBot extends PircBot implements Runnable
 		msg = "已把 " + wildcardPattern + " 加入到" + sListName + "中。" +
 			(botCmd.equals ("*") ? "所有命令" : "命令=" + botCmd) +
 			"。" +
-			(reason.isEmpty() ? "无原因" : "原因=" + userToAdd.get ("Reason")) +
+			(StringUtils.isEmpty (reason) ? "无原因" : "原因=" + userToAdd.get ("Reason")) +
 			"";
 
 		System.out.println (msg);
-		if (!nick.isEmpty ())
+		if (! StringUtils.isEmpty (nick))
 		{
 			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, msg);
 		}
@@ -614,7 +616,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	boolean isUserInWhiteList (String host, String user, String nick, String botCmd)
 	{
-		if (user==null || user.isEmpty())
+		if (StringUtils.isEmpty (user))
 			return false;
 		return isUserInList (host, user, nick, botCmd, listWhiteListPatterns, "白名单列表");
 	}
@@ -629,7 +631,12 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	public boolean isFromConsole (String channel, String nick, String login, String hostname)
 	{
-		return (channel==null && nick.isEmpty () && login.isEmpty () && hostname.isEmpty ());
+		return
+			StringUtils.isEmpty (channel)
+			&& StringUtils.isEmpty (nick)
+			&& StringUtils.isEmpty (login)
+			&& StringUtils.isEmpty (hostname)
+			;
 	}
 
 	/**
@@ -702,7 +709,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public String GeoIPCountryCodeToLang (String countryCode, String defaultLang)
 	{
-		if (countryCode==null||countryCode.isEmpty())
+		if (StringUtils.isEmpty (countryCode))
 			return defaultLang;
 		if (countryCode.equalsIgnoreCase("CN") || countryCode.equalsIgnoreCase("TW") || countryCode.equalsIgnoreCase("HK") || countryCode.equalsIgnoreCase("MO"))	// 中 台 港 澳
 			return "zh-CN";
@@ -784,11 +791,11 @@ public class LiuYanBot extends PircBot implements Runnable
 				SendMessage (ch, u, false, 1, "欢迎来自 " + sCountry + sProvince + sCity + sISPName + " 的 " + u);
 			else
 				SendMessage (ch, u, false, 1, "欢迎来自 " + sCountry +
-						(sProvince.isEmpty() ? "" : " " + sProvince)  +
-						(sCity.isEmpty() ? "" : " " + sCity) +
+						(StringUtils.isEmpty (sProvince) ? "" : " " + sProvince)  +
+						(StringUtils.isEmpty (sCity) ? "" : " " + sCity) +
 						" (" + sCountry_userLocale +
-						(sProvince_userLocale.isEmpty() ? "" : " " +  sProvince_userLocale) +
-						(sCity_userLocale.isEmpty() ? "" : " " + sCity_userLocale) + ") " + sISPName + " 的 " + u);
+						(StringUtils.isEmpty (sProvince_userLocale) ? "" : " " +  sProvince_userLocale) +
+						(StringUtils.isEmpty (sCity_userLocale) ? "" : " " + sCity_userLocale) + ") " + sISPName + " 的 " + u);
 		}
 		catch (Exception e)
 		{
@@ -860,7 +867,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
 					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
 					{
-						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "你已被加入黑名单。 命令: " + banInfo.get ("BotCmd") + " 。" + (banInfo.get ("Reason")==null||((String)banInfo.get ("Reason")).isEmpty()?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
+						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "你已被加入黑名单。 命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
 						banInfo.put ("NotifyTime", new Timestamp(System.currentTimeMillis ()));
 					}
 					return;
@@ -876,7 +883,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			//  语言
 			String botCmdAlias=null, params=null;
 			List<String> listEnv=null;
-			if (!BOT_COMMAND_PREFIX.isEmpty())
+			if (! StringUtils.isEmpty (BOT_COMMAND_PREFIX))
 				message = message.substring (BOT_COMMAND_PREFIX.length ());	// 这样直接去掉前缀字符串长度的字符串(而不验证 message 是否以前缀开头)，是因为前面的 getBotCommand 命令已经验证了命令前缀的有效性，否则这样直接去掉是存在缺陷的的（”任意与当前前缀相同长度的前缀都是有效的前缀“）
 			String[] args = message.split (" +", 2);
 			botCmdAlias = args[0];
@@ -901,7 +908,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				String[] arrayEnv = sEnv.split ("\\.");
 				for (String env : arrayEnv)
 				{
-					//if (env.isEmpty())
+					//if (StringUtils.isEmpty (env))
 					//	continue;
 
 					// 全局参数选项
@@ -936,7 +943,7 @@ public class LiuYanBot extends PircBot implements Runnable
 						String[] env_var = env.split ("=", 2);
 						String varName = env_var[0];
 						String varValue = env_var[1];
-						if (varName.isEmpty() || varValue.isEmpty())
+						if (StringUtils.isEmpty (varName))
 							continue;
 
 						if (varName.equals("timeout"))
@@ -1041,23 +1048,23 @@ public class LiuYanBot extends PircBot implements Runnable
 //System.out.println (params);
 
 			if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Help))
-				ProcessCommand_Help (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Help (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Alias))
-				ProcessCommand_Alias (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Alias (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Cmd))
-				ExecuteCommand (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ExecuteCommand (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_ParseCmd))
-				ProcessCommand_ParseCommand (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_ParseCommand (channel, nick, login, hostname, botCmd,botCmdAlias,  mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_IPLocation))
-				ProcessCommand_纯真IP (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_纯真IP (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_GeoIP))
-				ProcessCommand_GeoIP (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_GeoIP (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_PageRank))
-				ProcessCommand_GooglePageRank (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_GooglePageRank (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_StackExchange))
-				ProcessCommand_StackExchange (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_StackExchange (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Google))
-				ProcessCommand_Google (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Google (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
 				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_JavaScript))
@@ -1068,35 +1075,37 @@ public class LiuYanBot extends PircBot implements Runnable
 				ProcessCommand_Tag (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_GithubCommitLogs))
 				ProcessCommand_GithubCommitLogs (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_HTMLParser))
+				ProcessCommand_HTMLParser (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Time))
-				ProcessCommand_Time (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Time (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Action) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Notice))
-				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLEecode) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLDecode))
-				ProcessCommand_URLEncodeDecode (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_URLEncodeDecode (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_HTTPHead))
-				ProcessCommand_HTTPHead (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_HTTPHead (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_TimeZones))
-				ProcessCommand_TimeZones (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_TimeZones (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Locales))
-				ProcessCommand_Locales (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Locales (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Env))
-				ProcessCommand_Environment (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Environment (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Properties))
-				ProcessCommand_Properties (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Properties (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Set))
-				ProcessCommand_Set (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Set (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Raw))
-				ProcessCommand_SendRaw (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_SendRaw (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Version))
-				ProcessCommand_Version (channel, nick, login, hostname, botCmd, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Version (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 		}
 		catch (Exception e)
 		{
@@ -1135,9 +1144,9 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static String formatBotCommand (String cmd, boolean colorized)
 	{
 		if (colorized)
-			return (BOT_COMMAND_PREFIX.isEmpty () ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) + COLOR_COMMAND + cmd + Colors.NORMAL;
+			return (StringUtils.isEmpty (BOT_COMMAND_PREFIX) ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) + COLOR_COMMAND + cmd + Colors.NORMAL;
 		else
-			return BOT_COMMAND_PREFIX.isEmpty () ? cmd : BOT_COMMAND_PREFIX + cmd;
+			return StringUtils.isEmpty (BOT_COMMAND_PREFIX) ? cmd : BOT_COMMAND_PREFIX + cmd;
 	}
 	public static String formatBotCommand (String cmd)
 	{
@@ -1147,9 +1156,9 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static String formatBotCommandInstance (String cmd, boolean colorized)
 	{
 		if (colorized)
-			return (BOT_COMMAND_PREFIX.isEmpty () ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) + COLOR_COMMAND_INSTANCE + cmd + Colors.NORMAL;
+			return (StringUtils.isEmpty (BOT_COMMAND_PREFIX) ? "" : COLOR_COMMAND_PREFIX_INSTANCE + BOT_COMMAND_PREFIX + Colors.NORMAL) + COLOR_COMMAND_INSTANCE + cmd + Colors.NORMAL;
 		else
-			return BOT_COMMAND_PREFIX.isEmpty () ? cmd : BOT_COMMAND_PREFIX + cmd;
+			return StringUtils.isEmpty (BOT_COMMAND_PREFIX) ? cmd : BOT_COMMAND_PREFIX + cmd;
 	}
 	public static String formatBotCommandInstance (String cmd)
 	{
@@ -1160,14 +1169,14 @@ public class LiuYanBot extends PircBot implements Runnable
 	{
 		if (colorized)
 		{
-			if (value==null || value.isEmpty ())
+			if (StringUtils.isEmpty (value))
 				return color + optOrParam + Colors.NORMAL;
 			else
 				return color + optOrParam + "=" + valueColor + value + Colors.NORMAL;
 		}
 		else
 		{
-			if (value==null || value.isEmpty ())
+			if (StringUtils.isEmpty (value))
 				return optOrParam;
 			else
 				return color + "=" + value;
@@ -1230,7 +1239,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	boolean isThisCommandSpecified (String[] inputs, String primaryCmd)
 	{
-		if (inputs==null || primaryCmd==null)
+		if (inputs==null || StringUtils.isEmpty (primaryCmd))
 			return false;
 		for (String s : inputs)
 		{
@@ -1240,7 +1249,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		return false;
 	}
-	void ProcessCommand_Help (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Help (String ch, String u, String login, String hostname, String botcmd, String botcmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (StringUtils.isEmpty (params))
 		{
@@ -1259,6 +1268,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				" " + BOT_PRIMARY_COMMAND_JavaScript +
 				" " + BOT_PRIMARY_COMMAND_TextArt +
 				" " + BOT_PRIMARY_COMMAND_GithubCommitLogs +
+				" " + BOT_PRIMARY_COMMAND_HTMLParser +
 
 				" " + BOT_PRIMARY_COMMAND_ParseCmd +
 				" " + BOT_PRIMARY_COMMAND_Action +
@@ -1363,6 +1373,14 @@ public class LiuYanBot extends PircBot implements Runnable
 		{
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("gh", true) + "|" + formatBotCommandInstance ("LinuxKernel", true) + "|" + formatBotCommandInstance ("lk", true) + "|" + formatBotCommandInstance ("kernel", true) + "<." + formatBotOptionInstance ("tag", true) + "|." + formatBotOptionInstance ("log", true) + "> [" + formatBotParameter ("GitHub 项目的提交日志网址 URI，如 torvalds/linux 或 torvalds/linux/commits/master", true) + "]  -- 获取 Github 项目的打标标签、提交日志。 如果命令为 LinuxKernel 或者 lk 或者 kernel，则不需要提供网址 URI");
 		}
+		primaryCmd = BOT_PRIMARY_COMMAND_HTMLParser;        if (isThisCommandSpecified (args, primaryCmd))
+		{
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("jsoup", true) + "|" + formatBotCommandInstance ("/ht", true) + "<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("exec", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "|." + formatBotOptionInstance ("stats", true)  + "> [/# " + formatBotParameter ("HTML 解析模板编号", true) + "] [/n " + formatBotParameter ("HTML 解析模板名", true) + "] [/u " + formatBotParameter ("网址", true) + "] [/s " + formatBotParameter ("CSS 选择器", true) + "] [/ss " + formatBotParameter ("子选择器", true) + "] [/e " + formatBotParameter ("取值方法", true) + "] [/a " + formatBotParameter ("取值方法为 attr 时的参数", true) + "] [/m GET|POST] [/ua User-Agent] [/r 来源] [/t 超时_秒]  -- 万能 HTML 解析器，用以解析任意 HTML 网址的任意内容");
+			SendMessage (ch, u, mapGlobalOptions, "模板名起名建议: 以网站名或域名开头. CSS 选择器必须是 jsoup 库支持的选择器, 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html . 取值方法: text|owntext|attr||html|outerHTML|id|val|tagname|nodename|classname|data, 默认为 text, 当为 attr 时, 还需要用 /a 指定 attr 参数. 如果选择的是 a 元素、并且取值是 text，则会把网址加在 text 前面");
+			SendMessage (ch, u, mapGlobalOptions, "当 ." + formatBotOptionInstance ("list", true) + " 时, 可用 /start <结果集起点> 来更改偏移量, 其他参数被当做查询条件使用, 除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." + formatBotOptionInstance ("add", true) + " 时, 至少需要指定 模板名、网址、选择器. ." + formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 必须指定 /i <序号> 或者 /n <模板名>.");
+			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
+			//SendMessage (ch, u, mapGlobalOptions, "");
+		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -1400,11 +1418,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	void ProcessCommand_Alias (String channel, String nick, String login, String host, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Alias (String channel, String nick, String login, String host, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (channel, nick, login, host, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -1454,11 +1472,11 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
-	void ProcessCommand_ActionNotice (String channel, String nick, String login, String host, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_ActionNotice (String channel, String nick, String login, String host, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (channel, nick, login, host, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
@@ -1466,13 +1484,13 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		String target = channel;	// 默认在本频道执行动作/提醒
 		String msg = params;
-		if (target==null)
+		if (StringUtils.isEmpty (target))
 			target = nick;
 		if (opt_reply_to_option_on)	// .to 参数修改目标
 			target = opt_reply_to;
 
 		if (!target.equalsIgnoreCase(channel))
-			msg = msg + " (发自 " + nick + (channel==null ? " 的私信" : ", 频道: "+channel) + ")";
+			msg = msg + " (发自 " + nick + (StringUtils.isEmpty (channel) ? " 的私信" : ", 频道: "+channel) + ")";
 
 		if (botcmd.equalsIgnoreCase("action"))
 			sendAction (target, msg);
@@ -1485,11 +1503,20 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
-	void ProcessCommand_SendRaw (String channel, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_SendRaw (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (! (
+			isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+			|| isUserInWhiteList(hostname, login, nick, botcmd)
+			)
+		)
 		{
-			ProcessCommand_Help (channel, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			System.err.println ("禁止执行: 不在白名单内, 而且, 也不是从控制台执行的");
+			return;
+		}
+		if (StringUtils.isEmpty (params))
+		{
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		logger.fine (params);
@@ -1514,7 +1541,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * 	<dd>bot 命令的前缀</dd>
 	 * </dl>
 	 */
-	void ProcessCommand_Set (String channel, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Set (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (! (
 			isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
@@ -1530,7 +1557,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			arrayParams = params.split (" ", 2);
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (channel, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String param = arrayParams[0];
@@ -1540,7 +1567,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		if (param.equalsIgnoreCase ("loglevel"))	// 日志级别
 		{
-			if (value==null)
+			if (StringUtils.isEmpty (value))
 				logger.setLevel (null);	// 继承上级 logger 的日志级别
 			else
 				logger.setLevel (Level.parse(value.toUpperCase()));
@@ -1550,7 +1577,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		else if (param.equalsIgnoreCase ("botcmd.prefix"))	// bot 命令前缀
 		{
-			if (value==null || value.isEmpty ())
+			if (StringUtils.isEmpty (value))
 			{
 				BOT_COMMAND_PREFIX = "";
 				System.out.println ("已取消 bot 命令前缀");
@@ -1608,7 +1635,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{
 			msg = "禁止执行: 不在白名单内, 而且, 也不是从控制台执行的";
 			System.err.println (msg);
-			if (!nick.isEmpty ())
+			if (! StringUtils.isEmpty (nick))
 				SendMessage (channel, nick, mapGlobalOptions, msg);
 			return;
 		}
@@ -1638,7 +1665,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			arrayParams = params.split (" +", 4);
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (channel, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -1671,14 +1698,14 @@ public class LiuYanBot extends PircBot implements Runnable
 			{
 				msg = sListName + " 是空的";
 				System.out.println (msg);
-				if (!nick.isEmpty ())
+				if (! StringUtils.isEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
 
 			msg = "列出" + sListName + " (格式: 1通配符表达式    2规则表达式    3Bot命令    4原因    5添加时间    6次数    7更新时间)";
 			System.out.println (msg);
-			if (!nick.isEmpty ())
+			if (! StringUtils.isEmpty (nick))
 				SendMessage (null, nick, mapGlobalOptions, msg);
 			StringBuilder sb = null;
 			for (Map<String, Object> u : list)
@@ -1701,7 +1728,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				msg = sb.toString ();
 
 				System.out.println (msg);
-				if (!nick.isEmpty ())
+				if (! StringUtils.isEmpty (nick))
 					SendMessage (null, nick, mapGlobalOptions, msg);
 			}
 		}
@@ -1710,16 +1737,16 @@ public class LiuYanBot extends PircBot implements Runnable
 			list.clear ();
 			msg = "已清空 " + sListName;
 			System.out.println (msg);
-			if (!nick.isEmpty ())
+			if (! StringUtils.isEmpty (nick))
 				SendMessage (channel, nick, mapGlobalOptions, msg);
 		}
 		else if (paramAction.equalsIgnoreCase ("a") || paramAction.equalsIgnoreCase ("+") || paramAction.equalsIgnoreCase ("add") || paramAction.equalsIgnoreCase ("加") || paramAction.equalsIgnoreCase ("添加"))	// 添加
 		{
-			if (paramParam==null || paramParam.isEmpty ())
+			if (StringUtils.isEmpty (paramParam))
 			{
 				msg = "要添加的表达式不能为空";
 				System.err.println (msg);
-				if (!nick.isEmpty ())
+				if (! StringUtils.isEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
@@ -1736,11 +1763,11 @@ public class LiuYanBot extends PircBot implements Runnable
 			|| paramAction.equalsIgnoreCase ("删除")
 			)	// 删除
 		{
-			if (paramParam==null || paramParam.isEmpty ())
+			if (StringUtils.isEmpty (paramParam))
 			{
 				msg = "要删除的表达式不能为空";
 				System.err.println (msg);
-				if (!nick.isEmpty ())
+				if (! StringUtils.isEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
@@ -1754,21 +1781,21 @@ public class LiuYanBot extends PircBot implements Runnable
 			{
 				msg = wildcardPattern + " 不在" + sListName + "中";
 				System.err.println (msg);
-				if (!nick.isEmpty ())
+				if (! StringUtils.isEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
 			if (list.remove (userInfo))
 			{
 				System.out.println (ANSIEscapeTool.CSI + sShellColor_NotInList + wildcardPattern + ANSIEscapeTool.CSI + "m 已从 " + sListName + " 中剔除，当前列表还有 " + list.size () + " 个用户");
-				if (!nick.isEmpty ())
+				if (! StringUtils.isEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, Colors.GREEN + wildcardPattern + Colors.NORMAL + " 已从 " + sListName + " 中剔除，当前列表还有 " + list.size () + " 个用户");
 			}
 			else
 			{
 				msg = "把 " + wildcardPattern + " 从 " + sListName + " 中删除时失败 (未曾添加过？)";
 				System.err.println (msg);
-				if (!nick.isEmpty ())
+				if (! StringUtils.isEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 			}
 		}
@@ -1787,7 +1814,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				"在" + ANSIEscapeTool.CSI + "m" + sListName + "中。" +
 				(userInfo==null ? "" : "匹配的模式=" + userInfo.get("Wildcard") + "，原因=" + userInfo.get ("Reason"))
 			);
-			if (!nick.isEmpty ())
+			if (! StringUtils.isEmpty (nick))
 				SendMessage (channel, nick, mapGlobalOptions,
 					wildcardPattern + " " +
 					(bFounded ? Colors.RED : Colors.DARK_GREEN + "不") +
@@ -1803,7 +1830,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * 时区：如： Asia/Shanghai, 或自定义时区ID，如： GMT+08:00, GMT+8, GMT-02:00, GMT-2:10
 	 * 格式：如： yyyy-MM-dd HH:mm:ss Z
 	 */
-	void ProcessCommand_Time (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Time (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String sLang = null, sCountry = null, sLocaleVariant=null;
 		String sTimeZoneID = null;
@@ -1841,13 +1868,13 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 
 		String sWarning = "";
-		if (sTimeZoneID!=null && !sTimeZoneID.isEmpty ())
+		if (! StringUtils.isEmpty (sTimeZoneID))
 		{
 			tz = TimeZone.getTimeZone (sTimeZoneID);
 			if (tz.getRawOffset()==0)
 				sWarning = " ([" + sTimeZoneID + "] 有可能不是有效的时区，被默认为国际标准时间)";
 		}
-		if (sDateFormat==null || sDateFormat.isEmpty ())
+		if (StringUtils.isEmpty (sDateFormat))
 			sDateFormat = DEFAULT_TIME_FORMAT_STRING;
 		if (l == null)
 			df = new SimpleDateFormat (sDateFormat);
@@ -1878,7 +1905,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * 列出时区
 	 */
-	void ProcessCommand_TimeZones (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_TimeZones (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (! StringUtils.isEmpty (params))
@@ -1936,7 +1963,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * 列出语言/区域
 	 */
-	void ProcessCommand_Locales (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Locales (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (! StringUtils.isEmpty (params))
@@ -1995,7 +2022,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * 列出系统环境变量
 	 */
-	void ProcessCommand_Environment (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Environment (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (! StringUtils.isEmpty (params))
@@ -2059,7 +2086,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * 列出系统属性
 	 */
-	void ProcessCommand_Properties (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Properties (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
 		if (! StringUtils.isEmpty (params))
@@ -2123,7 +2150,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * 查询 IP 地址所在地 (GeoIP2)
 	 */
 	@SuppressWarnings ("unused")
-	void ProcessCommand_GeoIP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_GeoIP (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		boolean show_my_ip = false;
 		String lang = "zh-CN";	// GeoIP 所支持的语言见 http://dev.maxmind.com/geoip/geoip2/web-services/，目前有 de, en, es, fr, ja, pt-BR, ru, zh-CN
@@ -2143,7 +2170,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		if (StringUtils.isEmpty (params) && !show_my_ip)
 		{
-			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, u, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		if (geoIP2DatabaseReader==null)
@@ -2206,8 +2233,8 @@ public class LiuYanBot extends PircBot implements Runnable
 					SendMessage (ch, u, mapGlobalOptions, addr + "    " +
 							sContinent + " " +
 							sCountry + " " +
-							(sProvince.isEmpty() ? "" : " " + sProvince)  +
-							(sCity.isEmpty() ? "" : " " + sCity) +
+							(StringUtils.isEmpty (sProvince) ? "" : " " + sProvince)  +
+							(StringUtils.isEmpty (sCity) ? "" : " " + sCity) +
 							(sISPName==null?"" : " " + sISPName) +
 							" 经度=" + longitude + ", 纬度=" + latitude
 					);
@@ -2261,7 +2288,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * 查询 IP 地址所在地 (纯真 IP 数据库，只有 IPv4 数据库)
 	 */
 	@SuppressWarnings ("unused")
-	void ProcessCommand_纯真IP (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_纯真IP (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		boolean show_my_ip = false;
 		if (listCmdEnv!=null && listCmdEnv.size()>0)
@@ -2279,7 +2306,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		if (StringUtils.isEmpty (params) && !show_my_ip)
 		{
-			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, u, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		if (qqwry==null)
@@ -2358,11 +2385,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	}
 
 	public static PageRankService GOOGLE_PAGE_RANK_SERVICE = new PageRankService();
-	void ProcessCommand_GooglePageRank (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_GooglePageRank (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
@@ -2422,11 +2449,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	}
 
 	@SuppressWarnings ("deprecation")
-	void ProcessCommand_URLEncodeDecode (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_URLEncodeDecode (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		String sCharset = null;
@@ -2437,10 +2464,10 @@ public class LiuYanBot extends PircBot implements Runnable
 		{
 			String sResult = null;
 			if (botcmd.equalsIgnoreCase("urlencode"))
-				sResult = sCharset==null ? URLEncoder.encode (params) : URLEncoder.encode (params, sCharset);
+				sResult = StringUtils.isEmpty (sCharset) ? URLEncoder.encode (params) : URLEncoder.encode (params, sCharset);
 			else
 			{
-				sResult = sCharset==null ? URLDecoder.decode (params) : URLDecoder.decode (params, sCharset);
+				sResult = StringUtils.isEmpty (sCharset) ? URLDecoder.decode (params) : URLDecoder.decode (params, sCharset);
 				// 解码后都结果可能包含回车换行符或其他任意字符，需要特别处理
 				if (sResult.contains("\r\n"))
 					sResult = sResult.replaceAll ("\\r\\n", "␍␊");
@@ -2462,7 +2489,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	{
 		URL url = new URL (sURL);
 		URLConnection conn = null;
-		if (System.getProperty ("http.proxyHost")!=null && !System.getProperty ("http.proxyHost").isEmpty () && System.getProperty ("http.proxyPort")!=null && !System.getProperty ("http.proxyPort").isEmpty ())
+		if (! StringUtils.isEmpty (System.getProperty ("http.proxyHost")) && ! StringUtils.isEmpty (System.getProperty ("http.proxyPort")))
 		{	// 用 http 代理
 			SocketAddress proxy_addr = new InetSocketAddress (System.getProperty ("http.proxyHost"), Integer.parseInt (System.getProperty ("http.proxyPort")));
 			Proxy proxy = new Proxy (Proxy.Type.HTTP, proxy_addr);
@@ -2474,11 +2501,11 @@ public class LiuYanBot extends PircBot implements Runnable
 		return conn;
 	}
 
-	void ProcessCommand_HTTPHead (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_HTTPHead (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		//String sCharset = null;
@@ -2523,14 +2550,14 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	void ProcessCommand_StackExchange (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_StackExchange (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
 		if (! StringUtils.isEmpty (params))
 			arrayParams = params.split (" +");
 		if (arrayParams == null || arrayParams.length<1)
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -3047,9 +3074,9 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		SendMessage (ch, nick, mapGlobalOptions,
 			"错误 " + Colors.RED + errorID + "  " +
-			(errorName.isEmpty () ? "" : errorName + "   ") +
-			(description.isEmpty () ? "" : description + "   ") +
-			(errorMessage.isEmpty () ? "" : errorMessage + "   ") +
+			(StringUtils.isEmpty (errorName) ? "" : errorName + "   ") +
+			(StringUtils.isEmpty (description) ? "" : description + "   ") +
+			(StringUtils.isEmpty (errorMessage) ? "" : errorMessage + "   ") +
 			Colors.NORMAL +
 			""
 		);
@@ -3277,9 +3304,9 @@ public class LiuYanBot extends PircBot implements Runnable
 				Colors.LIGHT_GRAY + StringEscapeUtils.unescapeHtml4 (name) + Colors.NORMAL + "   " +
 				"勋章:" + Colors.YELLOW + goldCount + "金" + Colors.NORMAL + "," + Colors.LIGHT_GRAY+ silverCount + "银" + Colors.NORMAL + "," + Colors.OLIVE + bronzeCount + "铜" + Colors.NORMAL + " " +
 				"分数/声望:" + reputation + ", 答案接受比:" + acceptRate + "%    " +
-				(age.isEmpty () ? "" : age + "岁   ") +
-				(location.isEmpty () ? "" : StringEscapeUtils.unescapeHtml4 (location) + "   ") +
-				(websiteURL.isEmpty () ? "" : "个人网站: " + websiteURL + "   ") +
+				(StringUtils.isEmpty (age) ? "" : age + "岁   ") +
+				(StringUtils.isEmpty (location) ? "" : StringEscapeUtils.unescapeHtml4 (location) + "   ") +
+				(StringUtils.isEmpty (websiteURL) ? "" : "个人网站: " + websiteURL + "   ") +
 				"创建时间:" + new java.sql.Timestamp(creationTime_Seconds*1000) + ", 最后访问时间:" + new java.sql.Timestamp(lastAccessTime_Seconds*1000) +
 				(i==0 ? "    剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次" : "") +
 				""
@@ -3303,11 +3330,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @throws MalformedURLException
 	 */
 	@SuppressWarnings ("unused")
-	void ProcessCommand_Google (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Google (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
@@ -3348,9 +3375,9 @@ System.out.println (sGoogleSearchURL);
 			}
 			else
 			{
-				if (sslTrustStore!=null && !sslTrustStore.isEmpty ())
+				if (! StringUtils.isEmpty (sslTrustStore))
 					System.setProperty ("javax.net.ssl.trustStore", sslTrustStore);
-				if (sslTrustPassword!=null && !sslTrustPassword.isEmpty ())
+				if (! StringUtils.isEmpty (sslTrustPassword))
 					System.setProperty ("javax.net.ssl.trustPassword", sslTrustPassword);
 				// 利用 GoAgent 代理搜索
 				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
@@ -3511,7 +3538,7 @@ System.out.println (sContent_colorizedForShell);
 System.out.println (nMatch + ": " + sMatchedString);
 			if (sReplacement == null)
 			{
-				if (sMatchedString.isEmpty ())	// 空字符串，这个没法显示，只好增加一个可见字符
+				if (StringUtils.isEmpty (sMatchedString))	// 空字符串，这个没法显示，只好增加一个可见字符
 				{
 					sColorizedReplacement = Colors.REVERSE + "|" + Colors.REVERSE;
 					bMatchedEmptyString = true;
@@ -3603,9 +3630,9 @@ System.out.println (nMatch + ": " + sMatchedString);
 	 */
 	void ProcessCommand_RegExp (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -3652,7 +3679,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				sSrc = listParams.get (0);
 				sRegExp = listParams.get (1);
 
-				if (! sRegExpOption.isEmpty ())
+				if (! StringUtils.isEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (! bColorized)
@@ -3746,7 +3773,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 					sReplacement = listParams.get (1);
 				}
 
-				if (! sRegExpOption.isEmpty ())
+				if (! StringUtils.isEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (! bColorized)
@@ -3785,7 +3812,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				sSrc = listParams.get (0);
 				sRegExp = listParams.get (1);
 
-				if (! sRegExpOption.isEmpty ())
+				if (! StringUtils.isEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (! bColorized)
@@ -3812,7 +3839,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 						int iColor = (i+1)%12; iColor = (iColor==0 ? 11 : iColor-1); iColor+=2;	// %16 不太好，假设有 >=16 个匹配，那么颜色可能会出现跟客户端背景色相同，导致看不到。所以，改为仅仅使用颜色 02-13 （12个颜色）
 						String s = arrayResult[i];
 						String sColorizedString = null;
-						if (s.isEmpty ())	// 空字符串，这个没法显示，只好增加一个可见字符
+						if (StringUtils.isEmpty (s))	// 空字符串，这个没法显示，只好增加一个可见字符
 						{
 							sColorizedString = Colors.REVERSE + "|" + Colors.REVERSE;
 							bHasEmptyString = true;
@@ -3878,9 +3905,9 @@ function 彩虹(s) { var r=""; for (var i=0; i<s.length; i++) { var c = s.charAt
 	 */
 	void ProcessCommand_EvaluateJavaScript (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 System.out.println ("JavaScript 脚本：");
@@ -3905,16 +3932,16 @@ System.out.println ("执行结果：");
 System.out.println (evaluateResult);
 			if (evaluateResult!=null)
 			{
-				if (stdout.toString ().isEmpty () && stderr.toString ().isEmpty ())
+				if (StringUtils.isEmpty (stdout.toString ()) && StringUtils.isEmpty (stderr.toString ()))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, evaluateResult.toString ());
 					return;
 				}
 
 				String sResult = "";
-				if (stderr.toString ().isEmpty ())
+				if (StringUtils.isEmpty (stderr.toString ()))
 					sResult = evaluateResult.toString () + "    控制台输出: " + stdout;
-				else if (stdout.toString ().isEmpty ())
+				else if (StringUtils.isEmpty (stdout.toString ()))
 					sResult = evaluateResult.toString () + "    控制台输出: " + Colors.RED + stderr;
 				else
 					sResult = evaluateResult.toString () + "    控制台输出: " + stdout + "  " + Colors.RED + stderr;
@@ -3923,17 +3950,17 @@ System.out.println (evaluateResult);
 			}
 			else
 			{
-				if (stdout.toString ().isEmpty () && stderr.toString ().isEmpty ())
+				if (StringUtils.isEmpty (stdout.toString ()) && StringUtils.isEmpty (stderr.toString ()))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "求值无结果，控制台也没有输出");
 					return;
 				}
-				if (stderr.toString ().isEmpty ())
+				if (StringUtils.isEmpty (stderr.toString ()))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, stdout.toString ());
 					return;
 				}
-				if (stdout.toString ().isEmpty ())
+				if (StringUtils.isEmpty (stdout.toString ()))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, Colors.RED + stderr.toString ());
 					return;
@@ -3999,9 +4026,9 @@ System.out.println (evaluateResult);
 	 */
 	void ProcessCommand_TextArt (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
@@ -4034,9 +4061,9 @@ System.out.println (evaluateResult);
 			URLConnection conn = null;
 			if (bProxyOn)
 			{
-				if (sslTrustStore!=null && !sslTrustStore.isEmpty ())
+				if (! StringUtils.isEmpty (sslTrustStore))
 					System.setProperty ("javax.net.ssl.trustStore", sslTrustStore);
-				if (sslTrustPassword!=null && !sslTrustPassword.isEmpty ())
+				if (! StringUtils.isEmpty (sslTrustPassword))
 					System.setProperty ("javax.net.ssl.trustPassword", sslTrustPassword);
 				// 利用 GoAgent 代理搜索
 				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
@@ -4101,7 +4128,7 @@ System.out.println (evaluateResult);
 		//botDS.setDriverClassName("org.mariadb.jdbc.Driver");
 		botDS.setDriverClassName (System.getProperty ("database.driver", "com.mysql.jdbc.Driver"));
 		botDS.setUsername (System.getProperty ("database.username", "bot"));
-		if (System.getProperty ("database.userpassword") != null && !System.getProperty ("database.userpassword").isEmpty ())
+		if (! StringUtils.isEmpty (System.getProperty ("database.userpassword")))
 			botDS.setPassword (System.getProperty ("database.userpassword"));
 		// 要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则执行存储过程报错
 		// GRANT SELECT ON mysql.proc TO bot@'192.168.2.%'
@@ -4139,9 +4166,9 @@ System.out.println (evaluateResult);
 		{
 			isQueryingStatistics = true;
 		}
-		else if (params == null || params.isEmpty())
+		else if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -4236,7 +4263,7 @@ System.out.println (evaluateResult);
 				String q = StringUtils.trimToEmpty (arrayParams[0]);
 				String a = StringUtils.trimToEmpty (arrayParams[1]);
 logger.fine ("q=[" + q + "]\na=[" + a + "]");
-				if (q.isEmpty () || a.isEmpty ())
+				if (StringUtils.isEmpty (q) || StringUtils.isEmpty (a))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "词条及其定义不能为空");
 					return;
@@ -4360,7 +4387,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (! bFound)
 						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 					else if (isShowDetail)
-						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (sLastUpdatedBy.isEmpty () ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
+						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
 					else
 						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]");
 				}
@@ -4369,7 +4396,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, "" + e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
 		}
 		finally
 		{
@@ -4420,7 +4447,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		if ( ! (isLogs || isTags))
 		{
 			SendMessage (ch, nick, mapGlobalOptions, botCmdAlias + " 命令需要至少指定 ." + formatBotOptionInstance ("tag", true) + " 或 " + formatBotOptionInstance ("log", true) + " 选项中的一个");
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
@@ -4436,12 +4463,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 			else
 			{
-				if (params != null && !params.isEmpty())
+				if (StringUtils.isEmpty (params))
 				{
 					sProjectURI = params;
 					if (sProjectURI.startsWith ("/"))
 						sProjectURI = sProjectURI.substring (1);	// "account/project/sub-paths/..."
-					if (sProjectURI.isEmpty() || !sProjectURI.contains("/"))
+					if (StringUtils.isEmpty (sProjectURI) || !sProjectURI.contains("/"))
 					{
 						SendMessage (ch, nick, mapGlobalOptions, "总得指定个项目网址吧");
 						return;
@@ -4451,10 +4478,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					else
 						params = params + "/commits";
 				}
-				if (params == null || params.isEmpty())
+				if (StringUtils.isEmpty (params))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "需要指定项目在 github.com 上的路径，如 torvalds/linux");
-					ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+					ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 					return;
 				}
 				sURL = "https://github.com/" + params;
@@ -4565,13 +4592,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 						author_name = author_account;	// 作者姓名 默认等于 github 帐号名
 						committer_name = committer_account;	// 提交者姓名 默认等于 github 帐号名
-						if (authorship_img_author_avatar!=null && !authorship_img_author_avatar.attr("alt").isEmpty())	// 如果有作者有图片，且图片的 alt 包含了全名
+						if (authorship_img_author_avatar!=null && !StringUtils.isEmpty (authorship_img_author_avatar.attr("alt")))	// 如果有作者有图片，且图片的 alt 包含了全名
 							author_name = authorship_img_author_avatar.attr("alt");
-						if (authorship_img_committer_avatar!=null && !authorship_img_committer_avatar.attr("alt").isEmpty())	// 如果有作者有图片，且图片的 alt 包含了全名
+						if (authorship_img_committer_avatar!=null && !StringUtils.isEmpty (authorship_img_committer_avatar.attr("alt")))	// 如果有作者有图片，且图片的 alt 包含了全名
 							committer_name = authorship_img_committer_avatar.attr("alt");
 
 						//System.out.println (author + " " + msg + " " + time);
-						SendMessage (ch, nick, mapGlobalOptions, commit_url + " " + author_account + (!author_name.equals(author_account) ? " (" + author_name + ")" : "") + " 在 " + author_time + (committer_name.isEmpty() || author_name.equals(committer_name) ? " 提交了: " : " 创作, 由 " + committer_account + (!committer_name.equals(committer_account) ? " (" + committer_name + ")" : "") + " 在 " + commit_time + " 代提交: ") + Colors.BOLD + commit_title);	// msg.text() + "\n" + msg.attr("title"));
+						SendMessage (ch, nick, mapGlobalOptions, commit_url + " " + author_account + (!author_name.equals(author_account) ? " (" + author_name + ")" : "") + " 在 " + author_time + (StringUtils.isEmpty (committer_name) || author_name.equals(committer_name) ? " 提交了: " : " 创作, 由 " + committer_account + (!committer_name.equals(committer_account) ? " (" + committer_name + ")" : "") + " 在 " + commit_time + " 代提交: ") + Colors.BOLD + commit_title);	// msg.text() + "\n" + msg.attr("title"));
 						nLines ++;
 					}
 				}
@@ -4581,6 +4608,517 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		{
 			e.printStackTrace ();
 			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+		}
+	}
+
+	/**
+	 * 获取任意 HTML 网址的内容，根据模板解析，将解析结果显示出来。
+	 *
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_HTMLParser (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		String sAction = null;
+		if (listCmdEnv!=null && listCmdEnv.size()>0)
+		{
+			for (int i=0; i<listCmdEnv.size (); i++)
+			{
+				String env = listCmdEnv.get (i);
+				if (env.equalsIgnoreCase ("add") || env.equalsIgnoreCase ("+"))
+					sAction = "+";
+				else if (env.equalsIgnoreCase ("exe") || env.equalsIgnoreCase ("exec") || env.equalsIgnoreCase ("run") || env.equalsIgnoreCase ("go") || env.equalsIgnoreCase ("visit") || env.equalsIgnoreCase ("执行") || env.equalsIgnoreCase ("获取"))
+					sAction = "exec";
+				else if (env.equalsIgnoreCase ("show") || env.equalsIgnoreCase ("显示"))
+					sAction = "show";
+				else if (env.equalsIgnoreCase ("list") || env.equalsIgnoreCase ("列表"))
+					sAction = "list";
+				else if (env.equalsIgnoreCase ("stats") || env.equalsIgnoreCase ("统计"))
+					sAction = "stats";
+				else
+					continue;
+			}
+		}
+
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+
+		String sID = null;
+		long nID = 0;
+		String sName = null;
+		String sURL = null;
+		String sURL_Param_Usage = null;
+		String sSelector = null;
+		String sSubSelector = null;
+		String sExtract = null;
+		String sAttr = null;
+		String sMax = null;
+
+		String sHTTPUserAgent = null;
+		String sHTTPMethod = null;
+		String sHTTPReferer = null;
+		String sHTTPTimeout = null;
+		int nHTTPTimeout = WATCH_DOG_TIMEOUT_LENGTH;
+
+		String sStart = null;
+		long iStart = 0;
+
+		List<String> listParams = splitCommandLine (params);
+		if (listParams != null)
+		{
+			for (int i=0; i<listParams.size (); i++)
+			{
+				String param = listParams.get (i);
+				if (param.startsWith ("/") || param.startsWith ("-"))
+				{
+					if (i == listParams.size () - 1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, param + " 需要指定参数值");
+						return;
+					}
+
+					param = param.substring (1);
+
+					i++;
+					String value = listParams.get (i);
+					if (param.equalsIgnoreCase ("url") || param.equalsIgnoreCase ("网址"))
+					{
+						if (StringUtils.startsWithIgnoreCase (value, "http://") || StringUtils.startsWithIgnoreCase (value, "https://"))
+							sURL = value;
+						else
+							sURL = "http://" + value;
+					}
+					else if (param.equalsIgnoreCase ("h") || param.equalsIgnoreCase ("help") || param.equalsIgnoreCase ("帮助"))
+						sURL_Param_Usage = value;
+					else if (param.equalsIgnoreCase ("s") || param.equalsIgnoreCase ("selector") || param.equalsIgnoreCase ("选择器"))
+						sSelector = value;
+					else if (param.equalsIgnoreCase ("ss") || param.equalsIgnoreCase ("sub-selector") || param.equalsIgnoreCase ("子选择器"))
+						sSubSelector = value;
+					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
+						sExtract = value;
+					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性值"))
+						sAttr = value;
+					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
+						sName = value;
+					else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("编号"))
+					{
+						sID = value;
+						nID = Integer.parseInt (value);
+					}
+					else if (param.equalsIgnoreCase ("max") || param.equalsIgnoreCase ("最多"))
+					{
+						sMax = value;
+						opt_max_response_lines = Integer.parseInt (value);
+						if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
+							opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
+					}
+					else if (param.equalsIgnoreCase ("ua") || param.equalsIgnoreCase ("user-agent") || param.equalsIgnoreCase ("浏览器"))
+						sHTTPUserAgent = value;
+					else if (param.equalsIgnoreCase ("m") || param.equalsIgnoreCase ("method") || param.equalsIgnoreCase ("方法"))
+						sHTTPMethod = value;
+					else if (param.equalsIgnoreCase ("r") || param.equalsIgnoreCase ("ref") || param.equalsIgnoreCase ("refer") || param.equalsIgnoreCase ("referer") || param.equalsIgnoreCase ("来源"))
+						sHTTPReferer = value;
+
+					else if (param.equalsIgnoreCase ("t") || param.equalsIgnoreCase ("timeout") || param.equalsIgnoreCase ("超时"))
+					{
+						sHTTPTimeout = value;
+						nHTTPTimeout = Integer.parseInt (value);
+						if (nHTTPTimeout > WATCH_DOG_TIMEOUT_LENGTH_LIMIT)
+							nHTTPTimeout = WATCH_DOG_TIMEOUT_LENGTH_LIMIT;
+					}
+					else if (param.equalsIgnoreCase ("start") || param.equalsIgnoreCase ("起始"))
+					{
+						sStart = value;
+						iStart = Integer.parseInt (value);
+					}
+				}
+			}
+		}
+
+		if (StringUtils.isEmpty (sAction))
+		{
+			if (StringUtils.isEmpty (params))
+			{
+				ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+				return;
+			}
+		}
+		else
+		{
+			if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "exec"))
+			{
+				if (nID == 0 && StringUtils.isEmpty (sName))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "必须指定 /id <模板编号> 或者 /name <模板名称> 参数.");
+					return;
+				}
+			}
+			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
+			{
+				if (StringUtils.isEmpty (sName) || StringUtils.isEmpty (sURL) || StringUtils.isEmpty (sSelector))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "必须指定 /name <模板名称>、/url <网址>、/selector <CSS 选择器> 参数.");
+					return;
+				}
+				if (StringUtils.equalsIgnoreCase (sExtract, "attr") && StringUtils.isEmpty (sAttr))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, attr 需要用 /a 指定具体属性值.");
+					return;
+				}
+			}
+			else if (StringUtils.equalsIgnoreCase (sAction, "list"))
+			{
+				//if (StringUtils.isEmpty (sStart))
+				//{
+				//	SendMessage (ch, nick, mapGlobalOptions, "必须指定 /start <列表起点> 参数，另外 /max <数量> 可限制返回的结果数量. 其他参数被当做查询条件使用, 除了 /extract /attr /method 是精确匹配外, 其他都是模糊匹配.");
+				//	return;
+				//}
+			}
+		}
+
+		Connection conn = null;
+		CallableStatement stmt_sp = null;
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		boolean bFound = false;
+		int nRowsAffected = 0;
+		int nLines = 0;
+		try
+		{
+			if (sAction != null)
+			{
+				SetupDataSource ();
+				conn = botDS.getConnection ();
+
+				StringBuilder sbSQL = new StringBuilder ();
+				if (sAction.equalsIgnoreCase ("show") || sAction.equalsIgnoreCase ("exec") || sAction.equalsIgnoreCase ("list"))
+				{
+					sbSQL.append ("SELECT * FROM html_parser_templates WHERE ");
+					List<String> listSQLParams = new ArrayList<String> ();
+					if (sAction.equalsIgnoreCase ("list"))
+					{
+						sbSQL.append ("1=1\n");
+						if (! StringUtils.isEmpty (sName))
+						{
+							sbSQL.append ("	AND name LIKE ?\n");
+							listSQLParams.add ("%" + sName + "%");
+						}
+						if (! StringUtils.isEmpty (sURL))
+						{
+							sbSQL.append ("	AND url LIKE ?\n");
+							listSQLParams.add ("%" + sURL + "%");
+						}
+						if (! StringUtils.isEmpty (sSelector))
+						{
+							sbSQL.append ("	AND selector LIKE ?\n");
+							listSQLParams.add ("%" + sSelector + "%");
+						}
+						if (! StringUtils.isEmpty (sSubSelector))
+						{
+							sbSQL.append ("	AND sub_selector LIKE ?\n");
+							listSQLParams.add ("%" + sSubSelector + "%");
+						}
+						if (! StringUtils.isEmpty (sExtract))
+						{
+							sbSQL.append ("	AND extract = ?\n");
+							listSQLParams.add (sExtract);
+						}
+						if (! StringUtils.isEmpty (sAttr))
+						{
+							sbSQL.append ("	AND attr = ?\n");
+							listSQLParams.add (sAttr);
+						}
+						//if (! StringUtils.isEmpty (sMax))
+						//{
+						//	sbSQL.append ("	AND max = ?\n");
+						//	listSQLParams.add (sMax);
+						//}
+						if (! StringUtils.isEmpty (sHTTPUserAgent))
+						{
+							sbSQL.append ("	AND ua LIKE ?\n");
+							listSQLParams.add ("%" + sHTTPUserAgent + "%");
+						}
+						if (! StringUtils.isEmpty (sHTTPMethod))
+						{
+							sbSQL.append ("	AND method = ?\n");
+							listSQLParams.add (sHTTPMethod);
+						}
+						if (! StringUtils.isEmpty (sHTTPReferer))
+						{
+							sbSQL.append ("	AND referer LIKE ?\n");
+							listSQLParams.add ("%" + sHTTPReferer + "%");
+						}
+
+						sbSQL.append ("LIMIT " + iStart + "," + opt_max_response_lines);
+					}
+					else
+					{
+						if (nID != 0)
+							sbSQL.append ("id=?");
+						else
+							sbSQL.append ("name=?");
+					}
+
+					stmt = conn.prepareStatement (sbSQL.toString ());
+					if (sAction.equalsIgnoreCase ("list"))
+					{
+						for (int i=0; i<listSQLParams.size (); i++)
+						{
+							stmt.setString (i+1, listSQLParams.get (i));
+						}
+					}
+					else
+					{
+						if (nID != 0)
+							stmt.setLong (1, nID);
+						else
+							stmt.setString (1, sName);
+					}
+
+					rs = stmt.executeQuery ();
+					while (rs.next ())
+					{
+						bFound = true;
+						//if (sID == null)
+						//	nID = rs.getLong ("id");
+						//if (sName == null)
+						//	sName = rs.getString ("name");
+						if (sURL == null)
+							sURL = rs.getString ("url");
+						if (sSelector == null)
+							sSelector = rs.getString ("selector");
+						if (sSubSelector == null)
+							sSubSelector = rs.getString ("sub_selector");
+						if (sExtract == null)
+							sExtract = rs.getString ("extract");
+						if (sAttr == null)
+							sAttr = rs.getString ("attr");
+						if (sMax == null)
+						{
+							sMax = rs.getString ("max");
+							opt_max_response_lines = rs.getShort ("max");
+						}
+
+						if (sHTTPUserAgent == null)
+							sHTTPUserAgent = rs.getString ("ua");
+						if (sHTTPMethod == null)
+							sHTTPMethod = rs.getString ("method");
+						if (sHTTPReferer == null)
+							sHTTPReferer = rs.getString ("referer");
+
+						if (sAction.equalsIgnoreCase ("show") || sAction.equalsIgnoreCase ("list"))
+						{
+							if (nLines >= opt_max_response_lines)
+								break;
+
+							SendMessage (ch, nick, mapGlobalOptions,
+								"#" + rs.getLong ("ID") +
+								": " + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
+								" " + Colors.DARK_GREEN + rs.getString ("url") + Colors.NORMAL +
+								" 选择器=" + Colors.DARK_BLUE + rs.getString ("selector") + Colors.NORMAL +
+								(StringUtils.isEmpty (rs.getString ("sub_selector")) ? "" : " 子选择器=" + rs.getString ("sub_selector")) +
+								(StringUtils.isEmpty (rs.getString ("extract")) ? "" : " 取值方法=" + rs.getString ("extract")) +
+								(rs.getString ("extract").equalsIgnoreCase ("attr") || rs.getString ("extract").equalsIgnoreCase ("attribute") ? " 属性=" + rs.getString ("attr") : "") +
+								(StringUtils.isEmpty (rs.getString ("ua")) ? "" : " 仿浏览器=" + rs.getString ("ua")) +
+								(StringUtils.isEmpty (rs.getString ("method")) ? "" : " 请求方法=" + rs.getString ("method")) +
+								(StringUtils.isEmpty (rs.getString ("referer")) ? "" : " 来源=" + rs.getString ("referer")) +
+								" 获取行数=" + rs.getShort ("max") +
+								(StringUtils.isEmpty (rs.getString ("url_param_usage")) ? "" : " 参数说明=" + rs.getString ("url_param_usage")) +
+								" 添加人: " + rs.getString ("added_by") +
+								" " + rs.getString ("added_time") +
+								(rs.getInt ("updated_times")==0 ? "" : " 更新人: " + rs.getString ("updated_by") + " " + rs.getString ("updated_time") + " " + rs.getString ("updated_times") + " 次") +
+								""
+								);
+							nLines ++;
+						}
+						break;
+					}
+					rs.close ();
+					stmt.close ();
+					conn.close ();
+
+					if (! bFound)
+					{
+						if (sAction.equalsIgnoreCase ("list"))
+							SendMessage (ch, nick, mapGlobalOptions, "未找到符合条件 的 html 解析模板");
+						else
+							SendMessage (ch, nick, mapGlobalOptions, "未找到 " + (nID != 0 ? "ID=[#" + nID : "名称=[" + sName) + "] 的 html 解析模板");
+						return;
+					}
+					if (sAction.equalsIgnoreCase ("show") || sAction.equalsIgnoreCase ("list"))
+					{
+						return;
+					}
+				}
+				else if (sAction.equalsIgnoreCase ("+"))
+				{
+					sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
+					sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)");
+					stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
+					int iParam = 1;
+					stmt.setString (iParam++, sName);
+					stmt.setString (iParam++, sURL);
+					stmt.setString (iParam++, StringUtils.trimToEmpty (sURL_Param_Usage));
+					stmt.setString (iParam++, sSelector);
+					stmt.setString (iParam++, StringUtils.trimToEmpty (sSubSelector));
+					stmt.setString (iParam++, StringUtils.trimToEmpty (sExtract));
+					stmt.setString (iParam++, StringUtils.trimToEmpty (sAttr));
+
+					stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPUserAgent));
+					stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPReferer));
+					stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPTimeout));
+
+					stmt.setInt (iParam++, opt_max_response_lines);
+
+					stmt.setString (iParam++, nick);
+					stmt.setString (iParam++, login);
+					stmt.setString (iParam++, hostname);
+
+					nRowsAffected = stmt.executeUpdate ();
+					rs = stmt.getGeneratedKeys ();
+					while (rs.next ())
+					{
+						nID = rs.getLong (1);
+					}
+					rs.close ();
+					stmt.close ();
+					conn.close ();
+					if (nRowsAffected > 0)
+						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID);
+					else
+						SendMessage (ch, nick, mapGlobalOptions, "保存失败。 这条信息应该不会出现……");
+				}
+			}
+
+			if (StringUtils.isEmpty (sURL))
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "你想看 hyper text，却不提供网址. 用 /url <网址> 指定网址");
+				return;
+			}
+			if (StringUtils.isEmpty (sSelector))
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "未提供 '选择器'，都不知道你具体想看什么. 用 /selector <选择器> 指定 CSS 选择器. 选择器的写法见参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html");
+				return;
+			}
+
+			Document doc = null;
+			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+			System.clearProperty ("javax.net.ssl.trustPassword");
+			org.jsoup.Connection jsoup_conn = org.jsoup.Jsoup.connect (sURL);
+			jsoup_conn.ignoreHttpErrors (true);
+			jsoup_conn.timeout (nHTTPTimeout * 1000);
+			if (!StringUtils.isEmpty (sHTTPUserAgent))
+				jsoup_conn.userAgent (sHTTPUserAgent);
+			if (!StringUtils.isEmpty (sHTTPReferer))
+				jsoup_conn.referrer (sHTTPReferer);
+
+			if (!StringUtils.isEmpty (sHTTPMethod))
+				jsoup_conn.method (org.jsoup.Connection.Method.valueOf (sHTTPMethod));
+			else
+				doc = jsoup_conn.get();
+
+			Elements es = doc.select (sSelector);
+			if (es.size () == 0)
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "选择器 没有选中任何 Element/元素");
+				return;
+			}
+			for (Element e : es)
+			{
+				if (nLines >= opt_max_response_lines)
+				{
+					//SendMessage (ch, nick, mapGlobalOptions, "略……");
+					break;
+				}
+
+				//System.out.println (e.text());
+				Element e2 = e;
+
+				String text = "";
+
+				if (! StringUtils.isEmpty (sSubSelector))
+					e2 = e.select (sSubSelector).first ();
+
+				if (StringUtils.isEmpty (sExtract) || sExtract.equalsIgnoreCase ("text"))
+				{
+					if (e2.tagName ().equalsIgnoreCase ("a"))
+						text = e2.attr ("abs:href") + " " + e2.text ();	// abs:href : 将相对地址转换为全地址
+					else
+						text = e2.text ();
+				}
+				else if (sExtract.equalsIgnoreCase ("html") || sExtract.equalsIgnoreCase ("innerhtml") || sExtract.equalsIgnoreCase ("inner"))
+					text = e2.html ();
+				else if (sExtract.equalsIgnoreCase ("outerhtml") || sExtract.equalsIgnoreCase ("outer"))
+					text = e2.outerHtml ();
+				else if (sExtract.equalsIgnoreCase ("attr") || sExtract.equalsIgnoreCase ("attribute"))
+					text = e2.attr (sAttr);
+				else if (sExtract.equalsIgnoreCase ("TagName"))
+					text = e2.tagName ();
+				else if (sExtract.equalsIgnoreCase ("NodeName"))
+					text = e2.nodeName ();
+				else if (sExtract.equalsIgnoreCase ("OwnText"))
+					text = e2.ownText ();
+				else if (sExtract.equalsIgnoreCase ("data"))
+					text = e2.data ();
+				else if (sExtract.equalsIgnoreCase ("ClassName"))
+					text = e2.className ();
+				else if (sExtract.equalsIgnoreCase ("id"))
+					text = e2.id ();
+				else if (sExtract.equalsIgnoreCase ("val") || sExtract.equalsIgnoreCase ("value"))
+					text = e2.val ();
+
+				text = StringUtils.replaceEach (
+						text,
+						new String[]
+						{
+							"\u0000", "\u0001", "\u0002", "\u0003", "\u0004", "\u0005", "\u0006", "\u0007",
+							"\u0008", "\u0009"/*\t*/, "\n"/*\u000A*/, "\u000B", "\u000C", "\r"/*\u000D*/, "\u000E", "\u000F",
+							"\u0010", "\u0011", "\u0012", "\u0013", "\u0014", "\u0015", "\u0016", "\u0017",
+							"\u0018", "\u0019", "\u001A", "\u001B", "\u001C", "\u001D", "\u001E", "\u001F",
+						},
+						new String[]
+						{
+							"", "", "", "", "", "", "", "",
+							"", " ", " ", "", " ", " ", "", "",
+							"", "", "", "", "", "", "", "",
+							"", "", "", "", "", "", "", "",
+						}
+						/*
+						new String[]
+						{
+							"␀", "␁", "␂", "␃", "␄", "␅", "␆", "␇",
+							"␈", "␉", "␊", "␋", "␌", "␍", "␎", "␏",
+							"␐", "␑", "␒", "␓", "␔", "␕", "␖", "␗",
+							"␘", "␙", "␚", "␛", "␜", "␝", "␞", "␟",
+						}
+						*/
+						);
+
+				if (text.length () > 430)
+					text = text.substring (0, 430);
+				SendMessage (ch, nick, mapGlobalOptions, text);
+
+				nLines ++;
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+		}
+		finally
+		{
+			try { if (rs != null) rs.close(); } catch(Exception e) { }
+			try { if (stmt != null) stmt.close(); } catch(Exception e) { }
+			try { if (stmt_sp != null) stmt_sp.close(); } catch(Exception e) { }
+			try { if (conn != null) conn.close(); } catch(Exception e) { }
 		}
 	}
 
@@ -4597,9 +5135,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	 */
 	void ProcessCommand_MySQL (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		if (params == null || params.isEmpty())
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		boolean isReverseQuery = false;
@@ -4612,7 +5150,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	/**
 	 * 显示 bot 版本
 	 */
-	void ProcessCommand_Version (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Version (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		SendMessage (ch, u, mapGlobalOptions, getVersion());
 	}
@@ -4620,11 +5158,11 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	/**
 	 * 解析命令行
 	 */
-	void ProcessCommand_ParseCommand (String ch, String u, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_ParseCommand (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, u, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, u, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 		List<String> listTokens = splitCommandLine (params);
@@ -5027,14 +5565,14 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		}
 	}
 
-	void ExecuteCommand (String ch, String nick, String login, String hostname, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ExecuteCommand (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		if (ch==null)
+		if (StringUtils.isEmpty (ch))
 		{
 			SendMessage (ch, nick, mapGlobalOptions, botcmd + " 命令不支持通过私信执行，请在频道中执行");
 			return;
@@ -5204,7 +5742,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				opt_escape_for_cursor_moving = (boolean)globalOpts.get("opt_escape_for_cursor_moving");
 				opt_timeout_length_seconds = (int)globalOpts.get("opt_timeout_length_seconds");
 				opt_charset = (String)globalOpts.get("opt_charset");
-				if (opt_charset != null  && !opt_charset.isEmpty ())
+				if (! StringUtils.isEmpty (opt_charset))
 					charset = Charset.forName (opt_charset);
 				mapUserEnv = (Map<String, String>)globalOpts.get ("env");
 				if (mapUserEnv.get ("COLUMNS") != null)
@@ -5383,7 +5921,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						{
 							//line = li.nextLine ();
 							lineCounterIncludingEmptyLines ++;
-							if (!opt_output_username && line.isEmpty())	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
+							if (!opt_output_username && StringUtils.isEmpty (line))	// 不输出用户名，且输出的内容是空白的： irc 不允许发送空行，所以，忽略之
 								continue;
 
 							lineCounter ++;
@@ -5473,7 +6011,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 	String ConvertCharsetEncoding (String s, String src, String dst)
 	{
-		if (src!=null && !src.isEmpty() && !src.equalsIgnoreCase(dst))
+		if (! StringUtils.isEmpty (src) && !src.equalsIgnoreCase(dst))
 		{	// 如果设置了字符集，并且该字符集与 IRC 服务器字符集不相同，则转换之
 			logger.fine ("转换字符集编码: " + src + " -> " + dst);
 			try
@@ -5528,7 +6066,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	 */
 	public static List<String> splitCommandLine (String cmdline, boolean unquoted, boolean unescape)
 	{
-		if (cmdline==null || cmdline.isEmpty())
+		if (StringUtils.isEmpty (cmdline))
 			return null;
 
 		boolean token_state_in_token = false;
@@ -5767,7 +6305,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			arrayBans = banWildcardPatterns.split ("[,;]+");
 			for (String ban : arrayBans)
 			{
-				if (ban==null || ban.isEmpty())
+				if (StringUtils.isEmpty (ban))
 					continue;
 				if (ban.contains (":"))
 				{
@@ -5791,7 +6329,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		arrayChannels = channels.split ("[,;/]+");
 		for (String ch : arrayChannels)
 		{
-			if (ch==null || ch.isEmpty())
+			if (StringUtils.isEmpty (ch))
 				continue;
 			if (!ch.startsWith("#"))
 				ch = "#" + ch;
@@ -5808,7 +6346,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			BufferedReader reader = new BufferedReader (new InputStreamReader (System.in));
 			while ( (sTerminalInput=reader.readLine ()) != null)
 			{
-				if (sTerminalInput.isEmpty ())
+				if (StringUtils.isEmpty (sTerminalInput))
 					continue;
 				try
 				{
@@ -5824,7 +6362,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						this.onMessage (null, "", "", "", sTerminalInput);
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Msg))
 					{
-						if (currentChannel.isEmpty())
+						if (StringUtils.isEmpty (currentChannel))
 						{
 							params = sTerminalInput.split (" +", 3);
 							if (params.length < 3)
@@ -5842,7 +6380,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Action))
 					{
-						if (currentChannel.isEmpty())
+						if (StringUtils.isEmpty (currentChannel))
 						{
 							params = sTerminalInput.split (" +", 3);
 							if (params.length < 3)
@@ -5874,7 +6412,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						params = sTerminalInput.split (" +", 2);
 						if (params.length < 2)
 						{
-							if (! currentChannel.isEmpty ())
+							if (! StringUtils.isEmpty (currentChannel))
 								System.out.println ("当前频道为: " + currentChannel);
 							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Channel + " -- 更改默认频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
 							continue;
@@ -5924,7 +6462,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							String channel = arrayChannels[i];
 							if (! channel.startsWith ("#"))
 								channel = "#" + channel;
-							if (reason.isEmpty ())
+							if (StringUtils.isEmpty (reason))
 								partChannel (channel);
 							else
 								partChannel (channel, reason);
@@ -5941,7 +6479,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						String reason = null;
 						if (params.length >= 2)
 							reason = params[1];
-						if (reason!=null && !reason.isEmpty ())
+						if (! StringUtils.isEmpty (reason))
 							quitServer (reason);
 						else
 							quitServer ();
