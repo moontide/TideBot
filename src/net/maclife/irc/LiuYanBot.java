@@ -111,18 +111,18 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Alias, },
 		{BOT_PRIMARY_COMMAND_Cmd, "exec", },
 		{BOT_PRIMARY_COMMAND_ParseCmd, },
-		{BOT_PRIMARY_COMMAND_IPLocation, "iploc", "ipl",},
+		{BOT_PRIMARY_COMMAND_IPLocation, "iploc", "ipl", },
 		{BOT_PRIMARY_COMMAND_GeoIP, },
 		{BOT_PRIMARY_COMMAND_PageRank, "pr", },
-		{BOT_PRIMARY_COMMAND_StackExchange, "se",},
-		{BOT_PRIMARY_COMMAND_Google, "/goo+gle",},
-		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split",},
-		{BOT_PRIMARY_COMMAND_Ban, "/vip",},
-		{BOT_PRIMARY_COMMAND_JavaScript, "js",},
-		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术",},
+		{BOT_PRIMARY_COMMAND_StackExchange, "se", },
+		{BOT_PRIMARY_COMMAND_Google, "/goo+gle", },
+		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split", },
+		{BOT_PRIMARY_COMMAND_Ban, "/vip", },
+		{BOT_PRIMARY_COMMAND_JavaScript, "js", },
+		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
-		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel",},
-		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "/ht",},
+		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel", },
+		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -143,12 +143,12 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Reconnect, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Join, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Part, "/leave"},
+		{BOT_PRIMARY_COMMAND_CONSOLE_Part, "/leave", },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Quit, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Channel, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Msg, "/say",},
-		{BOT_PRIMARY_COMMAND_CONSOLE_Action, "/action",},
-		{BOT_PRIMARY_COMMAND_CONSOLE_Nick, "/name" },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Msg, "/say", },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Action, "/action", },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Nick, "/name", },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Verbose, "/debug"},
 	};
@@ -1375,9 +1375,44 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_HTMLParser;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("jsoup", true) + "|" + formatBotCommandInstance ("/ht", true) + "<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("exec", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "|." + formatBotOptionInstance ("stats", true)  + "> [/# " + formatBotParameter ("HTML 解析模板编号", true) + "] [/n " + formatBotParameter ("HTML 解析模板名", true) + "] [/u " + formatBotParameter ("网址", true) + "] [/s " + formatBotParameter ("CSS 选择器", true) + "] [/ss " + formatBotParameter ("子选择器", true) + "] [/e " + formatBotParameter ("取值方法", true) + "] [/a " + formatBotParameter ("取值方法为 attr 时的参数", true) + "] [/m GET|POST] [/ua User-Agent] [/r 来源] [/t 超时_秒]  -- 万能 HTML 解析器，用以解析任意 HTML 网址的任意内容");
-			SendMessage (ch, u, mapGlobalOptions, "模板名起名建议: 以网站名或域名开头. CSS 选择器必须是 jsoup 库支持的选择器, 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html . 取值方法: text|owntext|attr||html|outerHTML|id|val|tagname|nodename|classname|data, 默认为 text, 当为 attr 时, 还需要用 /a 指定 attr 参数. 如果选择的是 a 元素、并且取值是 text，则会把网址加在 text 前面");
-			SendMessage (ch, u, mapGlobalOptions, "当 ." + formatBotOptionInstance ("list", true) + " 时, 可用 /start <结果集起点> 来更改偏移量, 其他参数被当做查询条件使用, 除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." + formatBotOptionInstance ("add", true) + " 时, 至少需要指定 模板名、网址、选择器. ." + formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 必须指定 /i <序号> 或者 /n <模板名>.");
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("jsoup", true) + "|" +
+				formatBotCommandInstance ("ht", true) +
+				"<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("exec", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "|." + formatBotOptionInstance ("stats", true)  + "> " +
+				"[/# " + formatBotParameter ("HTML 解析模板编号", true) + "] " +
+				"[/n " + formatBotParameter ("HTML 解析模板名", true) + "] " +
+				"[/u " + formatBotParameter ("网址", true) + "] " +
+				"[/s " + formatBotParameter ("CSS 选择器", true) + "] " +
+				"[/ss " + formatBotParameter ("子选择器", true) + "] " +
+				"[/e " + formatBotParameter ("取值项", true) + "] " +
+				"[/a " + formatBotParameter ("取值项为 attr 时的属性名", true) + "] " +
+				"[/ua User-Agent] [/m GET|POST] [/r 来源] [/t 超时_秒]  -- 万能 HTML 解析器，用以解析任意 HTML 网址的任意内容");
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotParameter ("模板名", true) + "建议: 以网站名或域名开头. " +
+				formatBotParameter ("网址", true) + ": 可以省去前面的 http:// ; 有的主页网址需要在域名后面加 / 才能正常获取数据; 有的网址则需要指定 User-Agent 字符串 (如 /ua Mozilla) 才能正常获取数据. " +
+				formatBotParameter ("CSS 选择器", true) + "必须是 jsoup 库支持的选择器:" + Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/select/Selector.html http://jsoup.org/cookbook/extracting-data/selector-syntax" + Colors.BOLD + ". " +
+				"");
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotParameter ("取值项", true) + ": 空|" +
+					formatBotParameterInstance ("text", true) + "|" +
+					formatBotParameterInstance ("owntext", true) + "|" +
+					formatBotParameterInstance ("attr", true) + "|" +
+					formatBotParameterInstance ("|html", true) + "|" +
+					formatBotParameterInstance ("outerHTML", true) + "|" +
+					formatBotParameterInstance ("id", true) + "|" +
+					formatBotParameterInstance ("val", true) + "|" +
+					formatBotParameterInstance ("tagname", true) + "|" +
+					formatBotParameterInstance ("nodename", true) + "|" +
+					formatBotParameterInstance ("classname", true) + "|" +
+					formatBotParameterInstance ("data", true) + ", 默认为 空/" + formatBotParameterInstance ("text", true) + ". " +
+					"当为 " + formatBotParameterInstance ("attr", true) + "(属性) 时, 还需要用 /a 指定具体属性名. 如果选择的是 a 元素、并且取值是 text，则会把网址加在 text 前面. 其他取值项的含义参见: " +
+					Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/nodes/Element.html " + Colors.BOLD +
+					""
+				);
+			SendMessage (ch, u, mapGlobalOptions,
+				"当 ." + formatBotOptionInstance ("list", true) + " 时, 列出已保存的模板. 可用 /start <结果集起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." +
+				formatBotOptionInstance ("add", true) + " 时, 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". ." +
+				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 必须指定 /i <" + formatBotParameter ("编号", true) + "> 或者 /n <" + formatBotParameter ("模板名", true) + ">.");
 			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
 			//SendMessage (ch, u, mapGlobalOptions, "");
 		}
@@ -2355,20 +2390,21 @@ public class LiuYanBot extends PircBot implements Runnable
 							break;
 
 						net.maclife.util.qqwry.Location location = qqwry_locations[j];
-						String addr = formatHostnameAndAddress (q, location.getIPAddressString ());
+						String addr = formatHostnameAndAddress (q, location.getInetAddress ());
 						SendMessage (ch, u, mapGlobalOptions,
 								addr + "    " +
-								location.getCountryName () + " " +
-								location.getRegionName () +
-								(i==0 && j==0
-									?"    " + Colors.GREEN + "(" + Colors.NORMAL + "纯真 IP 数据库版本: " + Colors.BLUE + chunzhenIPDBVersion + Colors.NORMAL + ", 共 " + Colors.BLUE + chunzhenIPCount + Colors.NORMAL + " 条记录" + Colors.GREEN + ")" + Colors.NORMAL
+								(location.getInetAddress() instanceof Inet4Address ?
+									location.getCountryName () + " " +
+									location.getRegionName ()
+									:
+									"非 IPv4 地址，纯真 IP 数据库目前只支持 IPv4 数据"
+								) +
+								(i==0 && j==0 ?
+									//"    " + Colors.GREEN + "(" + Colors.NORMAL + "纯真 IP 数据库版本: " + Colors.BLUE + chunzhenIPDBVersion + Colors.NORMAL + ", 共 " + Colors.BLUE + chunzhenIPCount + Colors.NORMAL + " 条记录" + Colors.GREEN + ")" + Colors.NORMAL
+									"    (纯真 IP 数据库版本: " + chunzhenIPDBVersion + ", 共 " + chunzhenIPCount + " 条记录" + ")"
 									: "")	// 第一条加上数据库信息
 						);
 					}
-				}
-				else
-				{
-
 				}
 			}
 			catch (Exception e)
@@ -3470,7 +3506,7 @@ System.out.println (sContent_colorizedForShell);
 						int n = 0;
 						while (matcher.find ())
 						{
-							matcher.appendReplacement (sb, "$1" + this.中国数字分组权位[n]);	// 这里有个假设： n 不超过 中国数字分组权位 数组元素数。 如果假设不成立（超过了），则出错
+							matcher.appendReplacement (sb, "$1" + 中国数字分组权位[n]);	// 这里有个假设： n 不超过 中国数字分组权位 数组元素数。 如果假设不成立（超过了），则出错
 							n++;
 						}
 						matcher.appendTail (sb);
@@ -4024,6 +4060,7 @@ System.out.println (evaluateResult);
 	 * @param listCmdEnv
 	 * @param params
 	 */
+	@SuppressWarnings ("unchecked")
 	void ProcessCommand_TextArt (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (StringUtils.isEmpty (params))
@@ -4034,7 +4071,7 @@ System.out.println (evaluateResult);
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get("env");
-		int COLUMNS = 80;
+		int COLUMNS = ANSIEscapeTool.DEFAULT_SCREEN_COLUMNS;
 		if (mapUserEnv.get ("COLUMNS") != null)
 		{
 			COLUMNS = Integer.parseInt (mapUserEnv.get ("COLUMNS"));
@@ -4275,7 +4312,7 @@ logger.fine ("q=[" + q + "]\na=[" + a + "]");
 				stmt_sp.setString (iParamIndex++, nick);
 				stmt_sp.setString (iParamIndex++, login);
 				stmt_sp.setString (iParamIndex++, hostname);
-				boolean isResultSet = stmt_sp.execute ();
+				//boolean isResultSet = stmt_sp.execute ();
 				rs = stmt_sp.getResultSet ();
 				while (rs.next ())
 				{
@@ -4300,7 +4337,7 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 				stmt_sp.setString (iParamIndex++, params);
 				stmt_sp.setObject (iParamIndex++, opt_max_response_lines_specified ? opt_max_response_lines : null);
 				stmt_sp.setBoolean (iParamIndex++, isReverseQuery);
-				boolean isResultSet = stmt_sp.execute ();
+				//boolean isResultSet = stmt_sp.execute ();
 				boolean bFound = false, bValidRow = false;
 				int nCount = 0, nMaxID = 0;
 
@@ -4546,11 +4583,11 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							String commit_url = "https://github.com" + commit_a.attr("href");
 						Element metadata = log.select (".commit-meta").first ();
 
-							Element time_author = log.select (".commit-meta time").first ();
+							Element time_author = metadata.select (".commit-meta time").first ();
 
-							Element a_author = log.select ("a.commit-author").first ();
-							Element span_author = log.select ("span.commit-author").first ();
-							Element span_committer = log.select ("span.committer").first ();
+							Element a_author = metadata.select ("a.commit-author").first ();
+							Element span_author = metadata.select ("span.commit-author").first ();
+							Element span_committer = metadata.select ("span.committer").first ();
 
 						String author_account = "";
 						String author_name = "";
@@ -4632,13 +4669,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			for (int i=0; i<listCmdEnv.size (); i++)
 			{
 				String env = listCmdEnv.get (i);
-				if (env.equalsIgnoreCase ("add") || env.equalsIgnoreCase ("+"))
+				if (env.equalsIgnoreCase ("add") || env.equalsIgnoreCase ("+") || env.equalsIgnoreCase ("save"))
 					sAction = "+";
 				else if (env.equalsIgnoreCase ("exe") || env.equalsIgnoreCase ("exec") || env.equalsIgnoreCase ("run") || env.equalsIgnoreCase ("go") || env.equalsIgnoreCase ("visit") || env.equalsIgnoreCase ("执行") || env.equalsIgnoreCase ("获取"))
 					sAction = "exec";
 				else if (env.equalsIgnoreCase ("show") || env.equalsIgnoreCase ("显示"))
 					sAction = "show";
-				else if (env.equalsIgnoreCase ("list") || env.equalsIgnoreCase ("列表"))
+				else if (env.equalsIgnoreCase ("list") || env.equalsIgnoreCase ("列表") || env.equalsIgnoreCase ("search") || env.equalsIgnoreCase ("搜索"))
 					sAction = "list";
 				else if (env.equalsIgnoreCase ("stats") || env.equalsIgnoreCase ("统计"))
 					sAction = "stats";
@@ -4650,7 +4687,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
-		String sID = null;
+		//String sID = null;
 		long nID = 0;
 		String sName = null;
 		String sURL = null;
@@ -4667,7 +4704,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		String sHTTPTimeout = null;
 		int nHTTPTimeout = WATCH_DOG_TIMEOUT_LENGTH;
 
-		String sStart = null;
+		//String sIngoreContentType = null;
+		boolean isIngoreContentType = false;
+
+		//String sStart = null;
 		long iStart = 0;
 
 		List<String> listParams = splitCommandLine (params);
@@ -4688,7 +4728,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 					i++;
 					String value = listParams.get (i);
-					if (param.equalsIgnoreCase ("url") || param.equalsIgnoreCase ("网址"))
+					if (param.equalsIgnoreCase ("u") || param.equalsIgnoreCase ("url") || param.equalsIgnoreCase ("网址"))
 					{
 						if (StringUtils.startsWithIgnoreCase (value, "http://") || StringUtils.startsWithIgnoreCase (value, "https://"))
 							sURL = value;
@@ -4703,13 +4743,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						sSubSelector = value;
 					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
 						sExtract = value;
-					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性值"))
+					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性名"))
 						sAttr = value;
 					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
 						sName = value;
-					else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("编号"))
+					else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("编号"))
 					{
-						sID = value;
+						//sID = value;
 						nID = Integer.parseInt (value);
 					}
 					else if (param.equalsIgnoreCase ("max") || param.equalsIgnoreCase ("最多"))
@@ -4735,8 +4775,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					}
 					else if (param.equalsIgnoreCase ("start") || param.equalsIgnoreCase ("起始"))
 					{
-						sStart = value;
+						//sStart = value;
 						iStart = Integer.parseInt (value);
+					}
+					else if (param.equalsIgnoreCase ("IngoreContentType"))
+					{
+						//sIngoreContentType = value;
+						isIngoreContentType = BooleanUtils.toBoolean (value);
 					}
 				}
 			}
@@ -4769,7 +4814,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				}
 				if (StringUtils.equalsIgnoreCase (sExtract, "attr") && StringUtils.isEmpty (sAttr))
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, attr 需要用 /a 指定具体属性值.");
+					SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, attr 需要用 /a 指定具体属性名.");
 					return;
 				}
 			}
@@ -4920,25 +4965,25 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 							SendMessage (ch, nick, mapGlobalOptions,
 								"#" + rs.getLong ("ID") +
-								": " + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
-								" " + Colors.DARK_GREEN + rs.getString ("url") + Colors.NORMAL +
-								" 选择器=" + Colors.DARK_BLUE + rs.getString ("selector") + Colors.NORMAL +
-								(StringUtils.isEmpty (rs.getString ("sub_selector")) ? "" : " 子选择器=" + rs.getString ("sub_selector")) +
-								(StringUtils.isEmpty (rs.getString ("extract")) ? "" : " 取值方法=" + rs.getString ("extract")) +
-								(rs.getString ("extract").equalsIgnoreCase ("attr") || rs.getString ("extract").equalsIgnoreCase ("attribute") ? " 属性=" + rs.getString ("attr") : "") +
+								"  " + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
+								"  " + Colors.DARK_GREEN + rs.getString ("url") + Colors.NORMAL +
+								"  " + Colors.BLUE + rs.getString ("selector") + Colors.NORMAL +
+								(StringUtils.isEmpty (rs.getString ("sub_selector")) ? "" : "  " + Colors.PURPLE + rs.getString ("sub_selector") + Colors.NORMAL) +
+								(StringUtils.isEmpty (rs.getString ("extract")) ? "" : " 取值项=" + rs.getString ("extract")) +
+								(rs.getString ("extract").equalsIgnoreCase ("attr") || rs.getString ("extract").equalsIgnoreCase ("attribute") ? " 属性名=" + rs.getString ("attr") : "") +
 								(StringUtils.isEmpty (rs.getString ("ua")) ? "" : " 仿浏览器=" + rs.getString ("ua")) +
 								(StringUtils.isEmpty (rs.getString ("method")) ? "" : " 请求方法=" + rs.getString ("method")) +
 								(StringUtils.isEmpty (rs.getString ("referer")) ? "" : " 来源=" + rs.getString ("referer")) +
 								" 获取行数=" + rs.getShort ("max") +
 								(StringUtils.isEmpty (rs.getString ("url_param_usage")) ? "" : " 参数说明=" + rs.getString ("url_param_usage")) +
 								" 添加人: " + rs.getString ("added_by") +
-								" " + rs.getString ("added_time") +
-								(rs.getInt ("updated_times")==0 ? "" : " 更新人: " + rs.getString ("updated_by") + " " + rs.getString ("updated_time") + " " + rs.getString ("updated_times") + " 次") +
+								" " + rs.getString ("added_time").substring (0, 19) +
+								(rs.getInt ("updated_times")==0 ? "" : " 更新人: " + rs.getString ("updated_by") + " " + rs.getString ("updated_time").substring (0, 19) + " " + rs.getString ("updated_times") + " 次") +
 								""
 								);
 							nLines ++;
 						}
-						break;
+						//break;
 					}
 					rs.close ();
 					stmt.close ();
@@ -5012,8 +5057,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
 			System.clearProperty ("javax.net.ssl.trustPassword");
 			org.jsoup.Connection jsoup_conn = org.jsoup.Jsoup.connect (sURL);
-			jsoup_conn.ignoreHttpErrors (true);
-			jsoup_conn.timeout (nHTTPTimeout * 1000);
+			jsoup_conn.ignoreHttpErrors (true)
+					.ignoreContentType (isIngoreContentType)
+					.timeout (nHTTPTimeout * 1000)
+					;
 			if (!StringUtils.isEmpty (sHTTPUserAgent))
 				jsoup_conn.userAgent (sHTTPUserAgent);
 			if (!StringUtils.isEmpty (sHTTPReferer))
@@ -5140,9 +5187,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		boolean isReverseQuery = false;
-		if (mapGlobalOptions.containsKey ("reverse"))
-			isReverseQuery = true;
+		//boolean isReverseQuery = false;
+		//if (mapGlobalOptions.containsKey ("reverse"))
+		//	isReverseQuery = true;
 
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE tsha1(?)";
 	}
