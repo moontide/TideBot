@@ -4502,25 +4502,26 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			{
 				if (StringUtils.isEmpty (params))
 				{
-					sProjectURI = params;
-					if (sProjectURI.startsWith ("/"))
-						sProjectURI = sProjectURI.substring (1);	// "account/project/sub-paths/..."
-					if (StringUtils.isEmpty (sProjectURI) || !sProjectURI.contains("/"))
-					{
-						SendMessage (ch, nick, mapGlobalOptions, "总得指定个项目网址吧");
-						return;
-					}
-					if (sProjectURI.indexOf('/', sProjectURI.indexOf('/') + 1) != -1)
-						sProjectURI = sProjectURI.substring (0, sProjectURI.indexOf('/', sProjectURI.indexOf('/') + 1));	// "account/project"
-					else
-						params = params + "/commits";
-				}
-				if (StringUtils.isEmpty (params))
-				{
 					SendMessage (ch, nick, mapGlobalOptions, "需要指定项目在 github.com 上的路径，如 torvalds/linux");
 					ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 					return;
 				}
+
+				// 截取出 project uri:   "帐号名/项目名"
+				sProjectURI = params;
+				if (sProjectURI.startsWith ("/"))	// "/account/project/sub-paths/..."
+					sProjectURI = sProjectURI.substring (1);	// "account/project/sub-paths/..."
+				if (StringUtils.isEmpty (sProjectURI) || !sProjectURI.contains("/"))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "总得指定个项目网址吧");
+					return;
+				}
+				if (sProjectURI.indexOf('/', sProjectURI.indexOf('/') + 1) != -1)	// 如果包含两个 / / 则去掉第二个 / 以及以后的
+					sProjectURI = sProjectURI.substring (0, sProjectURI.indexOf('/', sProjectURI.indexOf('/') + 1));	// "account/project"
+				else	// 如果只传了一个项目 uri 的话 (应该是最常见的)，则把 /commits 加在后面
+					params = params + "/commits";
+
+				// URL 只在 params 前面加上 github 网址即可， project uri 的计算不会影响到此处
 				sURL = "https://github.com/" + params;
 			}
 
@@ -4534,6 +4535,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			{
 				Elements tags = doc.select ("div.select-menu-item a[href^=/" + sProjectURI + "/tree]");
 				System.out.println ("--tags--");
+				//System.out.println (tags);
 				if (tags.size () == 0)
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "在 html 中没搜索到标签");
@@ -4560,6 +4562,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			{
 				Elements commit_logs = doc.select ("li.commit");
 				System.out.println ("--commit logs--");
+				//System.out.println (commit_logs);
 				if (commit_logs.size () == 0)
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "在 html 中没搜索到提交日志");
@@ -4575,15 +4578,15 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							break;
 						}
 
-						Element authorship = log.select (".authorship").first ();
+						Element authorship = log.select (".avatar-parent-child").first ();
 							Element authorship_img_author_avatar = authorship.select ("img.avatar").first ();
-							Element authorship_img_committer_avatar = authorship.select ("img.committer-avatar").first ();
+							Element authorship_img_committer_avatar = authorship.select ("img.avatar-child").first ();
 						Element commit_a = log.select (".commit-title a").first ();
 							String commit_title = commit_a.attr("title").split("[\\r\\n]+")[0];
-							String commit_url = "https://github.com" + commit_a.attr("href");
+							String commit_url = commit_a.attr("abs:href");
 						Element metadata = log.select (".commit-meta").first ();
 
-							Element time_author = metadata.select (".commit-meta time").first ();
+							Element time_author = metadata.select ("time").first ();
 
 							Element a_author = metadata.select ("a.commit-author").first ();
 							Element span_author = metadata.select ("span.commit-author").first ();
@@ -6518,7 +6521,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quit))
 					{
 						params = sTerminalInput.split (" +", 2);
-						if (params.length < 2)
+						if (params.length < 1)
 						{
 							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Quit + " -- 从 IRC 服务器退出，然后退出程序。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " 原因]");
 							continue;
