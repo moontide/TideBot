@@ -34,6 +34,7 @@ import org.jsoup.select.*;
 import net.maclife.util.qqwry.*;
 import net.maclife.ansi.*;
 import net.maclife.seapi.*;
+import net.maclife.irc.dialog.*;
 
 public class LiuYanBot extends PircBot implements Runnable
 {
@@ -76,6 +77,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Tag	            = "dic";
 	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "GitHub";
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
+	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
 
 	public static final String BOT_PRIMARY_COMMAND_Time	            = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	        = "Action";
@@ -122,7 +124,8 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel", },
-		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht",},
+		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", },
+		{BOT_PRIMARY_COMMAND_Dialog, },
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -223,6 +226,12 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	int STACKEXCHANGE_DEFAULT_PAGESIZE = 3;
 
+	/**
+	 * IRC 对话框
+	 */
+	List<Dialog> dialogs = new CopyOnWriteArrayList<Dialog> ();
+	Timer checkTimeoutTimer = null;
+
 	class AntiFloodComparator implements Comparator<Map<String, Object>>
 	{
 		@Override
@@ -245,6 +254,11 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		// 开启控制台输入线程
 		executor.execute (this);
+
+		//
+		//checkTimeoutTimer = new Timer (true);
+		//TimerTask dialogTimeoutCheckTask = new DialogTimeoutCheckTask (dialogs);
+		//checkTimeoutTimer.schedule (dialogTimeoutCheckTask, 7000, 2000);
 	}
 
 	public void setGeoIPDatabaseFileName (String fn)
@@ -275,18 +289,18 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
-	void SendMessage (String channel, String user, Map<String, Object> mapGlobalOptions, String msg)
+	public void SendMessage (String channel, String user, Map<String, Object> mapGlobalOptions, String msg)
 	{
 		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		//String opt_charset = (String)mapGlobalOptions.get("opt_charset");
 		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
 		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
-		if (opt_reply_to_option_on && opt_reply_to!=null && !user.equalsIgnoreCase (opt_reply_to))
+		if (opt_reply_to_option_on && !StringUtils.equalsIgnoreCase (user, opt_reply_to))
 			user = opt_reply_to;
 		SendMessage (channel, user, opt_output_username, opt_max_response_lines, msg);
 	}
-	void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
+	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
 	{
 		if (msg == null)
 		{
@@ -836,6 +850,14 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		try
 		{
+			if (isSayingToMe)
+			{
+				for (Dialog d : dialogs)
+				{
+					if (d.onAnswerReceived (channel, nick, login, hostname, message))
+						return;
+				}
+			}
 			String botCmd;
 			botCmd = getBotPrimaryCommand (message);
 			Map<String, Object> banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp, botCmd);
@@ -1077,6 +1099,8 @@ public class LiuYanBot extends PircBot implements Runnable
 				ProcessCommand_GithubCommitLogs (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_HTMLParser))
 				ProcessCommand_HTMLParser (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Dialog))
+				ProcessCommand_Dialog (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -1415,6 +1439,10 @@ public class LiuYanBot extends PircBot implements Runnable
 				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 必须指定 /i <" + formatBotParameter ("编号", true) + "> 或者 /n <" + formatBotParameter ("模板名", true) + ">.");
 			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
 			//SendMessage (ch, u, mapGlobalOptions, "");
+		}
+		primaryCmd = BOT_PRIMARY_COMMAND_Dialog;        if (isThisCommandSpecified (args, primaryCmd))
+		{
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <问题内容> [/t" + formatBotParameter ("对话框类型", true) + "] [/r 问题接受人...]  -- 在 IRC 中实现类似 GUI 界面的 Dialog 对话框功能。此功能只是概念性的功能，不具备实质意义，仅仅用来演示 Java 如果通过多线程来实现此类 Dialog 功能...");
 		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
@@ -5170,6 +5198,39 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			try { if (stmt_sp != null) stmt_sp.close(); } catch(Exception e) { }
 			try { if (conn != null) conn.close(); } catch(Exception e) { }
 		}
+	}
+
+	/**
+	 * IRC Dialogc - <b>在 IRC 中实现类似 GUI 界面的 Dialog 对话框功能</b> (<i>此功能只是概念性的功能，不具备实质意义，仅仅用来演示 Java 如果通过多线程来实现此类 Dialog 功能...</i>):
+	 * <ul>
+	 * 	<li>某人(通常是管理员)发起 Dialog, 询问某个/或者某些用户一个问题, 用户在一定时间内回答该问题,</li>
+	 * 	<li>所有人都回答完毕后, Dialog 统计、显示结果.</li>
+	 * 	<li>当然，用户不一定需要回答问题，此时， Dialog 将等待超时，然后判断该用户弃权或者投了默认。</li>
+	 * </ul>
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_Dialog (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (StringUtils.isEmpty (params))
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		//boolean isReverseQuery = false;
+		//if (mapGlobalOptions.containsKey ("reverse"))
+		//	isReverseQuery = true;
+
+		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE tsha1(?)";
+		Dialog dlg = new Dialog (this, dialogs, ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		executor.execute (dlg);
 	}
 
 	/**
