@@ -190,18 +190,11 @@ public class Dialog implements Runnable
 		// 检查答案有效性
 		if (type == Type.单选)
 		{
-			boolean isValidAnswer = false;
-			for (String[] ca : candidateAnswers)
-			{
-				if (StringUtils.equalsIgnoreCase (ca[0], answer) || StringUtils.equalsIgnoreCase (ca[1], answer))
-				{
-					participantAnswers.put (n, answer);
-					isValidAnswer = true;
-					break;
-				}
-			}
-			if (! isValidAnswer)
+			String sFullAnswer = GetFullCandidateAnswerByValueOrLabel (answer);
+			if (StringUtils.isEmpty (sFullAnswer) )	// 答案无效
 				throw new RuntimeException ("无效单选回答。");
+
+			participantAnswers.put (n, answer);
 		}
 		else if (type == Type.多选)
 		{
@@ -210,9 +203,9 @@ public class Dialog implements Runnable
 				throw new RuntimeException ("请提供一个多选题的回答。");
 			for (String a : listAnswers)
 			{
-System.out.println ("[" + a + "]");
-				String sFullAnswer = GetFullCandidateAnswerByValueOrLabel(a);
-System.out.println ("[" + sFullAnswer + "]");
+//System.out.println ("[" + a + "]");
+				String sFullAnswer = GetFullCandidateAnswerByValueOrLabel (a);
+//System.out.println ("[" + sFullAnswer + "]");
 				if (StringUtils.isEmpty (sFullAnswer) )	// 答案无效
 					throw new RuntimeException ("无效多选回答 " + a);
 			}
