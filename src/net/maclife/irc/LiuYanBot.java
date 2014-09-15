@@ -1403,10 +1403,10 @@ public class LiuYanBot extends PircBot implements Runnable
 				formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("jsoup", true) + "|" +
 				formatBotCommandInstance ("ht", true) +
 				"<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("exec", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "|." + formatBotOptionInstance ("stats", true)  + "> " +
-				"[/# " + formatBotParameter ("HTML 解析模板编号", true) + "] " +
+				"[[" + formatBotParameter ("网址", true) + "] " +
+				"[" + formatBotParameter ("CSS 选择器", true) + "]] " +
+				//"[/# " + formatBotParameter ("HTML 解析模板编号", true) + "] " +
 				"[/n " + formatBotParameter ("HTML 解析模板名", true) + "] " +
-				"[/u " + formatBotParameter ("网址", true) + "] " +
-				"[/s " + formatBotParameter ("CSS 选择器", true) + "] " +
 				"[/ss " + formatBotParameter ("子选择器", true) + "] " +
 				"[/e " + formatBotParameter ("取值项", true) + "] " +
 				"[/a " + formatBotParameter ("取值项为 attr 时的属性名", true) + "] " +
@@ -1436,13 +1436,26 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				"当 ." + formatBotOptionInstance ("list", true) + " 时, 列出已保存的模板. 可用 /start <结果集起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." +
 				formatBotOptionInstance ("add", true) + " 时, 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". ." +
-				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 必须指定 /i <" + formatBotParameter ("编号", true) + "> 或者 /n <" + formatBotParameter ("模板名", true) + ">.");
+				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">.");
 			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
 			//SendMessage (ch, u, mapGlobalOptions, "");
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_Dialog;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <问题内容> [/t" + formatBotParameter ("对话框类型", true) + "] [/r 问题接受人...]  -- 在 IRC 中实现类似 GUI 界面的 Dialog 对话框功能。此功能只是概念性的功能，不具备实质意义，仅仅用来演示 Java 如果通过多线程来实现此类 Dialog 功能...");
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOptionInstance ("timeout", "N", true) + "] " +
+				"<" + formatBotParameter ("问题内容", true) + "> " +
+				"[/t " + formatBotParameter ("对话框类型", true) + "] " +
+				"[/p " + formatBotParameter ("问题接受人", true) + "...]  " +
+				"[/ca " + formatBotParameter ("候选答案", true) + "...]  " +
+				"-- 在 IRC 中实现类似 GUI 界面的 Dialog 对话框功能。此功能只是概念性的功能... " +
+				formatBotParameter ("对话框类型", true) + ": " +
+					formatBotParameterInstance ("开放", true) + "|" +
+					formatBotParameterInstance ("单选", true) + "|" +
+					formatBotParameterInstance ("多选", true) + "|" +
+					formatBotParameterInstance ("确认", true) + "|" +
+					formatBotParameterInstance ("是否", true) + ", 当对话框类型是单选、多选时, 需要提供候选答案. 候选答案格式: value[:label] value2[:label2]..."
+				);
 		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
@@ -4742,6 +4755,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		long iStart = 0;
 
 		List<String> listParams = splitCommandLine (params);
+		List<String> listOrderedParams = new ArrayList<String> ();
 		if (listParams != null)
 		{
 			for (int i=0; i<listParams.size (); i++)
@@ -4815,8 +4829,23 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						isIngoreContentType = BooleanUtils.toBoolean (value);
 					}
 				}
+				else
+					listOrderedParams.add (param);
 			}
 		}
+
+		// 根据不同的 action 重新解释 listOrderedParams、检查 param 有效性
+		if (listOrderedParams.size () > 0)
+		{	// 覆盖 /url <URL> 参数值
+			String value = listOrderedParams.get (0);
+			if (StringUtils.startsWithIgnoreCase (value, "http://") || StringUtils.startsWithIgnoreCase (value, "https://"))
+				sURL = value;
+			else
+				sURL = "http://" + value;
+		}
+		if (listOrderedParams.size () > 1)
+			// 覆盖 /selector <selector> 参数值
+			sSelector = listOrderedParams.get (1);
 
 		if (StringUtils.isEmpty (sAction))
 		{
@@ -4830,17 +4859,38 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		{
 			if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "exec"))
 			{
+				sURL = null;
+				sSelector = null;
+				sSubSelector = null;
+				sExtract = null;
+				if (listOrderedParams.size () > 0)
+				{
+					String value = listOrderedParams.get (0);
+					if (listOrderedParams.get (0).matches ("\\d+"))
+					{
+						nID = Integer.parseInt (value);
+					}
+					else
+					{
+						sName = value;
+					}
+				}
 				if (nID == 0 && StringUtils.isEmpty (sName))
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "必须指定 /id <模板编号> 或者 /name <模板名称> 参数.");
+					SendMessage (ch, nick, mapGlobalOptions, "必须指定 <模板编号>(纯数字) 或者 <模板名称>(非纯数字) 参数.");
 					return;
 				}
 			}
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
-				if (StringUtils.isEmpty (sName) || StringUtils.isEmpty (sURL) || StringUtils.isEmpty (sSelector))
+				if (StringUtils.isEmpty (sURL) || StringUtils.isEmpty (sSelector) || StringUtils.isEmpty (sName))
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "必须指定 /name <模板名称>、/url <网址>、/selector <CSS 选择器> 参数.");
+					SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、<CSS 选择器>、/name <模板名称> 参数.");
+					return;
+				}
+				if (! StringUtils.isEmpty (sName) && sName.matches ("\\d+"))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "模板名称 不能是全数字，在执行模板时，全数字会被当做 ID 使用.");
 					return;
 				}
 				if (StringUtils.equalsIgnoreCase (sExtract, "attr") && StringUtils.isEmpty (sAttr))
@@ -5200,6 +5250,50 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		}
 	}
 
+	public void ValidateChannelName (String ch)
+	{
+		String[] channels = getChannels ();
+		boolean bFound = false;
+		for (String channel : channels)
+		{
+			if (StringUtils.equalsIgnoreCase (channel, ch))
+			{
+				bFound = true;
+				break;
+			}
+		}
+		if (!bFound)
+		{
+			throw new IllegalArgumentException ("bot 不在 " + ch + " 频道内");
+		}
+	}
+
+	public void ValidateNickNames (String ch, List<String> listParticipants)
+	{
+		User[] users = getUsers (ch);
+//System.out.println ("channel=" + ch);
+//System.out.println ("users=" + users);
+		if (users == null)
+			return;
+
+		for (String nick : listParticipants)
+		{
+			boolean bFound = false;
+			for (User u : users)
+			{
+				if (u.equals (nick))
+				{
+					bFound = true;
+					break;
+				}
+//System.out.println ("user " + u + ", nick " + nick + ", result=" + bFound);
+			}
+			if (! bFound)
+			{
+				throw new IllegalArgumentException ("在 " + ch + " 频道内找不到 " + nick + " 昵称");
+			}
+		}
+	}
 	/**
 	 * IRC Dialogc - <b>在 IRC 中实现类似 GUI 界面的 Dialog 对话框功能</b> (<i>此功能只是概念性的功能，不具备实质意义，仅仅用来演示 Java 如果通过多线程来实现此类 Dialog 功能...</i>):
 	 * <ul>
@@ -5224,12 +5318,125 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		//boolean isReverseQuery = false;
-		//if (mapGlobalOptions.containsKey ("reverse"))
-		//	isReverseQuery = true;
+
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
+		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
+		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
+		//if (opt_reply_to_option_on && StringUtils.equalsIgnoreCase (getNick (), opt_reply_to))
+		//{
+		//	mapGlobalOptions.remove ("opt_reply_to_option_on");	// 去掉 opt_reply_to，让 bot 回答使用人
+		//	SendMessage (ch, nick, mapGlobalOptions, "bot 不能问自己问题");
+		//	return;
+		//}
+
+		if (dialogs.size () > 0)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "当前已有 " + dialogs.size () + " 个对话框在进行，请等待对话框结束再开启新的对话框");
+			return;
+		}
+
+		List<String> listParams = splitCommandLine (params);
+		String question = "";
+		Dialog.Type qt = Dialog.Type.开放;
+		List<String> listParticipants = new ArrayList<String> ();
+		List<String[]> listCandidateAnswers = new ArrayList<String[]> ();
+		byte option_stage = 0;
+		for (int i=0; i<listParams.size (); i++)
+		{
+			String param = listParams.get (i);
+			if (i==0)
+			{
+				question = param;
+				continue;
+			}
+			if (param.startsWith ("/") || param.startsWith ("-"))
+			{
+				param = param.substring (1);
+				if (StringUtils.equalsIgnoreCase (param, "t"))
+				{
+					if (i == listParams.size () - 1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "/t 需要指定对话框类型");
+						return;
+					}
+					i++;
+					param = listParams.get (i);
+					qt = Dialog.parseType (param);
+					continue;
+				}
+				else if (StringUtils.equalsIgnoreCase (param, "p"))
+				{
+					if (i == listParams.size () - 1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "/p 需要指定参与者");
+						return;
+					}
+					option_stage = 1;	// 进入到读取 参与者列表 环节
+				}
+				else if (StringUtils.equalsIgnoreCase (param, "ca"))
+				{
+					if (i == listParams.size () - 1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "/ca 需要指定候选答案");
+						return;
+					}
+					option_stage = 2;	// 进入到读取候选答案 环节
+				}
+			}
+			else
+			{
+				switch (option_stage)
+				{
+					case 1:
+						if (StringUtils.equalsIgnoreCase (getNick (), param))
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "bot 不能问自己问题");
+							//throw new IllegalArgumentException ("bot 不能问自己问题");
+							return;
+						}
+
+						listParticipants.add (param);
+						break;
+					case 2:
+						String[] candidateAnswer = param.split (":+", 2);
+						Dialog.ValidateCandidateAnswer (candidateAnswer, listCandidateAnswers);
+						listCandidateAnswers.add (candidateAnswer);
+						break;
+				}
+			}
+		}
+		if (listParticipants.size () == 0)
+		{	// 如果没有通过 /t 添加参与人，则默认参与人是自己
+			listParticipants.add (nick);
+		}
+
+		if (qt == Dialog.Type.单选 || qt == Dialog.Type.多选)
+		{	// 单选、多选是由用户自己提供候选答案的，如果没有提供，或者只提供了 1 个，则认为非法
+			if (listCandidateAnswers.size () == 0)
+				throw new IllegalArgumentException (qt + "题未给出候选答案");
+			if (listCandidateAnswers.size () == 1)
+				throw new IllegalArgumentException (qt + "题只给出 1 个候选答案是什么心态");
+		}
+
+		if (! StringUtils.isEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
+		{	// 如果是在频道内操作，则检查接收人昵称的有效性
+			String channel = ch;
+			if (StringUtils.isEmpty (ch))
+				channel = opt_reply_to;
+			ValidateChannelName (channel);
+			ValidateNickNames (channel, listParticipants);
+		}
+		else
+		{	// 昵称
+			SendMessage (ch, nick, mapGlobalOptions, "...");
+			return;
+		}
 
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE tsha1(?)";
-		Dialog dlg = new Dialog (this, dialogs, ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		Dialog dlg = new Dialog (
+				this, dialogs, qt, question, listParticipants, listCandidateAnswers,
+				ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		dlg.timeout_second = opt_timeout_length_seconds;
 		executor.execute (dlg);
 	}
 
