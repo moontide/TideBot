@@ -192,7 +192,7 @@ public class Dialog implements Runnable
 		{
 			String sFullAnswer = GetFullCandidateAnswerByValueOrLabel (answer);
 			if (StringUtils.isEmpty (sFullAnswer) )	// 答案无效
-				throw new RuntimeException ("无效单选回答。");
+				throw new IllegalArgumentException ("无效单选回答。");
 
 			participantAnswers.put (n, answer);
 		}
@@ -200,14 +200,14 @@ public class Dialog implements Runnable
 		{
 			List<String> listAnswers = LiuYanBot.splitCommandLine (answer);
 			if (listAnswers == null)
-				throw new RuntimeException ("请提供一个多选题的回答。");
+				throw new IllegalArgumentException ("请提供一个多选题的回答。");
 			for (String a : listAnswers)
 			{
 //System.out.println ("[" + a + "]");
 				String sFullAnswer = GetFullCandidateAnswerByValueOrLabel (a);
 //System.out.println ("[" + sFullAnswer + "]");
 				if (StringUtils.isEmpty (sFullAnswer) )	// 答案无效
-					throw new RuntimeException ("无效多选回答 " + a);
+					throw new IllegalArgumentException ("无效多选回答 " + a);
 			}
 			participantAnswers.put (n, listAnswers);
 		}
@@ -217,7 +217,7 @@ public class Dialog implements Runnable
 				participantAnswers.put (n, answer);
 			else
 			{
-				throw new RuntimeException ("无效回答。回答只能为 1、2、确认、取消");
+				throw new IllegalArgumentException ("无效回答。回答只能为 1、2、确认、取消");
 			}
 		}
 		else if (type == Type.是否)
@@ -225,7 +225,7 @@ public class Dialog implements Runnable
 			if (StringUtils.equalsIgnoreCase (answer, "1") || StringUtils.equalsIgnoreCase (answer, "2") || StringUtils.equalsIgnoreCase (answer, "是") || StringUtils.equalsIgnoreCase (answer, "否"))
 				participantAnswers.put (n, answer);
 			else
-				throw new RuntimeException ("无效回答。回答只能为 1、2、是、否");
+				throw new IllegalArgumentException ("无效回答。回答只能为 1、2、是、否");
 		}
 		else if (type == Type.开放)
 		{
@@ -308,6 +308,116 @@ public class Dialog implements Runnable
 			lock.lock ();
 			System.out.println ("Dialog #" + threadID + " is waiting for answers or timeout...");
 			endCondition.await (timeout_second, TimeUnit.SECONDS);
+
+			endtime = System.currentTimeMillis ();
+
+			System.out.println ("Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s");
+			sb = new StringBuilder ();
+			sb.append (question);
+			if (participantAnswers.size () == 0)
+				sb.append (" 没收到任何回答.");
+			else
+			{
+				if (participants.size () == 1)
+				{	// 一个人，只有一个答案，显示“明细”
+					sb.append (" 收到回答: ");
+					if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.开放)
+					{
+						String answer = null;
+						for (Object a : participantAnswers.values ())
+						{
+							answer = (String)a;
+							break;
+						}
+						if (type == Type.开放)
+							sb.append (answer);
+						else
+							sb.append ("•" + GetFullCandidateAnswerByValueOrLabel(answer));	// • http://en.wikipedia.org/wiki/Bullet_%28typography%29
+					}
+					else if (type == Type.多选)
+					{
+						List<String> listAnswers = null;
+						for (Object a : participantAnswers.values ())
+						{
+							listAnswers = (List<String>)a;
+							for (int i=0; i<listAnswers.size (); i++)
+							{
+								if (i>0)
+									sb.append (" ");
+								sb.append ("✓" + GetFullCandidateAnswerByValueOrLabel(listAnswers.get (i)));	// ✓ http://en.wikipedia.org/wiki/Check_mark
+							}
+							break;	// 只有一个人
+						}
+					}
+				}
+				else
+				{	// 多个人，多个答案，显示“统计”(非开放问题)
+
+					if (participantAnswers.size () == participants.size ())
+						sb.append (" 收到了所有人的回答");
+					else
+						sb.append (" 收到了 " + participantAnswers.size () + " 份回答, " + (participants.size () - participantAnswers.size ()) + " 人未回答. ");
+					if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.多选)
+					{
+						sb.append ("回答统计: ");
+						String answer = null;
+						Map<String, Integer> mapAnswerCount = new HashMap<String, Integer> ();
+						for (Object a : participantAnswers.values ())
+						{
+							if (type == Type.多选)
+							{
+								List<String> listAnswers = (List<String>)a;
+								for (int i=0; i<listAnswers.size (); i++)
+								{
+									answer = GetFullCandidateAnswerByValueOrLabel(listAnswers.get (i));
+									if (mapAnswerCount.get (answer) == null)
+										mapAnswerCount.put (answer, 1);
+									else
+										mapAnswerCount.put (answer, mapAnswerCount.get (answer) + 1);
+								}
+							}
+							else
+							{
+								answer = GetFullCandidateAnswerByValueOrLabel ((String)a);
+								if (mapAnswerCount.get (answer) == null)
+									mapAnswerCount.put (answer, 1);
+								else
+									mapAnswerCount.put (answer, mapAnswerCount.get (answer) + 1);
+							}
+						}
+						for (String ca : mapAnswerCount.keySet ())
+						{
+							sb.append (" ");
+							if (type == Type.多选)
+								sb.append ("✓");
+							else //if (type == Type.单选 || type == Type.确认 || type == Type.是否 )
+								sb.append ("•");
+							sb.append (ca);
+							sb.append ("=");
+							sb.append (mapAnswerCount.get (ca));
+						}
+					}
+					else if (type == Type.开放)
+					{	// 开放问题无法统计，只能显示明细
+						sb.append (": ");
+						for (String p : participants)
+						{
+							String answer = (String)participantAnswers.get (p);
+							sb.append (" ");
+							sb.append (p);
+							sb.append ("=");
+							if (answer == null)
+							{	// 无答案
+								sb.append (Colors.DARK_GRAY);
+								sb.append ("-无-");
+								sb.append (Colors.NORMAL);
+							}
+							else
+								sb.append (answer);
+						}
+					}
+				}
+			}
 		}
 		catch (InterruptedException e)
 		{
@@ -316,103 +426,6 @@ public class Dialog implements Runnable
 		finally
 		{
 			lock.unlock ();
-		}
-		endtime = System.currentTimeMillis ();
-
-		System.out.println ("Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s");
-		sb = new StringBuilder ();
-		sb.append (question);
-		if (participantAnswers.size () == 0)
-			sb.append (" 没收到任何回答.");
-		else
-		{
-			if (participants.size () == 1)
-			{	// 一个人，只有一个答案，显示“明细”
-				sb.append (" 收到回答: ");
-				if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.开放)
-				{
-					String answer = null;
-					for (Object a : participantAnswers.values ())
-					{
-						answer = (String)a;
-						break;
-					}
-					if (type == Type.开放)
-						sb.append (answer);
-					else
-						sb.append ("•" + GetFullCandidateAnswerByValueOrLabel(answer));	// • http://en.wikipedia.org/wiki/Bullet_%28typography%29
-				}
-				else if (type == Type.多选)
-				{
-					List<String> listAnswers = null;
-					for (Object a : participantAnswers.values ())
-					{
-						listAnswers = (List<String>)a;
-						break;
-					}
-					if (listAnswers != null)
-					{
-						for (int i=0; i<listAnswers.size (); i++)
-						{
-							if (i>0)
-								sb.append (" ");
-							sb.append ("✓" + GetFullCandidateAnswerByValueOrLabel(listAnswers.get (i)));	// ✓ http://en.wikipedia.org/wiki/Check_mark
-						}
-					}
-				}
-			}
-			else
-			{	// 多个人，多个答案，显示“统计”(非开放问题)
-
-				if (participantAnswers.size () == participants.size ())
-					sb.append (" 收到了所有人的回答");
-				else
-					sb.append (" 收到了 " + participantAnswers.size () + " 份回答, " + (participants.size () - participantAnswers.size ()) + " 人未回答. ");
-				if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.多选)
-				{
-					sb.append ("回答统计: ");
-					String answer = null;
-					Map<String, Integer> mapAnswerCount = new HashMap<String, Integer> ();
-					for (Object a : participantAnswers.values ())
-					{
-						answer = GetFullCandidateAnswerByValueOrLabel ((String)a);
-						if (mapAnswerCount.get (answer) == null)
-							mapAnswerCount.put (answer, 1);
-						else
-							mapAnswerCount.put (answer, mapAnswerCount.get (answer) + 1);
-					}
-					for (String ca : mapAnswerCount.keySet ())
-					{
-						sb.append (" ");
-						if (type == Type.多选)
-							sb.append ("✓");
-						else //if (type == Type.单选 || type == Type.确认 || type == Type.是否 )
-							sb.append ("•");
-						sb.append (ca);
-						sb.append ("=");
-						sb.append (mapAnswerCount.get (ca));
-					}
-				}
-				else if (type == Type.开放)
-				{	// 开放问题无法统计，只能显示明细
-					sb.append (": ");
-					for (String p : participants)
-					{
-						String answer = (String)participantAnswers.get (p);
-						sb.append (" ");
-						sb.append (p);
-						sb.append ("=");
-						if (answer == null)
-						{	// 无答案
-							sb.append (Colors.DARK_GRAY);
-							sb.append ("-无-");
-							sb.append (Colors.NORMAL);
-						}
-						else
-							sb.append (answer);
-					}
-				}
-			}
 		}
 
 		bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// "Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s." + (StringUtils.isEmpty (answer) ? "" : " 获得答案: " + Colors.BOLD + answer + Colors.BOLD
