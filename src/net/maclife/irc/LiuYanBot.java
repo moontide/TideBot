@@ -975,7 +975,7 @@ public class LiuYanBot extends PircBot implements Runnable
 								if (opt_timeout_length_seconds > WATCH_DOG_TIMEOUT_LENGTH_LIMIT)
 								{
 									opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH_LIMIT;
-									SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "cmd 命令“执行超时时长”被重新调整到: " + opt_timeout_length_seconds + " 秒");
+									SendMessage (channel, nick, true, MAX_RESPONSE_LINES, botCmdAlias + " 命令“执行超时时长”被重新调整到: " + opt_timeout_length_seconds + " 秒");
 								}
 							} catch (Exception e) {
 								e.printStackTrace();
@@ -1134,7 +1134,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, e.getMessage ());
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, e.toString ());
 		}
 	}
 
@@ -1433,9 +1433,9 @@ public class LiuYanBot extends PircBot implements Runnable
 					""
 				);
 			SendMessage (ch, u, mapGlobalOptions,
-				"当 ." + formatBotOptionInstance ("list", true) + " 时, 列出已保存的模板. 可用 /start <结果集起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." +
+				"当 ." + formatBotOptionInstance ("list", true) + " 时, 列出已保存的模板. 可用 /start <起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." +
 				formatBotOptionInstance ("add", true) + " 时, 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". ." +
-				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二个参数可指定 URL 中的参数变量 " + Colors.RED + "$p" + Colors.NORMAL);
+				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ${p3}" + Colors.NORMAL);
 			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
 			//SendMessage (ch, u, mapGlobalOptions, "");
 		}
@@ -2318,7 +2318,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			catch (Exception e)
 			{
 				e.printStackTrace ();
-				SendMessage (ch, u, mapGlobalOptions, host + " 查询出错: " + e.getMessage ());
+				SendMessage (ch, u, mapGlobalOptions, host + " 查询出错: " + e.toString ());
 			}
 			if (iCount > opt_max_response_lines)
 			{
@@ -2450,7 +2450,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			catch (Exception e)
 			{
 				e.printStackTrace ();
-				SendMessage (ch, u, mapGlobalOptions, q + " 查询出错: " + e.getMessage ());
+				SendMessage (ch, u, mapGlobalOptions, q + " 查询出错: " + e.toString ());
 			}
 			if (iCount > opt_max_response_lines)
 			{
@@ -2520,7 +2520,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -2557,7 +2557,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -2613,7 +2613,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -3131,7 +3131,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -3574,7 +3574,7 @@ System.out.println (sContent_colorizedForShell);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -3955,7 +3955,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -4051,7 +4051,7 @@ System.out.println (evaluateResult);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -4192,7 +4192,7 @@ System.out.println (evaluateResult);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -4352,7 +4352,8 @@ logger.fine ("q=[" + q + "]\na=[" + a + "]");
 				stmt_sp.setString (iParamIndex++, nick);
 				stmt_sp.setString (iParamIndex++, login);
 				stmt_sp.setString (iParamIndex++, hostname);
-				//boolean isResultSet = stmt_sp.execute ();
+				boolean isResultSet = stmt_sp.execute ();
+				assert (isResultSet);
 				rs = stmt_sp.getResultSet ();
 				while (rs.next ())
 				{
@@ -4377,7 +4378,8 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 				stmt_sp.setString (iParamIndex++, params);
 				stmt_sp.setObject (iParamIndex++, opt_max_response_lines_specified ? opt_max_response_lines : null);
 				stmt_sp.setBoolean (iParamIndex++, isReverseQuery);
-				//boolean isResultSet = stmt_sp.execute ();
+				boolean isResultSet = stmt_sp.execute ();
+				assert (isResultSet);
 				boolean bFound = false, bValidRow = false;
 				int nCount = 0, nMaxID = 0;
 
@@ -4473,7 +4475,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 		finally
 		{
@@ -4687,7 +4689,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -4734,8 +4736,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		long nID = 0;
 		String sName = null;
 		String sURL = null;
-		String sURLParam = null;
-		String sURL_Param_Usage = null;
+		String sURLParam1 = null;
+		String sURLParam2 = null;
+		String sURLParam3 = null;
+		String sURLParamsHelp = null;
 		String sSelector = null;
 		String sSubSelector = null;
 		String sExtract = null;
@@ -4781,7 +4785,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							sURL = "http://" + value;
 					}
 					else if (param.equalsIgnoreCase ("h") || param.equalsIgnoreCase ("help") || param.equalsIgnoreCase ("帮助"))
-						sURL_Param_Usage = value;
+						sURLParamsHelp = value;
 					//else if (param.equalsIgnoreCase ("s") || param.equalsIgnoreCase ("selector") || param.equalsIgnoreCase ("选择器"))
 					//	sSelector = value;
 					else if (param.equalsIgnoreCase ("ss") || param.equalsIgnoreCase ("sub-selector") || param.equalsIgnoreCase ("子选择器"))
@@ -4790,13 +4794,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						sExtract = value;
 					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性名"))
 						sAttr = value;
-					//else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
-					//	sName = value;
-					//else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("编号"))
-					//{
-					//	//sID = value;
-					//	nID = Integer.parseInt (value);
-					//}
+					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
+						sName = value;
+					else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("编号"))
+					{
+						//sID = value;
+						nID = Integer.parseInt (value);
+					}
 					//else if (param.equalsIgnoreCase ("max") || param.equalsIgnoreCase ("最多"))
 					//{
 					//	sMax = value;
@@ -4844,7 +4848,6 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				sURL = "http://" + value;
 		}
 		if (listOrderedParams.size () > 1)
-			// 覆盖 /selector <selector> 参数值
 			sSelector = listOrderedParams.get (1);
 
 		if (StringUtils.isEmpty (sAction))
@@ -4876,7 +4879,11 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					}
 				}
 				if (listOrderedParams.size () > 1)
-					sURLParam = listOrderedParams.get (1);
+					sURLParam1 = listOrderedParams.get (1);
+				if (listOrderedParams.size () > 2)
+					sURLParam2 = listOrderedParams.get (2);
+				if (listOrderedParams.size () > 3)
+					sURLParam3 = listOrderedParams.get (3);
 				if (nID == 0 && StringUtils.isEmpty (sName))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "必须指定 <模板编号>(纯数字) 或者 <模板名称>(非纯数字) 参数.");
@@ -5018,9 +5025,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				{
 					bFound = true;
 					//if (sID == null)
-					//	nID = rs.getLong ("id");
+						nID = rs.getLong ("id");
 					//if (sName == null)
-					//	sName = rs.getString ("name");
+						sName = rs.getString ("name");
 					if (sURL == null)
 						sURL = rs.getString ("url");
 					if (sSelector == null)
@@ -5041,7 +5048,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (sHTTPReferer == null)
 						sHTTPReferer = rs.getString ("referer");
 
-					sURL_Param_Usage = rs.getString ("url_param_usage");
+					sURLParamsHelp = rs.getString ("url_param_usage");
 
 					if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "list"))
 					{
@@ -5087,7 +5094,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					return;
 				}
 			}
-			else if (sAction.equalsIgnoreCase ("+"))
+			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
 				sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
 				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)");
@@ -5095,7 +5102,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
 				stmt.setString (iParam++, sURL);
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sURL_Param_Usage));
+				stmt.setString (iParam++, StringUtils.trimToEmpty (sURLParamsHelp));
 				stmt.setString (iParam++, sSelector);
 				stmt.setString (iParam++, StringUtils.trimToEmpty (sSubSelector));
 				stmt.setString (iParam++, StringUtils.trimToEmpty (sExtract));
@@ -5121,30 +5128,59 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				stmt.close ();
 				conn.close ();
 				if (nRowsAffected > 0)
-					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID);
+					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID + Colors.NORMAL + (StringUtils.containsIgnoreCase (sURL, "${p}") || StringUtils.containsIgnoreCase (sURL, "${p2}") || StringUtils.containsIgnoreCase (sURL, "${p3}") ? "    由于你添加的 URL 是带参数的，所以在执行此模板时要加参数，比如: ht.exec  '" + sName + "'  <c++>" : ""));
 				else
 					SendMessage (ch, nick, mapGlobalOptions, "保存失败。 这条信息应该不会出现……");
+
+				if (StringUtils.containsIgnoreCase (sURL, "${p}") || StringUtils.containsIgnoreCase (sURL, "${p2}") || StringUtils.containsIgnoreCase (sURL, "${p3}"))	// 如果添加的 url 是模板，则不继续执行，直接返回
+					return;
 			}
 
 			if (StringUtils.isEmpty (sURL))
 			{
-				SendMessage (ch, nick, mapGlobalOptions, "你想看 hyper text，却不提供网址. 用 /url <网址> 指定网址");
+				SendMessage (ch, nick, mapGlobalOptions, "你想看 hyper text，却不提供网址. 用第一个参数指定 <网址>");
 				return;
 			}
 			if (StringUtils.isEmpty (sSelector))
 			{
-				SendMessage (ch, nick, mapGlobalOptions, "未提供 '选择器'，都不知道你具体想看什么. 用 /selector <选择器> 指定 CSS 选择器. 选择器的写法见参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html");
+				SendMessage (ch, nick, mapGlobalOptions, "未提供 '选择器'，都不知道你具体想看什么. 用第二个参数指定 <CSS 选择器>. 选择器的写法见参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html");
 				return;
 			}
 
 			// 最后，如果带有 URLParam，将其替换掉 sURL 中的 ${p} 字符串
-			if (StringUtils.containsIgnoreCase (sURL, "$p") && StringUtils.isEmpty (sURLParam))
+			if (StringUtils.equalsIgnoreCase (sAction, "exec"))
 			{
-				SendMessage (ch, nick, mapGlobalOptions, "此 URL 需要提供参数。" + sURL_Param_Usage);
-				return;
+				if (StringUtils.containsIgnoreCase (sURL, "${p}") && StringUtils.isEmpty (sURLParam1)
+					//|| StringUtils.containsIgnoreCase (sURL, "${p2}") && StringUtils.isEmpty (sURLParam2)
+					//|| StringUtils.containsIgnoreCase (sURL, "${p3}") && StringUtils.isEmpty (sURLParam3)
+					)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, Colors.RED + sName + Colors.NORMAL + " 中的 URL " + Colors.DARK_GREEN + sURL + Colors.NORMAL + " 需要提供参数。" + sURLParamsHelp);
+					return;
+				}
+
+				if (StringUtils.containsIgnoreCase (sURL, "${p}"))
+				{
+					if (StringUtils.isEmpty (sURLParam1))
+						sURL = StringUtils.replace (sURL, "${p}", "");
+					else
+						sURL = StringUtils.replace (sURL, "${p}", URLEncoder.encode (sURLParam1, JVM_CHARSET.name ()));
+				}
+				if (StringUtils.containsIgnoreCase (sURL, "${p2}"))
+				{
+					if (StringUtils.isEmpty (sURLParam2))
+						sURL = StringUtils.replace (sURL, "${p2}", "");
+					else
+						sURL = StringUtils.replace (sURL, "${p2}", URLEncoder.encode (sURLParam2, JVM_CHARSET.name ()));
+				}
+				if (StringUtils.containsIgnoreCase (sURL, "${p3}"))
+				{
+					if (StringUtils.isEmpty (sURLParam3))
+						sURL = StringUtils.replace (sURL, "${p3}", "");
+					else
+						sURL = StringUtils.replace (sURL, "${p3}", URLEncoder.encode (sURLParam3, JVM_CHARSET.name ()));
+				}
 			}
-			if (! StringUtils.isEmpty (sURLParam) && StringUtils.containsIgnoreCase (sURL, "$p"))
-				sURL = StringUtils.replace (sURL, "$p", sURLParam);
 
 			Document doc = null;
 			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
@@ -5252,7 +5288,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 		finally
 		{
@@ -6017,7 +6053,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.getMessage ());
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -6326,9 +6362,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				e.printStackTrace();
 
 				if ((nEndTime - nStartTime)/1000 > WATCH_DOG_TIMEOUT_LENGTH)
-					SendMessage (channel, nick, globalOpts, program + " 出错: " + e.getMessage () + "    耗时 " + GetRunTimeString(nStartTime, nEndTime));
+					SendMessage (channel, nick, globalOpts, program + " 出错: " + e.toString () + "    耗时 " + GetRunTimeString(nStartTime, nEndTime));
 				else
-					SendMessage (channel, nick, globalOpts, program + " 出错: " + e.getMessage ());
+					SendMessage (channel, nick, globalOpts, program + " 出错: " + e.toString ());
 			}
 		}
 	}
