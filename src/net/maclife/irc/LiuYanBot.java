@@ -35,6 +35,7 @@ import net.maclife.util.qqwry.*;
 import net.maclife.ansi.*;
 import net.maclife.seapi.*;
 import net.maclife.irc.dialog.*;
+import net.maclife.irc.game.*;
 
 public class LiuYanBot extends PircBot implements Runnable
 {
@@ -51,10 +52,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final int MAX_SCREEN_LINES = 200;	// 最大屏幕高度
 	public static final int MAX_SCREEN_COLUMNS = 400;	// 最大屏幕宽度
 
-	public final Charset JVM_CHARSET = Charset.defaultCharset();
+	public static final Charset JVM_CHARSET = Charset.defaultCharset();
 	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
-
-	java.util.concurrent.Executor executor = Executors.newFixedThreadPool (15);
 
 	public static final String WORKING_DIRECTORY = System.getProperty ("user.dir");
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
@@ -78,6 +77,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "GitHub";
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
 	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
+	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
 
 	public static final String BOT_PRIMARY_COMMAND_Time	            = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	        = "Action";
@@ -126,6 +126,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel", },
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
+		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "三国杀", },
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -155,8 +156,6 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Verbose, "/debug"},
 	};
-
-	public static String currentChannel = "";
 
 	public static final String COLOR_DARK_RED = Colors.BROWN;
 	public static final String COLOR_ORANGE = Colors.OLIVE;
@@ -201,6 +200,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	List<Map<String,Object>> listWhiteListPatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
 
+
+	public static String currentChannel = "";
+
+	public ExecutorService executor = Executors.newFixedThreadPool (15);
+
 	String geoIP2DatabaseFileName = null;
 	DatabaseReader geoIP2DatabaseReader = null;
 
@@ -229,9 +233,19 @@ public class LiuYanBot extends PircBot implements Runnable
 	/**
 	 * IRC 对话框
 	 */
-	List<Dialog> dialogs = new CopyOnWriteArrayList<Dialog> ();
-	Timer checkTimeoutTimer = null;
+	public List<Dialog> dialogs = new CopyOnWriteArrayList<Dialog> ();
+	//Timer checkTimeoutTimer = null;
 
+	/**
+	 * IRC 游戏
+	 */
+	public List<Game> games = new CopyOnWriteArrayList<Game> ();
+
+	/**
+	 *
+	 * @author liuyan
+	 *
+	 */
 	class AntiFloodComparator implements Comparator<Map<String, Object>>
 	{
 		@Override
@@ -1101,6 +1115,8 @@ public class LiuYanBot extends PircBot implements Runnable
 				ProcessCommand_HTMLParser (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Dialog))
 				ProcessCommand_Dialog (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Game))
+				ProcessCommand_Game (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -5343,6 +5359,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 		}
 	}
+
 	/**
 	 * IRC Dialogc - <b>在 IRC 中实现类似 GUI 界面的 Dialog 对话框功能</b> (<i>此功能只是概念性的功能，不具备实质意义，仅仅用来演示 Java 如果通过多线程来实现此类 Dialog 功能...</i>):
 	 * <ul>
@@ -5482,11 +5499,138 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		}
 
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE tsha1(?)";
-		Dialog dlg = new Dialog (
+		Dialog dlg = new Dialog (null,
 				this, dialogs, qt, question, listParticipants, listCandidateAnswers,
 				ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		dlg.timeout_second = opt_timeout_length_seconds;
-		executor.execute (dlg);
+		executor.submit (dlg);
+	}
+
+	/**
+	 * Game - <b>在 IRC 中实现简单的游戏功能</b> (<i>此功能是基于 Dialog 概念性功能而来</i>):
+	 * <ul>
+	 * 	<li>某人(通常是管理员)发起 Dialog, 询问某个/或者某些用户一个问题, 用户在一定时间内回答该问题,</li>
+	 * 	<li>所有人都回答完毕后, Dialog 统计、显示结果.</li>
+	 * 	<li>当然，用户不一定需要回答问题，此时， Dialog 将等待超时，然后判断该用户弃权或者投了默认。</li>
+	 * </ul>
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_Game (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (StringUtils.isEmpty (params))
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
+		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
+		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
+		//if (opt_reply_to_option_on && StringUtils.equalsIgnoreCase (getNick (), opt_reply_to))
+		//{
+		//	mapGlobalOptions.remove ("opt_reply_to_option_on");	// 去掉 opt_reply_to，让 bot 回答使用人
+		//	SendMessage (ch, nick, mapGlobalOptions, "bot 不能问自己问题");
+		//	return;
+		//}
+
+		if (games.size () > 0)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "当前已有 " + games.size () + " 个游戏在进行，请等待游戏结束再开启新的游戏");
+			return;
+		}
+
+		List<String> listParams = splitCommandLine (params);
+		String sGame = "";
+		List<String> listParticipants = new ArrayList<String> ();
+		byte option_stage = 0;
+		for (int i=0; i<listParams.size (); i++)
+		{
+			String param = listParams.get (i);
+			if (i==0)
+			{
+				sGame = param;
+				continue;
+			}
+			if (param.startsWith ("/") || param.startsWith ("-"))
+			{
+				param = param.substring (1);
+
+				if (StringUtils.equalsIgnoreCase (param, "p"))
+				{
+					if (i == listParams.size () - 1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, "/p 需要指定游戏参与者");
+						return;
+					}
+					option_stage = 1;	// 进入到读取 参与者列表 环节
+				}
+			}
+			else
+			{
+				switch (option_stage)
+				{
+					case 1:
+						if (StringUtils.equalsIgnoreCase (getNick (), param))
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "bot 自己不能参加游戏");
+							//throw new IllegalArgumentException ("bot 自己不能参加游戏");
+							return;
+						}
+
+						listParticipants.add (param);
+						break;
+				}
+			}
+		}
+		if (listParticipants.size () == 0)
+		{	// 如果没有通过 /t 添加参与人，则默认参与人是自己
+			listParticipants.add (nick);
+		}
+
+		if (! StringUtils.isEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
+		{	// 如果是在频道内操作，则检查接收人昵称的有效性
+			String channel = ch;
+			if (StringUtils.isEmpty (ch))
+				channel = opt_reply_to;
+			ValidateChannelName (channel);
+			ValidateNickNames (channel, listParticipants);
+		}
+		else
+		{	// 昵称
+			SendMessage (ch, nick, mapGlobalOptions, "...");
+			return;
+		}
+
+		Game game = null;
+		if (StringUtils.equalsIgnoreCase (sGame, "21")
+			|| StringUtils.equalsIgnoreCase (sGame, "21点")
+			|| StringUtils.equalsIgnoreCase (sGame, "BlackJack")
+			|| StringUtils.equalsIgnoreCase (sGame, "黑杰克")
+			|| StringUtils.equalsIgnoreCase (sGame, "bj")
+			)
+		{
+			//
+		}
+		else if (StringUtils.equalsIgnoreCase (sGame, "猜数字")
+			|| StringUtils.equalsIgnoreCase (sGame, "GuessDigit")
+			)
+		{
+			game = new GuessDigits (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		}
+		else
+		{
+			throw new IllegalArgumentException ("未知游戏名: " + sGame);
+		}
+		if (game != null)
+			executor.execute (game);
 	}
 
 	/**
@@ -6804,7 +6948,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Join + " -- 加入频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Join + " <#频道名>...");
 							continue;
 						}
-						String[] arrayChannels = params[1].split ("\\s+");
+						String[] arrayChannels = params[1].split ("[,;/\\s]+");
 						for (int i=0; i<arrayChannels.length; i++)
 						{
 							String channel = arrayChannels[i];

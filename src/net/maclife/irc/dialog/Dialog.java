@@ -9,10 +9,9 @@ import org.jibble.pircbot.*;
 
 import net.maclife.irc.*;
 
-public class Dialog implements Runnable
+public class Dialog implements Callable<Map<String, Object>>
 {
 	public long threadID = 0;
-	public boolean running = false;
 	public long starttime = 0;
 	public long endtime = 0;
 	public long timeout_second = 60;
@@ -40,6 +39,7 @@ public class Dialog implements Runnable
 	public Lock lock;
 	public Condition endCondition;
 
+	DialogUser user = null;
 	Type type = Type.开放;	// MessageBox (只有‘确认’) QuestionDialog(YES/NO,  自定义答案)
 	public enum Type
 	{
@@ -63,15 +63,16 @@ public class Dialog implements Runnable
 		return Type.开放;
 	}
 
-	public Dialog (LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, List<String> listParticipants, List<String[]> listCandidateAnswers,
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, List<String> listParticipants, List<String[]> listCandidateAnswers,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		this.user = dlgUser;
 		this.bot = bot;
 		this.dialogs = listDialogs;
 		listDialogs.add (this);
 		type = qt;
-		question = (StringUtils.endsWithAny (q, "?", "？") ? q : q + "?");	// 如果问题不是以问号结尾，则在问题后面加上问号
+		question = q;	// (StringUtils.endsWithAny (q, "?", "？") ? q : q + "?");	// 如果问题不是以问号结尾，则在问题后面加上问号
 		participants.addAll (listParticipants);
 		if (type == Type.单选 || type == Type.多选)
 		{
@@ -160,13 +161,13 @@ public class Dialog implements Runnable
 		return "";
 	}
 	/**
-	 * 有人尝试应答对话框
+	 * 有人尝试应答对话
 	 * @param ch 哪个频道
 	 * @param n 哪个昵称
 	 * @param u 哪个帐号
 	 * @param host 哪个主机名
 	 * @param answer 提供的答案
-	 * @return true - 当用户属于对话框的参与者。 false - 用户不属于对话框的参与者
+	 * @return true - 当用户属于对话的参与者。 false - 用户不属于对话的参与者
 	 * @throws RuntimeException
 	 */
 	public boolean onAnswerReceived (String ch, String n, String u, String host, String answer)
@@ -182,9 +183,9 @@ public class Dialog implements Runnable
 		}
 		if (! isValidParticipant)
 		{
-			//throw new RuntimeException ("您不是当前对话框的参与者");
-			bot.SendMessage (channel, n, true, 1, "您不是当前对话框的参与者");
-			return false;	// 如果抛出异常，则可能让不是对话框参与者、但想执行其他 bot 命令的人在对话框期间无法操作
+			//throw new RuntimeException ("您不是当前对话的参与者");
+			bot.SendMessage (channel, n, true, 1, "您不是当前对话的参与者");
+			return false;	// 如果抛出异常，则可能让不是对话参与者、但想执行其他 bot 命令的人在对话期间无法操作
 		}
 
 		// 检查答案有效性
@@ -232,6 +233,12 @@ public class Dialog implements Runnable
 			participantAnswers.put (n, answer);
 		}
 
+		if (user != null)
+		{
+			if (! user.ValidateAnswer (ch, n, u, host, answer))
+				return false;
+		}
+
 		// 还有其他用户没回答，不触发 endCondition 条件
 		if (participantAnswers.size () != participants.size ())
 		{
@@ -257,7 +264,7 @@ public class Dialog implements Runnable
 	}
 
 	@Override
-	public void run ()
+	public Map<String, Object> call ()
 	{
 		threadID = Thread.currentThread ().getId ();
 		System.out.println ("Dialog #" + threadID + " started. " + question);
@@ -312,108 +319,115 @@ public class Dialog implements Runnable
 			endtime = System.currentTimeMillis ();
 
 			System.out.println ("Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s");
-			sb = new StringBuilder ();
-			sb.append (question);
-			if (participantAnswers.size () == 0)
-				sb.append (" 没收到任何回答.");
-			else
-			{
-				if (participants.size () == 1)
-				{	// 一个人，只有一个答案，显示“明细”
-					sb.append (" 收到回答: ");
-					if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.开放)
-					{
-						String answer = null;
-						for (Object a : participantAnswers.values ())
-						{
-							answer = (String)a;
-							break;
-						}
-						if (type == Type.开放)
-							sb.append (answer);
-						else
-							sb.append ("•" + GetFullCandidateAnswerByValueOrLabel(answer));	// • http://en.wikipedia.org/wiki/Bullet_%28typography%29
-					}
-					else if (type == Type.多选)
-					{
-						List<String> listAnswers = null;
-						for (Object a : participantAnswers.values ())
-						{
-							listAnswers = (List<String>)a;
-							for (int i=0; i<listAnswers.size (); i++)
-							{
-								if (i>0)
-									sb.append (" ");
-								sb.append ("✓" + GetFullCandidateAnswerByValueOrLabel(listAnswers.get (i)));	// ✓ http://en.wikipedia.org/wiki/Check_mark
-							}
-							break;	// 只有一个人
-						}
-					}
-				}
+			if (user == null)
+			{	// 仅仅在对话没有使用者的情况下生成默认的对话结果消息
+				sb = new StringBuilder ();
+				sb.append ("对话 [");
+				sb.append (Colors.BOLD);
+				sb.append (question);
+				sb.append (Colors.BOLD);
+				sb.append ("]");
+				if (participantAnswers.size () == 0)
+					sb.append (" 没收到任何回答.");
 				else
-				{	// 多个人，多个答案，显示“统计”(非开放问题)
-
-					if (participantAnswers.size () == participants.size ())
-						sb.append (" 收到了所有人的回答");
-					else
-						sb.append (" 收到了 " + participantAnswers.size () + " 份回答, " + (participants.size () - participantAnswers.size ()) + " 人未回答. ");
-					if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.多选)
-					{
-						sb.append ("回答统计: ");
-						String answer = null;
-						Map<String, Integer> mapAnswerCount = new HashMap<String, Integer> ();
-						for (Object a : participantAnswers.values ())
+				{
+					if (participants.size () == 1)
+					{	// 一个人，只有一个答案，显示“明细”
+						sb.append (" 收到回答: ");
+						if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.开放)
 						{
-							if (type == Type.多选)
+							String answer = null;
+							for (Object a : participantAnswers.values ())
 							{
-								List<String> listAnswers = (List<String>)a;
+								answer = (String)a;
+								break;
+							}
+							if (type == Type.开放)
+								sb.append (answer);
+							else
+								sb.append ("•" + GetFullCandidateAnswerByValueOrLabel(answer));	// • http://en.wikipedia.org/wiki/Bullet_%28typography%29
+						}
+						else if (type == Type.多选)
+						{
+							List<String> listAnswers = null;
+							for (Object a : participantAnswers.values ())
+							{
+								listAnswers = (List<String>)a;
 								for (int i=0; i<listAnswers.size (); i++)
 								{
-									answer = GetFullCandidateAnswerByValueOrLabel(listAnswers.get (i));
+									if (i>0)
+										sb.append (" ");
+									sb.append ("✓" + GetFullCandidateAnswerByValueOrLabel(listAnswers.get (i)));	// ✓ http://en.wikipedia.org/wiki/Check_mark
+								}
+								break;	// 只有一个人
+							}
+						}
+					}
+					else
+					{	// 多个人，多个答案，显示“统计”(非开放问题)
+
+						if (participantAnswers.size () == participants.size ())
+							sb.append (" 收到了所有人的回答. ");
+						else
+							sb.append (" 收到了 " + participantAnswers.size () + " 份回答, " + (participants.size () - participantAnswers.size ()) + " 人未回答. ");
+						if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.多选)
+						{
+							sb.append ("回答统计: ");
+							String answer = null;
+							Map<String, Integer> mapAnswerCount = new HashMap<String, Integer> ();
+							for (Object a : participantAnswers.values ())
+							{
+								if (type == Type.多选)
+								{
+									List<String> listAnswers = (List<String>)a;
+									for (int i=0; i<listAnswers.size (); i++)
+									{
+										answer = GetFullCandidateAnswerByValueOrLabel(listAnswers.get (i));
+										if (mapAnswerCount.get (answer) == null)
+											mapAnswerCount.put (answer, 1);
+										else
+											mapAnswerCount.put (answer, mapAnswerCount.get (answer) + 1);
+									}
+								}
+								else
+								{
+									answer = GetFullCandidateAnswerByValueOrLabel ((String)a);
 									if (mapAnswerCount.get (answer) == null)
 										mapAnswerCount.put (answer, 1);
 									else
 										mapAnswerCount.put (answer, mapAnswerCount.get (answer) + 1);
 								}
 							}
-							else
+							for (String ca : mapAnswerCount.keySet ())
 							{
-								answer = GetFullCandidateAnswerByValueOrLabel ((String)a);
-								if (mapAnswerCount.get (answer) == null)
-									mapAnswerCount.put (answer, 1);
+								sb.append (" ");
+								if (type == Type.多选)
+									sb.append ("✓");
+								else //if (type == Type.单选 || type == Type.确认 || type == Type.是否 )
+									sb.append ("•");
+								sb.append (ca);
+								sb.append ("=");
+								sb.append (mapAnswerCount.get (ca));
+							}
+						}
+						else if (type == Type.开放)
+						{	// 开放问题无法统计，只能显示明细
+							sb.append (": ");
+							for (String p : participants)
+							{
+								String answer = (String)participantAnswers.get (p);
+								sb.append (" ");
+								sb.append (p);
+								sb.append ("=");
+								if (answer == null)
+								{	// 无答案
+									sb.append (Colors.DARK_GRAY);
+									sb.append ("-无-");
+									sb.append (Colors.NORMAL);
+								}
 								else
-									mapAnswerCount.put (answer, mapAnswerCount.get (answer) + 1);
+									sb.append (answer);
 							}
-						}
-						for (String ca : mapAnswerCount.keySet ())
-						{
-							sb.append (" ");
-							if (type == Type.多选)
-								sb.append ("✓");
-							else //if (type == Type.单选 || type == Type.确认 || type == Type.是否 )
-								sb.append ("•");
-							sb.append (ca);
-							sb.append ("=");
-							sb.append (mapAnswerCount.get (ca));
-						}
-					}
-					else if (type == Type.开放)
-					{	// 开放问题无法统计，只能显示明细
-						sb.append (": ");
-						for (String p : participants)
-						{
-							String answer = (String)participantAnswers.get (p);
-							sb.append (" ");
-							sb.append (p);
-							sb.append ("=");
-							if (answer == null)
-							{	// 无答案
-								sb.append (Colors.DARK_GRAY);
-								sb.append ("-无-");
-								sb.append (Colors.NORMAL);
-							}
-							else
-								sb.append (answer);
 						}
 					}
 				}
@@ -428,7 +442,12 @@ public class Dialog implements Runnable
 			lock.unlock ();
 		}
 
-		bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// "Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s." + (StringUtils.isEmpty (answer) ? "" : " 获得答案: " + Colors.BOLD + answer + Colors.BOLD
+		if (user == null)
+			bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// "Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s." + (StringUtils.isEmpty (answer) ? "" : " 获得答案: " + Colors.BOLD + answer + Colors.BOLD
+		//else
+		//	user.
+
 		dialogs.remove (this);
+		return participantAnswers;
 	}
 }
