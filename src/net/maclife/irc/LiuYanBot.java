@@ -1472,6 +1472,19 @@ public class LiuYanBot extends PircBot implements Runnable
 					formatBotParameterInstance ("是否", true) + ", 当对话框类型是单选、多选时, 需要提供候选答案. 候选答案格式: value[:label] value2[:label2]..."
 				);
 		}
+		primaryCmd = BOT_PRIMARY_COMMAND_Game;        if (isThisCommandSpecified (args, primaryCmd))
+		{
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotCommandInstance (primaryCmd, true) + " " +
+				"<" + formatBotParameter ("游戏名", true) + "> " +
+				"[/p " + formatBotParameter ("问题接受人", true) + "...]  " +
+				"-- 在 IRC 中玩一些简单的游戏... " +
+				formatBotParameter ("游戏名", true) + ": " +
+					formatBotParameterInstance ("猜数字", true) + "|" +
+					formatBotParameterInstance ("21点", true) + "" +
+					", http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack"
+				);
+		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -1628,8 +1641,12 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * <dl>
 	 * 	<dt>loglevel</dt>
 	 * 	<dd>日志级别，有 <code>severe</code> <code>warning</code> <code>info</code>(默认) <code>config</code> <code>fine</code> <code>finer</code> <code>finest</code></dd>
+	 *
 	 * 	<dt>botcmd.prefix</dt>
 	 * 	<dd>bot 命令的前缀</dd>
+	 *
+	 * 	<dt>message.delay</dt>
+	 * 	<dd>bot 发送消息之间的延时时长，单位为毫秒</dd>
 	 * </dl>
 	 */
 	void ProcessCommand_Set (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -1676,6 +1693,17 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			BOT_COMMAND_PREFIX = value;
 			System.out.println ("bot 命令前缀已改为: [" + BOT_COMMAND_PREFIX + "]");
+		}
+		else if (param.equalsIgnoreCase ("message.delay"))	// bot 发送消息之间的延时时长，毫秒
+		{
+			if (StringUtils.isEmpty (value))
+			{
+				System.out.println ("需要指定延时时长，单位为毫秒");
+				return;
+			}
+			long delay = Long.parseLong (value);
+			setMessageDelay (delay);
+			System.out.println ("bot 消息延时时长已改为: [" + delay + "] 毫秒");
 		}
 	}
 
@@ -2338,7 +2366,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			if (iCount > opt_max_response_lines)
 			{
-				SendMessage (ch, u, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的……");
+				//SendMessage (ch, u, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的……");
 				break;
 			}
 		}
@@ -2470,7 +2498,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			}
 			if (iCount > opt_max_response_lines)
 			{
-				SendMessage (ch, u, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的……");
+				//SendMessage (ch, u, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的……");
 				break;
 			}
 		}
@@ -2494,7 +2522,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			{
 				if ((i+1) > opt_max_response_lines)
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的网址……");
+					//SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的网址……");
 					break;
 				}
 
@@ -4411,7 +4439,7 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 						nLine ++;
 						if (nLine > opt_max_response_lines)
 						{
-							SendMessage (ch, nick, mapGlobalOptions, "略…");
+							//SendMessage (ch, nick, mapGlobalOptions, "略…");
 							break;
 						}
 						nCount = rs.getInt ("COUNT");
@@ -4606,7 +4634,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 						if (nLines >= opt_max_response_lines)
 						{
-							SendMessage (ch, nick, mapGlobalOptions, "略……");
+							//SendMessage (ch, nick, mapGlobalOptions, "略……");
 							break;
 						}
 
@@ -4632,7 +4660,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					{
 						if (nLines >= opt_max_response_lines)
 						{
-							SendMessage (ch, nick, mapGlobalOptions, "略……");
+							//SendMessage (ch, nick, mapGlobalOptions, "略……");
 							break;
 						}
 
@@ -5500,7 +5528,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE tsha1(?)";
 		Dialog dlg = new Dialog (null,
-				this, dialogs, qt, question, listParticipants, listCandidateAnswers,
+				this, dialogs, qt, question, true, listParticipants, listCandidateAnswers,
 				ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		dlg.timeout_second = opt_timeout_length_seconds;
 		executor.submit (dlg);
@@ -5617,7 +5645,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			|| StringUtils.equalsIgnoreCase (sGame, "bj")
 			)
 		{
-			//
+			if (listParticipants.size () < 2)
+				throw new IllegalArgumentException ("至少需要 2 人玩。 2-6 人…");
+			game = new BlackJack (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "猜数字")
 			|| StringUtils.equalsIgnoreCase (sGame, "GuessDigit")
@@ -6437,7 +6467,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 							lineCounter ++;
 							if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
-								SendMessage (channel, nick, globalOpts, "略...");
+							{
+								//SendMessage (channel, nick, globalOpts, "略...");
+							}
 							if (lineCounter > opt_max_response_lines)
 								continue;
 
@@ -6455,7 +6487,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 								for (String newLine : arrayLines)
 								{
 									if ((lineCounter == opt_max_response_lines + 1) && !opt_max_response_lines_specified)
-										SendMessage (channel, nick, globalOpts, "略...");
+									{
+										//SendMessage (channel, nick, globalOpts, "略...");
+									}
 									if (lineCounter > opt_max_response_lines)
 										continue otherLines;	// java 的标签只有跳循环这个用途，这还是第一次实际应用……
 
@@ -6801,6 +6835,11 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		LiuYanBot bot = new LiuYanBot ();
 		sslTrustStore = System.getProperty ("javax.net.ssl.trustStore");
 		sslTrustPassword = System.getProperty ("javax.net.ssl.trustPassword");
+		String sMessageDelay = System.getProperty ("message.delay");
+		if (! StringUtils.isEmpty (sMessageDelay))
+		{
+			bot.setMessageDelay (Long.parseLong (sMessageDelay));
+		}
 		bot.setName (nick);
 		bot.setVerbose (true);
 		bot.setAutoNickChange (true);
