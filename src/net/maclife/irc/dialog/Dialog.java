@@ -15,10 +15,12 @@ public class Dialog implements Callable<Map<String, Object>>
 	public long starttime = 0;
 	public long endtime = 0;
 	public long timeout_second = 60;
+	public int maxAdviseTimes = 0;	// 答案校正次数。 正整数: 指定次数; 0 或者负数: 无限次数
 	List<Dialog> dialogs = null;
 
 	//
 	String question;
+	boolean showQuestion = true;
 	List<String> participants = new ArrayList<String> ();	// 参与者
 	List<String[]> candidateAnswers = new ArrayList<String[]> ();	// 候选答案
 	Map<String, Object> participantAnswers = new HashMap<String, Object> ();
@@ -63,7 +65,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		return Type.开放;
 	}
 
-	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, List<String> listParticipants, List<String[]> listCandidateAnswers,
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean showQuestion, List<String> listParticipants, List<String[]> listCandidateAnswers,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -73,6 +75,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		listDialogs.add (this);
 		type = qt;
 		question = q;	// (StringUtils.endsWithAny (q, "?", "？") ? q : q + "?");	// 如果问题不是以问号结尾，则在问题后面加上问号
+		this.showQuestion = showQuestion;
 		participants.addAll (listParticipants);
 		if (type == Type.单选 || type == Type.多选)
 		{
@@ -139,10 +142,7 @@ public class Dialog implements Callable<Map<String, Object>>
 				throw new IllegalArgumentException ("此问题的“答案值或标签”不能与其他答案的“标签或答案值”有重复");
 		}
 	}
-	public String GetFullCandidateAnswerByValueOrLabel (String answer)
-	{
-		return GetFullCandidateAnswerByValueOrLabel (answer, candidateAnswers);
-	}
+
 	/**
 	 * 根据提供的答案 answer 在候选答案中寻找的候选答案
 	 * @param answer
@@ -160,6 +160,33 @@ public class Dialog implements Callable<Map<String, Object>>
 		}
 		return "";
 	}
+	public String GetFullCandidateAnswerByValueOrLabel (String answer)
+	{
+		return GetFullCandidateAnswerByValueOrLabel (answer, candidateAnswers);
+	}
+
+	/**
+	 * 根据提供的答案 answer 在候选答案中找出的候选答案的 value
+	 * @param answer
+	 * @param listCandidateAnswers
+	 * @return 如果不是有效的答案，则返回空字符串。如果是有效的答案，则返回候选答案的 <code>数值</code>(只有数值的情况)
+	 */
+	public static String GetCandidateAnswerValueByValueOrLabel (String answer, List<String[]> listCandidateAnswers)
+	{
+		for (String[] ca : listCandidateAnswers)
+		{
+			if (StringUtils.equalsIgnoreCase (ca[0], answer) || (ca.length >= 2 && StringUtils.equalsIgnoreCase (ca[1], answer)))
+			{
+				return ca[0];
+			}
+		}
+		return "";
+	}
+	public String GetCandidateAnswerValueByValueOrLabel (String answer)
+	{
+		return GetCandidateAnswerValueByValueOrLabel (answer, candidateAnswers);
+	}
+
 	/**
 	 * 有人尝试应答对话
 	 * @param ch 哪个频道
@@ -186,6 +213,13 @@ public class Dialog implements Callable<Map<String, Object>>
 			//throw new RuntimeException ("您不是当前对话的参与者");
 			bot.SendMessage (channel, n, true, 1, "您不是当前对话的参与者");
 			return false;	// 如果抛出异常，则可能让不是对话参与者、但想执行其他 bot 命令的人在对话期间无法操作
+		}
+
+		// 使用者先检查答案有效性
+		if (user != null)
+		{
+			if (! user.ValidateAnswer (ch, n, u, host, answer))
+				return false;
 		}
 
 		// 检查答案有效性
@@ -233,12 +267,6 @@ public class Dialog implements Callable<Map<String, Object>>
 			participantAnswers.put (n, answer);
 		}
 
-		if (user != null)
-		{
-			if (! user.ValidateAnswer (ch, n, u, host, answer))
-				return false;
-		}
-
 		// 还有其他用户没回答，不触发 endCondition 条件
 		if (participantAnswers.size () != participants.size ())
 		{
@@ -269,41 +297,46 @@ public class Dialog implements Callable<Map<String, Object>>
 		threadID = Thread.currentThread ().getId ();
 		System.out.println ("Dialog #" + threadID + " started. " + question);
 		StringBuilder sb = new StringBuilder ();
-		for (int i=0; i<participants.size (); i++)
+
+		if (user == null || showQuestion)
 		{
-			if (i>0)
-				sb.append (" ");
-			sb.append (participants.get (i));
-		}
-		sb.append (": ");
-		sb.append (type);
-		sb.append ("题:");
-		sb.append (Colors.BOLD);
-		sb.append (question);
-		sb.append (Colors.BOLD);
-		if (type != Type.开放)
-		{
-			sb.append (" 候选答案:");
-			for (String[] ca : candidateAnswers)
+			// 显示对话框用法
+			for (int i=0; i<participants.size (); i++)
 			{
-				sb.append (Colors.BOLD);
-				sb.append (ca[0]);
-				sb.append (Colors.BOLD);
-				if (ca.length >= 2 && ! StringUtils.isEmpty (ca[1]))
-				{
-					sb.append (":");
-					sb.append (ca[1]);
-				}
-				sb.append (" ");
+				if (i>0)
+					sb.append (" ");
+				sb.append (participants.get (i));
 			}
+			sb.append (": ");
+			sb.append (type);
+			sb.append ("题:");
+			sb.append (Colors.BOLD);
+			sb.append (question);
+			sb.append (Colors.BOLD);
+			if (type != Type.开放)
+			{
+				sb.append (" 候选答案:");
+				for (String[] ca : candidateAnswers)
+				{
+					sb.append (Colors.BOLD);
+					sb.append (ca[0]);
+					sb.append (Colors.BOLD);
+					if (ca.length >= 2 && ! StringUtils.isEmpty (ca[1]))
+					{
+						sb.append (":");
+						sb.append (ca[1]);
+					}
+					sb.append (" ");
+				}
+			}
+			sb.append (" 请通过 " + Colors.BOLD + bot.getNick () + ": <答案>");
+			if (type == Type.多选)
+				sb.append (" [答案]...");
+			sb.append (Colors.BOLD);
+			sb.append (" 的方式来回答问题，您有 " + timeout_second + " 秒钟的回答时间");
+			mapGlobalOptions.put ("opt_output_username", false);	// 不输出用户名，因为可能参与者可能是多人
+			bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// Dialog #" + threadID + " (" + Colors.BOLD + question + Colors.BOLD + ") started
 		}
-		sb.append (" 请通过 " + Colors.BOLD + bot.getNick () + ": <答案>");
-		if (type == Type.多选)
-			sb.append (" [答案]...");
-		sb.append (Colors.BOLD);
-		sb.append (" 的方式来回答问题，您有 " + timeout_second + " 秒钟的回答时间");
-		mapGlobalOptions.put ("opt_output_username", false);	// 不输出用户名，因为可能参与者可能是多人
-		bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// Dialog #" + threadID + " (" + Colors.BOLD + question + Colors.BOLD + ") started
 		starttime = System.currentTimeMillis ();
 
 		// prepare lock

@@ -58,4 +58,9 @@ public abstract class Game implements Runnable, DialogUser
 		this.listCmdEnv = listCmdEnv;
 		this.params = params;
 	}
+
+	protected boolean isQuitGameAnswer (String answer)
+	{
+		return StringUtils.equalsIgnoreCase (answer, "不玩了") || StringUtils.equalsIgnoreCase (answer, "掀桌子");	// 囧rz...
+	}
 }

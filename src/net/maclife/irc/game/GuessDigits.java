@@ -3,11 +3,16 @@ package net.maclife.irc.game;
 import java.security.*;
 import java.util.*;
 
+import org.apache.commons.lang3.*;
+import org.jibble.pircbot.*;
+
+import net.maclife.ansi.*;
 import net.maclife.irc.*;
 import net.maclife.irc.dialog.*;
 
 public class GuessDigits extends Game
 {
+	public static final int MAX_GUESS_TIMES = 8;
 	char[] arrayDigitsToGuess;
 
 	public GuessDigits (LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
@@ -57,21 +62,20 @@ public class GuessDigits extends Game
 	@Override
 	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
 	{
+		if (isQuitGameAnswer(answer))
+			return true;
+
 		// 先检查是否是 4 位数字
 		if (! answer.matches ("\\d{4}"))
-		{
-			bot.SendMessage (ch, n, true, 1, "需要回答一个 4 位数的数字。 [" + answer + "] 不符合要求。");
-			return false;
-		}
+			throw new IllegalArgumentException ("需要回答一个 4 位数的数字。 [" + answer + "] 不符合要求。");
+
 		// 检查是否有重复的数字
 		Set<Character> setUniqueDigits = new HashSet<Character> ();
 		for (int i=0; i<answer.length(); i++)
 			setUniqueDigits.add (answer.charAt (i));
 		if (setUniqueDigits.size () != answer.length())
-		{
-			bot.SendMessage (ch, n, true, 1, "4 位数字中不能有重复的数字。 [" + answer + "] 不符合要求。");
-			return false;
-		}
+			throw new IllegalArgumentException ("4 位数字中不能有重复的数字。 [" + answer + "] 不符合要求。");
+
 		return true;
 	}
 
@@ -80,52 +84,88 @@ public class GuessDigits extends Game
 	{
 		try
 		{
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始……");
+			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始… 请回答/猜一个 4 位无重复数字的数字… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。");
 			InitDigits ();
-			Dialog dlg = new Dialog (this,
-					bot, bot.dialogs, Dialog.Type.开放, "请输入一个 4 位数数字", participants, null,
-					channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
-			Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
-			StringBuilder sb = new StringBuilder ();
-			for (int i=0; i<participants.size (); i++)
-			{
-				String p = participants.get (i);
-				String answer = (String)participantAnswers.get (p);
-				if (i != 0)
-					sb.append (",  ");
 
-				if (answer == null)
-				{	// 没回答
+			boolean isParticipantWannaQuit = false;
+			int previousA=0, previousB=0;
+			int a=0, b=0;
+			for (int t=MAX_GUESS_TIMES; t>=1; t--)
+			{
+				Dialog dlg = new Dialog (this,
+						bot, bot.dialogs, Dialog.Type.开放, (t==8?"请输入一个 4 位无重复数字的数字":"继续猜…"), false, participants, null,
+						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
+
+				String answer = null;
+				StringBuilder sb = new StringBuilder ();
+				a = b = 0;
+				String sDeltaInfo = null;
+				for (int i=0; i<participants.size (); i++)
+				{
+					String p = participants.get (i);
+					answer = (String)participantAnswers.get (p);
+					if (isQuitGameAnswer(answer))
+					{
+						isParticipantWannaQuit = true;
+						break;
+					}
+
+					if (i != 0)
+						sb.append (",  ");
+
+					if (answer == null)
+					{	// 没回答
+						sb.append (p);
+						sb.append (": 0A0B(没回答)");
+						continue;
+					}
+
+					// 计算结果
+					for (int j=0; j<arrayDigitsToGuess.length; j++)
+					{
+						if (arrayDigitsToGuess[j] == answer.charAt (j))
+							a++;
+						else
+						{
+							for (int k=0; k<arrayDigitsToGuess.length; k++)
+								if (arrayDigitsToGuess[k] == answer.charAt (j))
+								{
+									b++;
+									break;
+								}
+						}
+					}
 					sb.append (p);
-					sb.append (": 0A0B(没回答)");
+					sb.append (": ");
+					sb.append ("#" + (MAX_GUESS_TIMES - t + 1) + ": ");
+					sb.append (a);
+					sb.append ("A");
+					sb.append (b);
+					sb.append ("B");
 					continue;
 				}
 
-				// 计算结果
-				int a=0, b=0;
-				for (int j=0; j<arrayDigitsToGuess.length; j++)
+				if (t==1 || a==arrayDigitsToGuess.length || isParticipantWannaQuit)
 				{
-					if (arrayDigitsToGuess[j] == answer.charAt (j))
-						a++;
+					if (isParticipantWannaQuit)
+						bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: 有人" + answer);
 					else
-					{
-						for (int k=0; k<arrayDigitsToGuess.length; k++)
-							if (arrayDigitsToGuess[k] == answer.charAt (j))
-							{
-								b++;
-								break;
-							}
-					}
+						bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: " + sb + ". 答案: " + Arrays.toString (arrayDigitsToGuess));
+
+					break;
 				}
-				sb.append (p);
-				sb.append (": ");
-				sb.append (a);
-				sb.append ("A");
-				sb.append (b);
-				sb.append ("B");
-				continue;
+				else
+				{
+					if (a<previousA || (a==previousA && b<previousB))
+						sDeltaInfo = ANSIEscapeTool.COLOR_DARK_RED + "啊哦" + Colors.NORMAL;
+					else if (a>previousA || (a==previousA && b>previousB))
+						sDeltaInfo = Colors.GREEN + "加油" + Colors.NORMAL;
+					bot.SendMessage (channel, "", false, 1, sb + (sDeltaInfo==null ? "" : " " + sDeltaInfo) + ". 还剩下 " + (t-1) + " 次, 继续猜…");
+					previousA = a;
+					previousB = b;
+				}
 			}
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结果: " + sb);
 		}
 		catch (Exception e)
 		{
