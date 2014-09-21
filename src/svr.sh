@@ -1,6 +1,6 @@
 echo -e '\e[31;1m禁用掉一些命令，以较安全的方式执行\e[m'
 export botdir=${botdir-$(dirname $0)}
-export nick=HtmlBot
+export nick=GameBot
 export botcmdPrefix=
 export channels=LiuYanBot,linuxba
 export ban="*:cmd:服务器上运行，怕被玩坏，全部禁止 Cmd 命令;*:javascript"
