@@ -1461,7 +1461,7 @@ public class LiuYanBot extends PircBot implements Runnable
 				formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOptionInstance ("timeout", "N", true) + "] " +
 				"<" + formatBotParameter ("问题内容", true) + "> " +
 				"[/t " + formatBotParameter ("对话框类型", true) + "] " +
-				"[/p " + formatBotParameter ("问题接受人", true) + "...]  " +
+				"[/p " + formatBotParameter ("问题接收人", true) + "...]  " +
 				"[/ca " + formatBotParameter ("候选答案", true) + "...]  " +
 				"-- 在 IRC 中实现类似 GUI 界面的 Dialog 对话框功能。此功能只是概念性的功能... " +
 				formatBotParameter ("对话框类型", true) + ": " +
@@ -1477,7 +1477,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotCommandInstance (primaryCmd, true) + " " +
 				"<" + formatBotParameter ("游戏名", true) + "> " +
-				"[/p " + formatBotParameter ("问题接受人", true) + "...]  " +
+				"[/p " + formatBotParameter ("其他玩家", true) + "...]  " +
 				"-- 在 IRC 中玩一些简单的游戏... " +
 				formatBotParameter ("游戏名", true) + ": " +
 					formatBotParameterInstance ("猜数字", true) + "|" +
@@ -5499,8 +5499,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				}
 			}
 		}
-		if (listParticipants.size () == 0)
-		{	// 如果没有通过 /t 添加参与人，则默认参与人是自己
+		if (! listParticipants.contains (nick))
+		{	// 如果没有添加自己，则加进去： 一定包含发起人
 			listParticipants.add (nick);
 		}
 
@@ -5618,8 +5618,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				}
 			}
 		}
-		if (listParticipants.size () == 0)
-		{	// 如果没有通过 /t 添加参与人，则默认参与人是自己
+		if (! listParticipants.contains (nick))
+		{	// 如果没有添加自己，则加进去： 一定包含发起人
 			listParticipants.add (nick);
 		}
 
@@ -5646,7 +5646,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			)
 		{
 			if (listParticipants.size () < 2)
-				throw new IllegalArgumentException ("至少需要 2 人玩。 2-6 人…");
+				throw new IllegalArgumentException ("至少需要 2 人玩。在后面用 /p 参数指定其他玩家");
 			game = new BlackJack (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "猜数字")
@@ -5654,6 +5654,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			)
 		{
 			game = new GuessDigits (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		}
+		else if (StringUtils.equalsIgnoreCase (sGame, "三国杀")
+			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
+			)
+		{
+			game = new SanGuoSha (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else
 		{
