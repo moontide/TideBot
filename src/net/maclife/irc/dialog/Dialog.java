@@ -111,7 +111,13 @@ public class Dialog implements Callable<Map<String, Object>>
 		System.out.println ("问题类型: " + type);
 		System.out.println ("问题: " + question);
 		System.out.println ("参与者: " + participants);
-		System.out.println ("候选答案: " + candidateAnswers);
+		StringBuilder sb = new StringBuilder ();
+		for (String[] ca : candidateAnswers)
+		{
+			sb.append (Arrays.toString (ca));
+			sb.append (", ");
+		}
+		System.out.println ("候选答案: " + sb);
 	}
 
 	/**
