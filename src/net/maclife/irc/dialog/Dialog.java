@@ -276,7 +276,12 @@ public class Dialog implements Callable<Map<String, Object>>
 		// 还有其他用户没回答，不触发 endCondition 条件
 		if (participantAnswers.size () != participants.size ())
 		{
-			bot.SendMessage (channel, n, true, 1, "谢谢，请等待其他 " + (participants.size () - participantAnswers.size ()) +  " 人回答完毕。");
+			String msg = "谢谢，请等待其他 " + (participants.size () - participantAnswers.size ()) +  " 人回答完毕。";
+			// 发到对话发起的频道里
+			bot.SendMessage (channel, n, true, 1, msg);
+
+			if (StringUtils.isEmpty (ch))	// 如果用户通过私信发送的答案，则也再在私信里发一次
+				bot.SendMessage (null, n, false, 1, msg);
 			return true;
 		}
 
@@ -321,7 +326,7 @@ public class Dialog implements Callable<Map<String, Object>>
 			sb.append (Colors.BOLD);
 			if (type != Type.开放)
 			{
-				sb.append (" 候选答案:");
+				sb.append (". 候选答案:");
 				for (String[] ca : candidateAnswers)
 				{
 					sb.append (Colors.BOLD);
@@ -335,11 +340,17 @@ public class Dialog implements Callable<Map<String, Object>>
 					sb.append (" ");
 				}
 			}
-			sb.append (" 请通过 " + Colors.BOLD + bot.getNick () + ": <答案>");
+			sb.append (". 请通过 " + Colors.BOLD + bot.getNick () + ": <答案>");
 			if (type == Type.多选)
 				sb.append (" [答案]...");
 			sb.append (Colors.BOLD);
-			sb.append (" 的方式来回答问题，您有 " + timeout_second + " 秒钟的回答时间");
+			sb.append (" 的回答方式或者通过私信发送 ");
+			sb.append (Colors.BOLD);
+				sb.append ("<答案>");
+			if (type == Type.多选)
+				sb.append (" [答案]...");
+			sb.append (Colors.BOLD);
+			sb.append (" 来回答问题，您有 " + timeout_second + " 秒钟的回答时间");
 			mapGlobalOptions.put ("opt_output_username", false);	// 不输出用户名，因为可能参与者可能是多人
 			bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// Dialog #" + threadID + " (" + Colors.BOLD + question + Colors.BOLD + ") started
 		}

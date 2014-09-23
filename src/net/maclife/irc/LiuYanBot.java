@@ -864,7 +864,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 		try
 		{
-			if (isSayingToMe)
+			if (isSayingToMe || StringUtils.isEmpty (channel))	// 如果是在频道里指名道姓的对我说，或者通过私信说，则先判断用户是不是对话框的参加者，如果是--并且处理成功的话，就返回
 			{
 				for (Dialog d : dialogs)
 				{
@@ -1475,14 +1475,14 @@ public class LiuYanBot extends PircBot implements Runnable
 		primaryCmd = BOT_PRIMARY_COMMAND_Game;        if (isThisCommandSpecified (args, primaryCmd))
 		{
 			SendMessage (ch, u, mapGlobalOptions,
-				formatBotCommandInstance (primaryCmd, true) + " " +
+				formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("正整数", true) + "] " +
 				"<" + formatBotParameter ("游戏名", true) + "> " +
 				"[/p " + formatBotParameter ("其他玩家", true) + "...]  " +
 				"-- 在 IRC 中玩一些简单的游戏... " +
 				formatBotParameter ("游戏名", true) + ": " +
 					formatBotParameterInstance ("猜数字", true) + "|" +
-					formatBotParameterInstance ("21点", true) + "" +
-					", http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack"
+					formatBotParameterInstance ("21点", true) + ", 21点游戏可用 ." + formatBotOption ("正整数", true) + " 指定用几副牌(1-4), 默认用 1 副牌." +
+					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack"
 				);
 		}
 
