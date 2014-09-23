@@ -11,6 +11,115 @@ import net.maclife.irc.dialog.*;
 
 public class BlackJack extends Game
 {
+	@Override
+	public void run ()
+	{
+		try
+		{
+			StringBuilder sb = null;	//new StringBuilder ();
+			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
+
+			// 洗牌
+			if (mapGlobalOptions.containsKey ("ace-test"))
+				InitAcesTestDeck ();
+			else
+				InitDeck ();
+			//System.out.println (deck);
+			//sb.append ("洗牌完毕 ");
+			////sb.append ("\u0003,15");	// 白色背景，好让黑桃、梅花的字符的“黑色”显示出来
+			//for (Map<String, Object> card : deck)
+			//{
+			//	//sb.append (card.get ("color"));
+			//	sb.append (card.get ("suit"));
+			//	sb.append (card.get ("rank"));
+			//	sb.append (" ");
+			//}
+			////sb.append (Colors.NORMAL);
+			//System.out.println (sb);
+			//bot.SendMessage (channel, "", false, 1, "洗牌完毕");
+
+			// 分暗牌
+			deal ("暗牌: ", MESSAGE_TYPE_MASK_PM);
+			bot.SendMessage (channel, null, false, 1, "每人发了一张暗牌，已通过私信发送具体牌，请注意查看");
+
+			// 分明牌
+			deal ("明牌: ", MESSAGE_TYPE_MASK_CHANNEL | MESSAGE_TYPE_MASK_PM);
+
+			// 开始
+			List<String> liveParticipants = participants;
+			List<String> standParticipants = new ArrayList<String> ();	// 停牌的玩家
+			List<String> deadParticipants = new ArrayList<String> ();	// 爆牌的玩家
+			while (true)
+			{
+				Dialog dlg = new Dialog (this,
+						bot, bot.dialogs, Dialog.Type.单选, "要牌么？ ", true, liveParticipants, wannaCards_CandidateAnswers,	// 发票要么？ 毛片要么？
+						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+				dlg.timeout_second = 30;
+				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
+
+				String answer;
+				String value;
+				boolean isAllDontWannaCards = true;
+				for (int i=0; i<liveParticipants.size (); i++)
+				{
+					String p = participants.get (i);
+					answer = (String)participantAnswers.get (p);
+					value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
+					if (isQuitGameAnswer(answer))
+					{
+						//isParticipantWannaQuit = true;
+						break;
+					}
+
+					if (StringUtils.equalsIgnoreCase (value, "1"))
+					{	// 要牌
+						isAllDontWannaCards = false;
+						deal (p, "", MESSAGE_TYPE_MASK_PM | MESSAGE_TYPE_MASK_CHANNEL);
+						int nSum = CalculatePoints (p);
+						if (nSum > BURST_POINT)
+						{	// 爆牌 （死亡）
+							deadParticipants.add (liveParticipants.remove (i));	i --;
+						}
+					}
+					else if (StringUtils.equalsIgnoreCase (value, "2"))
+					{
+					}
+					else if (StringUtils.equalsIgnoreCase (value, "T"))
+					{
+						standParticipants.add (liveParticipants.remove (i));	i --;
+					}
+				}
+
+				// 结束条件: 只剩下一个 【“活着”的 + “停牌”的】，或者，所有人都不要牌了
+				if ((liveParticipants.size () + standParticipants.size ()) <= 1  ||  isAllDontWannaCards)
+					break;
+			}
+
+			sb = new StringBuilder ();
+			// 活着的人的情况
+			liveParticipants.addAll (standParticipants);
+			PointsComparator comparator = new PointsComparator ();
+			Collections.sort (liveParticipants, Collections.reverseOrder (comparator));
+			GeneratePlayersCardsInfoTo (liveParticipants, "存活", sb, null, true);
+
+			// 爆牌的人的情况
+			Collections.sort (deadParticipants, comparator);
+			GeneratePlayersCardsInfoTo (deadParticipants, "爆牌", sb, ANSIEscapeTool.COLOR_DARK_RED, true);
+
+			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。" + sb.toString ());
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			bot.SendMessage (channel, "", false, 1, name + " 游戏异常: " + e);
+		}
+		finally
+		{
+			games.remove (this);
+		}
+	}
+
+
 	public static int BURST_POINT = 21;
 	public static final char[] CARD_SUITS =
 		{
@@ -21,12 +130,12 @@ public class BlackJack extends Game
 		{
 			"A", "2", "3", "4", "5",
 			"6", "7", "8", "9", "10",
-			"K", "Q", "K",
+			"J", "Q", "K",
 		};
 
-	public static final int MESSAGE_TYPE_MASK_PM     = 1;
-	public static final int MESSAGE_TYPE_MASK_PUBLIC = 2;
-	public static final int MESSAGE_TYPE_MASK_QUIET  = 0;
+	public static final int MESSAGE_TYPE_MASK_PM      = 1;
+	public static final int MESSAGE_TYPE_MASK_CHANNEL = 2;
+	//public static final int MESSAGE_TYPE_MASK_QUIET   = 0;
 
 	public static List<String[]> wannaCards_CandidateAnswers = new ArrayList<String[]> ();	// 候选答案
 	static
@@ -47,39 +156,80 @@ public class BlackJack extends Game
 		super (BURST_POINT + "点", bot, listGames, listParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
+
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		if (opt_max_response_lines_specified)
+		{
+			if (opt_max_response_lines < 1)
+				opt_max_response_lines = 1;
+			else if (opt_max_response_lines > 4)
+				opt_max_response_lines = 4;
+
+			deck_number = opt_max_response_lines;
+		}
 	}
 
+	/**
+	 * 初始化牌堆
+	 */
 	void InitDeck ()
 	{
-		// clubs (♣), diamonds (♦), hearts (♥) and spades (♠),
-		//Random rand = new SecureRandom ();
 		for (int i=0; i<deck_number; i++)
 		{
 			for (int r=1; r<=13; r++)
 			{
 				for (int s=0; s<CARD_SUITS.length; s++)
 				{
-					Map<String, Object> card = new HashMap<String, Object> ();
-					card.put ("suit", CARD_SUITS[s]);	// 花色
-					card.put ("rank", CARD_RANKS[r-1]);	// 大小
-					if (r >=11 && r<=13)
-						card.put ("point", 10);	// J Q K 点数值为 10
-					else
-						card.put ("point", r);	// A 2-10 点数值，A 可以为 1 或者 11，由玩家决定。但为了 bot 只会取一个最接近 21 点可能性的数值
-
-					if (CARD_SUITS[s]=='♣' || CARD_SUITS[s]=='♠')
-					{
-						//card.put ("color", Colors.BLACK);
-						card.put ("color", "");
-					}
-					else if (CARD_SUITS[s]=='♦' || CARD_SUITS[s]=='♥')
-						card.put ("color", Colors.RED);
-
-					deck.add (card);
+					AddCardToDeck (r, s);
 				}
 			}
 		}
 		Collections.shuffle (deck);
+	}
+
+	/**
+	 * 初始化 A 测试牌堆。4 张 A + 红桃 2-K，只是为了测试 A 点数值计算而用
+	 */
+	void InitAcesTestDeck ()
+	{
+		for (int s=0; s<CARD_SUITS.length; s++)
+		{
+			AddCardToDeck (1, s);
+		}
+		for (int r=2; r<=13; r++)
+		{
+			AddCardToDeck (r, 2);
+		}
+		Collections.shuffle (deck);
+	}
+
+	/**
+	 * 将一张牌加入到牌堆
+	 * @param r 点数值 (1-13)
+	 * @param s 花色 索引号 (0-3)
+	 */
+	void AddCardToDeck (int r, int s)
+	{
+		Map<String, Object> card = new HashMap<String, Object> ();
+		card.put ("suit", CARD_SUITS[s]);	// 花色
+		card.put ("rank", CARD_RANKS[r-1]);	// 大小
+		if (r >=11 && r<=13)
+			card.put ("point", 10);	// J Q K 点数值为 10
+		else if (r==1)
+			card.put ("point", 11);	// A 可以为 1 或者 11，玩家不必过多关注其取值，因为：为了简便， bot 只会取一个最接近 21 点可能性的最大数值
+		else
+			card.put ("point", r);	// 2-10 点数值
+
+		if (CARD_SUITS[s]=='♣' || CARD_SUITS[s]=='♠')
+		{
+			//card.put ("color", Colors.BLACK);
+			card.put ("color", "");
+		}
+		else if (CARD_SUITS[s]=='♦' || CARD_SUITS[s]=='♥')
+			card.put ("color", Colors.RED);
+
+		deck.add (card);
 	}
 
 	@Override
@@ -92,10 +242,25 @@ public class BlackJack extends Game
 	{
 		return p + ".points";
 	}
+	String getAlternativePointsKey (String p)
+	{
+		return p + ".alt.points";
+	}
 	String getFaceUpPointsKey (String p)
 	{
 		return p + ".faceup.points";
 	}
+	String getFaceUpAlternativePointsKey (String p)
+	{
+		return p + ".faceup.alt.points";
+	}
+	/**
+	 * 给一个玩家发一张牌
+	 * @param p 玩家名
+	 * @param msg
+	 * @param msgType
+	 * @return 发给该玩家牌后的其所有的牌
+	 */
 	@SuppressWarnings ("unchecked")
 	List<Map<String, Object>> deal (String p, String msg, int msgType)
 	{
@@ -108,8 +273,8 @@ public class BlackJack extends Game
 
 		Map<String, Object> card = deck.remove (0);
 		player_cards.add (card);
-		players_cards.put (getPointsKey (p), CalculatePoints(p));	// 所有牌的点数值
-		players_cards.put (getFaceUpPointsKey (p), CalculatePoints(p, false));	// 明牌的点数值
+		CalculatePoints(p);	// 所有牌的点数值
+		CalculatePoints(p, false);	// 明牌的点数值
 
 		StringBuilder sb = new StringBuilder ();
 		for (int i=1; i<player_cards.size (); i++)
@@ -119,8 +284,8 @@ public class BlackJack extends Game
 			sb.append (card.get ("rank"));
 		}
 
-		if ((msgType & MESSAGE_TYPE_MASK_PUBLIC) > 0)
-			bot.SendMessage (channel, p, true, 1, msg + GenerateCardsInfoTo(p, false) + Colors.NORMAL);
+		if ((msgType & MESSAGE_TYPE_MASK_CHANNEL) > 0)
+			bot.SendMessage (channel, p, true, 1, "[底牌] " + msg + GenerateCardsInfoTo(p, false) + Colors.NORMAL);
 
 		if ((msgType & MESSAGE_TYPE_MASK_PM) > 0)
 			bot.SendMessage (null, p, false, 1, GenerateCardsInfoTo(p, true) + Colors.NORMAL);
@@ -137,45 +302,13 @@ public class BlackJack extends Game
 		}
 	}
 
-	int CalculatePoints (List<Map<String, Object>> player_cards, boolean includeHoleCard)
-	{
-		int nSum = 0;
-		int iStart = includeHoleCard ? 0 : 1;
-		for (int i=iStart; i<player_cards.size (); i++)
-		{
-			Map<String, Object> card = player_cards.get (i);
-			if (((String)card.get ("rank")).equalsIgnoreCase ("A"))
-			{
-				nSum += 11;	// A 默认取点值 11
-				if (nSum > BURST_POINT)	// 如果总和超过了 21 点，则 A 改取点值 1
-					nSum -= 10;
-			}
-			else
-				nSum += (int)card.get ("point");
-		}
-		return nSum;
-	}
-	int CalculatePoints (List<Map<String, Object>> player_cards)
-	{
-		return CalculatePoints (player_cards, true);
-	}
-
 	/**
-	 * 点数值比较器
+	 * 点数值比较器，用于对游戏结果排序
 	 * @author liuyan
 	 *
 	 */
 	class PointsComparator implements Comparator<String>
 	{
-		boolean orderAscending = false;
-		public PointsComparator (boolean order)
-		{
-			setOrder (order);
-		}
-		public void setOrder (boolean order)
-		{
-			orderAscending = order;
-		}
 		@Override
 		public int compare (String o1, String o2)
 		{
@@ -183,7 +316,7 @@ public class BlackJack extends Game
 			String k2 = getPointsKey (o2);
 			int v1 = (int)players_cards.get (k1);
 			int v2 = (int)players_cards.get (k2);
-			return orderAscending ? v1-v2 : v2-v1;
+			return v1-v2;
 		}
 	}
 
@@ -196,11 +329,69 @@ public class BlackJack extends Game
 	@SuppressWarnings ("unchecked")
 	int CalculatePoints (String player, boolean includeHoleCard)
 	{
-		return CalculatePoints ((List<Map<String, Object>>)players_cards.get (player), includeHoleCard);
+		List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (player);
+		int nBestPointsSum = 0;
+		int iStart = includeHoleCard ? 0 : 1;
+		int nAces = 0;	// A 的牌数
+		for (int i=iStart; i<player_cards.size (); i++)
+		{
+			Map<String, Object> card = player_cards.get (i);
+			if (((String)card.get ("rank")).equalsIgnoreCase ("A"))
+				nAces ++;
+
+			nBestPointsSum += (int)card.get ("point");
+		}
+
+		if (nAces > 0)
+		{	// 如果牌里有 A 这种有两个点数值的变态牌，则生成所有可能的点数值列表，并选出最佳点数值
+			boolean isBestPointsSumSettled = false;
+			Set<Integer> setPossiblePoints = new HashSet<Integer> ();
+			GenerateAlternativeAcesPointsRecursivelyTo (nBestPointsSum, nAces, setPossiblePoints);	// 生成所有可能的点数值集合
+
+			List<Integer> listPossiblePoints = new ArrayList<Integer> ();
+			listPossiblePoints.addAll (setPossiblePoints);
+			Collections.sort (listPossiblePoints, Collections.reverseOrder ());	// 按点数值由大到小排列
+
+			for (int i=0; i<listPossiblePoints.size (); i++)
+			{
+				Integer nSum = listPossiblePoints.get (i);
+				if (nSum > BURST_POINT && (i != listPossiblePoints.size () - 1))
+				{	// 如果爆点，并且不是最后一个可能的点数值，则取下一个小一点的点数值
+					nBestPointsSum = listPossiblePoints.get (i+1);
+				}
+				else if (nSum <= BURST_POINT && ! isBestPointsSumSettled)
+				{	// 如果没爆点，并且还没选择最佳点数值，则设置该点数值为最佳点数值，并结束循环
+					nBestPointsSum = nSum;
+					isBestPointsSumSettled = true;	// 不超过 21 点的最大值
+					break;
+				}
+			}
+			listPossiblePoints.remove ((Integer)nBestPointsSum);
+			players_cards.put (includeHoleCard ? getAlternativePointsKey (player) : getFaceUpAlternativePointsKey (player), listPossiblePoints);
+		}
+		players_cards.put (includeHoleCard ? getPointsKey (player) : getFaceUpPointsKey (player), nBestPointsSum);
+
+		return nBestPointsSum;
 	}
 	int CalculatePoints (String player)
 	{
 		return CalculatePoints (player, true);
+	}
+	/**
+	 * 根据默认 A 的默认点数值 11 算出的 nSum、A 牌的数量，生成所有可能的点数值
+	 * @param nSum
+	 * @param nAces
+	 * @param setPossiblePoints 可能的点数值 Set。注意：如果用 List，则一定有重复的点数值
+	 */
+	void GenerateAlternativeAcesPointsRecursivelyTo (int nSum, int nAces, Set<Integer> setPossiblePoints)
+	{
+		if (nAces <= 0)
+			return;
+
+		setPossiblePoints.add (nSum);	// 默认 A 点数值为 11
+		setPossiblePoints.add (nSum - 10);	// A 点数值为 1: 11 - 10 = 1
+		GenerateAlternativeAcesPointsRecursivelyTo (nSum, nAces-1, setPossiblePoints);	// 剩下的 A
+		GenerateAlternativeAcesPointsRecursivelyTo (nSum-10, nAces-1, setPossiblePoints);	// 剩下的 A
 	}
 
 	/**
@@ -226,7 +417,19 @@ public class BlackJack extends Game
 			sb.append (players_cards.get (getPointsKey (p)));
 		else
 			sb.append (players_cards.get (getFaceUpPointsKey (p)));
-		sb.append (" 点。 ");
+		sb.append (" 点");
+		if (players_cards.get (getAlternativePointsKey (p)) != null && includeHoleCard)
+		{
+			sb.append (", 其他点数值: ");
+			sb.append (players_cards.get (getAlternativePointsKey (p)));
+		}
+		else if (players_cards.get (getFaceUpAlternativePointsKey (p)) != null && !includeHoleCard)
+		{
+			sb.append (", 其他点数值: ");
+			sb.append (players_cards.get (getFaceUpAlternativePointsKey (p)));
+		}
+
+		sb.append ("。 ");
 		return sb;
 	}
 	StringBuilder GenerateCardsInfoTo (String p, boolean includeHoleCard)
@@ -263,109 +466,5 @@ public class BlackJack extends Game
 		}
 
 		return sb;
-	}
-
-	@Override
-	public void run ()
-	{
-		try
-		{
-			StringBuilder sb = null;	//new StringBuilder ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
-
-			// 洗牌
-			InitDeck ();
-			//sb.append ("洗牌完毕 ");
-			////sb.append ("\u0003,15");	// 白色背景，好让黑桃、梅花的字符的“黑色”显示出来
-			//for (Map<String, Object> card : deck)
-			//{
-			//	//sb.append (card.get ("color"));
-			//	sb.append (card.get ("suit"));
-			//	sb.append (card.get ("rank"));
-			//	sb.append (" ");
-			//}
-			////sb.append (Colors.NORMAL);
-			//System.out.println (sb);
-			//bot.SendMessage (channel, "", false, 1, "洗牌完毕");
-
-			// 分暗牌
-			deal ("暗牌: ", MESSAGE_TYPE_MASK_PM);
-			bot.SendMessage (channel, null, false, 1, "每人发了一张暗牌，已通过私信发送具体牌，请注意查看");
-
-			// 分明牌
-			deal ("明牌: ", MESSAGE_TYPE_MASK_PUBLIC | MESSAGE_TYPE_MASK_PM);
-
-			// 开始
-			List<String> liveParticipants = participants;
-			List<String> standParticipants = new ArrayList<String> ();	// 停牌的玩家
-			List<String> deadParticipants = new ArrayList<String> ();	// 爆牌的玩家
-			while (true)
-			{
-				Dialog dlg = new Dialog (this,
-						bot, bot.dialogs, Dialog.Type.单选, "要牌么？ ", true, liveParticipants, wannaCards_CandidateAnswers,	// 发票要么？ 毛片要么？
-						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
-				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
-
-				String answer;
-				String value;
-				boolean isAllDontWannaCards = true;
-				for (int i=0; i<liveParticipants.size (); i++)
-				{
-					String p = participants.get (i);
-					answer = (String)participantAnswers.get (p);
-					value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
-					if (isQuitGameAnswer(answer))
-					{
-						//isParticipantWannaQuit = true;
-						break;
-					}
-
-					if (StringUtils.equalsIgnoreCase (value, "1"))
-					{	// 要牌
-						isAllDontWannaCards = false;
-						deal (p, "", MESSAGE_TYPE_MASK_PM | MESSAGE_TYPE_MASK_PUBLIC);
-						int nSum = CalculatePoints (p);
-						if (nSum > BURST_POINT)
-						{	// 爆牌 （死亡）
-							deadParticipants.add (liveParticipants.remove (i));	i --;
-						}
-					}
-					else if (StringUtils.equalsIgnoreCase (value, "2"))
-					{
-					}
-					else if (StringUtils.equalsIgnoreCase (value, "T"))
-					{
-						standParticipants.add (liveParticipants.remove (i));	i --;
-					}
-				}
-
-				// 结束条件: 只剩下一个“活着”的，或者，所有人都不要牌了
-				if (liveParticipants.size () <= 1  ||  isAllDontWannaCards)
-					break;
-			}
-
-			sb = new StringBuilder ();
-			// 活着的人的情况
-			liveParticipants.addAll (standParticipants);
-			PointsComparator comparator = new PointsComparator (false);
-			Collections.sort (liveParticipants, comparator);
-			GeneratePlayersCardsInfoTo (liveParticipants, "存活", sb, null, true);
-
-			// 爆牌的人的情况
-			comparator.setOrder (true);
-			Collections.sort (deadParticipants, comparator);
-			GeneratePlayersCardsInfoTo (deadParticipants, "爆牌", sb, ANSIEscapeTool.COLOR_DARK_RED, true);
-
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。" + sb.toString ());
-		}
-		catch (Exception e)
-		{
-			e.printStackTrace ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏异常: " + e);
-		}
-		finally
-		{
-			games.remove (this);
-		}
 	}
 }
