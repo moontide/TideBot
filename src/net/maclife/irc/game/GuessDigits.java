@@ -12,6 +12,7 @@ import net.maclife.irc.dialog.*;
 
 public class GuessDigits extends Game
 {
+	public int nDigits = 4;
 	public static final int MAX_GUESS_TIMES = 8;
 	char[] arrayDigitsToGuess;
 
@@ -22,6 +23,18 @@ public class GuessDigits extends Game
 		super ("猜数字", bot, listGames, listParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
+
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		if (opt_max_response_lines_specified)
+		{
+			if (opt_max_response_lines < 1)
+				opt_max_response_lines = 1;
+			else if (opt_max_response_lines > 10)
+				opt_max_response_lines = 10;
+
+			nDigits = opt_max_response_lines;
+		}
 	}
 
 	void InitDigits ()
@@ -66,15 +79,15 @@ public class GuessDigits extends Game
 			return true;
 
 		// 先检查是否是 4 位数字
-		if (! answer.matches ("\\d{4}"))
-			throw new IllegalArgumentException ("需要回答一个 4 位数的数字。 [" + answer + "] 不符合要求。");
+		if (! answer.matches ("\\d{" + nDigits + "}"))
+			throw new IllegalArgumentException ("需要回答一个 " + nDigits + " 位数的数字。 [" + answer + "] 不符合要求。");
 
 		// 检查是否有重复的数字
 		Set<Character> setUniqueDigits = new HashSet<Character> ();
 		for (int i=0; i<answer.length(); i++)
 			setUniqueDigits.add (answer.charAt (i));
 		if (setUniqueDigits.size () != answer.length())
-			throw new IllegalArgumentException ("4 位数字中不能有重复的数字。 [" + answer + "] 不符合要求。");
+			throw new IllegalArgumentException (nDigits + " 位数字中不能有重复的数字。 [" + answer + "] 不符合要求。");
 
 		return true;
 	}
@@ -84,7 +97,7 @@ public class GuessDigits extends Game
 	{
 		try
 		{
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始… 请回答/猜一个 4 位无重复数字的数字… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。");
+			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始… 请回答/猜一个 " + nDigits + " 位无重复数字的数字… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。");
 			InitDigits ();
 
 			boolean isParticipantWannaQuit = false;
@@ -93,10 +106,11 @@ public class GuessDigits extends Game
 			for (int t=MAX_GUESS_TIMES; t>=1; t--)
 			{
 				Dialog dlg = new Dialog (this,
-						bot, bot.dialogs, Dialog.Type.开放, (t==8?"请输入一个 4 位无重复数字的数字":"继续猜…"), false, participants, null,
+						bot, bot.dialogs, (t==MAX_GUESS_TIMES?"请输入一个 " + nDigits + " 位无重复数字的数字":"继续猜…"), false, participants,
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
 
+				int nNoAnswerCount = 0;
 				String answer = null;
 				StringBuilder sb = new StringBuilder ();
 				a = b = 0;
@@ -117,9 +131,20 @@ public class GuessDigits extends Game
 					if (answer == null)
 					{	// 没回答
 						sb.append (p);
-						sb.append (": 0A0B(没回答)");
+						sb.append (": ");
+
+						if (nNoAnswerCount >= 3)
+						{
+							sb.append ("[连续 3 次未回答，踢出游戏])");
+						}
+						else
+						{
+							sb.append ("(没回答)");
+
+						}
 						continue;
 					}
+					nNoAnswerCount = 0;
 
 					// 计算结果
 					for (int j=0; j<arrayDigitsToGuess.length; j++)

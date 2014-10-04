@@ -9,7 +9,7 @@ import net.maclife.ansi.*;
 import net.maclife.irc.*;
 import net.maclife.irc.dialog.*;
 
-public class BlackJack extends Game
+public class BlackJack extends CardGame
 {
 	@Override
 	public void run ()
@@ -121,17 +121,6 @@ public class BlackJack extends Game
 
 
 	public static int BURST_POINT = 21;
-	public static final char[] CARD_SUITS =
-		{
-			'♣', '♦', '♥', '♠',
-			//clubs (♣), diamonds (♦), hearts (♥) and spades (♠)
-		};
-	public static final String[] CARD_RANKS =
-		{
-			"A", "2", "3", "4", "5",
-			"6", "7", "8", "9", "10",
-			"J", "Q", "K",
-		};
 
 	public static final int MESSAGE_TYPE_MASK_PM      = 1;
 	public static final int MESSAGE_TYPE_MASK_CHANNEL = 2;
@@ -146,8 +135,6 @@ public class BlackJack extends Game
 	}
 
 	int deck_number = 1;
-	List<Map<String, Object>> deck = new ArrayList<Map<String, Object>> ();
-	Map<String, Object> players_cards = new HashMap<String, Object> ();
 
 	public BlackJack (LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
 			String ch, String nick, String login, String hostname,
@@ -156,6 +143,9 @@ public class BlackJack extends Game
 		super (BURST_POINT + "点", bot, listGames, listParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
+
+		if (listParticipants.size () < 2)
+			throw new IllegalArgumentException ("至少需要 2 人玩。在后面用 /p 参数指定其他玩家");
 
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
@@ -217,7 +207,7 @@ public class BlackJack extends Game
 		if (r >=11 && r<=13)
 			card.put ("point", 10);	// J Q K 点数值为 10
 		else if (r==1)
-			card.put ("point", 11);	// A 可以为 1 或者 11，玩家不必过多关注其取值，因为：为了简便， bot 只会取一个最接近 21 点可能性的最大数值
+			card.put ("point", 11);	// A 可以为 1 或者 11，玩家不必过多关注其取值，因为：为了简便， bot 只会取一个最接近 21 点又不爆点的最大数值
 		else
 			card.put ("point", r);	// 2-10 点数值
 
@@ -303,7 +293,7 @@ public class BlackJack extends Game
 	}
 
 	/**
-	 * 点数值比较器，用于对游戏结果排序
+	 * 总点数值比较器，用于对游戏结果排序
 	 * @author liuyan
 	 *
 	 */
@@ -379,8 +369,8 @@ public class BlackJack extends Game
 	}
 	/**
 	 * 根据默认 A 的默认点数值 11 算出的 nSum、A 牌的数量，生成所有可能的点数值
-	 * @param nSum
-	 * @param nAces
+	 * @param nSum 一个 A 为 11 点数值时的总点数值
+	 * @param nAces A 牌的数量
 	 * @param setPossiblePoints 可能的点数值 Set。注意：如果用 List，则一定有重复的点数值
 	 */
 	void GenerateAlternativeAcesPointsRecursivelyTo (int nSum, int nAces, Set<Integer> setPossiblePoints)

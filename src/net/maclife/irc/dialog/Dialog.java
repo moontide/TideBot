@@ -73,7 +73,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		this.bot = bot;
 		this.dialogs = listDialogs;
 		listDialogs.add (this);
-		type = qt;
+		type = (qt==null ? Type.开放 : qt);
 		question = q;	// (StringUtils.endsWithAny (q, "?", "？") ? q : q + "?");	// 如果问题不是以问号结尾，则在问题后面加上问号
 		this.showQuestion = showQuestion;
 		participants.addAll (listParticipants);
@@ -118,6 +118,34 @@ public class Dialog implements Callable<Map<String, Object>>
 			sb.append (", ");
 		}
 		System.out.println ("候选答案: " + sb);
+	}
+
+	/**
+	 * 开放题构造函数
+	 * @param dlgUser
+	 * @param bot
+	 * @param listDialogs
+	 * @param q
+	 * @param showQuestion
+	 * @param listParticipants
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, String q, boolean showQuestion, List<String> listParticipants,
+			String ch, String nick, String login, String hostname,
+			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		this (dlgUser, bot, listDialogs, Type.开放, q, showQuestion, listParticipants, null,
+			ch, nick, login, hostname,
+			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
+			);
 	}
 
 	/**
