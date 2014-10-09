@@ -11,6 +11,9 @@ import net.maclife.irc.*;
 
 public class Dialog implements Callable<Map<String, Object>>
 {
+	public static final int MESSAGE_TARGET_MASK_PM      = 1;
+	public static final int MESSAGE_TARGET_MASK_CHANNEL = 2;
+
 	public long threadID = 0;
 	public long starttime = 0;
 	public long endtime = 0;
@@ -20,10 +23,14 @@ public class Dialog implements Callable<Map<String, Object>>
 
 	//
 	String question;
-	boolean showQuestion = true;
 	List<String> participants = new ArrayList<String> ();	// 参与者
 	List<String[]> candidateAnswers = new ArrayList<String[]> ();	// 候选答案
 	Map<String, Object> participantAnswers = new HashMap<String, Object> ();
+
+	public boolean showQuestion = true;
+		public boolean showType = false;
+		public boolean showCandidateAnswers = true;
+		public boolean showUsage = true;
 
 	LiuYanBot bot;
 
@@ -37,6 +44,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	Map<String, Object> mapGlobalOptions;
 	List<String> listCmdEnv;
 	String params;
+	int msgTargetMask = MESSAGE_TARGET_MASK_PM;
 
 	public Lock lock;
 	public Condition endCondition;
@@ -65,7 +73,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		return Type.开放;
 	}
 
-	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean showQuestion, List<String> listParticipants, List<String[]> listCandidateAnswers,
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean showQuestion, Object participants, List<String[]> listCandidateAnswers,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -76,7 +84,13 @@ public class Dialog implements Callable<Map<String, Object>>
 		type = (qt==null ? Type.开放 : qt);
 		question = q;	// (StringUtils.endsWithAny (q, "?", "？") ? q : q + "?");	// 如果问题不是以问号结尾，则在问题后面加上问号
 		this.showQuestion = showQuestion;
-		participants.addAll (listParticipants);
+		if (participants instanceof List)
+			this.participants.addAll ((List<String>)participants);
+		else if (participants instanceof String)
+			this.participants.add ((String)participants);
+		else
+			throw new IllegalArgumentException ("Dialog 参与者参数的数据类型不符合要求，必须为 List<String> (多人) 或 String (单人)");
+
 		if (type == Type.单选 || type == Type.多选)
 		{
 			candidateAnswers.addAll (listCandidateAnswers);
@@ -127,7 +141,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	 * @param listDialogs
 	 * @param q
 	 * @param showQuestion
-	 * @param listParticipants
+	 * @param participants
 	 * @param ch
 	 * @param nick
 	 * @param login
@@ -138,11 +152,11 @@ public class Dialog implements Callable<Map<String, Object>>
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, String q, boolean showQuestion, List<String> listParticipants,
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, String q, boolean showQuestion, Object participants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		this (dlgUser, bot, listDialogs, Type.开放, q, showQuestion, listParticipants, null,
+		this (dlgUser, bot, listDialogs, Type.开放, q, showQuestion, participants, null,
 			ch, nick, login, hostname,
 			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
@@ -347,12 +361,15 @@ public class Dialog implements Callable<Map<String, Object>>
 				sb.append (participants.get (i));
 			}
 			sb.append (": ");
-			sb.append (type);
-			sb.append ("题:");
+			if (showType)
+			{
+				sb.append (type);
+				sb.append ("题:");
+			}
 			sb.append (Colors.BOLD);
 			sb.append (question);
 			sb.append (Colors.BOLD);
-			if (type != Type.开放)
+			if (type != Type.开放 && showCandidateAnswers)
 			{
 				sb.append (". 候选答案:");
 				for (String[] ca : candidateAnswers)
@@ -368,19 +385,31 @@ public class Dialog implements Callable<Map<String, Object>>
 					sb.append (" ");
 				}
 			}
-			sb.append (". 请通过 " + Colors.BOLD + bot.getNick () + ": <答案>");
-			if (type == Type.多选)
-				sb.append (" [答案]...");
-			sb.append (Colors.BOLD);
-			sb.append (" 的回答方式或者通过私信发送 ");
-			sb.append (Colors.BOLD);
-				sb.append ("<答案>");
-			if (type == Type.多选)
-				sb.append (" [答案]...");
-			sb.append (Colors.BOLD);
-			sb.append (" 来回答问题，您有 " + timeout_second + " 秒钟的回答时间");
+			if (showUsage)
+			{
+				sb.append (". 请通过 " + Colors.BOLD + bot.getNick () + ": <答案>");
+				if (type == Type.多选)
+					sb.append (" [答案]...");
+				sb.append (Colors.BOLD);
+				sb.append (" 的回答方式或者通过私信发送 ");
+				sb.append (Colors.BOLD);
+					sb.append ("<答案>");
+				if (type == Type.多选)
+					sb.append (" [答案]...");
+				sb.append (Colors.BOLD);
+				sb.append (" 来回答问题");
+			}
+			sb.append ("     您有 " + timeout_second + " 秒钟的回答时间");
 			mapGlobalOptions.put ("opt_output_username", false);	// 不输出用户名，因为可能参与者可能是多人
-			bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// Dialog #" + threadID + " (" + Colors.BOLD + question + Colors.BOLD + ") started
+
+			if ((msgTargetMask & MESSAGE_TARGET_MASK_CHANNEL) > 0)
+				bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// Dialog #" + threadID + " (" + Colors.BOLD + question + Colors.BOLD + ") started
+
+			if ((msgTargetMask & MESSAGE_TARGET_MASK_PM) > 0)
+			{
+				for (String p : participants)
+					bot.SendMessage (null, p, mapGlobalOptions, sb.toString ());
+			}
 		}
 		starttime = System.currentTimeMillis ();
 

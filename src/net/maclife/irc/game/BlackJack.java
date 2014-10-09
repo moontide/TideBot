@@ -39,11 +39,11 @@ public class BlackJack extends CardGame
 			//bot.SendMessage (channel, "", false, 1, "洗牌完毕");
 
 			// 分暗牌
-			deal ("暗牌: ", MESSAGE_TYPE_MASK_PM);
+			deal ("暗牌: ", Dialog.MESSAGE_TARGET_MASK_PM);
 			bot.SendMessage (channel, null, false, 1, "每人发了一张暗牌，已通过私信发送具体牌，请注意查看");
 
 			// 分明牌
-			deal ("明牌: ", MESSAGE_TYPE_MASK_CHANNEL | MESSAGE_TYPE_MASK_PM);
+			deal ("明牌: ", Dialog.MESSAGE_TARGET_MASK_CHANNEL | Dialog.MESSAGE_TARGET_MASK_PM);
 
 			// 开始
 			List<String> liveParticipants = participants;
@@ -74,7 +74,7 @@ public class BlackJack extends CardGame
 					if (StringUtils.equalsIgnoreCase (value, "1"))
 					{	// 要牌
 						isAllDontWannaCards = false;
-						deal (p, "", MESSAGE_TYPE_MASK_PM | MESSAGE_TYPE_MASK_CHANNEL);
+						deal (p, "", Dialog.MESSAGE_TARGET_MASK_PM | Dialog.MESSAGE_TARGET_MASK_CHANNEL);
 						int nSum = CalculatePoints (p);
 						if (nSum > BURST_POINT)
 						{	// 爆牌 （死亡）
@@ -121,10 +121,6 @@ public class BlackJack extends CardGame
 
 
 	public static int BURST_POINT = 21;
-
-	public static final int MESSAGE_TYPE_MASK_PM      = 1;
-	public static final int MESSAGE_TYPE_MASK_CHANNEL = 2;
-	//public static final int MESSAGE_TYPE_MASK_QUIET   = 0;
 
 	public static List<String[]> wannaCards_CandidateAnswers = new ArrayList<String[]> ();	// 候选答案
 	static
@@ -248,11 +244,11 @@ public class BlackJack extends CardGame
 	 * 给一个玩家发一张牌
 	 * @param p 玩家名
 	 * @param msg
-	 * @param msgType
+	 * @param msgTarget
 	 * @return 发给该玩家牌后的其所有的牌
 	 */
 	@SuppressWarnings ("unchecked")
-	List<Map<String, Object>> deal (String p, String msg, int msgType)
+	List<Map<String, Object>> deal (String p, String msg, int msgTarget)
 	{
 		List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (p);
 		if (player_cards == null)
@@ -274,21 +270,21 @@ public class BlackJack extends CardGame
 			sb.append (card.get ("rank"));
 		}
 
-		if ((msgType & MESSAGE_TYPE_MASK_CHANNEL) > 0)
+		if ((msgTarget & Dialog.MESSAGE_TARGET_MASK_CHANNEL) > 0)
 			bot.SendMessage (channel, p, true, 1, "[底牌] " + msg + GenerateCardsInfoTo(p, false) + Colors.NORMAL);
 
-		if ((msgType & MESSAGE_TYPE_MASK_PM) > 0)
+		if ((msgTarget & Dialog.MESSAGE_TARGET_MASK_PM) > 0)
 			bot.SendMessage (null, p, false, 1, GenerateCardsInfoTo(p, true) + Colors.NORMAL);
 
 		return player_cards;
 	}
 
-	void deal (String msg, int msgType)
+	void deal (String msg, int msgTarget)
 	{
 		for (int i=0; i<participants.size (); i++)
 		{
 			String p = participants.get (i);
-			deal (p, msg, msgType);
+			deal (p, msg, msgTarget);
 		}
 	}
 
