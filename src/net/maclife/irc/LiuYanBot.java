@@ -78,13 +78,14 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
 	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
 	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
+	public static final String BOT_PRIMARY_COMMAND_MAC_MANUFACTORY  = "Mac";	// 查询 MAC 地址所属的制造商
 
 	public static final String BOT_PRIMARY_COMMAND_Time	            = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action	        = "Action";
 	public static final String BOT_PRIMARY_COMMAND_Notice	        = "Notice";
 
 	public static final String BOT_PRIMARY_COMMAND_URLDecode        = "URLDecode";
-	public static final String BOT_PRIMARY_COMMAND_URLEecode        = "URLEecode";
+	public static final String BOT_PRIMARY_COMMAND_URLEncode        = "URLEncode";
 	public static final String BOT_PRIMARY_COMMAND_HTTPHead         = "HTTPHead";
 
 	public static final String BOT_PRIMARY_COMMAND_TimeZones	    = "TimeZones";
@@ -127,13 +128,14 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "三国杀", },
+		{BOT_PRIMARY_COMMAND_MAC_MANUFACTORY, "oui", "macm", },
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
 		{BOT_PRIMARY_COMMAND_Notice, },
 
 		{BOT_PRIMARY_COMMAND_URLDecode, },
-		{BOT_PRIMARY_COMMAND_URLEecode, },
+		{BOT_PRIMARY_COMMAND_URLEncode, },
 		{BOT_PRIMARY_COMMAND_HTTPHead, },
 
 		{BOT_PRIMARY_COMMAND_TimeZones, "JavaTimeZones", },
@@ -1118,6 +1120,9 @@ public class LiuYanBot extends PircBot implements Runnable
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Game))
 				ProcessCommand_Game (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_MAC_MANUFACTORY))
+				ProcessCommand_MacManufactory (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
@@ -1126,7 +1131,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Action) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Notice))
 				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
-			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLEecode) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLDecode))
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLEncode) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLDecode))
 				ProcessCommand_URLEncodeDecode (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_HTTPHead))
 				ProcessCommand_HTTPHead (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -1480,35 +1485,39 @@ public class LiuYanBot extends PircBot implements Runnable
 				"[/p " + formatBotParameter ("其他玩家", true) + "...]  " +
 				"-- 在 IRC 中玩一些简单的游戏... " +
 				formatBotParameter ("游戏名", true) + ": " +
-					formatBotParameterInstance ("猜数字", true) + "|" +
-					formatBotParameterInstance ("21点", true) + ", 21点游戏可用 ." + formatBotOption ("正整数", true) + " 指定用几副牌(1-4), 默认用 1 副牌." +
+					formatBotParameterInstance ("猜数字", true) +
+					"|" + formatBotParameterInstance ("21点", true) +
+					"|" + formatBotParameterInstance ("斗地主", true) +
+					", 21点游戏可用 ." + formatBotOption ("正整数", true) + " 指定用几副牌(1-4), 默认用 1 副牌." +
 					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack"
 				);
 		}
+		primaryCmd = BOT_PRIMARY_COMMAND_MAC_MANUFACTORY;         if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAD 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC (4) AA BB CC");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		primaryCmd = BOT_PRIMARY_COMMAND_Action;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
 		primaryCmd = BOT_PRIMARY_COMMAND_Notice;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
 
-		primaryCmd = BOT_PRIMARY_COMMAND_URLEecode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "|" + formatBotCommandInstance (BOT_PRIMARY_COMMAND_URLDecode, true) + "[" + formatBotOption (".字符集", true) + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
+		primaryCmd = BOT_PRIMARY_COMMAND_URLEncode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance (BOT_PRIMARY_COMMAND_URLDecode, true) + "[" + formatBotOption (".字符集", true) + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
 		primaryCmd = BOT_PRIMARY_COMMAND_HTTPHead;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " <" + formatBotParameter ("HTTP 网址", true) + ">    -- 显示指定网址的 HTTP 响应头");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("HTTP 网址", true) + ">    -- 显示指定网址的 HTTP 响应头");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Locales;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaLocales"))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "|" + formatBotCommandInstance ("javalocales", true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("javalocales", true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出 Java 中的语言区域. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的语言区域信息. 举例： locales zh_ en_    // 列出包含 'zh'_(中文) 和/或 包含 'en_'(英文) 的语言区域");
 		primaryCmd = BOT_PRIMARY_COMMAND_TimeZones;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "JavaTimeZones"))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "|" + formatBotCommandInstance ("javatimezones", true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("javatimezones", true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出 Java 中的时区. 过滤字可有多个, 若有多个, 则列出包含其中任意一个过滤字的时区信息. 举例： timezones asia/ america/    // 列出包含 'asia/'(亚洲) 和/或 包含 'america/'(美洲) 的时区");
 		primaryCmd = BOT_PRIMARY_COMMAND_Env;            if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出本 bot 进程的环境变量. 过滤字可有多个, 若有多个, 则列出符合其中任意一个的环境变量");
 		primaryCmd = BOT_PRIMARY_COMMAND_Properties;     if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("过滤字", true) + "]...    -- 列出本 bot 进程的 Java 属性 (类似环境变量). 过滤字可有多个, 若有多个, 则列出符合其中任意一个的 Java 属性");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Version;          if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + Colors.NORMAL + "    -- 显示 bot 版本信息");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "    -- 显示 bot 版本信息");
 	}
 
 	/**
@@ -5414,7 +5423,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		}
 
 		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
+		// opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
 		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
 		//if (opt_reply_to_option_on && StringUtils.equalsIgnoreCase (getNick (), opt_reply_to))
 		//{
@@ -5559,8 +5568,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			return;
 		}
 
-		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
+		//int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
+		//boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
 		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
 		//if (opt_reply_to_option_on && StringUtils.equalsIgnoreCase (getNick (), opt_reply_to))
 		//{
@@ -5645,8 +5654,6 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			|| StringUtils.equalsIgnoreCase (sGame, "bj")
 			)
 		{
-			if (listParticipants.size () < 2)
-				throw new IllegalArgumentException ("至少需要 2 人玩。在后面用 /p 参数指定其他玩家");
 			game = new BlackJack (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "猜数字")
@@ -5654,6 +5661,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			)
 		{
 			game = new GuessDigits (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		}
+		else if (StringUtils.equalsIgnoreCase (sGame, "斗地主")
+			|| StringUtils.equalsIgnoreCase (sGame, "ddz")
+			)
+		{
+			game = new DouDiZhu (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "三国杀")
 			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
@@ -5669,6 +5682,21 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			executor.execute (game);
 	}
 
+	/**
+	 * 查询 MAC 地址所属的制造商.
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_MacManufactory (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+	}
 	/**
 	 * MySQL
 	 * @param ch
