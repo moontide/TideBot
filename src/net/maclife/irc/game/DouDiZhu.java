@@ -5,6 +5,7 @@ import java.util.*;
 import org.apache.commons.lang3.*;
 import org.jibble.pircbot.*;
 
+import net.maclife.ansi.*;
 import net.maclife.irc.*;
 import net.maclife.irc.dialog.*;
 
@@ -35,7 +36,13 @@ public class DouDiZhu extends CardGame
 				Dialog dlg = new Dialog (this,
 						bot, bot.dialogs, Dialog.Type.单选, "抢地主吗？", true, participants.subList (iTurn, iTurn+1), 抢地主候选答案,
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+				dlg.showUsage = false;
 				dlg.timeout_second = 30;
+				for (String p : participants)
+				{
+					if (! StringUtils.equalsIgnoreCase (p, participants.get (iTurn)))
+						bot.SendMessage (null, p, false, 1, "请等 " + participants.get (iTurn) + " 抢地主…");
+				}
 				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
 					answer = (String)participantAnswers.get (participants.get (iTurn));
 					value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
@@ -48,6 +55,20 @@ public class DouDiZhu extends CardGame
 				}
 				else if (value.equalsIgnoreCase ("1") || value.equalsIgnoreCase ("2"))
 				{	// 把等于低于此数值的候选答案剔除
+					//for (String[] ca : 抢地主候选答案)	// java.util.ConcurrentModificationException
+					for (int i=0; i<抢地主候选答案.size (); i++)
+					{
+						String[] ca = 抢地主候选答案.get (i);
+						if (value.equalsIgnoreCase ("1") && ca[0].equalsIgnoreCase ("1"))
+						{
+							抢地主候选答案.remove (i);	i--;
+							break;	// 只剔除一个答案即可
+						}
+						else if (value.equalsIgnoreCase ("2") && (ca[0].equalsIgnoreCase ("1") || ca[0].equalsIgnoreCase ("2")))
+						{
+							抢地主候选答案.remove (i);	i--;
+						}
+					}
 					无人继续抢地主次数 = 0;
 					landlord = participants.get (iTurn);
 				}
@@ -73,7 +94,7 @@ public class DouDiZhu extends CardGame
 			player_cards.addAll (deck);
 				Collections.sort (player_cards, comparator);
 			GenerateCardsInfoTo (deck, sb);
-			String msg = name + " 游戏 #" + Thread.currentThread ().getId () + " 地主 " + landlord + " 获得了底牌: "+ sb;
+			String msg = "地主是 " + landlord + "，地主获得了底牌: "+ sb;
 			for (String p : participants)
 			{
 				bot.SendMessage (null, p, false, 1, msg);
@@ -81,19 +102,178 @@ public class DouDiZhu extends CardGame
 			bot.SendMessage (null, landlord, false, 1, "" + GenerateCardsInfoTo (player_cards, null));
 
 			// 开始循环
-			stage = STAGE_出牌;
-			iTurn = participants.indexOf (landlord);
+			int iRound = participants.indexOf (landlord);	// 谁的回合
+			String sWinner = "";
+
+		round:
 			while (true)
 			{
+				iTurn = iRound;
+				String sRoundPlayer = participants.get (iRound);
+				player_cards = (List<Map<String, Object>>)players_cards.get (sRoundPlayer);
+				stage = STAGE_回合出牌;
 				Dialog dlg = new Dialog (this,
-						bot, bot.dialogs, null, "请出牌 ", true, participants, null,
+						bot, bot.dialogs, "您的回合开始，请出牌，每张牌用空格隔开。 当前手牌: " + GenerateCardsInfoTo (sRoundPlayer), true, sRoundPlayer,
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
-				dlg.timeout_second = 30;
+				dlg.showUsage = false;
+				dlg.timeout_second = 3 * player_cards.size () + 10;	// 每张牌 3 秒钟的出牌时间，外加 10 秒钟的 IRC 延时时间
+				for (String p : participants)
+				{
+					if (! StringUtils.equalsIgnoreCase (p, sRoundPlayer))
+						bot.SendMessage (null, p, false, 1, sRoundPlayer + " 的回合开始，请等他/她出牌…");
+				}
 				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
+					answer = (String)participantAnswers.get (sRoundPlayer);
+				if (StringUtils.isEmpty (answer))
+				{	// 回合内玩家不出牌，则系统自动替他出一张
+					//
+					answer = (String)player_cards.get (0).get ("rank");
+				}
+				String[] arrayCardRanks_RoundPlayer = answer.split (" +");
+				List<String> listCardRanks_RoundPlayer = Arrays.asList (arrayCardRanks_RoundPlayer);
+				Collections.sort (listCardRanks_RoundPlayer, comparator);
+				RemovePlayedCards (sRoundPlayer, listCardRanks_RoundPlayer);
+				Map<String, Object> cards_RoundPlayer = CalculateCards (listCardRanks_RoundPlayer);
+				lastPlayedCardType = GetCardsType (answer);	// 这里不应该抛出异常了，因为 dialog 调用的 ValidateAnswer 已经验证过有效性了
+				for (String p : participants)
+				{
+					bot.SendMessage (null, p, false, 1,
+						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ? "你" : sRoundPlayer) +
+						" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_RoundPlayer +
+						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ?
+							(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p)) :
+							(player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : "")	// 只剩下 1-2 张牌，则报牌数
+						)
+					);
+				}
+				if (player_cards.size () == 0)
+				{	// 出完牌了，则结束
+					if (StringUtils.equalsIgnoreCase (landlord, sRoundPlayer))
+						sWinner = "地主";
+					else
+						sWinner = "农民";
+					break;
+				}
+				sLastPlayedPlayer = sRoundPlayer;	// 最后一个出牌的玩家
+				mapLastPlayedCards = cards_RoundPlayer;
+				listLastPlayedCardRanks = listCardRanks_RoundPlayer;
 
-				break;
+				int nPassed = 0;	// 过牌的人数
+			turn:
+				while (true)
+				{
+					iTurn = NextTurn (iTurn);
+					String sTurnPlayer = participants.get (iTurn);
+					player_cards = (List<Map<String, Object>>)players_cards.get (sTurnPlayer);
+					stage = STAGE_响应出牌;
+					Dialog dlg_response = new Dialog (this,
+							bot, bot.dialogs,
+							sLastPlayedPlayer + " 打出了 " + lastPlayedCardType + " " + listLastPlayedCardRanks + ", 请出牌打过他/她 (每张牌用空格隔开); 或答复 " +
+								Colors.REVERSE + "pass" + Colors.REVERSE + " 或者 " + Colors.REVERSE + "过" + Colors.REVERSE +
+								" 过牌。 当前手牌: " + GenerateCardsInfoTo (sTurnPlayer),
+							true, sTurnPlayer,
+							channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+					dlg.showUsage = false;
+					dlg_response.timeout_second = 3 * player_cards.size () + 10;
+					for (String p : participants)
+					{
+						if (! StringUtils.equalsIgnoreCase (p, sTurnPlayer))
+							bot.SendMessage (null, p, false, 1, "请等 " + sTurnPlayer + " 出牌…");
+					}
+					Map<String, Object> participantAnswers_response = bot.executor.submit (dlg_response).get ();
+						answer = (String)participantAnswers_response.get (sTurnPlayer);
+
+					if (StringUtils.isEmpty (answer) || StringUtils.equalsIgnoreCase (answer, "pass") || StringUtils.equalsIgnoreCase (answer, "过"))
+					{
+						msg = (StringUtils.isEmpty (answer) ? "未出牌，自动过牌" : "过牌");
+						for (String p : participants)
+						{
+							bot.SendMessage (null, p, false, 1, (StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) + " " + msg);
+						}
+						nPassed ++;
+					}
+					else
+					{
+						String[] arrayCardRanks_TurnPlayer = answer.split (" +");
+						List<String> listCardRanks_TurnPlayer = Arrays.asList (arrayCardRanks_TurnPlayer);
+						Collections.sort (listCardRanks_TurnPlayer, comparator);
+						RemovePlayedCards (sTurnPlayer, listCardRanks_TurnPlayer);
+						Map<String, Object> cards_TurnPlayer = CalculateCards (listCardRanks_TurnPlayer);
+						lastPlayedCardType = GetCardsType (answer);	// 这里不应该抛出异常了，因为 dialog 调用的 ValidateAnswer 已经验证过有效性了
+
+						for (String p : participants)
+						{
+							bot.SendMessage (null, p, false, 1,
+								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) +
+								" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_TurnPlayer +
+								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ?
+									(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p)) :
+									(player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : "")	// 只剩下 1-2 张牌，则报牌数
+								)
+							);
+						}
+						if (player_cards.size () == 0)
+						{	// 如果回应的人也出完牌了，则也结束
+							if (StringUtils.equalsIgnoreCase (landlord, sTurnPlayer))
+								sWinner = "地主";
+							else
+								sWinner = "农民";
+							break round;
+						}
+						sLastPlayedPlayer = sTurnPlayer;	// 最后一个出牌的玩家
+						mapLastPlayedCards = cards_TurnPlayer;
+						listLastPlayedCardRanks = listCardRanks_TurnPlayer;
+						nPassed = 0;
+					}
+					if (nPassed >= 2)
+					{	// 其他两人都过牌了，则轮到“最后出牌人”的回合了
+						iRound = participants.indexOf (sLastPlayedPlayer);
+						break;
+					}
+				}
 			}
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。" + sb.toString ());
+
+			// 游戏结束，显示结果
+			StringBuilder sbResult = new StringBuilder ();
+			sbResult.append (name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。");
+			participants.remove (landlord);
+			if (sWinner.equalsIgnoreCase ("地主"))
+			{
+				sbResult.append ("赢家: 地主 ");
+				sbResult.append (Colors.DARK_GREEN);
+				sbResult.append (landlord);
+				sbResult.append (Colors.NORMAL);
+				sbResult.append (", 输家: 农民 ");
+				sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
+				for (String p : participants)
+				{
+					sbResult.append (p);
+					sbResult.append (" ");
+				}
+				sbResult.append (Colors.NORMAL);
+			}
+			else
+			{
+				sbResult.append ("赢家: 农民 ");
+				sbResult.append (Colors.DARK_GREEN);
+				for (String p : participants)
+				{
+					sbResult.append (p);
+					sbResult.append (" ");
+				}
+				sbResult.append (Colors.NORMAL);
+				sbResult.append (", 输家:  地主 ");
+				sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
+				sbResult.append (landlord);
+				sbResult.append (Colors.NORMAL);
+			}
+			msg = name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。" + sbResult.toString ();
+			bot.SendMessage (channel, "", false, 1, msg);	// 在频道里显示结果
+			participants.add (landlord);	// 再把地主加回来，通过私信告知每个人游戏结果
+			for (String p : participants)
+			{
+				bot.SendMessage (null, p, false, 1, msg);
+			}
 		}
 		catch (Exception e)
 		{
@@ -105,6 +285,11 @@ public class DouDiZhu extends CardGame
 			games.remove (this);
 		}
 	}
+
+	String sLastPlayedPlayer = null;
+	Map<String, Object> mapLastPlayedCards = null;
+	List<String> listLastPlayedCardRanks = null;
+	Type lastPlayedCardType = null;
 
 	/**
 	 * 顺序轮流
@@ -118,9 +303,15 @@ public class DouDiZhu extends CardGame
 			iTurn = 0;
 		return iTurn;
 	}
+	int NextTurn (String sCurrentPlayer)
+	{
+		int iTurn = participants.indexOf (sCurrentPlayer);
+		return NextTurn (iTurn);
+	}
 
-	public static final int STAGE_抢地主 = 1;
-	public static final int STAGE_出牌   = 2;
+	public static final int STAGE_抢地主   = 1;
+	public static final int STAGE_回合出牌 = 2;
+	public static final int STAGE_响应出牌 = 3;
 	int stage;
 	public List<String[]> 抢地主候选答案 = new ArrayList<String[]> ();	// 候选答案
 	{
@@ -131,15 +322,27 @@ public class DouDiZhu extends CardGame
 	}
 	public enum Type
 	{
+		__未知牌型__,
+
 		单,
-		单顺,
+		顺子,
+
 		对,
-		对顺,
+		连对,
+
 		三,
-		三顺,
 		三带1,
+		三带1对,
 		飞机,
-		飞机带翅膀,
+		飞机带单,
+		飞机带对,
+
+		//四,
+		四带2,
+		四带2对,
+		大飞机,
+		大飞机带2单,
+		大飞机带2对,
 
 		炸弹,
 		王炸,
@@ -198,12 +401,7 @@ System.out.println (deck);
 		Map<String, Object> card = new HashMap<String, Object> ();
 		card.put ("suit", CARD_SUITS[s]);	// 花色
 		card.put ("rank", CARD_RANKS[r-1]);	// 大小
-		if (r==1)
-			card.put ("point", 14);	// 修改 A 的大小: A 比 K 大
-		else if (r==2)
-			card.put ("point", 15);	// 修改 2 的大小: 2 比 A 大
-		else
-			card.put ("point", r);
+		card.put ("point", RankToPoint (CARD_RANKS[r-1]));
 
 		if (CARD_SUITS[s]=='♣' || CARD_SUITS[s]=='♠')
 			card.put ("color", "");
@@ -232,20 +430,15 @@ System.out.println (deck);
 
 	public static int RankToPoint (String rank)
 	{
-		if (StringUtils.equalsIgnoreCase (rank, "3"))
-			return 3;
-		else if (StringUtils.equalsIgnoreCase (rank, "4"))
-			return 4;
-		else if (StringUtils.equalsIgnoreCase (rank, "5"))
-			return 5;
-		else if (StringUtils.equalsIgnoreCase (rank, "6"))
-			return 6;
-		else if (StringUtils.equalsIgnoreCase (rank, "7"))
-			return 7;
-		else if (StringUtils.equalsIgnoreCase (rank, "8"))
-			return 8;
-		else if (StringUtils.equalsIgnoreCase (rank, "9"))
-			return 9;
+		if (StringUtils.equalsIgnoreCase (rank, "3")
+			|| StringUtils.equalsIgnoreCase (rank, "4")
+			|| StringUtils.equalsIgnoreCase (rank, "5")
+			|| StringUtils.equalsIgnoreCase (rank, "6")
+			|| StringUtils.equalsIgnoreCase (rank, "7")
+			|| StringUtils.equalsIgnoreCase (rank, "8")
+			|| StringUtils.equalsIgnoreCase (rank, "9")
+			)
+			return Integer.parseInt (rank);
 		else if (StringUtils.equalsIgnoreCase (rank, "10") || StringUtils.equalsIgnoreCase (rank, "0") || StringUtils.equalsIgnoreCase (rank, "1"))
 			return 10;
 		else if (StringUtils.equalsIgnoreCase (rank, "J"))
@@ -257,12 +450,40 @@ System.out.println (deck);
 		else if (StringUtils.equalsIgnoreCase (rank, "A"))
 			return 14;
 		else if (StringUtils.equalsIgnoreCase (rank, "2"))
-			return 15;
-		else if (StringUtils.equalsIgnoreCase (rank, "☆"))
+			return 20;	// 不能跟 A 的点数值连起来，否则在判断是否顺子时会把 2 误判断进去
+		else if (StringUtils.equalsIgnoreCase (rank, "☆") || StringUtils.equalsIgnoreCase (rank, "X") || StringUtils.equalsIgnoreCase (rank, "XW"))	// XiaoWang 小王
 			return 99;
-		else if (StringUtils.equalsIgnoreCase (rank, "★"))
+		else if (StringUtils.equalsIgnoreCase (rank, "★") || StringUtils.equalsIgnoreCase (rank, "D") || StringUtils.equalsIgnoreCase (rank, "DW"))	// DaWang 大王
 			return 100;
 		return 0;
+	}
+	public static String FormalRank (String rank)
+	{
+		if (StringUtils.equalsIgnoreCase (rank, "3")
+			|| StringUtils.equalsIgnoreCase (rank, "4")
+			|| StringUtils.equalsIgnoreCase (rank, "5")
+			|| StringUtils.equalsIgnoreCase (rank, "6")
+			|| StringUtils.equalsIgnoreCase (rank, "7")
+			|| StringUtils.equalsIgnoreCase (rank, "8")
+			|| StringUtils.equalsIgnoreCase (rank, "9")
+			|| StringUtils.equalsIgnoreCase (rank, "2")
+			)
+			return rank;
+		else if (StringUtils.equalsIgnoreCase (rank, "10") || StringUtils.equalsIgnoreCase (rank, "0") || StringUtils.equalsIgnoreCase (rank, "1"))
+			return "10";
+		else if (StringUtils.equalsIgnoreCase (rank, "J"))
+			return "J";
+		else if (StringUtils.equalsIgnoreCase (rank, "Q"))
+			return "Q";
+		else if (StringUtils.equalsIgnoreCase (rank, "K"))
+			return "K";
+		else if (StringUtils.equalsIgnoreCase (rank, "A"))
+			return "A";
+		else if (StringUtils.equalsIgnoreCase (rank, "☆") || StringUtils.equalsIgnoreCase (rank, "X") || StringUtils.equalsIgnoreCase (rank, "XW"))	// XiaoWang 小王
+			return "☆";
+		else if (StringUtils.equalsIgnoreCase (rank, "★") || StringUtils.equalsIgnoreCase (rank, "D") || StringUtils.equalsIgnoreCase (rank, "DW"))	// DaWang 大王
+			return "★";
+		return "";
 	}
 
 	void DealInitialCards ()
@@ -288,6 +509,24 @@ System.out.println (deck);
 		bot.SendMessage (channel, "", false, 1, "每人摸了 17 张牌 ");
 	}
 
+	void RemovePlayedCards (String p, List<String> listCardRanks)
+	{
+		List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (p);
+		for (int i=0; i<listCardRanks.size (); i++)
+		{
+			String r = listCardRanks.get (i);
+			String fr = FormalRank (r);
+			listCardRanks.set (i, fr);
+			for (Map<String, Object> card : player_cards)
+			{
+				if (StringUtils.equalsIgnoreCase ((String)card.get ("rank"), fr))
+				{
+					player_cards.remove (card);
+					break;
+				}
+			}
+		}
+	}
 	/**
 	 * 单张牌点值比较器，用于对手牌排序
 	 * @author liuyan
@@ -352,9 +591,47 @@ System.out.println (deck);
 	{
 		if (stage == STAGE_抢地主)
 			return true;
-		// 先每一张看出的牌手里有没有，没有则报错
+		if (StringUtils.equalsIgnoreCase (answer, "pass") || StringUtils.equalsIgnoreCase (answer, "过"))
+			return true;
 
-		// 检查是什么牌型
+		// 先每一张看出的牌手里有没有，没有则报错
+		List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (n);
+		List<Map<String, Object>> copy_player_cards = new ArrayList<Map<String, Object>> ();
+		copy_player_cards.addAll (player_cards);
+
+		String[] arrayCardRanks = answer.split (" +");
+		List<String> listCardRanks = Arrays.asList (arrayCardRanks);
+		//Collections.sort (listCardRanks, comparator);
+
+	nextCard:
+		for (int i=0; i<listCardRanks.size (); i++)
+		{
+			String r = listCardRanks.get (i);
+			String fr = FormalRank (r);
+			listCardRanks.set (i, fr);
+			boolean contains = false;
+			for (Map<String, Object> card : copy_player_cards)
+			{
+				if (StringUtils.equalsIgnoreCase ((String)card.get ("rank"), fr))
+				{
+					copy_player_cards.remove (card);
+					continue nextCard;
+				}
+			}
+			if (! contains)
+				throw new IllegalArgumentException ("所出的第 " + (i+1) + " 张牌 ”" + r + "“ 在手牌里没有");
+		}
+
+		// 检查是什么牌型、判断出的牌是否有效
+		Map<String, Object> cards = CalculateCards (listCardRanks);
+		Type cardsType = GetCardsType (answer);
+		if (cardsType == Type.__未知牌型__)
+			throw new IllegalArgumentException (Type.__未知牌型__.toString ());
+		if (stage == STAGE_响应出牌)
+		{
+			if (CompareCards (cards, mapLastPlayedCards) <= 0)
+				throw new IllegalArgumentException ("你所出的牌打不过 " + sLastPlayedPlayer + " 出的牌");
+		}
 
 		// 检查是出牌发起人，还是响应出牌
 
@@ -368,27 +645,27 @@ System.out.println (deck);
 	 * 判断牌型。
 	 * 注意：这里并不判断所有的牌是不是在自己手里（有效的、合法的），调用者需要自己判断。
 	 * @param answer 玩家出的牌，需要用空格分开每张牌。如果不是的话，10 需要用 0 代替，如：890JQK <-- 顺子
-	 * @return
+	 * @return Type 类型的牌型
 	 */
-	public String GetCardsType (String answer)
+	public static Type GetCardsType (String answer)
 	{
 		String sType = null;
-System.out.println (answer);
+//System.out.println (answer);
 		String[] arrayCardRanks = answer.split (" +");
 		List<String> listCardRanks = Arrays.asList (arrayCardRanks);
 		Collections.sort (listCardRanks, comparator);
 Map<String, Object> result = CalculateCards (listCardRanks);
-System.out.println (result);
+//System.out.println (result);
 		if (listCardRanks.size () == 1)
-			return "单";
+			return Type.单;
 		else if (listCardRanks.size () == 2)
 		{
 			if (listCardRanks.contains ("☆") && listCardRanks.contains ("★"))
-				return "王炸";
+				return Type.王炸;
 			if (listCardRanks.get (0).equalsIgnoreCase (listCardRanks.get (1)))
-				return "对";
+				return Type.对;
 		}
-System.out.println (listCardRanks);
+//System.out.println (listCardRanks);
 		int nSolo = (int)result.get ("nSolo");
 		int nPair = (int)result.get ("nPair");
 		int nTrio = (int)result.get ("nTrio");
@@ -403,11 +680,11 @@ System.out.println (listCardRanks);
 				if (nTrio!=0)
 					throw new IllegalArgumentException ("四张牌不能带 3 张牌");
 				if (nSolo==0 && nPair==2)
-					return "四带2对";
+					return Type.四带2对;
 				if (nSolo==2 && nPair==0)
-					return "四带2";
+					return Type.四带2;
 				if (nSolo==0 && nPair==0)
-					return "炸弹";
+					return Type.炸弹;
 				throw new IllegalArgumentException ("四张牌带的附牌数不对: " + nSolo + "张单牌, " + nPair + "双对子");
 			}
 			else
@@ -415,11 +692,11 @@ System.out.println (listCardRanks);
 				if (!isSerial)
 					throw new IllegalArgumentException (nTrio + " 组四张牌不是顺子/飞机");
 				if (nSolo==0 && nPair==0)
-					return "四顺/飞机";
-				if (nSolo==nQuartette*2 && nPair==0)
-					return "四顺带单牌";
+					return Type.大飞机;
 				if (nSolo==0 && nPair==nQuartette*2)
-					return "四顺带对子";
+					return Type.大飞机带2对;
+				if ((nSolo==nQuartette*2 && nPair==0) || (nQuartette*2==nSolo + 2*nPair))
+					return Type.大飞机带2单;
 				throw new IllegalArgumentException ("四顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
 			//break;
@@ -427,11 +704,11 @@ System.out.println (listCardRanks);
 			if (nTrio == 1)
 			{
 				if (nSolo==0 && nPair==0)
-					return "三";
+					return Type.三;
 				if (nSolo==1 && nPair==0)
-					return "三带1";
+					return Type.三带1;
 				if (nSolo==0 && nPair==1)
-					return "三带1对";
+					return Type.三带1对;
 				throw new IllegalArgumentException ("三张牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
 			else if (nTrio > 1)
@@ -440,11 +717,11 @@ System.out.println (listCardRanks);
 				if (!isSerial)
 					throw new IllegalArgumentException (nTrio + " 组三张牌不是顺子/飞机");
 				if (nSolo==0 && nPair==0)
-					return "三顺/飞机";
-				if (nSolo==nTrio && nPair==0)
-					return "三顺带单牌";
+					return Type.飞机;
 				if (nSolo==0 && nPair==nTrio)
-					return "三顺带对子";
+					return Type.飞机带对;
+				if ((nSolo==nTrio && nPair==0) || (nTrio==nSolo + 2*nPair))
+					return Type.飞机带单;
 				throw new IllegalArgumentException ("三顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
 			throw new IllegalArgumentException ("无效的三张牌组数 " + nTrio);
@@ -453,21 +730,26 @@ System.out.println (listCardRanks);
 			if (nSolo != 0)
 				throw new IllegalArgumentException ("对子不能带单牌");
 			if (nPair == 1)
-				return "对";
+				return Type.对;
 			if (nPair >= 3)
 			{
 				if (isSerial)
-					return "连对";
+					return Type.连对;
 				else
 					throw new IllegalArgumentException (nPair + " 双对子不是连对");
 			}
 			throw new IllegalArgumentException ("不能出 " + nPair + " 双对子");
 			//break;
 		case 1:
-			return "单";
+			if (isSerial)
+				return Type.顺子;
+			else if (nSolo == 1)
+				return Type.单;
+			else
+				throw new IllegalArgumentException ("不能出 " + nSolo + " 个单牌");
 			//break;
 		}
-		return "";
+		return Type.__未知牌型__;
 	}
 
 	/**
@@ -487,7 +769,7 @@ System.out.println (listCardRanks);
 	 * 	<dd>附带的牌。List&lt;String&gt; 类型。这些数据基本无用(不参与比较)，只用来显示用。</dd>
 	 * </dl>
 	 */
-	public Map<String, Object> CalculateCards (List<String> listCardRanks)
+	public static Map<String, Object> CalculateCards (List<String> listCardRanks)
 	{
 		Map<String, Object> result = new HashMap<String, Object> ();
 		String sRank;
@@ -536,13 +818,14 @@ System.out.println (listCardRanks);
 				listPrimaryCards.add (k);
 		}
 		Collections.sort (listPrimaryCards, comparator);
-		int MaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));
+		int MaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
 		boolean IsSerial = IsSerial (listPrimaryCards);
 
 		// 保存结果
 		result.put ("PrimaryCardType", nPrimaryCardType);
 		result.put ("PrimaryCards", listPrimaryCards);
 		result.put ("MaxPoint", MaxPoint);
+		result.put ("IsBomb", (nPrimaryCardType>=4 && nTrio==0 && nPair==0 && nSolo==0) || (listCardRanks.size ()==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★")));
 		result.put ("IsSerial", IsSerial);
 		result.put ("nSolo", nSolo);
 		result.put ("nPair", nPair);
@@ -557,7 +840,7 @@ System.out.println (listCardRanks);
 	 * @param listCardRanks 必须是按顺序排列好的，否则结果未知
 	 * @return
 	 */
-	public boolean IsSerial (List<String> listCardRanks)
+	public static boolean IsSerial (List<String> listCardRanks)
 	{
 		if (listCardRanks.size () < 2)
 			return false;
@@ -576,21 +859,68 @@ System.out.println (listCardRanks);
 		return true;
 	}
 
-	public static void main (String[] args)
+	/**
+	 * 比较两组牌的大小
+	 * @param cards1 本人出的牌
+	 * @param cards2 别人出的牌
+	 * @return
+	 * <ul>
+	 * 	<li>若大于，则返回 <code>1</code>/<code>大于0</code>；</li>
+	 * 	<li>若等于则返回 <code>0</code>；</li>
+	 * 	<li>若小于，则返回 <code>-1</code>/<code>小于0</code>；</li>
+	 * </ul>
+	 */
+	public int CompareCards (Map<String, Object> cards1, Map<String, Object> cards2)
 	{
-		DouDiZhu ddz = new DouDiZhu ();
+		assert cards1 != null;
+		assert cards2 != null;
 
-System.out.println ("牌型测试 开始");
-		assert ddz.GetCardsType("2").equalsIgnoreCase ("单");
-		assert (ddz.GetCardsType("2 2").equalsIgnoreCase ("对"));
-		assert (ddz.GetCardsType("2 2 2").equalsIgnoreCase ("三"));
+		int nPrimaryCardType1 = (int)cards1.get ("PrimaryCardType");
+		int nMaxPoint1 = (int)cards1.get ("MaxPoint");
+		int nSolo1 = (int)cards1.get ("nSolo");
+		int nPair1 = (int)cards1.get ("nPair");
+		int nTrio1 = (int)cards1.get ("nTrio");
+		int nQuartette1 = (int)cards1.get ("nQuartette");
+		boolean isBomb1 = (boolean)cards1.get ("IsBomb");
+		boolean isSerial1 = (boolean)cards1.get ("IsSerial");
 
-		assert (ddz.GetCardsType("10 3 4 5 6 7 8 9").equalsIgnoreCase ("单顺"));
-		assert (ddz.GetCardsType("3 3 4 4 5 5 6 6").equalsIgnoreCase ("对顺"));
-		assert (ddz.GetCardsType("6 6 6 7 7 7 8 8 8").equalsIgnoreCase ("三顺"));
+		int nPrimaryCardType2 = (int)cards2.get ("PrimaryCardType");
+		int nMaxPoint2 = (int)cards2.get ("MaxPoint");
+		int nSolo2 = (int)cards2.get ("nSolo");
+		int nPair2 = (int)cards2.get ("nPair");
+		int nTrio2 = (int)cards2.get ("nTrio");
+		int nQuartette2 = (int)cards2.get ("nQuartette");
+		boolean isBomb2 = (boolean)cards2.get ("IsBomb");
+		boolean isSerial2 = (boolean)cards2.get ("IsSerial");
 
-		assert (ddz.GetCardsType("★☆").equalsIgnoreCase ("王炸"));
-		assert (ddz.GetCardsType("Q K A 2 J").equalsIgnoreCase (""));
-System.out.println ("牌型测试 结束");
+		if (isBomb1)
+		{
+			if (isBomb2)
+			{	// 炸弹 vs 炸弹，简单：比较点数值即可 （现在只有一副牌，如果有多副牌，炸弹牌的张数也要考虑进去）
+				return nMaxPoint1 - nMaxPoint2;
+			}
+			else
+				// 炸弹 vs 普通牌，简单：打的过
+				return 1;
+		}
+		else
+		{
+			if (isBomb2)
+			{	// 非炸弹 vs 炸弹，简单：打不过
+				return -1;	// throw new IllegalArgumentException ("打不过炸弹");
+			}
+			else
+			{	// 普通牌 vs 普通牌
+				if (nPrimaryCardType1==nPrimaryCardType2
+					&& nSolo1==nSolo2
+					&& nPair1==nPair2
+					&& nTrio1==nTrio2
+					&& nQuartette1==nQuartette2
+					)
+					return nMaxPoint1 - nMaxPoint2;
+				else
+					throw new IllegalArgumentException ("牌型不一致，无法比较");
+			}
+		}
 	}
 }
