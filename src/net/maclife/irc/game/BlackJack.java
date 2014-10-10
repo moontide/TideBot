@@ -51,6 +51,9 @@ public class BlackJack extends CardGame
 			List<String> deadParticipants = new ArrayList<String> ();	// 爆牌的玩家
 			while (true)
 			{
+				if (stop_flag)
+					throw new RuntimeException ("游戏被终止");
+
 				Dialog dlg = new Dialog (this,
 						bot, bot.dialogs, Dialog.Type.单选, "要牌么？ ", true, liveParticipants, wannaCards_CandidateAnswers,	// 发票要么？ 毛片要么？
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
@@ -141,7 +144,10 @@ public class BlackJack extends CardGame
 			);
 
 		if (listParticipants.size () < 2)
+		{
+			listGames.remove (this);
 			throw new IllegalArgumentException ("至少需要 2 人玩。在后面用 /p 参数指定其他玩家");
+		}
 
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");

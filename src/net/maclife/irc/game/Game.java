@@ -13,7 +13,7 @@ public abstract class Game implements Runnable, DialogUser
 	protected String name;
 
 	public long threadID = 0;
-	public boolean running = false;
+	public boolean stop_flag = false;	// 是否终止游戏，每个游戏类需要自己根据需要决定是否遵守该 stop_flag
 	public long starttime = 0;
 	public long endtime = 0;
 	public long timeout_second = 60;
@@ -57,6 +57,16 @@ public abstract class Game implements Runnable, DialogUser
 		this.mapGlobalOptions = mapGlobalOptions;
 		this.listCmdEnv = listCmdEnv;
 		this.params = params;
+	}
+
+	public String getName ()
+	{
+		return name;
+	}
+
+	public String getStarter ()
+	{
+		return nick;
 	}
 
 	protected boolean isQuitGameAnswer (String answer)

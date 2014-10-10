@@ -105,6 +105,9 @@ public class GuessDigits extends Game
 			int a=0, b=0;
 			for (int t=MAX_GUESS_TIMES; t>=1; t--)
 			{
+				if (stop_flag)
+					throw new RuntimeException ("游戏被终止");
+
 				Dialog dlg = new Dialog (this,
 						bot, bot.dialogs, (t==MAX_GUESS_TIMES?"请输入一个 " + nDigits + " 位无重复数字的数字":"继续猜…"), false, participants,
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);

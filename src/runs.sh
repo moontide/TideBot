@@ -1,9 +1,9 @@
 echo -e '\e[31;1m禁用掉一些命令，以较安全的方式执行\e[m'
 #export botdir=${botdir-/home/liuyan/ircbot/src}
 export botdir=$(dirname $0)
-export nick=HtmlBot-_-
+export nick=GameBot2
 export botcmdPrefix=
-export channels=LiuYanBot,linuxba
+export channels=LiuYanBot
 export ban="*:cmd:怕被玩坏，禁止所有人执行 Cmd 命令;*:javascript"
 export LANG=zh_CN.UTF-8
 

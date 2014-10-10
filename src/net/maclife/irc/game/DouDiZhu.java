@@ -33,6 +33,9 @@ public class DouDiZhu extends CardGame
 			stage = STAGE_抢地主;
 			while (true)
 			{
+				if (stop_flag)
+					throw new RuntimeException ("游戏在抢地主阶段被终止");
+
 				Dialog dlg = new Dialog (this,
 						bot, bot.dialogs, Dialog.Type.单选, "抢地主吗？", true, participants.subList (iTurn, iTurn+1), 抢地主候选答案,
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
@@ -108,41 +111,53 @@ public class DouDiZhu extends CardGame
 		round:
 			while (true)
 			{
+				if (stop_flag)
+					throw new RuntimeException ("游戏在玩家回合阶段被终止");
+
 				iTurn = iRound;
 				String sRoundPlayer = participants.get (iRound);
 				player_cards = (List<Map<String, Object>>)players_cards.get (sRoundPlayer);
-				stage = STAGE_回合出牌;
-				Dialog dlg = new Dialog (this,
-						bot, bot.dialogs, "您的回合开始，请出牌，每张牌用空格隔开。 当前手牌: " + GenerateCardsInfoTo (sRoundPlayer), true, sRoundPlayer,
-						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
-				dlg.showUsage = false;
-				dlg.timeout_second = 3 * player_cards.size () + 10;	// 每张牌 3 秒钟的出牌时间，外加 10 秒钟的 IRC 延时时间
-				for (String p : participants)
-				{
-					if (! StringUtils.equalsIgnoreCase (p, sRoundPlayer))
-						bot.SendMessage (null, p, false, 1, sRoundPlayer + " 的回合开始，请等他/她出牌…");
+				stage = STAGE_回合阶段;
+				if (player_cards.size () == 1)
+				{	// 如果就剩下最后一张牌了，就自动出牌，不再问玩家
+					answer = null;
 				}
-				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
-					answer = (String)participantAnswers.get (sRoundPlayer);
+				else
+				{
+					Dialog dlg = new Dialog (this,
+							bot, bot.dialogs, "你的回合开始, 请出牌. 当前手牌: " + GenerateCardsInfoTo (sRoundPlayer) + ". 大王★可用dw/d代替, 小王☆可用xw/x代替, 10可用0/1代替" + (StringUtils.equalsIgnoreCase (sRoundPlayer, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""), true, sRoundPlayer,
+							channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+					dlg.showUsage = false;
+					dlg.timeout_second = 3 * player_cards.size () + 10;	// 每张牌 3 秒钟的出牌时间，外加 10 秒钟的 IRC 延时时间
+					for (String p : participants)
+					{
+						if (! StringUtils.equalsIgnoreCase (p, sRoundPlayer))
+							bot.SendMessage (null, p, false, 1, sRoundPlayer + " 的回合开始，请等他/她出牌…");
+					}
+					Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
+						answer = (String)participantAnswers.get (sRoundPlayer);
+
+					if ((StringUtils.equalsIgnoreCase (answer, "掀桌子") || StringUtils.equalsIgnoreCase (answer, "不玩了")) && StringUtils.equalsIgnoreCase (sRoundPlayer, getStarter()))
+						throw new RuntimeException ("游戏发起人" + answer);
+				}
+
 				if (StringUtils.isEmpty (answer))
 				{	// 回合内玩家不出牌，则系统自动替他出一张
 					//
 					answer = (String)player_cards.get (0).get ("rank");
 				}
-				String[] arrayCardRanks_RoundPlayer = answer.split (" +");
-				List<String> listCardRanks_RoundPlayer = Arrays.asList (arrayCardRanks_RoundPlayer);
-				Collections.sort (listCardRanks_RoundPlayer, comparator);
+				List<String> listCardRanks_RoundPlayer = AnswerToCardRanksList (answer);
 				RemovePlayedCards (sRoundPlayer, listCardRanks_RoundPlayer);
 				Map<String, Object> cards_RoundPlayer = CalculateCards (listCardRanks_RoundPlayer);
-				lastPlayedCardType = GetCardsType (answer);	// 这里不应该抛出异常了，因为 dialog 调用的 ValidateAnswer 已经验证过有效性了
+				lastPlayedCardType = GetCardsType (listCardRanks_RoundPlayer);	// 这里不应该抛出异常了，因为 dialog 调用的 ValidateAnswer 已经验证过有效性了
 				for (String p : participants)
 				{
 					bot.SendMessage (null, p, false, 1,
 						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ? "你" : sRoundPlayer) +
-						" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_RoundPlayer +
+						" 打出了 " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_RoundPlayer +
 						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ?
 							(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p)) :
-							(player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : "")	// 只剩下 1-2 张牌，则报牌数
+							(player_cards.size ()==0 ? ", 牌已出光！" : (player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : ""))	// 只剩下 1-2 张牌，则报牌数
 						)
 					);
 				}
@@ -158,32 +173,55 @@ public class DouDiZhu extends CardGame
 				mapLastPlayedCards = cards_RoundPlayer;
 				listLastPlayedCardRanks = listCardRanks_RoundPlayer;
 
+				if (lastPlayedCardType == Type.王炸)	// 如果是王炸（最大），直接跳过其他人，接着出牌
+					continue;
+
 				int nPassed = 0;	// 过牌的人数
 			turn:
 				while (true)
 				{
+					if (stop_flag)
+						throw new RuntimeException ("游戏在批斗阶段被终止");
+
 					iTurn = NextTurn (iTurn);
 					String sTurnPlayer = participants.get (iTurn);
 					player_cards = (List<Map<String, Object>>)players_cards.get (sTurnPlayer);
-					stage = STAGE_响应出牌;
-					Dialog dlg_response = new Dialog (this,
-							bot, bot.dialogs,
-							sLastPlayedPlayer + " 打出了 " + lastPlayedCardType + " " + listLastPlayedCardRanks + ", 请出牌打过他/她 (每张牌用空格隔开); 或答复 " +
-								Colors.REVERSE + "pass" + Colors.REVERSE + " 或者 " + Colors.REVERSE + "过" + Colors.REVERSE +
-								" 过牌。 当前手牌: " + GenerateCardsInfoTo (sTurnPlayer),
-							true, sTurnPlayer,
-							channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
-					dlg.showUsage = false;
-					dlg_response.timeout_second = 3 * player_cards.size () + 10;
-					for (String p : participants)
-					{
-						if (! StringUtils.equalsIgnoreCase (p, sTurnPlayer))
-							bot.SendMessage (null, p, false, 1, "请等 " + sTurnPlayer + " 出牌…");
+					stage = STAGE_战斗阶段;
+					if (lastPlayedCardType != Type.单 && player_cards.size ()==1)
+					{	// 如果玩家就剩下一张牌了，而别人出的牌不是单，就自动过牌（肯定打不过），不再问玩家
+						answer = null;
 					}
-					Map<String, Object> participantAnswers_response = bot.executor.submit (dlg_response).get ();
-						answer = (String)participantAnswers_response.get (sTurnPlayer);
+					else
+					{
+						Dialog dlg_response = new Dialog (this,
+								bot, bot.dialogs,
+								//sLastPlayedPlayer + " 打出了 " + lastPlayedCardType + " " + listLastPlayedCardRanks + ". " +
+									"你的手牌: " + GenerateCardsInfoTo (sTurnPlayer) +
+									", 请出牌打过 " + sLastPlayedPlayer + " 的牌. 大王★可用dw/d代替, 小王☆可用xw/x代替, 10可用0/1代替; 或答复 " +
+									Colors.REVERSE + "pass" + Colors.REVERSE + " / " + Colors.REVERSE + "过" + Colors.REVERSE + " 过牌" +
+									(StringUtils.equalsIgnoreCase (sTurnPlayer, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""),
+								true, sTurnPlayer,
+								channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+						dlg_response.showUsage = false;
+						dlg_response.timeout_second = 3 * player_cards.size () + 10;
+						for (String p : participants)
+						{
+							if (! StringUtils.equalsIgnoreCase (p, sTurnPlayer))
+								bot.SendMessage (null, p, false, 1, "请等 " + sTurnPlayer + " 出牌…");
+						}
+						Map<String, Object> participantAnswers_response = bot.executor.submit (dlg_response).get ();
+							answer = (String)participantAnswers_response.get (sTurnPlayer);
 
-					if (StringUtils.isEmpty (answer) || StringUtils.equalsIgnoreCase (answer, "pass") || StringUtils.equalsIgnoreCase (answer, "过"))
+						if ((StringUtils.equalsIgnoreCase (answer, "掀桌子") || StringUtils.equalsIgnoreCase (answer, "不玩了")) && StringUtils.equalsIgnoreCase (sTurnPlayer, getStarter()))
+							throw new RuntimeException ("游戏发起人" + answer);
+					}
+					if (StringUtils.isEmpty (answer)
+						|| StringUtils.equalsIgnoreCase (answer, "pass")
+						|| StringUtils.equalsIgnoreCase (answer, "p")
+						|| StringUtils.equalsIgnoreCase (answer, "n")
+						|| StringUtils.equalsIgnoreCase (answer, "过")
+						|| StringUtils.equalsIgnoreCase (answer, "g")
+						)
 					{
 						msg = (StringUtils.isEmpty (answer) ? "未出牌，自动过牌" : "过牌");
 						for (String p : participants)
@@ -194,12 +232,10 @@ public class DouDiZhu extends CardGame
 					}
 					else
 					{
-						String[] arrayCardRanks_TurnPlayer = answer.split (" +");
-						List<String> listCardRanks_TurnPlayer = Arrays.asList (arrayCardRanks_TurnPlayer);
-						Collections.sort (listCardRanks_TurnPlayer, comparator);
+						List<String> listCardRanks_TurnPlayer = AnswerToCardRanksList (answer);
 						RemovePlayedCards (sTurnPlayer, listCardRanks_TurnPlayer);
 						Map<String, Object> cards_TurnPlayer = CalculateCards (listCardRanks_TurnPlayer);
-						lastPlayedCardType = GetCardsType (answer);	// 这里不应该抛出异常了，因为 dialog 调用的 ValidateAnswer 已经验证过有效性了
+						lastPlayedCardType = GetCardsType (listCardRanks_TurnPlayer);	// 这里不应该抛出异常了，因为 dialog 调用的 ValidateAnswer 已经验证过有效性了
 
 						for (String p : participants)
 						{
@@ -208,7 +244,7 @@ public class DouDiZhu extends CardGame
 								" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_TurnPlayer +
 								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ?
 									(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p)) :
-									(player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : "")	// 只剩下 1-2 张牌，则报牌数
+									(player_cards.size ()==0 ? ", 牌已出光！" : (player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : ""))	// 只剩下 1-2 张牌，则报牌数
 								)
 							);
 						}
@@ -224,6 +260,9 @@ public class DouDiZhu extends CardGame
 						mapLastPlayedCards = cards_TurnPlayer;
 						listLastPlayedCardRanks = listCardRanks_TurnPlayer;
 						nPassed = 0;
+
+						if (lastPlayedCardType == Type.王炸)	// 如果是王炸（最大），直接跳过其他人，接着出牌
+							nPassed = 2;	//continue;
 					}
 					if (nPassed >= 2)
 					{	// 其他两人都过牌了，则轮到“最后出牌人”的回合了
@@ -262,12 +301,12 @@ public class DouDiZhu extends CardGame
 					sbResult.append (" ");
 				}
 				sbResult.append (Colors.NORMAL);
-				sbResult.append (", 输家:  地主 ");
+				sbResult.append (", 输家: 地主 ");
 				sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
 				sbResult.append (landlord);
 				sbResult.append (Colors.NORMAL);
 			}
-			msg = name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。" + sbResult.toString ();
+			msg = sbResult.toString ();
 			bot.SendMessage (channel, "", false, 1, msg);	// 在频道里显示结果
 			participants.add (landlord);	// 再把地主加回来，通过私信告知每个人游戏结果
 			for (String p : participants)
@@ -309,9 +348,43 @@ public class DouDiZhu extends CardGame
 		return NextTurn (iTurn);
 	}
 
+	/**
+	 * 将答案转换为牌列表，并把牌规整化、并排序
+	 * @param answer
+	 * @return 规整化、排序后的牌列表
+	 */
+	List<String> AnswerToCardRanksList (String answer)
+	{
+//System.out.println (answer);
+		answer = answer
+			.replaceAll (" +", "")
+			.replaceAll ("10", "0")
+			.replaceAll ("(?i)XW", "☆")
+			.replaceAll ("(?i)DW", "★")
+			.replaceAll ("(?i)X", "☆")
+			.replaceAll ("(?i)D", "★")
+			;
+//System.out.println (answer);
+		String[] arrayCardRanks = answer.split ("");
+		List<String> listCardRanks = Arrays.asList (Arrays.copyOfRange(arrayCardRanks, 1, arrayCardRanks.length));
+//System.out.println (listCardRanks);
+
+//		listCardRanks.remove (0);	// split ("") 后第一个元素是空字符串，剔除掉 // Arrays.asList() 返回的是个固定尺寸的列表，不能增加、删除。 java.lang.UnsupportedOperationException //	at java.util.AbstractList.remove(AbstractList.java:161)
+//System.out.println (listCardRanks);
+
+		for (int i=0; i<listCardRanks.size (); i++)	// 将牌规整化，否则用 xw dw 代替 ☆ ★ (小王 大王) 出牌时，“王炸”不会被判断出来
+		{
+			String r = listCardRanks.get (i);
+			listCardRanks.set (i, FormalRank(r));
+		}
+		Collections.sort (listCardRanks, comparator);
+//System.out.println (listCardRanks);
+		return listCardRanks;
+	}
+
 	public static final int STAGE_抢地主   = 1;
-	public static final int STAGE_回合出牌 = 2;
-	public static final int STAGE_响应出牌 = 3;
+	public static final int STAGE_回合阶段 = 2;
+	public static final int STAGE_战斗阶段 = 3;
 	int stage;
 	public List<String[]> 抢地主候选答案 = new ArrayList<String[]> ();	// 候选答案
 	{
@@ -360,9 +433,15 @@ public class DouDiZhu extends CardGame
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
 		if (listParticipants.size () < 3)
+		{
+			listGames.remove (this);
 			throw new IllegalArgumentException ("需要 3 人玩。在后面用 /p 参数指定其他玩家");
+		}
 		if (listParticipants.size () > 3)
+		{
+			listGames.remove (this);
 			throw new IllegalArgumentException ("只能 3 人玩。请去掉 " + (listParticipants.size ()-3) + " 个玩家后重试");
+		}
 	}
 
 	/**
@@ -388,7 +467,7 @@ public class DouDiZhu extends CardGame
 
 		// 洗牌
 		Collections.shuffle (deck);
-System.out.println (deck);
+//System.out.println (deck);
 	}
 
 	/**
@@ -457,6 +536,7 @@ System.out.println (deck);
 			return 100;
 		return 0;
 	}
+
 	public static String FormalRank (String rank)
 	{
 		if (StringUtils.equalsIgnoreCase (rank, "3")
@@ -591,28 +671,38 @@ System.out.println (deck);
 	{
 		if (stage == STAGE_抢地主)
 			return true;
-		if (StringUtils.equalsIgnoreCase (answer, "pass") || StringUtils.equalsIgnoreCase (answer, "过"))
+		if (StringUtils.equalsIgnoreCase (answer, "掀桌子") || StringUtils.equalsIgnoreCase (answer, "不玩了"))
+		{
+			if (StringUtils.equalsIgnoreCase (n, getStarter()))
+				return true;
+			throw new IllegalArgumentException ("不是游戏发起人，不能" + answer);
+		}
+		if (StringUtils.equalsIgnoreCase (answer, "pass")
+			|| StringUtils.equalsIgnoreCase (answer, "p")
+			|| StringUtils.equalsIgnoreCase (answer, "n")
+			|| StringUtils.equalsIgnoreCase (answer, "过")
+			|| StringUtils.equalsIgnoreCase (answer, "g")
+			)
+		{
+			if (stage != STAGE_战斗阶段)
+				throw new IllegalStateException ("不在批斗阶段，不能过牌");
 			return true;
-
+		}
 		// 先每一张看出的牌手里有没有，没有则报错
 		List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (n);
 		List<Map<String, Object>> copy_player_cards = new ArrayList<Map<String, Object>> ();
 		copy_player_cards.addAll (player_cards);
 
-		String[] arrayCardRanks = answer.split (" +");
-		List<String> listCardRanks = Arrays.asList (arrayCardRanks);
-		//Collections.sort (listCardRanks, comparator);
+		List<String> listCardRanks = AnswerToCardRanksList (answer);
 
 	nextCard:
 		for (int i=0; i<listCardRanks.size (); i++)
 		{
 			String r = listCardRanks.get (i);
-			String fr = FormalRank (r);
-			listCardRanks.set (i, fr);
 			boolean contains = false;
 			for (Map<String, Object> card : copy_player_cards)
 			{
-				if (StringUtils.equalsIgnoreCase ((String)card.get ("rank"), fr))
+				if (StringUtils.equalsIgnoreCase ((String)card.get ("rank"), r))
 				{
 					copy_player_cards.remove (card);
 					continue nextCard;
@@ -624,48 +714,26 @@ System.out.println (deck);
 
 		// 检查是什么牌型、判断出的牌是否有效
 		Map<String, Object> cards = CalculateCards (listCardRanks);
-		Type cardsType = GetCardsType (answer);
+		Type cardsType = GetCardsType (listCardRanks);
 		if (cardsType == Type.__未知牌型__)
 			throw new IllegalArgumentException (Type.__未知牌型__.toString ());
-		if (stage == STAGE_响应出牌)
+		if (stage == STAGE_战斗阶段)
 		{
 			if (CompareCards (cards, mapLastPlayedCards) <= 0)
 				throw new IllegalArgumentException ("你所出的牌打不过 " + sLastPlayedPlayer + " 出的牌");
 		}
-
-		// 检查是出牌发起人，还是响应出牌
-
-			// 如果是本次战斗的发起人，则记下其牌型
-
-			// 如果是响应出牌，则检查牌型与发起人是否一致
 		return true;
 	}
 
 	/**
 	 * 判断牌型。
-	 * 注意：这里并不判断所有的牌是不是在自己手里（有效的、合法的），调用者需要自己判断。
+	 * 注意：这里并不判断所有的牌是不是在自己手里，调用者需要自己判断。
 	 * @param answer 玩家出的牌，需要用空格分开每张牌。如果不是的话，10 需要用 0 代替，如：890JQK <-- 顺子
 	 * @return Type 类型的牌型
 	 */
-	public static Type GetCardsType (String answer)
+	public static Type GetCardsType (List<String> listCardRanks)
 	{
-		String sType = null;
-//System.out.println (answer);
-		String[] arrayCardRanks = answer.split (" +");
-		List<String> listCardRanks = Arrays.asList (arrayCardRanks);
-		Collections.sort (listCardRanks, comparator);
-Map<String, Object> result = CalculateCards (listCardRanks);
-//System.out.println (result);
-		if (listCardRanks.size () == 1)
-			return Type.单;
-		else if (listCardRanks.size () == 2)
-		{
-			if (listCardRanks.contains ("☆") && listCardRanks.contains ("★"))
-				return Type.王炸;
-			if (listCardRanks.get (0).equalsIgnoreCase (listCardRanks.get (1)))
-				return Type.对;
-		}
-//System.out.println (listCardRanks);
+		Map<String, Object> result = CalculateCards (listCardRanks);
 		int nSolo = (int)result.get ("nSolo");
 		int nPair = (int)result.get ("nPair");
 		int nTrio = (int)result.get ("nTrio");
@@ -741,8 +809,10 @@ Map<String, Object> result = CalculateCards (listCardRanks);
 			throw new IllegalArgumentException ("不能出 " + nPair + " 双对子");
 			//break;
 		case 1:
-			if (isSerial)
+			if (isSerial && nSolo>=5)
 				return Type.顺子;
+			else if (nSolo==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★"))	//大王、小王两站牌的情况做特殊处理：王炸
+				return Type.王炸;
 			else if (nSolo == 1)
 				return Type.单;
 			else
@@ -754,7 +824,7 @@ Map<String, Object> result = CalculateCards (listCardRanks);
 
 	/**
 	 *
-	 * @param listCardRanks
+	 * @param listCardRanks --xx 必须是规整后的 rank，即： dw 必须转换为 ★，小写的 j q k 必须转换为大写 J Q K。这么做是因为要将 rank 放到 Map 里去，而 Map 的 key 是区分大小写的
 	 * @return Map 对象，其中包含的 key 有
 	 * <dl>
 	 * 	<dt>PrimaryCardType<dt>
@@ -775,7 +845,7 @@ Map<String, Object> result = CalculateCards (listCardRanks);
 		String sRank;
 		for (int i=0; i<listCardRanks.size (); i++)
 		{
-			sRank = listCardRanks.get (i);
+			sRank = FormalRank (listCardRanks.get (i));
 			if (result.get (sRank)==null)
 				result.put (sRank, 1);
 			else

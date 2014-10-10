@@ -1489,7 +1489,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					"|" + formatBotParameterInstance ("21点", true) +
 					"|" + formatBotParameterInstance ("斗地主", true) +
 					", 21点游戏可用 ." + formatBotOption ("正整数", true) + " 指定用几副牌(1-4), 默认用 1 副牌." +
-					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack"
+					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/鬥地主"
 				);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_MAC_MANUFACTORY;         if (isThisCommandSpecified (args, primaryCmd))
@@ -5562,6 +5562,30 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	 */
 	void ProcessCommand_Game (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		Game game = null;
+		if (mapGlobalOptions.containsKey ("kill") || mapGlobalOptions.containsKey ("stop"))
+		{	// 结束当前第一个游戏
+			if (games.size () == 0)
+				return;
+			game = games.get (0);
+			if (game != null)
+			{
+				if (StringUtils.equalsIgnoreCase (nick, game.getStarter())
+						//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+						|| isUserInWhiteList(hostname, login, nick, botcmd)
+					)
+				{
+					game.stop_flag = true;
+					SendMessage (ch, nick, mapGlobalOptions, "已将第一个游戏 " + game.getName() + " 设置为停止状态，请等待游戏结束…");
+				}
+				else
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "只有游戏发起人或管理员才有权限停止游戏");
+				}
+				return;
+			}
+		}
+
 		if (StringUtils.isEmpty (params))
 		{
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
@@ -5629,7 +5653,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		}
 		if (! listParticipants.contains (nick))
 		{	// 如果没有添加自己，则加进去： 一定包含发起人
-			listParticipants.add (nick);
+			listParticipants.add (0, nick);
 		}
 
 		if (! StringUtils.isEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
@@ -5646,7 +5670,6 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			return;
 		}
 
-		Game game = null;
 		if (StringUtils.equalsIgnoreCase (sGame, "21")
 			|| StringUtils.equalsIgnoreCase (sGame, "21点")
 			|| StringUtils.equalsIgnoreCase (sGame, "BlackJack")
