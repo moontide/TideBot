@@ -1302,6 +1302,10 @@ public class LiuYanBot extends PircBot implements Runnable
 				"本 bot 命令格式: " + "<" + formatBotCommand ("命令", true) + ">[" +
 				formatBotOption (".选项", true) + "]... [" + formatBotParameter ("命令参数", true) + "]...    " +
 				"命令列表:" + COLOR_COMMAND_INSTANCE +
+				" " + BOT_PRIMARY_COMMAND_Game +
+				" " + BOT_PRIMARY_COMMAND_HTMLParser +
+				" " + BOT_PRIMARY_COMMAND_GithubCommitLogs +
+				" " + BOT_PRIMARY_COMMAND_TextArt +
 				" " + BOT_PRIMARY_COMMAND_Cmd +
 				" " + BOT_PRIMARY_COMMAND_StackExchange +
 				" " + BOT_PRIMARY_COMMAND_GeoIP +
@@ -1311,9 +1315,6 @@ public class LiuYanBot extends PircBot implements Runnable
 				" " + BOT_PRIMARY_COMMAND_Google +
 				" " + BOT_PRIMARY_COMMAND_RegExp +
 				" " + BOT_PRIMARY_COMMAND_JavaScript +
-				" " + BOT_PRIMARY_COMMAND_TextArt +
-				" " + BOT_PRIMARY_COMMAND_GithubCommitLogs +
-				" " + BOT_PRIMARY_COMMAND_HTMLParser +
 
 				" " + BOT_PRIMARY_COMMAND_ParseCmd +
 				" " + BOT_PRIMARY_COMMAND_Action +
@@ -5077,28 +5078,28 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				while (rs.next ())
 				{
 					bFound = true;
-					//if (sID == null)
+					//if (nID==0)
 						nID = rs.getLong ("id");
-					//if (sName == null)
+					//if (StringUtils.isEmpty (sName))
 						sName = rs.getString ("name");
-					if (sURL == null)
+					if (StringUtils.isEmpty (sURL))
 						sURL = rs.getString ("url");
-					if (sSelector == null)
+					if (StringUtils.isEmpty (sSelector))
 						sSelector = rs.getString ("selector");
-					if (sSubSelector == null)
+					if (StringUtils.isEmpty (sSubSelector))
 						sSubSelector = rs.getString ("sub_selector");
-					if (sExtract == null)
+					if (StringUtils.isEmpty (sExtract))
 						sExtract = rs.getString ("extract");
-					if (sAttr == null)
+					if (StringUtils.isEmpty (sAttr))
 						sAttr = rs.getString ("attr");
 					if (! opt_max_response_lines_specified)
 						opt_max_response_lines = rs.getShort ("max");
 
-					if (sHTTPUserAgent == null)
+					if (StringUtils.isEmpty (sHTTPUserAgent))
 						sHTTPUserAgent = rs.getString ("ua");
-					if (sHTTPMethod == null)
+					if (StringUtils.isEmpty (sHTTPMethod))
 						sHTTPMethod = rs.getString ("method");
-					if (sHTTPReferer == null)
+					if (StringUtils.isEmpty (sHTTPReferer))
 						sHTTPReferer = rs.getString ("referer");
 
 					sURLParamsHelp = rs.getString ("url_param_usage");
@@ -5236,20 +5237,52 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 
 			Document doc = null;
+			String sQueryString = null;
 			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
 			System.clearProperty ("javax.net.ssl.trustPassword");
-			org.jsoup.Connection jsoup_conn = org.jsoup.Jsoup.connect (sURL);
+			if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST") && sURL.contains ("?"))
+			{
+				int i = sURL.indexOf ('?');
+				sQueryString = sURL.substring (i+1);	// 得到 QueryString，用来将其传递到 POST 消息体中
+				sURL = sURL.substring (0, i);	// 将 URL 中的 QueryString 剔除掉
+			}
+			org.jsoup.Connection jsoup_conn = null;
+			jsoup_conn = org.jsoup.Jsoup.connect (sURL);
 			jsoup_conn.ignoreHttpErrors (true)
 					.ignoreContentType (isIngoreContentType)
 					.timeout (nHTTPTimeout * 1000)
 					;
-			if (!StringUtils.isEmpty (sHTTPUserAgent))
+System.out.println (sURL);
+			if (! StringUtils.isEmpty (sHTTPUserAgent))
+			{
+System.out.println (sHTTPUserAgent);
 				jsoup_conn.userAgent (sHTTPUserAgent);
-			if (!StringUtils.isEmpty (sHTTPReferer))
+			}
+			if (! StringUtils.isEmpty (sHTTPReferer))
+			{
+System.out.println (sHTTPReferer);
 				jsoup_conn.referrer (sHTTPReferer);
+			}
 
-			if (!StringUtils.isEmpty (sHTTPMethod))
-				jsoup_conn.method (org.jsoup.Connection.Method.valueOf (sHTTPMethod));
+			if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
+			{
+System.out.println (sHTTPMethod);
+				if (! StringUtils.isEmpty (sQueryString))
+				{
+System.out.println (sQueryString);
+					Map<String, String> mapParams = new HashMap<String, String> ();	// 蛋疼的 jsoup 不支持直接把 sQueryString 统一传递过去，只能重新分解成单独的参数
+					String[] arrayQueryParams = sQueryString.split ("&");
+					for (String param : arrayQueryParams)
+					{
+						String[] arrayParam = param.split ("=");
+						mapParams.put (arrayParam[0], arrayParam[1]);
+					}
+					//doc = jsoup_conn.data (sQueryString).post ();
+					doc = jsoup_conn.data (mapParams).post ();
+				}
+				else
+					doc = jsoup_conn.post ();
+			}
 			else
 				doc = jsoup_conn.get();
 
@@ -5720,6 +5753,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	void ProcessCommand_MacManufactory (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 	}
+
 	/**
 	 * MySQL
 	 * @param ch
