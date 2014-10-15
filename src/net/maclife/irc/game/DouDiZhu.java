@@ -26,6 +26,7 @@ public class DouDiZhu extends CardGame
 			int iTurn = 0;
 			int 无人继续抢地主次数 = 0;
 
+			String msg = null;
 			String answer;
 			String value = null;
 			String landlord = null;
@@ -36,8 +37,9 @@ public class DouDiZhu extends CardGame
 				if (stop_flag)
 					throw new RuntimeException ("游戏在抢地主阶段被终止");
 
+				String sTurnPlayer = participants.get (iTurn);
 				Dialog dlg = new Dialog (this,
-						bot, bot.dialogs, Dialog.Type.单选, "抢地主吗？", true, participants.subList (iTurn, iTurn+1), 抢地主候选答案,
+						bot, bot.dialogs, Dialog.Type.单选, "抢地主吗？", true, sTurnPlayer, 抢地主候选答案,
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 				dlg.showUsage = false;
 				dlg.timeout_second = 30;
@@ -50,6 +52,11 @@ public class DouDiZhu extends CardGame
 					answer = (String)participantAnswers.get (participants.get (iTurn));
 					value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
 
+				msg = sTurnPlayer + (StringUtils.isEmpty (value) ? " 未选择，系统自动认为【不抢】" : " 选了 " + dlg.GetFullCandidateAnswerByValueOrLabel(answer));
+				for (String p : participants)
+				{
+					bot.SendMessage (null, p, false, 1, msg);
+				}
 				if (value.equalsIgnoreCase ("3"))
 				{	// 有人叫到了 3 分，抢地主立刻结束，此人称为地主
 					无人继续抢地主次数 = 0;
@@ -97,7 +104,7 @@ public class DouDiZhu extends CardGame
 			player_cards.addAll (deck);
 				Collections.sort (player_cards, comparator);
 			GenerateCardsInfoTo (deck, sb);
-			String msg = "地主是 " + landlord + "，地主获得了底牌: "+ sb;
+			msg = "地主是 " + landlord + "，地主获得了底牌: "+ sb;
 			for (String p : participants)
 			{
 				bot.SendMessage (null, p, false, 1, msg);
@@ -290,6 +297,13 @@ public class DouDiZhu extends CardGame
 					sbResult.append (" ");
 				}
 				sbResult.append (Colors.NORMAL);
+				for (String p : participants)
+				{
+					sbResult.append (p);
+					sbResult.append (" 剩牌 ");
+					sbResult.append (GenerateCardsInfoTo(p));
+					sbResult.append (". ");
+				}
 			}
 			else
 			{
@@ -305,6 +319,8 @@ public class DouDiZhu extends CardGame
 				sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
 				sbResult.append (landlord);
 				sbResult.append (Colors.NORMAL);
+				sbResult.append (". 地主剩牌 ");
+				sbResult.append (GenerateCardsInfoTo(landlord));
 			}
 			msg = sbResult.toString ();
 			bot.SendMessage (channel, "", false, 1, msg);	// 在频道里显示结果
@@ -728,7 +744,7 @@ public class DouDiZhu extends CardGame
 	/**
 	 * 判断牌型。
 	 * 注意：这里并不判断所有的牌是不是在自己手里，调用者需要自己判断。
-	 * @param answer 玩家出的牌，需要用空格分开每张牌。如果不是的话，10 需要用 0 代替，如：890JQK <-- 顺子
+	 * @param listCardRanks 玩家出的牌的列表 (列表不需要排序)
 	 * @return Type 类型的牌型
 	 */
 	public static Type GetCardsType (List<String> listCardRanks)
@@ -824,7 +840,7 @@ public class DouDiZhu extends CardGame
 
 	/**
 	 *
-	 * @param listCardRanks --xx 必须是规整后的 rank，即： dw 必须转换为 ★，小写的 j q k 必须转换为大写 J Q K。这么做是因为要将 rank 放到 Map 里去，而 Map 的 key 是区分大小写的
+	 * @param listCardRanks
 	 * @return Map 对象，其中包含的 key 有
 	 * <dl>
 	 * 	<dt>PrimaryCardType<dt>
