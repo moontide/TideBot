@@ -5403,7 +5403,7 @@ System.out.println (sQueryString);
 		}
 	}
 
-	public void ValidateNickNames (String ch, List<String> listParticipants)
+	public void ValidateNickNames (String ch, Set<String> setParticipants)
 	{
 		User[] users = getUsers (ch);
 //System.out.println ("channel=" + ch);
@@ -5411,7 +5411,7 @@ System.out.println (sQueryString);
 		if (users == null)
 			return;
 
-		for (String nick : listParticipants)
+		for (String nick : setParticipants)
 		{
 			boolean bFound = false;
 			for (User u : users)
@@ -5474,7 +5474,10 @@ System.out.println (sQueryString);
 		List<String> listParams = splitCommandLine (params);
 		String question = "";
 		Dialog.Type qt = Dialog.Type.开放;
-		List<String> listParticipants = new ArrayList<String> ();
+		Set<String> setParticipants = new HashSet<String> ();
+			// 如果没有添加自己，则加进去： 一定包含发起人
+			setParticipants.add (nick);
+
 		List<String[]> listCandidateAnswers = new ArrayList<String[]> ();
 		byte option_stage = 0;
 		for (int i=0; i<listParams.size (); i++)
@@ -5531,7 +5534,7 @@ System.out.println (sQueryString);
 							return;
 						}
 
-						listParticipants.add (param);
+						setParticipants.add (param);
 						break;
 					case 2:
 						String[] candidateAnswer = param.split (":+", 2);
@@ -5540,10 +5543,6 @@ System.out.println (sQueryString);
 						break;
 				}
 			}
-		}
-		if (! listParticipants.contains (nick))
-		{	// 如果没有添加自己，则加进去： 一定包含发起人
-			listParticipants.add (nick);
 		}
 
 		if (qt == Dialog.Type.单选 || qt == Dialog.Type.多选)
@@ -5560,7 +5559,7 @@ System.out.println (sQueryString);
 			if (StringUtils.isEmpty (ch))
 				channel = opt_reply_to;
 			ValidateChannelName (channel);
-			ValidateNickNames (channel, listParticipants);
+			ValidateNickNames (channel, setParticipants);
 		}
 		else
 		{	// 昵称
@@ -5570,7 +5569,7 @@ System.out.println (sQueryString);
 
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE tsha1(?)";
 		Dialog dlg = new Dialog (null,
-				this, dialogs, qt, question, true, listParticipants, listCandidateAnswers,
+				this, dialogs, qt, question, true, setParticipants, listCandidateAnswers,
 				ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		dlg.timeout_second = opt_timeout_length_seconds;
 		executor.submit (dlg);
@@ -5643,7 +5642,10 @@ System.out.println (sQueryString);
 
 		List<String> listParams = splitCommandLine (params);
 		String sGame = "";
-		List<String> listParticipants = new ArrayList<String> ();
+		Set<String> setParticipants = new HashSet<String> ();
+			// 如果没有添加自己，则加进去： 一定包含发起人
+			setParticipants.add (nick);
+
 		byte option_stage = 0;
 		for (int i=0; i<listParams.size (); i++)
 		{
@@ -5679,15 +5681,12 @@ System.out.println (sQueryString);
 							return;
 						}
 
-						listParticipants.add (param);
+						setParticipants.add (param);
 						break;
 				}
 			}
 		}
-		if (! listParticipants.contains (nick))
-		{	// 如果没有添加自己，则加进去： 一定包含发起人
-			listParticipants.add (0, nick);
-		}
+
 
 		if (! StringUtils.isEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
 		{	// 如果是在频道内操作，则检查接收人昵称的有效性
@@ -5695,7 +5694,7 @@ System.out.println (sQueryString);
 			if (StringUtils.isEmpty (ch))
 				channel = opt_reply_to;
 			ValidateChannelName (channel);
-			ValidateNickNames (channel, listParticipants);
+			ValidateNickNames (channel, setParticipants);
 		}
 		else
 		{	// 昵称
@@ -5710,25 +5709,25 @@ System.out.println (sQueryString);
 			|| StringUtils.equalsIgnoreCase (sGame, "bj")
 			)
 		{
-			game = new BlackJack (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			game = new BlackJack (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "猜数字")
 			|| StringUtils.equalsIgnoreCase (sGame, "GuessDigit")
 			)
 		{
-			game = new GuessDigits (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			game = new GuessDigits (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "斗地主")
 			|| StringUtils.equalsIgnoreCase (sGame, "ddz")
 			)
 		{
-			game = new DouDiZhu (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			game = new DouDiZhu (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "三国杀")
 			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
 			)
 		{
-			game = new SanGuoSha (this, games, listParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			game = new SanGuoSha (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else
 		{

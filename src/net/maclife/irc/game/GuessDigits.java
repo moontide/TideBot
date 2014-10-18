@@ -16,11 +16,11 @@ public class GuessDigits extends Game
 	public static final int MAX_GUESS_TIMES = 8;
 	char[] arrayDigitsToGuess;
 
-	public GuessDigits (LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
+	public GuessDigits (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		super ("猜数字", bot, listGames, listParticipants,
+		super ("猜数字", bot, listGames, setParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
 

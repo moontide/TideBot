@@ -441,22 +441,22 @@ public class DouDiZhu extends CardGame
 	{
 
 	}
-	public DouDiZhu (LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
+	public DouDiZhu (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		super ("斗地主", bot, listGames, listParticipants,
+		super ("斗地主", bot, listGames, setParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
-		if (listParticipants.size () < 3)
+		if (setParticipants.size () < 3)
 		{
 			listGames.remove (this);
 			throw new IllegalArgumentException ("需要 3 人玩。在后面用 /p 参数指定其他玩家");
 		}
-		if (listParticipants.size () > 3)
+		if (setParticipants.size () > 3)
 		{
 			listGames.remove (this);
-			throw new IllegalArgumentException ("只能 3 人玩。请去掉 " + (listParticipants.size ()-3) + " 个玩家后重试");
+			throw new IllegalArgumentException ("只能 3 人玩。请去掉 " + (setParticipants.size ()-3) + " 个玩家后重试");
 		}
 	}
 

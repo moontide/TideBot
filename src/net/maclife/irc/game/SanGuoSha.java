@@ -23,11 +23,11 @@ public class SanGuoSha extends Game
 		"忠臣",
 	};
 
-	public SanGuoSha (LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
+	public SanGuoSha (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		super ("三国杀身份局", bot, listGames, listParticipants,
+		super ("三国杀身份局", bot, listGames, setParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
 	}

@@ -38,7 +38,7 @@ public abstract class Game implements Runnable, DialogUser
 	{
 
 	}
-	public Game (String n, LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
+	public Game (String n, LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -46,7 +46,7 @@ public abstract class Game implements Runnable, DialogUser
 		this.bot = bot;
 		this.games = listGames;
 		listGames.add (this);
-		participants.addAll (listParticipants);
+		participants.addAll (setParticipants);
 
 		this.channel = ch;
 		this.nick = nick;

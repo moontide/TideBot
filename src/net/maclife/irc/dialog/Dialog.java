@@ -84,8 +84,8 @@ public class Dialog implements Callable<Map<String, Object>>
 		type = (qt==null ? Type.开放 : qt);
 		question = q;	// (StringUtils.endsWithAny (q, "?", "？") ? q : q + "?");	// 如果问题不是以问号结尾，则在问题后面加上问号
 		this.showQuestion = showQuestion;
-		if (participants instanceof List)
-			this.participants.addAll ((List<String>)participants);
+		if (participants instanceof Collection<?>)
+			this.participants.addAll ((Collection<String>)participants);
 		else if (participants instanceof String)
 			this.participants.add ((String)participants);
 		else

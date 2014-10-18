@@ -26,11 +26,11 @@ public abstract class CardGame extends Game
 
 	}
 
-	public CardGame (String sGameName, LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
+	public CardGame (String sGameName, LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		super (sGameName, bot, listGames, listParticipants,
+		super (sGameName, bot, listGames, setParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
 	}

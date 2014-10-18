@@ -135,15 +135,15 @@ public class BlackJack extends CardGame
 
 	int deck_number = 1;
 
-	public BlackJack (LiuYanBot bot, List<Game> listGames, List<String> listParticipants,
+	public BlackJack (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		super (BURST_POINT + "点", bot, listGames, listParticipants,
+		super (BURST_POINT + "点", bot, listGames, setParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
 
-		if (listParticipants.size () < 2)
+		if (setParticipants.size () < 2)
 		{
 			listGames.remove (this);
 			throw new IllegalArgumentException ("至少需要 2 人玩。在后面用 /p 参数指定其他玩家");
