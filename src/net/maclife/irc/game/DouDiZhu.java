@@ -382,7 +382,14 @@ public class DouDiZhu extends CardGame
 			;
 //System.out.println (answer);
 		String[] arrayCardRanks = answer.split ("");
-		List<String> listCardRanks = Arrays.asList (Arrays.copyOfRange(arrayCardRanks, 1, arrayCardRanks.length));
+		List<String> listCardRanks = null;
+		if ((LiuYanBot.JAVA_MAJOR_VERSION==1 && LiuYanBot.JAVA_MINOR_VERSION>=8) || LiuYanBot.JAVA_MAJOR_VERSION>1)
+			// JDK 1.8 或更高版本
+			// 参见: http://stackoverflow.com/questions/22718744/why-does-split-in-java-8-sometimes-remove-empty-strings-at-start-of-result-array
+			listCardRanks = Arrays.asList (arrayCardRanks);
+		else
+			// JDK 1.7 以及以前的版本
+			Arrays.asList (Arrays.copyOfRange(arrayCardRanks, 1, arrayCardRanks.length));
 //System.out.println (listCardRanks);
 
 //		listCardRanks.remove (0);	// split ("") 后第一个元素是空字符串，剔除掉 // Arrays.asList() 返回的是个固定尺寸的列表，不能增加、删除。 java.lang.UnsupportedOperationException //	at java.util.AbstractList.remove(AbstractList.java:161)

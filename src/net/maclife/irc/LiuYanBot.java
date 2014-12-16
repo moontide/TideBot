@@ -40,6 +40,18 @@ import net.maclife.irc.game.*;
 public class LiuYanBot extends PircBot implements Runnable
 {
 	static Logger logger = Logger.getLogger (LiuYanBot.class.getName());
+
+	public static final Charset JVM_CHARSET = Charset.defaultCharset();
+	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
+	public static int JAVA_MAJOR_VERSION;	// 1.7　中的 1
+	public static int JAVA_MINOR_VERSION;	// 1.7　中的 7
+	static
+	{
+		String[] arrayJavaVersions = System.getProperty("java.specification.version").split("\\.");
+		JAVA_MAJOR_VERSION = Integer.parseInt (arrayJavaVersions[0]);
+		JAVA_MINOR_VERSION = Integer.parseInt (arrayJavaVersions[1]);
+	}
+
 	public static final String DEFAULT_TIME_FORMAT_STRING = "yyyy-MM-dd a KK:mm:ss Z EEEE";
 	public static final DateFormat DEFAULT_TIME_FORMAT = new SimpleDateFormat (DEFAULT_TIME_FORMAT_STRING);
 	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault ();
@@ -51,9 +63,6 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static final int MAX_SCREEN_LINES = 200;	// 最大屏幕高度
 	public static final int MAX_SCREEN_COLUMNS = 400;	// 最大屏幕宽度
-
-	public static final Charset JVM_CHARSET = Charset.defaultCharset();
-	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
 
 	public static final String WORKING_DIRECTORY = System.getProperty ("user.dir");
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
@@ -127,7 +136,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel", },
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
-		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "三国杀", },
+		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "2048", },
 		{BOT_PRIMARY_COMMAND_MAC_MANUFACTORY, "oui", "macm", },
 
 		{BOT_PRIMARY_COMMAND_Time, },
@@ -905,7 +914,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
 					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
 					{
-						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "你已被加入黑名单。 命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
+						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "禁止执行命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
 						banInfo.put ("NotifyTime", new Timestamp(System.currentTimeMillis ()));
 					}
 					return;
@@ -1490,7 +1499,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					"|" + formatBotParameterInstance ("21点", true) +
 					"|" + formatBotParameterInstance ("斗地主", true) +
 					", 21点游戏可用 ." + formatBotOption ("正整数", true) + " 指定用几副牌(1-4), 默认用 1 副牌." +
-					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/鬥地主"
+					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主"
 				);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_MAC_MANUFACTORY;         if (isThisCommandSpecified (args, primaryCmd))
@@ -5642,6 +5651,12 @@ System.out.println (sQueryString);
 
 		List<String> listParams = splitCommandLine (params);
 		String sGame = "";
+		if (StringUtils.equalsIgnoreCase (botCmdAlias, "猜数字")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "21点")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "2048")
+			)
+			sGame = botCmdAlias;
 		Set<String> setParticipants = new HashSet<String> ();
 			// 如果没有添加自己，则加进去： 一定包含发起人
 			setParticipants.add (nick);
@@ -5650,7 +5665,7 @@ System.out.println (sQueryString);
 		for (int i=0; i<listParams.size (); i++)
 		{
 			String param = listParams.get (i);
-			if (i==0)
+			if (i==0 && StringUtils.isEmpty (sGame))
 			{
 				sGame = param;
 				continue;
@@ -5728,6 +5743,12 @@ System.out.println (sQueryString);
 			)
 		{
 			game = new SanGuoSha (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		}
+		else if (StringUtils.equalsIgnoreCase (sGame, "2048")
+			//|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
+			)
+		{
+			throw new RuntimeException ("not implemented yet");
 		}
 		else
 		{
