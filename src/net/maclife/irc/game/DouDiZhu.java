@@ -132,7 +132,7 @@ public class DouDiZhu extends CardGame
 				else
 				{
 					Dialog dlg = new Dialog (this,
-							bot, bot.dialogs, "你的回合开始, 请出牌. 当前手牌: " + GenerateCardsInfoTo (sRoundPlayer) + ". 大王★可用dw/d代替, 小王☆可用xw/x代替, 10可用0/1代替" + (StringUtils.equalsIgnoreCase (sRoundPlayer, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""), true, sRoundPlayer,
+							bot, bot.dialogs, "你的回合开始, 请出牌. 当前手牌: " + GenerateCardsInfoTo (sRoundPlayer) + ". 大王★可用dw或d代替, 小王☆可用xw或x代替, 10可用0或1代替" + (StringUtils.equalsIgnoreCase (sRoundPlayer, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""), true, sRoundPlayer,
 							channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 					dlg.showUsage = false;
 					dlg.timeout_second = 3 * player_cards.size () + 10;	// 每张牌 3 秒钟的出牌时间，外加 10 秒钟的 IRC 延时时间
@@ -163,8 +163,13 @@ public class DouDiZhu extends CardGame
 						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ? "你" : sRoundPlayer) +
 						" 打出了 " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_RoundPlayer +
 						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ?
-							(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p)) :
-							(player_cards.size ()==0 ? ", 牌已出光！" : (player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : ""))	// 只剩下 1-2 张牌，则报牌数
+							(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p) + " (" + player_cards.size () + " 张牌)") :
+							(player_cards.size ()==0 ? ", 牌已出光！" :
+								(mapGlobalOptions.containsKey ("报牌数") ?
+									", 他/她还剩 " + player_cards.size () + " 张牌" :
+									(player_cards.size ()<=2 ? ", " + Colors.RED + "他/她只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : "")	// 只剩下 1-2 张牌，则报牌数
+								)
+							)	// 报牌数
 						)
 					);
 				}
@@ -204,8 +209,8 @@ public class DouDiZhu extends CardGame
 								bot, bot.dialogs,
 								//sLastPlayedPlayer + " 打出了 " + lastPlayedCardType + " " + listLastPlayedCardRanks + ". " +
 									"你的手牌: " + GenerateCardsInfoTo (sTurnPlayer) +
-									", 请出牌打过 " + sLastPlayedPlayer + " 的牌. 大王★可用dw/d代替, 小王☆可用xw/x代替, 10可用0/1代替; 或答复 " +
-									Colors.REVERSE + "pass" + Colors.REVERSE + " / " + Colors.REVERSE + "过" + Colors.REVERSE + " 过牌" +
+									", 请出牌打过 " + sLastPlayedPlayer + " 的牌. 大王★可用dw或d代替, 小王☆可用xw或x代替, 10可用0或1代替; 或答复 " +
+									Colors.REVERSE + "pass" + Colors.REVERSE + " / " + Colors.REVERSE + "p" + Colors.REVERSE + " / " + Colors.REVERSE + "过" + Colors.REVERSE + " / " + Colors.REVERSE + "g" + Colors.REVERSE + " / " + Colors.REVERSE + "n" + Colors.REVERSE + " 过牌" +
 									(StringUtils.equalsIgnoreCase (sTurnPlayer, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""),
 								true, sTurnPlayer,
 								channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
@@ -250,8 +255,13 @@ public class DouDiZhu extends CardGame
 								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) +
 								" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_TurnPlayer +
 								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ?
-									(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p)) :
-									(player_cards.size ()==0 ? ", 牌已出光！" : (player_cards.size ()<=2 ? ", " + Colors.RED + "只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : ""))	// 只剩下 1-2 张牌，则报牌数
+									(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p) + " (" + player_cards.size () + " 张牌)") :
+									(player_cards.size ()==0 ? ", 牌已出光！" :
+										(mapGlobalOptions.containsKey ("报牌数") ?
+											", 他/她还剩 " + player_cards.size () + " 张牌" :
+											(player_cards.size ()<=2 ? ", " + Colors.RED + "他/她只剩下 " + player_cards.size () + " 张牌了" + Colors.NORMAL : "")	// 只剩下 1-2 张牌，则报牌数
+										)
+									)	// 报牌数
 								)
 							);
 						}

@@ -1499,6 +1499,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					"|" + formatBotParameterInstance ("21点", true) +
 					"|" + formatBotParameterInstance ("斗地主", true) +
 					", 21点游戏可用 ." + formatBotOption ("正整数", true) + " 指定用几副牌(1-4), 默认用 1 副牌." +
+					", 斗地主可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数." +
 					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主"
 				);
 		}
@@ -5653,6 +5654,7 @@ System.out.println (sQueryString);
 		String sGame = "";
 		if (StringUtils.equalsIgnoreCase (botCmdAlias, "猜数字")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "21点")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "斗地主")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "2048")
 			)
