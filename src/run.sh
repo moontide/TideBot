@@ -3,6 +3,7 @@ libdir=$(readlink -e "$botdir/../lib")
 dbdir=$(readlink -e "$botdir/../db")
 nick=${nick-CmdBot}
 channels=${channels-LiuYanBot,linuxba,fedora-zh}
+server=${server-chat.freenode.net}
 
 export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix -Dmessage.delay=500 -Djava.util.logging.config.file=$botdir/logging.properties -Djavax.net.ssl.trustStore=$dbdir/GoAgentCA.jks -DGoAgent.proxyHost=${GoAgent_proxyHost-192.168.2.1} -DGoAgent.proxyPort=${GoAgent_proxyPort-8087} -Ddatabase.driver=${database_driver-com.mysql.jdbc.Driver} -Ddatabase.username=${database_username-bot} -Ddatabase.userpassword=${database_userpassword} -Ddatabase.url=${database_url-jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull} $_JAVA_OPTIONS"
 
@@ -24,7 +25,7 @@ export CLASSPATH="$CP"
 java net.maclife.irc.LiuYanBot \
 	-geoipdb $dbdir/GeoLite2-City.mmdb \
 	-chunzhenipdb $dbdir/qqwry.dat \
-	-s chat.freenode.net \
+	-s $server \
 	-u $nick \
 	-c "$channels" \
 	/ban "$ban" \
