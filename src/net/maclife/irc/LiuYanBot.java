@@ -1040,6 +1040,7 @@ public class LiuYanBot extends PircBot implements Runnable
 							if (
 								!botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp)	// 2014-06-16 除去 RegExp 命令的响应行数限制，该数值在 RegExp 命令中做匹配次数用途
 								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag)	// 2014-07-09 除去 tag bt 命令的响应行数限制，该数值在 bt 命令中有可能做 “词条定义 ID” 用途
+								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Game)	// 2015-01-13 除去 Game 命令的响应行数限制，该数值在 Game 命令中有可能做 “牌堆数” “数字数” 等用途
 								&& !isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
 								&& !isUserInWhiteList(hostname, login, nick, botCmd)	// 不在白名单
 								&& opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT	// 设置的大小超出了上限
@@ -1498,8 +1499,8 @@ public class LiuYanBot extends PircBot implements Runnable
 					formatBotParameterInstance ("猜数字", true) +
 					"|" + formatBotParameterInstance ("21点", true) +
 					"|" + formatBotParameterInstance ("斗地主", true) +
-					", 21点游戏可用 ." + formatBotOption ("正整数", true) + " 指定用几副牌(1-4), 默认用 1 副牌." +
-					", 斗地主可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数." +
+					", ." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + "  - 猜几位数字" +
+					". " + formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数." +
 					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主"
 				);
 		}

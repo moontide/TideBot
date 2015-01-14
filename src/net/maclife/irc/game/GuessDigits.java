@@ -39,7 +39,7 @@ public class GuessDigits extends Game
 
 	void InitDigits ()
 	{
-		arrayDigitsToGuess = new char[4];
+		arrayDigitsToGuess = new char[nDigits];
 		Random rand = new SecureRandom ();
 		for (int i=0; i<arrayDigitsToGuess.length; i++)
 		{
