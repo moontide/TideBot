@@ -83,7 +83,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Java	            = "Java";
 	public static final String BOT_PRIMARY_COMMAND_TextArt	        = "ANSIArt";
 	public static final String BOT_PRIMARY_COMMAND_Tag	            = "dic";
-	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "GitHub";
+	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "/GitHub";
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
 	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
 	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
@@ -133,7 +133,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_JavaScript, "js", },
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
-		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "kernel", },
+		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "2048", },
@@ -217,9 +217,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	public ExecutorService executor = Executors.newFixedThreadPool (15);
 
 	String geoIP2DatabaseFileName = null;
+	long geoIP2DatabaseFileTimestamp = 0;
 	DatabaseReader geoIP2DatabaseReader = null;
 
 	String chunzhenIPDatabaseFileName = null;
+	long chunzhenIPDatabaseFileTimestamp = 0;
 	ChunZhenIP qqwry = null;
 	String chunzhenIPDBVersion = null;
 	long chunzhenIPCount = 0;
@@ -289,9 +291,21 @@ public class LiuYanBot extends PircBot implements Runnable
 	public void setGeoIPDatabaseFileName (String fn)
 	{
 		geoIP2DatabaseFileName = fn;
+	}
+	public void openGeoIPDatabaseFile ()
+	{
+		File f = new File (geoIP2DatabaseFileName);
+		long temp_timestamp = f.lastModified ();
+		if (temp_timestamp == geoIP2DatabaseFileTimestamp)
+			return;
+
 		try
 		{
+			if (geoIP2DatabaseReader != null)
+				geoIP2DatabaseReader.close ();
+
 			geoIP2DatabaseReader = new DatabaseReader.Builder(new File(geoIP2DatabaseFileName)).build ();
+			geoIP2DatabaseFileTimestamp = temp_timestamp;
 		}
 		catch (Exception e)
 		{
@@ -301,8 +315,19 @@ public class LiuYanBot extends PircBot implements Runnable
 	public void set纯真IPDatabaseFileName (String fn)
 	{
 		chunzhenIPDatabaseFileName = fn;
+	}
+	public void open纯真IPDatabaseFile ()
+	{
+		File f = new File (chunzhenIPDatabaseFileName);
+		long temp_timestamp = f.lastModified ();
+		if (temp_timestamp == chunzhenIPDatabaseFileTimestamp)
+			return;
+
 		try
 		{
+			if (qqwry != null)
+				qqwry.close ();
+
 			qqwry = new ChunZhenIP (chunzhenIPDatabaseFileName);
 			qqwry.setResolveInternetName (true);
 			chunzhenIPDBVersion = qqwry.GetDatabaseInfo ().getRegionName();
@@ -310,7 +335,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
+			e.printStackTrace ();
 		}
 	}
 
@@ -2313,6 +2338,8 @@ public class LiuYanBot extends PircBot implements Runnable
 			ProcessCommand_Help (ch, u, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+
+		openGeoIPDatabaseFile ();
 		if (geoIP2DatabaseReader==null)
 		{
 			SendMessage (ch, u, mapGlobalOptions, " 没有 IP 数据库");
@@ -2449,6 +2476,8 @@ public class LiuYanBot extends PircBot implements Runnable
 			ProcessCommand_Help (ch, u, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+
+		open纯真IPDatabaseFile ();
 		if (qqwry==null)
 		{
 			SendMessage (ch, u, mapGlobalOptions, " 没有纯真 IP 数据库");
