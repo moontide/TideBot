@@ -125,8 +125,17 @@ public class DouDiZhu extends CardGame
 				String sRoundPlayer = participants.get (iRound);
 				player_cards = (List<Map<String, Object>>)players_cards.get (sRoundPlayer);
 				stage = STAGE_回合阶段;
-				if (player_cards.size () == 1)
-				{	// 如果就剩下最后一张牌了，就自动出牌，不再问玩家
+				Type 手牌牌型 = Type.__未知牌型__;
+				try
+				{
+					手牌牌型 = GetPlayerCardsType (player_cards);
+				}
+				catch (Exception e)
+				{
+					// 不处理，也不显示异常，只是取个牌型而已
+				}
+				if (player_cards.size () == 1 || 手牌牌型 != Type.__未知牌型__)
+				{	// 如果就剩下最后一张牌了/或最后一道牌，就自动出牌，不再问玩家
 					answer = null;
 				}
 				else
@@ -150,8 +159,17 @@ public class DouDiZhu extends CardGame
 
 				if (StringUtils.isEmpty (answer))
 				{	// 回合内玩家不出牌，则系统自动替他出一张
-					//
-					answer = (String)player_cards.get (0).get ("rank");
+					if (手牌牌型 != Type.__未知牌型__)
+					{
+						StringBuilder sbPlayed = new StringBuilder ();
+						for (Map<String, Object> card : player_cards)
+						{
+							sbPlayed.append ((String)card.get ("rank"));
+						}
+						answer = sbPlayed.toString ();
+					}
+					else
+						answer = (String)player_cards.get (0).get ("rank");
 				}
 				List<String> listCardRanks_RoundPlayer = AnswerToCardRanksList (answer);
 				RemovePlayedCards (sRoundPlayer, listCardRanks_RoundPlayer);
@@ -762,7 +780,8 @@ public class DouDiZhu extends CardGame
 	 * 判断牌型。
 	 * 注意：这里并不判断所有的牌是不是在自己手里，调用者需要自己判断。
 	 * @param listCardRanks 玩家出的牌的列表 (列表不需要排序)
-	 * @return Type 类型的牌型
+	 * @return Type 牌型
+	 * @throws IllegalArgumentException 如果牌型不正确，则通常会抛出 IllegalArgumentException 异常
 	 */
 	public static Type GetCardsType (List<String> listCardRanks)
 	{
@@ -853,6 +872,23 @@ public class DouDiZhu extends CardGame
 			//break;
 		}
 		return Type.__未知牌型__;
+	}
+
+	/**
+	 * 判断玩家手牌型。
+	 * 通常用来判断玩家手牌是不是 1 道牌，如果是的话，则可以不再询问玩家，自动打出 -> 结束游戏
+	 * @param player_cards 玩家手牌
+	 * @return Type 牌型
+	 * @throws IllegalArgumentException 如果牌型不正确，则通常会抛出 IllegalArgumentException 异常
+	 */
+	public static Type GetPlayerCardsType (List<Map<String, Object>> player_cards)
+	{
+		List<String> listConvert = new ArrayList<String> ();
+		for (Map<String, Object> card : player_cards)
+		{
+			listConvert.add ((String)card.get ("rank"));
+		}
+		return GetCardsType (listConvert);
 	}
 
 	/**
