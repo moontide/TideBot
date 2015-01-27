@@ -320,7 +320,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		{
 			String msg = "谢谢，请等待其他 " + (participants.size () - participantAnswers.size ()) +  " 人回答完毕。";
 			// 发到对话发起的频道里
-			bot.SendMessage (ch, n, true, 1, msg);
+			bot.SendMessage (channel, n, true, 1, msg);
 
 			if (StringUtils.isEmpty (ch))	// 如果用户通过私信发送的答案，则也再在私信里发一次
 				bot.SendMessage (null, n, false, 1, msg);
