@@ -11,12 +11,11 @@ qqwry_file_url=http://www.newxing.com${qqwry_file_url//\"/}
 echo "$qqwry_file_url"
 
 size_file=/var/tmp/qqwry-size.txt
-old_size=$(cat $size_file)
-echo "curl -I $qqwry_file_url"
-new_size=`curl -I $qqwry_file_url 2>&1 | grep -E -i "Content-Length|Last-Modified"`
+old_size=$(cat "$size_file")
+new_size=$(curl -I "$qqwry_file_url" 2>&1 | grep -iE "Content-Length|Last-Modified")
 
-echo "old_size = [${old_size}]"
-echo "new_size = [${new_size}]"
+echo "old_size = [$old_size]"
+echo "new_size = [$new_size]"
 
 if [ "$old_size" == "$new_size" ]; then
 	echo "qqwry 文件没改变，不必下载"
@@ -25,11 +24,11 @@ else
 	/usr/bin/rm -f $archive_file
 
 	# 下载
-	wget -c --no-cache -O $archive_file $qqwry_file_url
+	wget -c --no-cache -O $archive_file "$qqwry_file_url"
 
 	if [ $? -eq 0 ]
 	then
-		echo -n "${new_size}" > $size_file
+		echo -n "$new_size" > $size_file
 
 		# 解压缩
 		#7za.exe e $archive_file ${parent_directory}${files_to_be_extract}
