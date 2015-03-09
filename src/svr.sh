@@ -1,6 +1,6 @@
 echo -e '\e[31;1m禁用掉一些命令，以较安全的方式执行\e[m'
 # 目前服务器连这个服务器相对稳定，很少断线
-export server=sendak.freenode.net
+export server=weber.freenode.net
 export botdir=${botdir-$(dirname $0)}
 export nick=GameBot
 export botcmdPrefix=

@@ -4333,6 +4333,7 @@ System.out.println (evaluateResult);
 	void ProcessCommand_Tag (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		boolean isQueryingStatistics = false;
+		params = StringUtils.trimToEmpty (params);
 		if (mapGlobalOptions.containsKey ("stats") || mapGlobalOptions.containsKey ("统计"))
 		{
 			isQueryingStatistics = true;
@@ -4479,7 +4480,7 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 
 				rs = stmt_sp.getResultSet ();
 				if (isReverseQuery)
-				{
+				{	// 反查
 					if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT && !isUserInWhiteList(hostname, login, nick, botcmd))	// 设置的大小超出了上限（因为在 bot 命令统一处理参数的地方跳过了 tag 命令，所以需要在此重做）
 						opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 					int nLine = 0;
@@ -4504,13 +4505,25 @@ logger.fine (params + " 有 " + nCount + " 条词条定义, 最大 ID=" + nMaxID
 						updated_times = rs.getInt ("updated_times");
 						sLastUpdatedTime = rs.getString ("updated_time");
 						sLastUpdatedBy = rs.getString ("updated_by");
-						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + " #" + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL + " --> " + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL));
+						if (isShowDetail)
+							SendMessage (ch, nick, mapGlobalOptions,
+								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
+								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
+								+ "    出台" + (fetched_times+1) + "次, 添加:"
+								+ (sAddedBy + " " + sAddedTime.substring (0, 19))
+								+ (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19))
+							);
+						else
+							SendMessage (ch, nick, mapGlobalOptions,
+								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
+								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
+							);
 					}
 					if (! bFound)
 						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 				}
 				else
-				{
+				{	// 正查
 					while (rs.next ())
 					{
 						bFound = true;
@@ -4788,7 +4801,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	}
 
 	/**
-	 * 获取任意 HTML 网址的内容，根据模板解析，将解析结果显示出来。
+	 * 获取任意 HTML 网址的内容，将解析结果显示出来。
+	 *   - 最直接的方式就是直接执行：  ht  <网址> <CSS选择器>
+	 *   - 模板化： 对于经常用到的 html 网址可做成模板，用 ht.exec <模板名/或模板ID> 来执行
 	 *
 	 * @param ch
 	 * @param nick
@@ -5996,7 +6011,9 @@ System.out.println (sQueryString);
 					if (arg.startsWith ("-") || arg.startsWith ("+"))
 					{
 						String arg1 = arg.substring (1);
-						if (arg1.equalsIgnoreCase ("c") || arg1.equalsIgnoreCase ("-init-file") || arg1.equalsIgnoreCase ("-rcfile"))
+						if ((!arg1.startsWith ("-") && arg1.contains ("c")) || arg1.equalsIgnoreCase ("-init-file") || arg1.equalsIgnoreCase ("-rcfile")
+							|| (!arg1.startsWith ("-") && arg1.contains ("l")) || arg1.equalsIgnoreCase ("-login")	// bash -l 执行 ~/.bash_profile
+						)
 						{
 							throw new RuntimeException (cmd + " 命令禁止使用 " + arg + " 参数执行命令");
 						}
