@@ -10,7 +10,7 @@ export LANG=zh_CN.UTF-8
 #export database_driver=com.mysql.jdbc.Driver
 export database_username=bot
 #export database_passwrd=
-export database_url="jdbc:mysql://localhost/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"
+export database_url="jdbc:mysql://192.168.115.88/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"
 
 export GoAgent_proxyHost=localhost
 export GoAgent_proxyPort=8087
