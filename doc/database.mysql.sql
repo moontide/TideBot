@@ -189,7 +189,7 @@ DELIMITER ;
 
 /*******************************************************************************
 
-	HTML 解析器模板
+	HTML/JSON 解析器模板
 
 *******************************************************************************/
 CREATE TABLE html_parser_templates
@@ -198,10 +198,11 @@ CREATE TABLE html_parser_templates
 	name VARCHAR(50) NOT NULL DEFAULT '' UNIQUE KEY,
 
 	url VARCHAR(300) NOT NULL DEFAULT '',
+	content_type ENUM('', 'html', 'json') NOT NULL DEFAULT '',
 	url_param_usage VARCHAR(100) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
 	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的选择器表达式',
-	sub_selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
-	extract ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') NOT NULL DEFAULT '',
+	sub_selector VARBINARY(300) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	extract VARCHAR(20) NOT NULL DEFAULT '',	/* 原数据类型:  ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') */
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
 
 	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
@@ -223,6 +224,17 @@ CREATE TABLE html_parser_templates
 	PRIMARY KEY PK__html_parser_templates (id),
 	UNIQUE KEY UQ__html_parser_templates (name)
 ) ENGINE MyISAM CHARACTER SET UTF8;
+
+CREATE TABLE html_parser_templates_other_sub_selectors
+(
+	template_id INT UNSIGNED NOT NULL DEFAULT 0,
+	sub_selector_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	sub_selector VARBINARY(300) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	extract VARCHAR(20) NOT NULL DEFAULT '',
+	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
+
+	PRIMARY KEY PK__html_parser_templates_other_sub_selectors (template_id, sub_selector_id)
+) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '此表是 html_parser_templates 的延伸：允许一个模板有多个 sub_selector，这样可以让多个 sub element 组成成一个完整的信息';
 
 
 DELIMITER $$
