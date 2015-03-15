@@ -134,7 +134,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
-		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", },
+		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "json", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "2048", },
 		{BOT_PRIMARY_COMMAND_MAC_MANUFACTORY, "oui", "macm", },
@@ -908,22 +908,89 @@ public class LiuYanBot extends PircBot implements Runnable
 						return;
 				}
 			}
-			String botCmd;
+			String botCmd=null, botCmdAlias=null, params=null;
+			List<String> listEnv=null;
 			botCmd = getBotPrimaryCommand (message);
 			Map<String, Object> banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp, botCmd);
 
 			//  再判断是不是 bot 命令
 			if (botCmd == null)
 			{
-				// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
-				this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
-
-				if (isSayingToMe && banInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
+				boolean isHTCommandShortcut = false;
+				String sHTContentType = "";
+				String sHTTemplateName = "";
+				String sCommandOptions = "";
+				String[] args = null;
+				// 查看 ht 命令的模板库，看看名字是否有，如果有的话，就直接执行之
+				Connection conn = null;
+				PreparedStatement stmt = null;
+				ResultSet rs = null;
+				try
 				{
-					SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_Help, true) + " 命令显示帮助信息");
-					//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
+					args = message.split (" +", 2);
+					sHTTemplateName = args[0];
+					if (args[0].contains ("."))
+					{
+						int iFirstDotIndex = args[0].indexOf(".");
+						sHTTemplateName = args[0].substring (0, iFirstDotIndex);
+						sCommandOptions = args[0].substring (iFirstDotIndex);
+					}
+					SetupDataSource ();
+					conn = botDS.getConnection ();
+					stmt = conn.prepareStatement ("SELECT content_type FROM html_parser_templates WHERE name=?");
+						stmt.setString (1, sHTTemplateName);
+					rs = stmt.executeQuery ();
+					while (rs.next ())
+					{
+						sHTContentType = rs.getString (1);
+						isHTCommandShortcut = true;
+						break;
+					}
+					rs.close ();
+					stmt.close ();
+					conn.close ();
 				}
-				return;
+				catch (Throwable e)
+				{
+					e.printStackTrace ();
+					if (rs != null) rs.close ();
+					if (stmt != null) stmt.close ();
+					if (conn != null) conn.close ();
+				}
+
+				if (isHTCommandShortcut)
+				{
+					//if (StringUtils.equalsIgnoreCase (sHTContentType, "json"))
+					//	botCmd = "json";
+					//else
+						botCmd = BOT_PRIMARY_COMMAND_HTMLParser;
+
+					message =
+						botCmd +
+						(
+							StringUtils.containsIgnoreCase(sCommandOptions, ".add")
+								|| StringUtils.containsIgnoreCase(sCommandOptions, ".run") || StringUtils.containsIgnoreCase(sCommandOptions, ".go")
+								|| StringUtils.containsIgnoreCase(sCommandOptions, ".show")
+								|| StringUtils.containsIgnoreCase(sCommandOptions, ".list") || StringUtils.containsIgnoreCase(sCommandOptions, ".search")
+								|| StringUtils.containsIgnoreCase(sCommandOptions, ".stats")
+							? sCommandOptions
+							: ".run" + sCommandOptions
+						)
+						+ " " + sHTTemplateName + (args.length > 1 ? " " + args[1] : "");	// 重新组合生成 ht 命令
+System.err.println (message);
+				}
+				else
+				{
+					// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
+					this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
+
+					if (isSayingToMe && banInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
+					{
+						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_Help, true) + " 命令显示帮助信息");
+						//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
+					}
+					return;
+				}
 			}
 			else if (! botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
 			{
@@ -953,8 +1020,6 @@ public class LiuYanBot extends PircBot implements Runnable
 			// 统一命令格式处理，得到 bot 命令、bot 命令环境参数、其他参数
 			// bot命令[.语言等环境变量]... [接收人(仅当命令环境参数有 .to 时才需要本参数)] [其他参数]...
 			//  语言
-			String botCmdAlias=null, params=null;
-			List<String> listEnv=null;
 			if (! StringUtils.isEmpty (BOT_COMMAND_PREFIX))
 				message = message.substring (BOT_COMMAND_PREFIX.length ());	// 这样直接去掉前缀字符串长度的字符串(而不验证 message 是否以前缀开头)，是因为前面的 getBotCommand 命令已经验证了命令前缀的有效性，否则这样直接去掉是存在缺陷的的（”任意与当前前缀相同长度的前缀都是有效的前缀“）
 			String[] args = message.split (" +", 2);
@@ -1204,7 +1269,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		// [“输入”与“命令”完全相等]，
 		// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
 		// 或者 [“输入”以“命令”开头，且紧接小数点"."字符]，小数点字符用于附加 bot 命令的选项
-		String[] inputs = input.split ("[ .]+", 2);
+		String[] inputs = input.split ("[ \\.]+", 2);
 		String sInputCmd = inputs[0];
 		for (String[] names : BOT_COMMAND_ALIASES)
 		{
@@ -1456,23 +1521,28 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_HTMLParser;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions,
+			if (!StringUtils.isEmpty (ch))
+			{
+				SendMessage (ch, u, mapGlobalOptions, "简而言之，这就是个 万能 HTML 解析器，用以解析任意 HTML 网址的内容。由于该命令帮助信息比较多，所以，改由私信发出");
+			}
+			SendMessage (null, u, mapGlobalOptions,
 				formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("jsoup", true) + "|" +
 				formatBotCommandInstance ("ht", true) +
 				"<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("exec", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "> " +	//  + "|." + formatBotOptionInstance ("stats", true)
 				"[<" + formatBotParameter ("网址", true) + "> <" + formatBotParameter ("CSS 选择器", true) + ">] " +
 				//"[/# " + formatBotParameter ("HTML 解析模板编号", true) + "] " +
+				"[/ct " + formatBotParameter ("内容类型，可取值为 html 和 json", true) + "] " +
 				"[/n " + formatBotParameter ("HTML 解析模板名", true) + "] " +
-				"[/ss " + formatBotParameter ("子选择器", true) + "] " +
+				"[/ss " + formatBotParameter ("子选择器(可以有多个)", true) + "]... " +
 				"[/e " + formatBotParameter ("取值项", true) + "] " +
 				"[/a " + formatBotParameter ("取值项为 attr 时的属性名", true) + "] " +
 				"[/ua User-Agent] [/m GET|POST] [/r 来源] [/t 超时_秒] [/start 偏移量]  -- 万能 HTML 解析器，用以解析任意 HTML 网址的任意内容");
-			SendMessage (ch, u, mapGlobalOptions,
+			SendMessage (null, u, mapGlobalOptions,
 				formatBotParameter ("模板名", true) + "建议: 以网站名或域名开头. " +
 				formatBotParameter ("网址", true) + ": 可以省去前面的 http:// ; 有的主页网址需要在域名后面加 / 才能正常获取数据; 有的网址则需要指定 User-Agent 字符串 (如 /ua Mozilla) 才能正常获取数据. " +
 				formatBotParameter ("CSS 选择器", true) + "必须是 jsoup 库支持的选择器:" + Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/select/Selector.html http://jsoup.org/cookbook/extracting-data/selector-syntax" + Colors.BOLD + ". " +
 				"");
-			SendMessage (ch, u, mapGlobalOptions,
+			SendMessage (null, u, mapGlobalOptions,
 				formatBotParameter ("取值项", true) + ": 空|" +
 					formatBotParameterInstance ("text", true) + "|" +
 					formatBotParameterInstance ("owntext", true) + "|" +
@@ -1489,7 +1559,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/nodes/Element.html " + Colors.BOLD +
 					""
 				);
-			SendMessage (ch, u, mapGlobalOptions,
+			SendMessage (null, u, mapGlobalOptions,
 				"当 ." + formatBotOptionInstance ("list", true) + " 时, 列出已保存的模板. 可用 /start <起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." +
 				formatBotOptionInstance ("add", true) + " 时, 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". ." +
 				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ${p3}" + Colors.NORMAL);
@@ -3624,7 +3694,7 @@ System.out.println (sTitle_colorizedForShell);
 System.out.println (sContent_colorizedForShell);
 //System.out.println (GsearchResultClass);
 
-				String sMessage = (i+1) + "  " + URLDecoder.decode (sURL, "UTF-8") + "  " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringEscapeUtils.unescapeHtml4 (sTitle) + Colors.DARK_GREEN + "]" + Colors.NORMAL + "  " + StringEscapeUtils.unescapeHtml4 (sContent);
+				String sMessage = URLDecoder.decode (sURL, "UTF-8") + "  " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringEscapeUtils.unescapeHtml4 (sTitle) + Colors.DARK_GREEN + "]" + Colors.NORMAL + "  " + StringEscapeUtils.unescapeHtml4 (sContent);
 				byte[] messageBytes = sMessage.getBytes (getEncoding());
 				if (! b其他信息已显示 && messageBytes.length<300)	// 仅当 (1)未显示过其他信息，且当前行的内容比较少的时候，才显示其他信息
 				{
@@ -4802,6 +4872,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 	/**
 	 * 获取任意 HTML 网址的内容，将解析结果显示出来。
+	 * 目前支持读取 Content-Type 为 text/*, application/xml, or application/xhtml+xml (这些是 Jsoup 默认支持的内容类型) 和 application/json (这是单独处理的) 的内容的读取。
 	 *   - 最直接的方式就是直接执行：  ht  <网址> <CSS选择器>
 	 *   - 模板化： 对于经常用到的 html 网址可做成模板，用 ht.exec <模板名/或模板ID> 来执行
 	 *
@@ -4823,15 +4894,15 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			for (int i=0; i<listCmdEnv.size (); i++)
 			{
 				String env = listCmdEnv.get (i);
-				if (env.equalsIgnoreCase ("add") || env.equalsIgnoreCase ("+") || env.equalsIgnoreCase ("save"))
+				if (env.equalsIgnoreCase ("add"))
 					sAction = "+";
-				else if (env.equalsIgnoreCase ("exe") || env.equalsIgnoreCase ("exec") || env.equalsIgnoreCase ("run") || env.equalsIgnoreCase ("go") || env.equalsIgnoreCase ("visit") || env.equalsIgnoreCase ("执行") || env.equalsIgnoreCase ("获取"))
-					sAction = "exec";
-				else if (env.equalsIgnoreCase ("show") || env.equalsIgnoreCase ("显示"))
+				else if (env.equalsIgnoreCase ("run") || env.equalsIgnoreCase ("go"))
+					sAction = "run";
+				else if (env.equalsIgnoreCase ("show"))
 					sAction = "show";
-				else if (env.equalsIgnoreCase ("list") || env.equalsIgnoreCase ("列表") || env.equalsIgnoreCase ("search") || env.equalsIgnoreCase ("搜索"))
+				else if (env.equalsIgnoreCase ("list") || env.equalsIgnoreCase ("search"))
 					sAction = "list";
-				else if (env.equalsIgnoreCase ("stats") || env.equalsIgnoreCase ("统计"))
+				else if (env.equalsIgnoreCase ("stats"))
 					sAction = "stats";
 				else
 					continue;
@@ -4841,6 +4912,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
+		String sContentType = null;	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json
 		//String sID = null;
 		long nID = 0;
 		String sName = null;
@@ -4850,9 +4922,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		String sURLParam3 = null;
 		String sURLParamsHelp = null;
 		String sSelector = null;
-		String sSubSelector = null;
-		String sExtract = null;
-		String sAttr = null;
+		//String sSubSelector = null;
+		List<String> listSubSelectors = new ArrayList<String> ();
+		//String sExtract = null;
+		List<String> listExtracts = new ArrayList<String> ();
+		//String sAttr = null;
+		List<String> listAttributes = new ArrayList<String> ();
 		//String sMax = null;
 
 		String sHTTPUserAgent = null;
@@ -4861,8 +4936,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		String sHTTPTimeout = null;
 		int nHTTPTimeout = WATCH_DOG_TIMEOUT_LENGTH;
 
-		//String sIngoreContentType = null;
-		boolean isIngoreContentType = false;
+		//String sIgnoreContentType = null;
+		boolean isIgnoreContentType = false;
 
 		//String sStart = null;
 		long iStart = 0;
@@ -4886,7 +4961,17 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 					i++;
 					String value = listParams.get (i);
-					if (param.equalsIgnoreCase ("u") || param.equalsIgnoreCase ("url") || param.equalsIgnoreCase ("网址"))
+					if (param.equalsIgnoreCase ("ct") || param.equalsIgnoreCase ("ContentType") || param.equalsIgnoreCase ("Content-Type"))
+					{
+						sContentType = value;
+						if (sContentType.equalsIgnoreCase ("json"))
+						{
+							//
+						}
+						else
+							sContentType = "html";	// 其他的默认为 html
+					}
+					else if (param.equalsIgnoreCase ("u") || param.equalsIgnoreCase ("url") || param.equalsIgnoreCase ("网址"))
 					{
 						if (StringUtils.startsWithIgnoreCase (value, "http://") || StringUtils.startsWithIgnoreCase (value, "https://"))
 							sURL = value;
@@ -4898,11 +4983,22 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					//else if (param.equalsIgnoreCase ("s") || param.equalsIgnoreCase ("selector") || param.equalsIgnoreCase ("选择器"))
 					//	sSelector = value;
 					else if (param.equalsIgnoreCase ("ss") || param.equalsIgnoreCase ("sub-selector") || param.equalsIgnoreCase ("子选择器"))
-						sSubSelector = value;
+					{	// 遇到 /ss 时，把 listSubSelectors listExtracts listAttributes 都添加一项，listExtracts listAttributes 添加的是空字符串，这样是为了保证三个列表的数量相同
+						// 另外：  /ss  /e  /a 必须保证 /ss 在最前面
+						listSubSelectors.add (value);
+						listExtracts.add ("");
+						listAttributes.add ("");
+					}
 					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
-						sExtract = value;
+					{
+						//listExtracts.add (value);
+						listExtracts.set (listExtracts.size () - 1, value);	// 更改最后 1 项
+					}
 					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性名"))
-						sAttr = value;
+					{
+						//listAttributes.add (value);
+						listAttributes.set (listAttributes.size () - 1, value);	// 更改最后 1 项
+					}
 					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
 						sName = value;
 					else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("编号"))
@@ -4936,15 +5032,22 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						//sStart = value;
 						iStart = Integer.parseInt (value);
 					}
-					else if (param.equalsIgnoreCase ("IngoreContentType"))
+					else if (param.equalsIgnoreCase ("IgnoreContentType"))
 					{
-						//sIngoreContentType = value;
-						isIngoreContentType = BooleanUtils.toBoolean (value);
+						//sIgnoreContentType = value;
+						isIgnoreContentType = BooleanUtils.toBoolean (value);
 					}
 				}
 				else
 					listOrderedParams.add (param);
 			}
+		}
+
+		// 处理用 json 命令别名执行命令时的特别设置： (1).强制改变 Content-Type  (2).强制忽略 http 返回的 Content-Type，否则 jsoup 会报错
+		if (botCmdAlias.equalsIgnoreCase ("json"))
+		{
+			sContentType = "json";
+			isIgnoreContentType = true;
 		}
 
 		// 根据不同的 action 重新解释 listOrderedParams、检查 param 有效性
@@ -4969,12 +5072,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		}
 		else
 		{
-			if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "exec"))
+			if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "run"))
 			{
 				sURL = null;
 				sSelector = null;
-				sSubSelector = null;
-				sExtract = null;
+				listSubSelectors.clear ();
+				listExtracts.clear ();
+				listAttributes.clear ();
 				if (listOrderedParams.size () > 0)
 				{
 					String value = listOrderedParams.get (0);
@@ -5001,9 +5105,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
-				if (StringUtils.isEmpty (sURL) || StringUtils.isEmpty (sSelector) || StringUtils.isEmpty (sName))
+				if (StringUtils.isEmpty (sURL) || StringUtils.isEmpty (sName))
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、<CSS 选择器>、/name <模板名称> 参数.");
+					if (sContentType.equalsIgnoreCase ("json") && listSubSelectors.isEmpty ())
+						SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、/ss <JSON 取值表达式>、/name <模板名称> 参数.");
+					else if (StringUtils.isEmpty (sSelector))
+						SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、<CSS 选择器>、/name <模板名称> 参数.");
 					return;
 				}
 				if (! StringUtils.isEmpty (sName) && sName.matches ("\\d+"))
@@ -5011,10 +5118,24 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					SendMessage (ch, nick, mapGlobalOptions, "模板名称 不能是全数字，在执行模板时，全数字会被当做 ID 使用.");
 					return;
 				}
-				if (StringUtils.equalsIgnoreCase (sExtract, "attr") && StringUtils.isEmpty (sAttr))
+
+				for (int i=0, ia=0; i<listExtracts.size (); i++)	// ia = 0;	// index of attribute
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, attr 需要用 /a 指定具体属性名.");
-					return;
+					String sExtract = listExtracts.get (i);
+					if (StringUtils.equalsIgnoreCase (sExtract, "attr"))
+					{
+						if (listAttributes.size () < (ia+1))
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, 但 attr 需要用 /a 指定具体属性名，我已经在属性名列表里找不到剩余的属性名了.");
+							return;
+						}
+						String sAttr = listAttributes.get (ia++);
+						if (StringUtils.isEmpty (sAttr))
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, attr 需要用 /a 指定具体属性名.");
+							return;
+						}
+					}
 				}
 			}
 			else if (StringUtils.equalsIgnoreCase (sAction, "list"))
@@ -5030,23 +5151,28 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		Connection conn = null;
 		CallableStatement stmt_sp = null;
 		PreparedStatement stmt = null;
+		PreparedStatement stmt_GetSubSelectors = null;
 		ResultSet rs = null;
+		ResultSet rs_GetSubSelectors = null;
 		boolean bFound = false;
 		int nRowsAffected = 0;
 		int nLines = 0;
 		try
 		{
 			StringBuilder sbSQL = null;
+			String sSQL_GetSubSelectors = null;
 			if (sAction != null)
 			{
 				SetupDataSource ();
 				conn = botDS.getConnection ();
 
 				sbSQL = new StringBuilder ();
+				sSQL_GetSubSelectors = "SELECT * FROM html_parser_templates_other_sub_selectors WHERE template_id=?";
 			}
 
-			if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "exec") || StringUtils.equalsIgnoreCase (sAction, "list"))
+			if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "run") || StringUtils.equalsIgnoreCase (sAction, "list"))
 			{
+				// 生成 SQL 查询语句
 				sbSQL.append ("SELECT * FROM html_parser_templates WHERE ");
 				List<String> listSQLParams = new ArrayList<String> ();
 				if (StringUtils.equalsIgnoreCase (sAction, "list"))
@@ -5067,6 +5193,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						sbSQL.append ("	AND selector LIKE ?\n");
 						listSQLParams.add ("%" + sSelector + "%");
 					}
+					/*
 					if (! StringUtils.isEmpty (sSubSelector))
 					{
 						sbSQL.append ("	AND sub_selector LIKE ?\n");
@@ -5082,6 +5209,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						sbSQL.append ("	AND attr = ?\n");
 						listSQLParams.add (sAttr);
 					}
+					//*/
 					//if (! StringUtils.isEmpty (sMax))
 					//{
 					//	sbSQL.append ("	AND max = ?\n");
@@ -5113,7 +5241,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						sbSQL.append ("name=?");
 				}
 
+				// 准备语句
+				stmt_GetSubSelectors = conn.prepareStatement (sSQL_GetSubSelectors);
 				stmt = conn.prepareStatement (sbSQL.toString ());
+				// 植入 SQL 参数值
 				if (StringUtils.equalsIgnoreCase (sAction, "list"))
 				{
 					for (int i=0; i<listSQLParams.size (); i++)
@@ -5129,6 +5260,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						stmt.setString (1, sName);
 				}
 
+				// 执行，并取出结果值
 				rs = stmt.executeQuery ();
 				while (rs.next ())
 				{
@@ -5139,14 +5271,28 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						sName = rs.getString ("name");
 					if (StringUtils.isEmpty (sURL))
 						sURL = rs.getString ("url");
+					sContentType = rs.getString ("content_type");
+					if (StringUtils.equalsIgnoreCase (sContentType, "json"))
+						isIgnoreContentType = true;
 					if (StringUtils.isEmpty (sSelector))
 						sSelector = rs.getString ("selector");
-					if (StringUtils.isEmpty (sSubSelector))
-						sSubSelector = rs.getString ("sub_selector");
-					if (StringUtils.isEmpty (sExtract))
-						sExtract = rs.getString ("extract");
-					if (StringUtils.isEmpty (sAttr))
-						sAttr = rs.getString ("attr");
+//System.err.println (rs.getString("selector"));
+					//if (StringUtils.isEmpty (sSubSelector))
+					//	sSubSelector = rs.getString ("sub_selector");
+					//if (StringUtils.isEmpty (sExtract))
+					//	sExtract = rs.getString ("extract");
+					//if (StringUtils.isEmpty (sAttr))
+					//	sAttr = rs.getString ("attr");
+
+					listSubSelectors.clear ();
+					listExtracts.clear ();
+					listAttributes.clear ();
+
+					listSubSelectors.add (new String(rs.getString ("sub_selector").getBytes ("iso-8859-1")));
+					listExtracts.add (rs.getString ("extract"));
+					listAttributes.add (rs.getString ("attr"));
+//System.err.println (rs.getString("sub_selector") + "； " + rs.getString("extract") + "； "+ rs.getString("attr"));
+
 					if (! opt_max_response_lines_specified)
 						opt_max_response_lines = rs.getShort ("max");
 
@@ -5159,43 +5305,115 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 					sURLParamsHelp = rs.getString ("url_param_usage");
 
+					try
+					{
+						stmt_GetSubSelectors.setInt (1, rs.getInt ("id"));
+						rs_GetSubSelectors = stmt_GetSubSelectors.executeQuery ();
+						while (rs_GetSubSelectors.next ())
+						{
+							listSubSelectors.add (new String(rs_GetSubSelectors.getString("sub_selector").getBytes ("iso-8859-1")));
+							listExtracts.add (rs_GetSubSelectors.getString("extract"));
+							listAttributes.add (rs_GetSubSelectors.getString("attr"));
+//System.err.println (rs_GetSubSelectors.getString("sub_selector") + "； " + rs_GetSubSelectors.getString("extract") + "； "+ rs_GetSubSelectors.getString("attr"));
+						}
+						rs_GetSubSelectors.close ();
+					}
+					catch (Exception e)
+					{
+						e.printStackTrace ();
+					}
+
 					if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "list"))
 					{
 						if (nLines >= opt_max_response_lines)
 							break;
 
-						SendMessage (ch, nick, mapGlobalOptions,
+						StringBuilder sbHelp = new StringBuilder ();
+						sbHelp.append (
 							"#" + rs.getLong ("ID") +
-							"  " + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
-							"  " + Colors.DARK_GREEN + rs.getString ("url") + Colors.NORMAL +
-							"  " + Colors.BLUE + rs.getString ("selector") + Colors.NORMAL +
-							(StringUtils.isEmpty (rs.getString ("sub_selector")) ? "" : "  " + Colors.PURPLE + rs.getString ("sub_selector") + Colors.NORMAL) +
-							(StringUtils.isEmpty (rs.getString ("extract")) ? "" : " 取值项=" + rs.getString ("extract")) +
-							(rs.getString ("extract").equalsIgnoreCase ("attr") || rs.getString ("extract").equalsIgnoreCase ("attribute") ? " 属性名=" + rs.getString ("attr") : "") +
-							(StringUtils.isEmpty (rs.getString ("ua")) ? "" : " 仿浏览器=" + rs.getString ("ua")) +
-							(StringUtils.isEmpty (rs.getString ("method")) ? "" : " 请求方法=" + rs.getString ("method")) +
-							(StringUtils.isEmpty (rs.getString ("referer")) ? "" : " 来源=" + rs.getString ("referer")) +
-							" 获取行数=" + rs.getShort ("max") +
-							(StringUtils.isEmpty (rs.getString ("url_param_usage")) ? "" : " 参数说明=" + rs.getString ("url_param_usage")) +
-							" 添加人: " + rs.getString ("added_by") +
-							" " + rs.getString ("added_time").substring (0, 19) +
-							(rs.getInt ("updated_times")==0 ? "" : " 更新人: " + rs.getString ("updated_by") + " " + rs.getString ("updated_time").substring (0, 19) + " " + rs.getString ("updated_times") + " 次") +
-							""
+							"  " + formatBotCommandInstance("ht") + ".nou.run." + rs.getShort ("max") +"  '" + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
+							"'  '" + Colors.DARK_GREEN + rs.getString ("url") + Colors.NORMAL +
+							"'  '" + Colors.BLUE + rs.getString ("selector") + Colors.NORMAL +
+							"'"
 							);
+
+						for (int iSS=0; iSS<listSubSelectors.size (); iSS++)
+						{
+							String sSubSelector = listSubSelectors.get (iSS);
+							String sExtract = listExtracts.get (iSS);
+							String sAttr = listAttributes.get (iSS);
+
+							if (! StringUtils.isEmpty (sSubSelector))
+							{
+								sbHelp.append ("  /ss '");
+								sbHelp.append (Colors.PURPLE + sSubSelector + Colors.NORMAL);
+								sbHelp.append ("'");
+							}
+
+							if (! StringUtils.isEmpty (sExtract))
+							{
+								sbHelp.append (" /e ");
+								sbHelp.append (sExtract);
+							}
+
+							if (! StringUtils.isEmpty (sAttr))
+							{
+								sbHelp.append (" /a ");
+								sbHelp.append (sAttr);
+							}
+						}
+						if (! StringUtils.isEmpty (rs.getString ("ua")))
+						{
+							sbHelp.append (" /ua ");
+							sbHelp.append (rs.getString ("ua"));
+						}
+						if (! StringUtils.isEmpty (rs.getString ("method")))
+						{
+							sbHelp.append (" /m ");
+							sbHelp.append (rs.getString ("method"));
+						}
+						if (! StringUtils.isEmpty (rs.getString ("referer")))
+						{
+							sbHelp.append (" /r ");
+							sbHelp.append (rs.getString ("referer"));
+						}
+
+						if (! StringUtils.isEmpty (rs.getString ("url_param_usage")))
+						{
+							sbHelp.append (" /h '");
+							sbHelp.append (rs.getString ("url_param_usage"));
+							sbHelp.append ("'");
+						}
+						sbHelp.append ("  添加人: ");
+						sbHelp.append (rs.getString ("added_by"));
+						sbHelp.append (" ");
+						sbHelp.append (rs.getString ("added_time").substring (0, 19));
+						if (rs.getInt ("updated_times") > 0)
+						{
+							sbHelp.append ("  更新人: ");
+							sbHelp.append (rs.getString ("updated_by"));
+							sbHelp.append (" ");
+							sbHelp.append (rs.getString ("updated_time").substring (0, 19));
+							sbHelp.append (" ");
+							sbHelp.append (rs.getString ("updated_times").substring (0, 19));
+							sbHelp.append (" 次");
+						}
+						SendMessage (ch, nick, mapGlobalOptions, sbHelp.toString ());
 						nLines ++;
 					}
 					//break;
 				}
 				rs.close ();
 				stmt.close ();
+				stmt_GetSubSelectors.close ();
 				conn.close ();
 
 				if (! bFound)
 				{
 					if (StringUtils.equalsIgnoreCase (sAction, "list"))
-						SendMessage (ch, nick, mapGlobalOptions, "未找到符合条件 的 html 解析模板");
+						SendMessage (ch, nick, mapGlobalOptions, "未找到符合条件 的 html/json 解析模板");
 					else
-						SendMessage (ch, nick, mapGlobalOptions, "未找到 " + (nID != 0 ? "ID=[#" + nID : "名称=[" + sName) + "] 的 html 解析模板");
+						SendMessage (ch, nick, mapGlobalOptions, "未找到 " + (nID != 0 ? "ID=[#" + nID : "名称=[" + sName) + "] 的 html/json 解析模板");
 					return;
 				}
 				if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "list"))
@@ -5213,9 +5431,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				stmt.setString (iParam++, sURL);
 				stmt.setString (iParam++, StringUtils.trimToEmpty (sURLParamsHelp));
 				stmt.setString (iParam++, sSelector);
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sSubSelector));
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sExtract));
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sAttr));
+				stmt.setString (iParam++, StringUtils.trimToEmpty (listSubSelectors.get (0)));
+				stmt.setString (iParam++, StringUtils.trimToEmpty (listExtracts.get (0)));
+				stmt.setString (iParam++, StringUtils.trimToEmpty (listAttributes.get (0)));
 
 				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPUserAgent));
 				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPReferer));
@@ -5250,14 +5468,23 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				SendMessage (ch, nick, mapGlobalOptions, "你想看 hyper text，却不提供网址. 用第一个参数指定 <网址>");
 				return;
 			}
-			if (StringUtils.isEmpty (sSelector))
+
+			if (StringUtils.equalsIgnoreCase (sContentType, "json"))
+			{
+				if (listSubSelectors.isEmpty ())
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "json 必须指定 <网址>、/ss <JSON 取值表达式> 参数.");
+					return;
+				}
+			}
+			else if (StringUtils.isEmpty (sSelector))
 			{
 				SendMessage (ch, nick, mapGlobalOptions, "未提供 '选择器'，都不知道你具体想看什么. 用第二个参数指定 <CSS 选择器>. 选择器的写法见参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html");
 				return;
 			}
 
 			// 最后，如果带有 URLParam，将其替换掉 sURL 中的 ${p} 字符串
-			if (StringUtils.equalsIgnoreCase (sAction, "exec"))
+			if (StringUtils.equalsIgnoreCase (sAction, "run"))
 			{
 				if (StringUtils.containsIgnoreCase (sURL, "${p}") && StringUtils.isEmpty (sURLParam1)
 					//|| StringUtils.containsIgnoreCase (sURL, "${p2}") && StringUtils.isEmpty (sURLParam2)
@@ -5304,7 +5531,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			org.jsoup.Connection jsoup_conn = null;
 			jsoup_conn = org.jsoup.Jsoup.connect (sURL);
 			jsoup_conn.ignoreHttpErrors (true)
-					.ignoreContentType (isIngoreContentType)
+					.ignoreContentType (isIgnoreContentType)
 					.timeout (nHTTPTimeout * 1000)
 					;
 System.out.println (sURL);
@@ -5341,89 +5568,160 @@ System.out.println (sQueryString);
 			else
 				doc = jsoup_conn.get();
 
-			Elements es = doc.select (sSelector);
-			if (es.size () == 0)
-			{
-				SendMessage (ch, nick, mapGlobalOptions, "选择器 没有选中任何 Element/元素");
-				return;
-			}
-			for (int i=(int)iStart; i<es.size (); i++)
-			{
-				Element e = es.get (i);
-				if (nLines >= opt_max_response_lines)
+			if (StringUtils.equalsIgnoreCase (sContentType, "json") || jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json"))
+			{	// 处理 JSON 数据
+				// JSON 数据对 selector sub-selector extract attribute 做了另外的解释：
+				//  selector 或 subselector -- 这是类似  a.b[0].c.d 一样的 JSON 表达式，用于取出对象的数值
+				//  extract -- 取出 value 还是变量名(var)，还是数组索引号(index)
+				//  attr -- 无用
+				StringBuilder sbJSON = new StringBuilder ();
+				sbJSON.append ("var o = " + doc.text() + ";");
+
+				//ObjectMapper om = new ObjectMapper();
+				//om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+				//JsonNode node = om.readTree (sJSON);
+				ScriptEngine jse = public_jse;
+				ScriptContext jsContext = new SimpleScriptContext ();
+				StringWriter stdout = new StringWriter ();
+				StringWriter stderr = new StringWriter ();
+				jsContext.setWriter (stdout);
+				jsContext.setErrorWriter (stderr);
+
+				Object evaluateResult = jse.eval (sbJSON.toString (), jsContext);	// 先执行 json
+				StringBuilder sbText = new StringBuilder ();
+				for (String sSubSelector : listSubSelectors)	// 再依次执行各个 sub selector 的求值表达式 (javascript)
 				{
-					//SendMessage (ch, nick, mapGlobalOptions, "略……");
-					break;
+					try
+					{
+						evaluateResult = jse.eval (sSubSelector.toString (), jsContext);
+						if (sbText.length () > 0)
+							sbText.append (" ");
+						sbText.append (evaluateResult);
+					}
+					catch (Exception e)
+					{	// javascript 求值可能出错，这里不给用户报错，只在后台打印
+						e.printStackTrace ();
+					}
 				}
 
-				//System.out.println (e.text());
-				Element e2 = e;
-
-				String text = "";
-
-				if (! StringUtils.isEmpty (sSubSelector))
-					e2 = e.select (sSubSelector).first ();
-
-				if (StringUtils.isEmpty (sExtract) || sExtract.equalsIgnoreCase ("text"))
-				{
-					if (e2.tagName ().equalsIgnoreCase ("a"))
-						text = e2.attr ("abs:href") + " " + e2.text ();	// abs:href : 将相对地址转换为全地址
-					else
-						text = e2.text ();
-				}
-				else if (sExtract.equalsIgnoreCase ("html") || sExtract.equalsIgnoreCase ("innerhtml") || sExtract.equalsIgnoreCase ("inner"))
-					text = e2.html ();
-				else if (sExtract.equalsIgnoreCase ("outerhtml") || sExtract.equalsIgnoreCase ("outer"))
-					text = e2.outerHtml ();
-				else if (sExtract.equalsIgnoreCase ("attr") || sExtract.equalsIgnoreCase ("attribute"))
-					text = e2.attr (sAttr);
-				else if (sExtract.equalsIgnoreCase ("TagName"))
-					text = e2.tagName ();
-				else if (sExtract.equalsIgnoreCase ("NodeName"))
-					text = e2.nodeName ();
-				else if (sExtract.equalsIgnoreCase ("OwnText"))
-					text = e2.ownText ();
-				else if (sExtract.equalsIgnoreCase ("data"))
-					text = e2.data ();
-				else if (sExtract.equalsIgnoreCase ("ClassName"))
-					text = e2.className ();
-				else if (sExtract.equalsIgnoreCase ("id"))
-					text = e2.id ();
-				else if (sExtract.equalsIgnoreCase ("val") || sExtract.equalsIgnoreCase ("value"))
-					text = e2.val ();
-
-				text = StringUtils.replaceEach (
-						text,
-						new String[]
-						{
-							"\u0000", "\u0001", "\u0002", "\u0003", "\u0004", "\u0005", "\u0006", "\u0007",
-							"\u0008", "\u0009"/*\t*/, "\n"/*\u000A*/, "\u000B", "\u000C", "\r"/*\u000D*/, "\u000E", "\u000F",
-							"\u0010", "\u0011", "\u0012", "\u0013", "\u0014", "\u0015", "\u0016", "\u0017",
-							"\u0018", "\u0019", "\u001A", "\u001B", "\u001C", "\u001D", "\u001E", "\u001F",
-						},
-						new String[]
-						{
-							"", "", "", "", "", "", "", "",
-							"", " ", " ", "", " ", " ", "", "",
-							"", "", "", "", "", "", "", "",
-							"", "", "", "", "", "", "", "",
-						}
-						/*
-						new String[]
-						{
-							"␀", "␁", "␂", "␃", "␄", "␅", "␆", "␇",
-							"␈", "␉", "␊", "␋", "␌", "␍", "␎", "␏",
-							"␐", "␑", "␒", "␓", "␔", "␕", "␖", "␗",
-							"␘", "␙", "␚", "␛", "␜", "␝", "␞", "␟",
-						}
-						*/
-						);
-
-				if (text.length () > 430)
-					text = text.substring (0, 430);
+				String text = null;
+				//text = EvaluateJSONExpression (node, sSelector, listExtracts.get(0));
+				text = sbText.toString ();
 				SendMessage (ch, nick, mapGlobalOptions, text);
+			}
+			else
+			{
+				Elements es = doc.select (sSelector);
+				if (es.size () == 0)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "选择器 没有选中任何 Element/元素");
+					return;
+				}
+				for (int i=(int)iStart; i<es.size (); i++)
+				{
+					Element e = es.get (i);
+					if (nLines >= opt_max_response_lines)
+					{
+						//SendMessage (ch, nick, mapGlobalOptions, "略……");
+						break;
+					}
 
-				nLines ++;
+					//System.out.println (e.text());
+					Element e2 = e;
+
+					String text = "";
+					StringBuilder sbText = new StringBuilder ();
+
+//System.err.println ("处理 " + e);
+					for (int iSS=0; iSS<listSubSelectors.size (); iSS++)
+					{
+						String sSubSelector = listSubSelectors.get (iSS);
+						String sExtract = listExtracts.get (iSS);
+						String sAttr = listAttributes.get (iSS);
+
+						if (! StringUtils.isEmpty (sSubSelector))
+						{
+							e2 = e.select (sSubSelector).first ();
+//System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
+						}
+						if (e2 == null)	// 子选择器可能选择到不存在的，则忽略该条（比如 糗事百科的贴图，并不是每个糗事都有贴图）
+							continue;
+
+						if (StringUtils.isEmpty (sExtract))	// 如果 Extract 是空的话，对 tagName 是 a 的做特殊处理
+						{
+							if (e2.tagName ().equalsIgnoreCase ("a"))
+								text = e2.attr ("abs:href") + " " + e2.text ();	// abs:href : 将相对地址转换为全地址
+							else
+								text = e2.text ();
+						}
+						else if (sExtract.equalsIgnoreCase ("text"))
+								text = e2.text ();
+						else if (sExtract.equalsIgnoreCase ("html") || sExtract.equalsIgnoreCase ("innerhtml") || sExtract.equalsIgnoreCase ("inner"))
+							text = e2.html ();
+						else if (sExtract.equalsIgnoreCase ("outerhtml") || sExtract.equalsIgnoreCase ("outer"))
+							text = e2.outerHtml ();
+						else if (sExtract.equalsIgnoreCase ("attr") || sExtract.equalsIgnoreCase ("attribute"))
+						{
+							text = e2.attr (sAttr);
+//System.err.println ("	sExtract " + sExtract + " 榨取属性 " + sAttr + " = " + text);
+						}
+						else if (sExtract.equalsIgnoreCase ("TagName"))
+							text = e2.tagName ();
+						else if (sExtract.equalsIgnoreCase ("NodeName"))
+							text = e2.nodeName ();
+						else if (sExtract.equalsIgnoreCase ("OwnText"))
+							text = e2.ownText ();
+						else if (sExtract.equalsIgnoreCase ("data"))
+							text = e2.data ();
+						else if (sExtract.equalsIgnoreCase ("ClassName"))
+							text = e2.className ();
+						else if (sExtract.equalsIgnoreCase ("id"))
+							text = e2.id ();
+						else if (sExtract.equalsIgnoreCase ("val") || sExtract.equalsIgnoreCase ("value"))
+							text = e2.val ();
+						else
+						{
+							text = sExtract;	// 如果以上都不是，则把 sExtract 的字符串加进去，此举是为了能自己增加一些明文文字（通常是一些分隔符、label）
+						}
+
+						text = StringUtils.replaceEach (
+							text,
+							new String[]
+							{
+								"\u0000", "\u0001", /*"\u0002", "\u0003",*/ "\u0004", "\u0005", "\u0006", "\u0007",
+								"\u0008", "\u0009"/*\t*/, "\n"/*\u000A*/, "\u000B", "\u000C", "\r"/*\u000D*/, "\u000E", /*"\u000F",*/
+								"\u0010", "\u0011", "\u0012", "\u0013", "\u0014", "\u0015", /*"\u0016",*/ "\u0017",
+								"\u0018", "\u0019", "\u001A", "\u001B", "\u001C", "\u001D", "\u001E", /*"\u001F",*/
+							},
+							new String[]
+							{
+								"", "", "", /*"", "",*/ "", "", "",
+								"", " ", " ", "", " ", " ", "", /*"",*/
+								"", "", "", "", "", "", /*"",*/ "",
+								"", "", "", "", "", "", "", /*"",*/
+							}
+							/*
+							new String[]
+							{
+								"␀", "␁", "␂", "␃", "␄", "␅", "␆", "␇",
+								"␈", "␉", "␊", "␋", "␌", "␍", "␎", "␏",
+								"␐", "␑", "␒", "␓", "␔", "␕", "␖", "␗",
+								"␘", "␙", "␚", "␛", "␜", "␝", "␞", "␟",
+							}
+							*/
+							);
+						if (sbText.length () > 0)
+							sbText.append (" ");
+						sbText.append (text);
+					}
+					if (sbText.length () > 430)
+						text = sbText.substring (0, 430);
+					else
+						text = sbText.toString ();
+					SendMessage (ch, nick, mapGlobalOptions, text);
+
+					nLines ++;
+				}
 			}
 		}
 		catch (Exception e)
@@ -5439,6 +5737,44 @@ System.out.println (sQueryString);
 			try { if (conn != null) conn.close(); } catch(Exception e) { }
 		}
 	}
+
+	/*
+	Pattern patternArray = Pattern.compile ("(\\w+)\\s*\\[(\\d+)\\]");
+	String EvaluateJSONExpression (JsonNode node, String sJsonExpression, String sExtract)
+	{
+		String text = null;
+		String[]arrayJsonExpressions = sJsonExpression.split ("\\.+");
+		String sVar = "", sArrayIndex = "";
+		for (int i=0; i<arrayJsonExpressions.length; i++)
+		{
+			String sExpression = arrayJsonExpressions[i];
+			Matcher mat = patternArray.matcher (sExpression);
+			if (mat.matches ())
+			{
+				sVar = mat.group (1);
+				sArrayIndex = mat.group (2);
+			}
+			else
+			{
+				sVar = sExpression;
+				sArrayIndex = "";
+			}
+			if (sArrayIndex.isEmpty ())
+				node = node.findPath (sVar);
+			else
+				node = node.findPath (sVar).path (Integer.parseInt (sArrayIndex));
+		}
+		if (StringUtils.equals (sExtract, "#"))
+			text = "" + node.size ();
+		else if (StringUtils.equals (sExtract, "index"))
+			text = sArrayIndex;
+		else if (StringUtils.equals (sExtract, "var"))
+			text = sVar;
+		else //if (StringUtils.isEmpty (sExtract) || StringUtils.equals (sExtract, "value"))
+			text = node.asText ();
+		return text;
+	}
+	//*/
 
 	public void ValidateChannelName (String ch)
 	{
