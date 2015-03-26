@@ -3,6 +3,7 @@ package net.maclife.irc;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.*;
+import java.security.cert.*;
 import java.sql.*;
 import java.text.*;
 import java.util.*;
@@ -10,6 +11,7 @@ import java.util.concurrent.*;
 import java.util.logging.*;
 import java.util.regex.*;
 
+import javax.net.ssl.*;
 import javax.script.*;
 
 import org.apache.commons.io.*;
@@ -4870,6 +4872,91 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		}
 	}
 
+
+	/**
+	 * 使 ht 命令的几个 list 列表参数的元素数量相同
+	 * @param listSubSelectors
+	 * @param listLeftPaddings
+	 * @param listExtracts
+	 * @param listAttributes
+	 * @param listRightPaddings
+	 */
+	void FixElementNumber (List<String> listSubSelectors, List<String> listLeftPaddings, List<String> listExtracts, List<String> listAttributes, List<String> listRightPaddings)
+	{
+		int nMaxElements = listSubSelectors.size ();
+		if (nMaxElements < listLeftPaddings.size ())
+			nMaxElements = listLeftPaddings.size ();
+		if (nMaxElements < listExtracts.size ())
+			nMaxElements = listExtracts.size ();
+		if (nMaxElements < listAttributes.size ())
+			nMaxElements = listAttributes.size ();
+		if (nMaxElements < listRightPaddings.size ())
+			nMaxElements = listRightPaddings.size ();
+
+		for (int n=0; n<nMaxElements - listSubSelectors.size (); n++)
+			listSubSelectors.add (null);
+		for (int n=0; n<nMaxElements - listLeftPaddings.size (); n++)
+			listLeftPaddings.add (null);
+		for (int n=0; n<nMaxElements - listExtracts.size (); n++)
+			listExtracts.add (null);
+		for (int n=0; n<nMaxElements - listAttributes.size (); n++)
+			listAttributes.add (null);
+		for (int n=0; n<nMaxElements - listRightPaddings.size (); n++)
+			listRightPaddings.add (null);
+	}
+
+	// Create a trust manager that does not validate certificate chains
+	static TrustManager[] tmTrustAllCertificates =
+		new TrustManager[]
+		{
+			new X509TrustManager()
+			{
+				@Override
+				public java.security.cert.X509Certificate[] getAcceptedIssuers()
+				{
+					return null;
+				}
+				@Override
+				public void checkClientTrusted(X509Certificate[] certs, String authType)
+		        {
+		        }
+		        @Override
+				public void checkServerTrusted(X509Certificate[] certs, String authType)
+		        {
+		        }
+		    }
+		};
+
+	// Install the all-trusting trust manager
+	static SSLContext sc = null;
+	static
+	{
+		try
+		{
+			sc = SSLContext.getInstance ("SSL");
+			sc.init (null, tmTrustAllCertificates, new java.security.SecureRandom());
+		}
+		catch (java.security.NoSuchAlgorithmException e)
+		{
+			e.printStackTrace();
+		}
+		catch (java.security.KeyManagementException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	// Create all-trusting host name verifier
+	HostnameVerifier hvAllowAllHostnames =
+		new HostnameVerifier()
+		{
+			@Override
+			public boolean verify(String hostname, SSLSession session)
+	    	{
+	    		return true;
+	    	}
+		};
+
 	/**
 	 * 获取任意 HTML 网址的内容，将解析结果显示出来。
 	 * 目前支持读取 Content-Type 为 text/*, application/xml, or application/xhtml+xml (这些是 Jsoup 默认支持的内容类型) 和 application/json (这是单独处理的) 的内容的读取。
@@ -4913,6 +5000,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
 		String sContentType = null;	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json
+		int nJS_Cut_Start = 0;
+		int nJS_Cut_End = 0;
 		//String sID = null;
 		long nID = 0;
 		String sName = null;
@@ -4925,10 +5014,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		//String sSubSelector = null;
 		List<String> listSubSelectors = new ArrayList<String> ();
 		//String sExtract = null;
+		List<String> listLeftPaddings = new ArrayList<String> ();
 		List<String> listExtracts = new ArrayList<String> ();
 		//String sAttr = null;
 		List<String> listAttributes = new ArrayList<String> ();
 		//String sMax = null;
+		List<String> listRightPaddings = new ArrayList<String> ();
 
 		String sHTTPUserAgent = null;
 		String sHTTPMethod = null;
@@ -4938,6 +5029,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 		//String sIgnoreContentType = null;
 		boolean isIgnoreContentType = false;
+		boolean isIgnoreHTTPSCertificateValidation = true;
 
 		//String sStart = null;
 		long iStart = 0;
@@ -4964,13 +5056,17 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (param.equalsIgnoreCase ("ct") || param.equalsIgnoreCase ("ContentType") || param.equalsIgnoreCase ("Content-Type"))
 					{
 						sContentType = value;
-						if (sContentType.equalsIgnoreCase ("json"))
+						if (sContentType.equalsIgnoreCase ("json") || sContentType.equalsIgnoreCase ("js"))
 						{
 							//
 						}
 						else
 							sContentType = "html";	// 其他的默认为 html
 					}
+					else if (param.equalsIgnoreCase ("jcs"))
+						nJS_Cut_Start = Integer.parseInt (value);
+					else if (param.equalsIgnoreCase ("jce"))
+						nJS_Cut_End = Integer.parseInt (value);
 					else if (param.equalsIgnoreCase ("u") || param.equalsIgnoreCase ("url") || param.equalsIgnoreCase ("网址"))
 					{
 						if (StringUtils.startsWithIgnoreCase (value, "http://") || StringUtils.startsWithIgnoreCase (value, "https://"))
@@ -4984,19 +5080,38 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					//	sSelector = value;
 					else if (param.equalsIgnoreCase ("ss") || param.equalsIgnoreCase ("sub-selector") || param.equalsIgnoreCase ("子选择器"))
 					{	// 遇到 /ss 时，把 listSubSelectors listExtracts listAttributes 都添加一项，listExtracts listAttributes 添加的是空字符串，这样是为了保证三个列表的数量相同
-						// 另外：  /ss  /e  /a 必须保证 /ss 在最前面
+						// 另外：  /ss  /e  /a 的参数顺序必须保证 /ss 是在前面的
 						listSubSelectors.add (value);
+						listLeftPaddings.add ("");
 						listExtracts.add ("");
 						listAttributes.add ("");
+						listRightPaddings.add ("");
 					}
 					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
 					{
 						//listExtracts.add (value);
+						//FixElementNumber (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listRightPaddings);
+						if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+						{
+							listSubSelectors.add (null);
+							listLeftPaddings.add (null);
+							listExtracts.add (null);
+							listAttributes.add (null);
+							listRightPaddings.add (null);
+						}
 						listExtracts.set (listExtracts.size () - 1, value);	// 更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性名"))
 					{
 						//listAttributes.add (value);
+						if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+						{
+							listSubSelectors.add (null);
+							listLeftPaddings.add (null);
+							listExtracts.add (null);
+							listAttributes.add (null);
+							listRightPaddings.add (null);
+						}
 						listAttributes.set (listAttributes.size () - 1, value);	// 更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
@@ -5032,16 +5147,31 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						//sStart = value;
 						iStart = Integer.parseInt (value);
 					}
-					else if (param.equalsIgnoreCase ("IgnoreContentType"))
+					else if (param.equalsIgnoreCase ("ict") || param.equalsIgnoreCase ("IgnoreContentType"))
 					{
 						//sIgnoreContentType = value;
 						isIgnoreContentType = BooleanUtils.toBoolean (value);
+					}
+					else if (param.equalsIgnoreCase ("cv") || param.equalsIgnoreCase ("CertificateValidation") || param.equalsIgnoreCase ("icv") || param.equalsIgnoreCase ("IgnoreHTTPSCertificateValidation"))
+					{
+						isIgnoreHTTPSCertificateValidation = BooleanUtils.toBoolean (value);
 					}
 				}
 				else
 					listOrderedParams.add (param);
 			}
 		}
+		// 如果 sub-selector extract attribute 都不指定，需要手工补充一条新的
+		if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listSubSelectors.add (null);
+		if (listLeftPaddings.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listLeftPaddings.add (null);
+		if (listExtracts.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listExtracts.add (null);
+		if (listAttributes.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listAttributes.add (null);
+		if (listRightPaddings.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listRightPaddings.add (null);
 
 		// 处理用 json 命令别名执行命令时的特别设置： (1).强制改变 Content-Type  (2).强制忽略 http 返回的 Content-Type，否则 jsoup 会报错
 		if (botCmdAlias.equalsIgnoreCase ("json"))
@@ -5077,8 +5207,11 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				sURL = null;
 				sSelector = null;
 				listSubSelectors.clear ();
+				listLeftPaddings.clear ();
 				listExtracts.clear ();
 				listAttributes.clear ();
+				listRightPaddings.clear ();
+
 				if (listOrderedParams.size () > 0)
 				{
 					String value = listOrderedParams.get (0);
@@ -5107,7 +5240,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			{
 				if (StringUtils.isEmpty (sURL) || StringUtils.isEmpty (sName))
 				{
-					if (sContentType.equalsIgnoreCase ("json") && listSubSelectors.isEmpty ())
+					if ((sContentType.equalsIgnoreCase ("json") || sContentType.equalsIgnoreCase ("js"))  && listSubSelectors.isEmpty ())
 						SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、/ss <JSON 取值表达式>、/name <模板名称> 参数.");
 					else if (StringUtils.isEmpty (sSelector))
 						SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、<CSS 选择器>、/name <模板名称> 参数.");
@@ -5272,8 +5405,12 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (StringUtils.isEmpty (sURL))
 						sURL = rs.getString ("url");
 					sContentType = rs.getString ("content_type");
-					if (StringUtils.equalsIgnoreCase (sContentType, "json"))
+					if (StringUtils.equalsIgnoreCase (sContentType, "json") || StringUtils.equalsIgnoreCase (sContentType, "js"))
 						isIgnoreContentType = true;
+
+					nJS_Cut_Start = rs.getInt ("js_cut_start");
+					nJS_Cut_End = rs.getInt ("js_cut_end");
+
 					if (StringUtils.isEmpty (sSelector))
 						sSelector = rs.getString ("selector");
 //System.err.println (rs.getString("selector"));
@@ -5287,14 +5424,20 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					listSubSelectors.clear ();
 					listExtracts.clear ();
 					listAttributes.clear ();
+					listLeftPaddings.clear ();
+					listRightPaddings.clear ();
 
 					listSubSelectors.add (new String(rs.getString ("sub_selector").getBytes ("iso-8859-1")));
+					listLeftPaddings.add (rs.getString ("padding_left"));
 					listExtracts.add (rs.getString ("extract"));
 					listAttributes.add (rs.getString ("attr"));
+					listRightPaddings.add (rs.getString ("padding_right"));
 //System.err.println (rs.getString("sub_selector") + "； " + rs.getString("extract") + "； "+ rs.getString("attr"));
 
 					if (! opt_max_response_lines_specified)
 						opt_max_response_lines = rs.getShort ("max");
+
+					isIgnoreHTTPSCertificateValidation = rs.getBoolean ("ignore_https_certificate_validation");
 
 					if (StringUtils.isEmpty (sHTTPUserAgent))
 						sHTTPUserAgent = rs.getString ("ua");
@@ -5312,8 +5455,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						while (rs_GetSubSelectors.next ())
 						{
 							listSubSelectors.add (new String(rs_GetSubSelectors.getString("sub_selector").getBytes ("iso-8859-1")));
+							listLeftPaddings.add (rs_GetSubSelectors.getString ("padding_left"));
 							listExtracts.add (rs_GetSubSelectors.getString("extract"));
 							listAttributes.add (rs_GetSubSelectors.getString("attr"));
+							listRightPaddings.add (rs_GetSubSelectors.getString ("padding_right"));
 //System.err.println (rs_GetSubSelectors.getString("sub_selector") + "； " + rs_GetSubSelectors.getString("extract") + "； "+ rs_GetSubSelectors.getString("attr"));
 						}
 						rs_GetSubSelectors.close ();
@@ -5352,8 +5497,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 							if (! StringUtils.isEmpty (sExtract))
 							{
-								sbHelp.append (" /e ");
+								sbHelp.append (" /e '");
 								sbHelp.append (sExtract);
+								sbHelp.append ("'");
 							}
 
 							if (! StringUtils.isEmpty (sAttr))
@@ -5469,7 +5615,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				return;
 			}
 
-			if (StringUtils.equalsIgnoreCase (sContentType, "json"))
+			if (StringUtils.equalsIgnoreCase (sContentType, "json") || StringUtils.equalsIgnoreCase (sContentType, "js"))
 			{
 				if (listSubSelectors.isEmpty ())
 				{
@@ -5528,54 +5674,122 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				sQueryString = sURL.substring (i+1);	// 得到 QueryString，用来将其传递到 POST 消息体中
 				sURL = sURL.substring (0, i);	// 将 URL 中的 QueryString 剔除掉
 			}
-			org.jsoup.Connection jsoup_conn = null;
-			jsoup_conn = org.jsoup.Jsoup.connect (sURL);
-			jsoup_conn.ignoreHttpErrors (true)
-					.ignoreContentType (isIgnoreContentType)
-					.timeout (nHTTPTimeout * 1000)
-					;
 System.out.println (sURL);
-			if (! StringUtils.isEmpty (sHTTPUserAgent))
-			{
-System.out.println (sHTTPUserAgent);
-				jsoup_conn.userAgent (sHTTPUserAgent);
-			}
-			if (! StringUtils.isEmpty (sHTTPReferer))
-			{
-System.out.println (sHTTPReferer);
-				jsoup_conn.referrer (sHTTPReferer);
-			}
 
-			if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
-			{
-System.out.println (sHTTPMethod);
-				if (! StringUtils.isEmpty (sQueryString))
+			if (StringUtils.equalsIgnoreCase (sContentType, "json")
+				//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json")
+				|| StringUtils.equalsIgnoreCase (sContentType, "js")
+				//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/javascript")
+			)
+			{	// 处理 JSON 数据
+
+				URL url = new URL (sURL);
+				HttpURLConnection http = null;
+				HttpsURLConnection https = null;
+				if (sURL.startsWith ("https"))
 				{
-System.out.println (sQueryString);
-					Map<String, String> mapParams = new HashMap<String, String> ();	// 蛋疼的 jsoup 不支持直接把 sQueryString 统一传递过去，只能重新分解成单独的参数
-					String[] arrayQueryParams = sQueryString.split ("&");
-					for (String param : arrayQueryParams)
-					{
-						String[] arrayParam = param.split ("=");
-						mapParams.put (arrayParam[0], arrayParam[1]);
-					}
-					//doc = jsoup_conn.data (sQueryString).post ();
-					doc = jsoup_conn.data (mapParams).post ();
+					https = (HttpsURLConnection)url.openConnection ();
+					http = https;
 				}
 				else
-					doc = jsoup_conn.post ();
-			}
-			else
-				doc = jsoup_conn.get();
+					http = (HttpURLConnection)url.openConnection ();
 
-			if (StringUtils.equalsIgnoreCase (sContentType, "json") || jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json"))
-			{	// 处理 JSON 数据
+				http.setConnectTimeout (20000);
+				http.setReadTimeout (20000);
+				//HttpURLConnection.setFollowRedirects (false);
+				//http.setInstanceFollowRedirects (false);    // 不自动跟随重定向连接，我们只需要得到这个重定向连接 URL
+				http.setDefaultUseCaches (false);
+				http.setUseCaches (false);
+				if (https != null && isIgnoreHTTPSCertificateValidation)
+				{
+					// 参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
+					https.setSSLSocketFactory (sc.getSocketFactory());
+					https.setHostnameVerifier (hvAllowAllHostnames);
+				}
+				if (! StringUtils.isEmpty (sHTTPUserAgent))
+				{
+System.out.println (sHTTPUserAgent);
+					http.setRequestProperty ("User-Agent", sHTTPUserAgent);
+				}
+				if (! StringUtils.isEmpty (sHTTPReferer))
+				{
+System.out.println (sHTTPReferer);
+					http.setRequestProperty ("Referer", sHTTPReferer);
+				}
+
+				if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
+				{
+					http.setDoOutput (true);
+					//http.setRequestProperty ("Content-Type", "application/x-www-form-urlencoded");
+					http.setRequestProperty ("Content-Length", sQueryString);
+				}
+				http.connect ();
+				if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
+				{
+					DataOutputStream dos = new DataOutputStream (http.getOutputStream());
+					dos.writeBytes (sQueryString);
+					dos.flush ();
+					dos.close ();
+				}
+				int iResponseCode = http.getResponseCode();
+				String sStatusLine = http.getHeaderField(0);    // HTTP/1.1 200 OK、HTTP/1.1 404 Not Found
+				String sContent = "";
+
+				int iMainResponseCode = iResponseCode/100;
+				if (iMainResponseCode==2)
+				{
+					InputStream is = null;
+					is = http.getInputStream();
+					sContent = org.apache.commons.io.IOUtils.toString (is, JVM_CHARSET);
+				}
+				else
+				{
+					InputStream is = null;
+					try
+					{
+						if (iMainResponseCode >= 4)
+							is = http.getErrorStream();
+						else
+							is = http.getInputStream();
+						//s = new DataInputStream (is).readUTF();
+						sContent = org.apache.commons.io.IOUtils.toString (is, JVM_CHARSET);
+					}
+					catch (Exception e)
+					{
+					    //e.printStackTrace ();
+					    System.err.println (e);
+					}
+
+					throw new RuntimeException ("HTTP 响应不是 2XX: " + sStatusLine + "\n" + sContent);
+				}
+
 				// JSON 数据对 selector sub-selector extract attribute 做了另外的解释：
 				//  selector 或 subselector -- 这是类似  a.b[0].c.d 一样的 JSON 表达式，用于取出对象的数值
 				//  extract -- 取出 value 还是变量名(var)，还是数组索引号(index)
 				//  attr -- 无用
+				//if (jsoup_conn.response ().statusCode ()/100 > 3)
+				{
+				//	throw new org.jsoup.HttpStatusException (jsoup_conn.response ().statusMessage (), jsoup_conn.response ().statusCode (), sURL);
+				}
 				StringBuilder sbJSON = new StringBuilder ();
-				sbJSON.append ("var o = " + doc.text() + ";");
+				String sJSON;
+File f = new File ("test.txt");
+FileWriter fw = new FileWriter (f);
+fw.write (sContent);
+fw.close ();
+//System.err.println (sContent);
+				if (StringUtils.equalsIgnoreCase (sContentType, "json") )	//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json"))
+				{
+
+					if (nJS_Cut_Start > 0)
+						//sbJSON =
+						sContent = sContent.substring (nJS_Cut_Start);
+					if (nJS_Cut_End > 0)
+						sContent = sContent.substring (0, sContent.length () - nJS_Cut_End);
+					sbJSON.append ("var o = " + sContent + ";");
+				}
+				else
+					sbJSON.append (sContent + ";\n");
 
 				//ObjectMapper om = new ObjectMapper();
 				//om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
@@ -5587,16 +5801,35 @@ System.out.println (sQueryString);
 				jsContext.setWriter (stdout);
 				jsContext.setErrorWriter (stderr);
 
-				Object evaluateResult = jse.eval (sbJSON.toString (), jsContext);	// 先执行 json
+				sJSON = sbJSON.toString ();
+				Object evaluateResult = jse.eval (sJSON, jsContext);	// 先执行 json
 				StringBuilder sbText = new StringBuilder ();
-				for (String sSubSelector : listSubSelectors)	// 再依次执行各个 sub selector 的求值表达式 (javascript)
+				for (int i=0; i<listSubSelectors.size (); i++)	// 再依次执行各个 sub selector 的求值表达式 (javascript)
 				{
+					String sSubSelector = listSubSelectors.get (i);
+					String sLeftPadding = listLeftPaddings.get (i);
+					String sRightPadding = listRightPaddings.get (i);
 					try
 					{
-						evaluateResult = jse.eval (sSubSelector.toString (), jsContext);
-						if (sbText.length () > 0)
-							sbText.append (" ");
-						sbText.append (evaluateResult);
+						// 由于 JavaScript 可能需要读取参数 1 2 3，所以，要识别 javascript 代码中的 ${p} ${p2} ${p3} 参数声明，并将其替换为参数值
+						if (StringUtils.containsIgnoreCase (sSubSelector, "${p}"))
+							sSubSelector = StringUtils.replace (sSubSelector, "${p}", sURLParam1);
+						if (StringUtils.containsIgnoreCase (sSubSelector, "${p2}"))
+							sSubSelector = StringUtils.replace (sSubSelector, "${p2}", sURLParam2);
+						if (StringUtils.containsIgnoreCase (sSubSelector, "${p3}"))
+							sSubSelector = StringUtils.replace (sSubSelector, "${p3}", sURLParam3);
+
+						evaluateResult = jse.eval (sSubSelector, jsContext);
+						if (! StringUtils.isEmpty (evaluateResult.toString ()))
+						{	// 仅当要输出的字符串有内容时才会输出（并且也输出前填充、后填充）
+							if (! StringUtils.isEmpty (sLeftPadding))
+								sbText.append (sLeftPadding);
+
+							sbText.append (evaluateResult);
+
+							if (! StringUtils.isEmpty (sRightPadding))
+								sbText.append (sRightPadding);
+						}
 					}
 					catch (Exception e)
 					{	// javascript 求值可能出错，这里不给用户报错，只在后台打印
@@ -5611,15 +5844,60 @@ System.out.println (sQueryString);
 			}
 			else
 			{
+				if (sURL.startsWith ("https") && isIgnoreHTTPSCertificateValidation)
+				{	// 由于 Jsoup 还没有设置 https 参数的地方，所以，要设置成全局/默认的（不过，这样设置后，就影响到后续的 https 访问，即使是没设置 IgnoreHTTPSCertificateValidation 的……）
+					// 参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
+					HttpsURLConnection.setDefaultSSLSocketFactory (sc.getSocketFactory());
+					HttpsURLConnection.setDefaultHostnameVerifier (hvAllowAllHostnames);
+				}
+				org.jsoup.Connection jsoup_conn = null;
+				jsoup_conn = org.jsoup.Jsoup.connect (sURL);
+				jsoup_conn.ignoreHttpErrors (true)
+						.ignoreContentType (isIgnoreContentType)
+						.timeout (nHTTPTimeout * 1000)
+						;
+				if (! StringUtils.isEmpty (sHTTPUserAgent))
+				{
+System.out.println (sHTTPUserAgent);
+					jsoup_conn.userAgent (sHTTPUserAgent);
+				}
+				if (! StringUtils.isEmpty (sHTTPReferer))
+				{
+System.out.println (sHTTPReferer);
+					jsoup_conn.referrer (sHTTPReferer);
+				}
+
+				if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
+				{
+System.out.println (sHTTPMethod);
+					if (! StringUtils.isEmpty (sQueryString))
+					{
+System.out.println (sQueryString);
+						Map<String, String> mapParams = new HashMap<String, String> ();	// 蛋疼的 jsoup 不支持直接把 sQueryString 统一传递过去，只能重新分解成单独的参数
+						String[] arrayQueryParams = sQueryString.split ("&");
+						for (String param : arrayQueryParams)
+						{
+							String[] arrayParam = param.split ("=");
+							mapParams.put (arrayParam[0], arrayParam[1]);
+						}
+						//doc = jsoup_conn.data (sQueryString).post ();
+						doc = jsoup_conn.data (mapParams).post ();
+					}
+					else
+						doc = jsoup_conn.post ();
+				}
+				else
+					doc = jsoup_conn.get();
+
 				Elements es = doc.select (sSelector);
 				if (es.size () == 0)
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "选择器 没有选中任何 Element/元素");
 					return;
 				}
-				for (int i=(int)iStart; i<es.size (); i++)
+				for (int iElementIndex=(int)iStart; iElementIndex<es.size (); iElementIndex++)
 				{
-					Element e = es.get (i);
+					Element e = es.get (iElementIndex);
 					if (nLines >= opt_max_response_lines)
 					{
 						//SendMessage (ch, nick, mapGlobalOptions, "略……");
@@ -5632,17 +5910,19 @@ System.out.println (sQueryString);
 					String text = "";
 					StringBuilder sbText = new StringBuilder ();
 
-//System.err.println ("处理 " + e);
+System.err.println ("处理 " + e);
 					for (int iSS=0; iSS<listSubSelectors.size (); iSS++)
 					{
 						String sSubSelector = listSubSelectors.get (iSS);
+						String sLeftPadding = listLeftPaddings.get (iSS);
 						String sExtract = listExtracts.get (iSS);
 						String sAttr = listAttributes.get (iSS);
+						String sRightPadding = listRightPaddings.get (iSS);
 
 						if (! StringUtils.isEmpty (sSubSelector))
 						{
 							e2 = e.select (sSubSelector).first ();
-//System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
+System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						}
 						if (e2 == null)	// 子选择器可能选择到不存在的，则忽略该条（比如 糗事百科的贴图，并不是每个糗事都有贴图）
 							continue;
@@ -5710,9 +5990,17 @@ System.out.println (sQueryString);
 							}
 							*/
 							);
-						if (sbText.length () > 0)
-							sbText.append (" ");
-						sbText.append (text);
+
+						if (! StringUtils.isEmpty (text))
+						{	// 仅当要输出的字符串有内容时才会输出（并且也输出前填充、后填充）
+							if (! StringUtils.isEmpty (sLeftPadding))
+								sbText.append (sLeftPadding);
+
+							sbText.append (text);
+
+							if (! StringUtils.isEmpty (sRightPadding))
+								sbText.append (sRightPadding);
+						}
 					}
 					if (sbText.length () > 430)
 						text = sbText.substring (0, 430);
@@ -5734,47 +6022,10 @@ System.out.println (sQueryString);
 			try { if (rs != null) rs.close(); } catch(Exception e) { }
 			try { if (stmt != null) stmt.close(); } catch(Exception e) { }
 			try { if (stmt_sp != null) stmt_sp.close(); } catch(Exception e) { }
+			try { if (stmt_GetSubSelectors != null) stmt_GetSubSelectors.close ();} catch(Exception e) { }
 			try { if (conn != null) conn.close(); } catch(Exception e) { }
 		}
 	}
-
-	/*
-	Pattern patternArray = Pattern.compile ("(\\w+)\\s*\\[(\\d+)\\]");
-	String EvaluateJSONExpression (JsonNode node, String sJsonExpression, String sExtract)
-	{
-		String text = null;
-		String[]arrayJsonExpressions = sJsonExpression.split ("\\.+");
-		String sVar = "", sArrayIndex = "";
-		for (int i=0; i<arrayJsonExpressions.length; i++)
-		{
-			String sExpression = arrayJsonExpressions[i];
-			Matcher mat = patternArray.matcher (sExpression);
-			if (mat.matches ())
-			{
-				sVar = mat.group (1);
-				sArrayIndex = mat.group (2);
-			}
-			else
-			{
-				sVar = sExpression;
-				sArrayIndex = "";
-			}
-			if (sArrayIndex.isEmpty ())
-				node = node.findPath (sVar);
-			else
-				node = node.findPath (sVar).path (Integer.parseInt (sArrayIndex));
-		}
-		if (StringUtils.equals (sExtract, "#"))
-			text = "" + node.size ();
-		else if (StringUtils.equals (sExtract, "index"))
-			text = sArrayIndex;
-		else if (StringUtils.equals (sExtract, "var"))
-			text = sVar;
-		else //if (StringUtils.isEmpty (sExtract) || StringUtils.equals (sExtract, "value"))
-			text = node.asText ();
-		return text;
-	}
-	//*/
 
 	public void ValidateChannelName (String ch)
 	{
