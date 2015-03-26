@@ -198,12 +198,18 @@ CREATE TABLE html_parser_templates
 	name VARCHAR(50) NOT NULL DEFAULT '' UNIQUE KEY,
 
 	url VARCHAR(300) NOT NULL DEFAULT '',
-	content_type ENUM('', 'html', 'json') NOT NULL DEFAULT '',
+	ignore_https_certificate_validation TINYINT(1) NOT NULL DEFAULT 1 COMMENT '忽略 https 的证书有效性验证 -- ht 命令非关键任务，不需要验证证书有效性；此参数仅对 https 网址生效， http 不处理该参数。参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/',
+	content_type ENUM('', 'html', 'json', 'js') NOT NULL DEFAULT '',
+	ignore_content_type TINYINT(1) NOT NULL DEFAULT 1 COMMENT '这是给 jsoup 库用到的是否忽略 http 返回的内容类型，json 目前不关心此信息（一直假定为文本数据）',
+	js_cut_start INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '这是为了给 json 使用的：有的接口返回了回调函数，回调函数里的参数是 JSON，这时候就需要把 JSON 切出来。该参数指定切的起始偏移量，>=0，=0 表示不切前面的字符',
+	js_cut_end INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '该参数指定从后面切的字符数，数值需要 >=0，=0 表示不切后面的字符',
 	url_param_usage VARCHAR(100) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
 	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的选择器表达式',
-	sub_selector VARBINARY(300) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	sub_selector VARBINARY(500) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	padding_left VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',	/* 原数据类型:  ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') */
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
+	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
 	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
 	method ENUM('','GET', 'POST') NOT NULL DEFAULT '' COMMENT 'HTTP 方法，只允许 GET 和 POST',
@@ -229,9 +235,11 @@ CREATE TABLE html_parser_templates_other_sub_selectors
 (
 	template_id INT UNSIGNED NOT NULL DEFAULT 0,
 	sub_selector_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	sub_selector VARBINARY(300) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	sub_selector VARBINARY(500) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	padding_left VARCHAR(20) NOT NULL DEFAULT ' ' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
+	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
 	PRIMARY KEY PK__html_parser_templates_other_sub_selectors (template_id, sub_selector_id)
 ) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '此表是 html_parser_templates 的延伸：允许一个模板有多个 sub_selector，这样可以让多个 sub element 组成成一个完整的信息';
