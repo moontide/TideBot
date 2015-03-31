@@ -45,6 +45,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static final Charset JVM_CHARSET = Charset.defaultCharset();
 	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
+	public static final Charset UTF8_CHARSET = Charset.forName ("utf-8");
 	public static int JAVA_MAJOR_VERSION;	// 1.7　中的 1
 	public static int JAVA_MINOR_VERSION;	// 1.7　中的 7
 	static
@@ -65,6 +66,23 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static final int MAX_SCREEN_LINES = 200;	// 最大屏幕高度
 	public static final int MAX_SCREEN_COLUMNS = 400;	// 最大屏幕宽度
+
+	/**
+	 * IRC 消息的最大安全长度。如果消息是中文字符居多的话，最好是 3 的倍数，因为多数中文字符的 utf-8 字节长度都是 3 字节（但也有 2 字节、4字节的）
+	 * <p>
+	 * 蛋疼的 IRC 协议定义每条消息长度是 512 字节，但这 512 字节并非是用户可用的，因为里面还包含用户名、主机名/IP 等信息，所以：用户实际可用的字节数是未知的。
+	 * </p>
+	 * <p>
+	 * 但总的说来，设置一个相对安全的字节数还是可行的。
+	 * </p>
+	 * <p>
+	 * <strong>另外，本变量未用 <code>final</code> 来修饰，是因为：假设程序能动态计算出可用字节数的话，程序还可以更改该数值</strong>
+	 * </p>
+	 */
+	public static int MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE = 420;
+	public static final int MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT = 510;	// 512 - \r\n
+	public static final int MAX_SPLIT_LINES = 3;	// 最大分割行数 (可由参数调整)
+	public static final int MAX_SPLIT_LINES_LIMIT = 10;	// 最大分割行数 (真的不能大于该行数)
 
 	public static final String WORKING_DIRECTORY = System.getProperty ("user.dir");
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
@@ -341,18 +359,107 @@ public class LiuYanBot extends PircBot implements Runnable
 		}
 	}
 
+	/**
+	 * 对 utf-8 编码的字符串分割成多行。
+	 * <p>注意：</p>
+	 * <dl>
+	 *	<dt>IRC 消息里假设有 IRC 颜色转义序列，这里不会处理的 - 这可能导致分割后的颜色代码变成字符串输出</dt>
+	 * 	<dd>比如：字符串 "\x0303绿色"，分割点是 "\x03" 后面，则本来应该输出绿色的 "绿色" 字符串，现在变成了普通颜色的 "03绿色"</dd>
+	 *	<dt>如果 nMaxBytesPerLine 太小（比如 nMaxBytesPerLine < 3），那么会返回空字符串</dt>
+	 * 	<dd>只要 nMaxBytesPerLine 小于 utf-8 字节序列的长度，就会返回空字符串</dd>
+	 * </dl>
+	 * @param sInput 输入的 utf-8 编码的字符串
+	 * @param nMaxBytesPerLine 分割时，每行最多有多少个字节
+	 * @param nMaxSplitLines 最多分割成几行（超过的就 不处理/不加到返回的字符串列表里 了）
+	 * @return 分割后的字符串列表 (这个数值不会是 null，放心使用)
+	 */
+	public static List<String> SplitUTF8Strings (String sInput, int nMaxBytesPerLine, int nMaxSplitLines)
+	{
+		if (nMaxBytesPerLine < 1)
+			nMaxBytesPerLine = 1;
+		if (nMaxSplitLines < 1)
+			nMaxSplitLines = 1;
+		List<String> listStrings = new ArrayList<String>();
+		if (StringUtils.isEmpty (sInput))
+			return listStrings;
+		byte[] bytesArray = null;
+		try
+		{
+			bytesArray = sInput.getBytes (UTF8_CHARSET);
+logger.finest (sInput);
+logger.finest ("utf-8 字节长度=" + bytesArray.length);
+			int nLines = 0;
+			for (int i=0; i<bytesArray.length; )
+			{
+				int iStart = i;
+				int iEnd = iStart + nMaxBytesPerLine;	// iEnd 不包含在 substring 中
+				if (iEnd >= bytesArray.length)
+					iEnd = bytesArray.length;
+				byte last_byte = bytesArray [iEnd - 1];
+				byte first_utf8_byte = 0;
+				int j = 0;
+				if ((last_byte & 0xC0) == 0x80 || (last_byte & 0xC0) == 0xC0) // # 检查 utf-8 多字节字符被截断的情况
+				{
+					//# 先找到 utf-8 字节序列的起始字节
+					for (j=iEnd-1; j>=iEnd-1-6; j--)	// iEnd-1-6 : utf-8 最大编码长度是 6 字节
+					{
+						if((bytesArray[j] & 0xC0) == 0xC0)
+						{
+							first_utf8_byte = bytesArray[j];	// # 最后一个 utf-8 字符的首个字节
+logger.finest ("	在 " + j + " 处发现 utf-8 起始字节 " + (first_utf8_byte&0xFF) + "(" + String.format ("0x%02X", (first_utf8_byte&0xFF)));
+							break;
+						}
+					}
+
+					int n本UTF8字符应有的字节数 = 0;
+					// # 计算该 utf-8 字符应该有多少个字节组成(虽然通常汉字由 3 字节组成，但这样更灵活、通用，避免遇到 4 个字节的字符导致结果不符的情况)
+					while ((first_utf8_byte & 0x80) == 0x80) // # utf-8 首字节高位有多少位 1，就应该有多少个字节
+					{
+						first_utf8_byte <<= 1;
+						n本UTF8字符应有的字节数 ++;
+					}
+					int nLeftBytesLength = iEnd - j;
+					// # 然后判断 utf-8 首字节到字符串结尾的长度是否等于 utf-8 字符的完整字节长度，如果不是，则删除被截断的 utf-8 字符字节
+					if (nLeftBytesLength != n本UTF8字符应有的字节数)
+					{
+logger.finest ("	本 utf-8 字符长度为 " + n本UTF8字符应有的字节数 + " 字节，被截断后只剩下了 " + nLeftBytesLength + "字节，这些字节应该被删除");
+						iEnd = j;
+					}
+				}
+				i = iEnd;	// 移动到截断后的下一个字节
+				String s = new String (bytesArray, iStart, (i - iStart));
+logger.finest ("修复结束后的字符串: [" + s + "]");
+				listStrings.add (s);
+				nLines ++;
+				if (nLines >= nMaxSplitLines)
+					break;
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+		return listStrings;
+	}
+	public static List<String> SplitUTF8Strings (String sInput)
+	{
+		return SplitUTF8Strings (sInput, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, MAX_SPLIT_LINES);
+	}
 	public void SendMessage (String channel, String user, Map<String, Object> mapGlobalOptions, String msg)
 	{
 		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		//String opt_charset = (String)mapGlobalOptions.get("opt_charset");
+		int opt_max_split_lines = (int)mapGlobalOptions.get("opt_max_split_lines");
+		int opt_max_bytes_per_line = (int)mapGlobalOptions.get("opt_max_bytes_per_line");
+
 		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
 		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
 		if (opt_reply_to_option_on && !StringUtils.equalsIgnoreCase (user, opt_reply_to))
 			user = opt_reply_to;
-		SendMessage (channel, user, opt_output_username, opt_max_response_lines, msg);
+		SendMessage (channel, user, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, msg);
 	}
-	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
+	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, int opt_max_split_lines, int opt_max_bytes_per_line, String msg)
 	{
 		if (msg == null)
 		{
@@ -364,19 +471,30 @@ public class LiuYanBot extends PircBot implements Runnable
 			String[]lines = msg.split ("[\r\n]+");
 			for (String line : lines)
 			{
-				SendMessage (channel, user, opt_output_username, opt_max_response_lines, line);	// 递归
+				SendMessage (channel, user, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, line);	// 递归
 			}
 			return;
 		}
-		if (channel!=null)
-		{
-			if (opt_output_username)
-				sendMessage (channel, user + ": " + msg);
-			else
-				sendMessage (channel, msg);
+
+		String msgTo = channel;
+		if (channel == null)	// 如果频道为空，则认为是发私信给用户 user
+			msgTo = user;
+		if (channel!=null && opt_output_username)	// 如果是发往频道，而且输出用户名，则在消息前加上 user ":"
+			msg = user + ": " + msg;
+
+		if (JVM_CHARSET.equals (UTF8_CHARSET))
+		{	// 假设 jvm 运行的默认字符集是 utf8，则做分行处理
+			// 假定 msg 是很长的行
+			List<String> listSplitedLines = SplitUTF8Strings (msg, opt_max_bytes_per_line, opt_max_split_lines);
+			for (String line : listSplitedLines)
+			{
+				if (StringUtils.isEmpty (line))	// 有可能是空行哦
+					continue;
+				sendMessage (msgTo, line);
+			}
 		}
 		else
-			sendMessage (user, msg);
+			sendMessage (msgTo, msg);
 	}
 
 	/**
@@ -573,7 +691,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			userToAdd = userInfo;
 			msg = "要添加的通配符表达式已经被添加过，更新之";
 			System.err.println (msg);
-			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, msg);
+			SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 			userToAdd.put ("UpdatedTime", new Timestamp(System.currentTimeMillis ()));
 			int nTimes = userToAdd.get ("AddedTimes")==null ? 1 : (int)userToAdd.get ("AddedTimes");
 			nTimes ++;
@@ -602,7 +720,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		System.out.println (msg);
 		if (! StringUtils.isEmpty (nick))
 		{
-			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, msg);
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 		}
 		return true;
 	}
@@ -747,7 +865,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			else
 			{
 				// 假定其身后的用户是倾向于”变好“，该 bot 的消息是不是造成
-				SendMessage (null, nick, true, 1, "[防洪] 谢谢，对您的灌水惩罚减刑 1 次，目前 = " + 灌水计数器 + " 次，请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
+				SendMessage (null, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "[防洪] 谢谢，对您的灌水惩罚减刑 1 次，目前 = " + 灌水计数器 + " 次，请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
 			}
 		}
 		else
@@ -763,7 +881,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 			// 发送消息提示该用户，但别造成自己被跟着 flood 起来
 			if (!上次是否灌水 || 用户灌水时是否回复)
-				SendMessage (channel, nick, true, 1, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
+				SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
 		}
 		mapUserInfo.put ("最后活动时间", now);
 		mapUserInfo.put ("灌水计数器", 灌水计数器);
@@ -915,13 +1033,15 @@ public class LiuYanBot extends PircBot implements Runnable
 			botCmd = getBotPrimaryCommand (message);
 			Map<String, Object> banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp, botCmd);
 
-			//  再判断是不是 bot 命令
+			//  如果不是 bot 命令，那再判断是不是 ht 快捷命令
 			if (botCmd == null)
 			{
 				boolean isHTCommandShortcut = false;
-				String sHTContentType = "";
+				//String sHTContentType = "";
+				String msgTo = null;
 				String sHTTemplateName = "";
 				String sCommandOptions = "";
+				String sHTParameters = "";
 				String[] args = null;
 				// 查看 ht 命令的模板库，看看名字是否有，如果有的话，就直接执行之
 				Connection conn = null;
@@ -929,14 +1049,27 @@ public class LiuYanBot extends PircBot implements Runnable
 				ResultSet rs = null;
 				try
 				{
-					args = message.split (" +", 2);
-					sHTTemplateName = args[0];
+					if (! StringUtils.isEmpty (BOT_COMMAND_PREFIX))
+						message = message.substring (BOT_COMMAND_PREFIX.length ());
+					args = message.split (" +", 3);
 					if (args[0].contains ("."))
 					{
 						int iFirstDotIndex = args[0].indexOf(".");
 						sHTTemplateName = args[0].substring (0, iFirstDotIndex);
 						sCommandOptions = args[0].substring (iFirstDotIndex);
 					}
+					if (StringUtils.containsIgnoreCase (sCommandOptions, ".to"))
+					{
+						if (args.length < 2)
+							throw new IllegalArgumentException ("用 .to 选项执行 html/json 模板时，需要先指定用户名");
+
+						msgTo = args[1];
+						if (args.length > 2)	// 如果这个 ht 命令带了其他参数
+							sHTParameters = args[2];
+					}
+					else
+						if (args.length > 1)	// 如果这个 ht 命令带了其他参数
+							sHTParameters = args[1];
 					SetupDataSource ();
 					conn = botDS.getConnection ();
 					stmt = conn.prepareStatement ("SELECT content_type FROM html_parser_templates WHERE name=?");
@@ -944,7 +1077,7 @@ public class LiuYanBot extends PircBot implements Runnable
 					rs = stmt.executeQuery ();
 					while (rs.next ())
 					{
-						sHTContentType = rs.getString (1);
+						//sHTContentType = rs.getString (1);
 						isHTCommandShortcut = true;
 						break;
 					}
@@ -978,7 +1111,7 @@ public class LiuYanBot extends PircBot implements Runnable
 							? sCommandOptions
 							: ".run" + sCommandOptions
 						)
-						+ " " + sHTTemplateName + (args.length > 1 ? " " + args[1] : "");	// 重新组合生成 ht 命令
+						+ (StringUtils.isEmpty (msgTo) ? "" : " " + msgTo) + " " + sHTTemplateName + (sHTParameters.isEmpty () ? "" : " " + sHTParameters);	// 重新组合生成 ht 命令
 System.err.println (message);
 				}
 				else
@@ -988,7 +1121,7 @@ System.err.println (message);
 
 					if (isSayingToMe && banInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 					{
-						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "无法识别该命令，请使用 " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_Help, true) + " 命令显示帮助信息");
+						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "无法识别该命令，请使用 " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_Help, true) + " 命令显示帮助信息");
 						//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
 					}
 					return;
@@ -1008,7 +1141,7 @@ System.err.println (message);
 					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
 					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
 					{
-						SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "禁止执行命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
+						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "禁止执行命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
 						banInfo.put ("NotifyTime", new Timestamp(System.currentTimeMillis ()));
 					}
 					return;
@@ -1032,6 +1165,9 @@ System.err.println (message);
 			boolean opt_escape_for_cursor_moving = false;	// 第二种方式 escape，此方式需要先把数据全部读完，然后再 escape，不能逐行处理。这是为了处理带有光标移动的 ANSI 转义序列而设置的
 			int opt_max_response_lines = MAX_RESPONSE_LINES;
 			boolean opt_max_response_lines_specified = false;	// 是否指定了最大响应行数，如果指定了的话，达到行数后，就不再提示“[已达到响应行数限制，剩余的行将被忽略]”
+			int opt_max_split_lines = MAX_SPLIT_LINES;
+			boolean opt_max_split_lines_specified = false;
+			int opt_max_bytes_per_line = MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE;
 			int opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH;
 			String opt_charset = null;
 			boolean opt_reply_to_option_on = false;
@@ -1092,7 +1228,7 @@ System.err.println (message);
 								if (opt_timeout_length_seconds > WATCH_DOG_TIMEOUT_LENGTH_LIMIT)
 								{
 									opt_timeout_length_seconds = WATCH_DOG_TIMEOUT_LENGTH_LIMIT;
-									SendMessage (channel, nick, true, MAX_RESPONSE_LINES, botCmdAlias + " 命令“执行超时时长”被重新调整到: " + opt_timeout_length_seconds + " 秒");
+									SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, botCmdAlias + " 命令“执行超时时长”被重新调整到: " + opt_timeout_length_seconds + " 秒");
 								}
 							} catch (Exception e) {
 								e.printStackTrace();
@@ -1104,6 +1240,24 @@ System.err.println (message);
 						{
 							opt_charset = varValue;
 							logger.finer ("cmd 命令“输出字符集”设置为: " + opt_charset);
+							continue;
+						}
+						if (varName.equals("msl") || varName.equalsIgnoreCase("MaxSplitLines"))
+						{
+							opt_max_split_lines = Integer.parseInt (varValue);
+							opt_max_split_lines_specified = true;
+							if (opt_max_split_lines > MAX_SPLIT_LINES_LIMIT
+								&& !isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
+								&& !isUserInWhiteList(hostname, login, nick, botCmd)	// 不在白名单
+							)
+								opt_max_split_lines = MAX_SPLIT_LINES_LIMIT;
+							continue;
+						}
+						if (varName.equals("mbpl") || varName.equalsIgnoreCase("MaxBytesPerLine"))
+						{
+							opt_max_bytes_per_line = Integer.parseInt (varValue);
+							if (opt_max_bytes_per_line > MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT)
+								opt_max_bytes_per_line = MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT;
 							continue;
 						}
 
@@ -1139,7 +1293,7 @@ System.err.println (message);
 							)
 							{
 								opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
-								SendMessage (channel, nick, true, MAX_RESPONSE_LINES, "“最大响应行数”被重新调整到: " + opt_max_response_lines);
+								SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "“最大响应行数”被重新调整到: " + opt_max_response_lines);
 							}
 						}
 						catch (Exception e)
@@ -1177,8 +1331,13 @@ System.err.println (message);
 			mapGlobalOptions.put ("opt_output_stderr", opt_output_stderr);
 			mapGlobalOptions.put ("opt_ansi_escape_to_irc_escape", opt_ansi_escape_to_irc_escape);
 			mapGlobalOptions.put ("opt_escape_for_cursor_moving", opt_escape_for_cursor_moving);
+
 			mapGlobalOptions.put ("opt_max_response_lines", opt_max_response_lines);
 			mapGlobalOptions.put ("opt_max_response_lines_specified", opt_max_response_lines_specified);
+			mapGlobalOptions.put ("opt_max_split_lines", opt_max_split_lines);
+			mapGlobalOptions.put ("opt_max_split_lines_specified", opt_max_split_lines_specified);
+			mapGlobalOptions.put ("opt_max_bytes_per_line", opt_max_bytes_per_line);
+
 			mapGlobalOptions.put ("opt_timeout_length_seconds", opt_timeout_length_seconds);
 			mapGlobalOptions.put ("opt_charset", opt_charset);
 			mapGlobalOptions.put ("opt_reply_to", opt_reply_to);
@@ -1257,7 +1416,7 @@ System.err.println (message);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, e.toString ());
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, e.toString ());
 		}
 	}
 
@@ -1435,7 +1594,9 @@ System.err.println (message);
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotOptionInstance ("to", true) + "--将输出重定向(需要加额外的“目标”参数); " +
 				formatBotOptionInstance ("nou", true) + "--不输出用户名(NO Username), 该选项覆盖 " + formatBotOptionInstance ("to", true) + " 选项; " +
-				formatBotOption ("纯数字", true) + "--修改响应行数或其他上限(不超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
+				formatBotOption ("纯数字", true) + "--修改响应行数或其他上限(别超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
+				formatBotOption ("mbpl=数字", true) + "--修改长行分割时每行字节数(别超过" + MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT + "); " +
+				formatBotOption ("msl=数字", true) + "--修改长行分割时最多分割多少成行(别超过" + MAX_SPLIT_LINES_LIMIT + "); " +
 				"全局选项的顺序无关紧要, 私有选项需按命令要求的顺序出现"
 				);
 			return;
@@ -2174,7 +2335,7 @@ System.err.println (message);
 				sb.append (" ");
 			}
 
-			if (sb.toString().getBytes().length > 420)	// 由于每个时区的 ID 比较长，所以，多预留一些空间
+			if (sb.toString().getBytes().length > MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE)	// 由于每个时区的 ID 比较长，所以，多预留一些空间
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
 //System.out.println (sb);
@@ -2233,7 +2394,7 @@ System.err.println (message);
 				sb.append (" ");
 			}
 
-			if (sb.toString().getBytes().length > 430)
+			if (sb.toString().getBytes().length > MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE)
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
 //System.out.println (sb);
@@ -2297,7 +2458,7 @@ System.err.println (message);
 				sb.append (" ");
 			}
 
-			if (sb.toString().getBytes().length > 430)
+			if (sb.toString().getBytes().length > MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE)
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
 //System.out.println (sb);
@@ -2360,7 +2521,7 @@ System.err.println (message);
 				sb.append (" ");
 			}
 
-			if (sb.toString().getBytes().length > 430)
+			if (sb.toString().getBytes().length > MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE)
 			{
 //sb.append ("第 " + listMessages.size() + " 批: ");
 //System.out.println (sb);
@@ -5115,7 +5276,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						listAttributes.set (listAttributes.size () - 1, value);	// 更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
+					{
 						sName = value;
+					}
 					else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("编号"))
 					{
 						//sID = value;
@@ -5216,13 +5379,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				{
 					String value = listOrderedParams.get (0);
 					if (listOrderedParams.get (0).matches ("\\d+"))
-					{
 						nID = Integer.parseInt (value);
-					}
 					else
-					{
 						sName = value;
-					}
 				}
 				if (listOrderedParams.size () > 1)
 					sURLParam1 = listOrderedParams.get (1);
@@ -5513,10 +5672,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							sbHelp.append (" /ua ");
 							sbHelp.append (rs.getString ("ua"));
 						}
-						if (! StringUtils.isEmpty (rs.getString ("method")))
+						if (! StringUtils.isEmpty (rs.getString ("request_method")))
 						{
 							sbHelp.append (" /m ");
-							sbHelp.append (rs.getString ("method"));
+							sbHelp.append (rs.getString ("request_method"));
 						}
 						if (! StringUtils.isEmpty (rs.getString ("referer")))
 						{
@@ -6009,9 +6168,9 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 								sbText.append (sRightPadding);
 						}
 					}
-					if (sbText.length () > 430)
-						text = sbText.substring (0, 430);
-					else
+					//if (sbText.length () > MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE)
+					//	text = sbText.substring (0, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE);
+					//else
 						text = sbText.toString ();
 					SendMessage (ch, nick, mapGlobalOptions, text);
 
