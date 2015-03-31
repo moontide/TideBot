@@ -1,6 +1,6 @@
 * {
 	font-size:	9pt;
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 }
 
 html {
@@ -18,7 +18,7 @@ fieldset {
 
 legend {
 	font-size:	9pt;
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-weight:	bold;
 
 	/*
@@ -35,22 +35,22 @@ legend {
 }
 
 p, div, span, label, a, li, dt, dd, input, button, textarea, pre, body, td {
-	font-family:	'宋体', Verdana, Tahoma, Arial, serif;
+	font-family:	'文泉驿点阵正黑', '新宋体', Verdana, Tahoma, Arial, serif;
 	font-size:	9pt;
 	font-weight: normal;
 }
 
 /* -------------------------- ZK 3.5.x ---------------------------- */
 .z-label, .z-chkbox {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 .z-button, .z-button-os {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 .z-toolbar-button {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 .z-separator-hor, .z-separator-ver {
@@ -75,21 +75,21 @@ p, div, span, label, a, li, dt, dd, input, button, textarea, pre, body, td {
 	.z-spinner-btn,
 	.z-spinner-img
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 	/* fieldset/groupbox */
 .z-fieldset, .z-fieldset-colpsd, .z-fieldset legend,
 	.z-fieldset-cnt
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 	/* radio/radiogroup */
 .z-radio,
 	.z-radio-cnt
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 
@@ -119,7 +119,7 @@ p, div, span, label, a, li, dt, dd, input, button, textarea, pre, body, td {
 	.z-tabpanels,
 		.z-tabpanel
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 	/* listbox */
@@ -144,7 +144,7 @@ div.listbox, div.z-listbox,
 			.z-list-footer,
 				div.z-list-footer-cnt
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 
@@ -161,7 +161,7 @@ div.z-listbox-body td
 		.z-paging-text,
 		.z-paging-info
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 
@@ -179,7 +179,7 @@ div.z-listbox-body td
 					.z-row-inner,
 						.z-row-cnt
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 
@@ -243,7 +243,7 @@ div.z-listbox-body td
 		.z-tabpanel,
 			.z-tabpanel-cnt
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 }
 
 	/* tree */
@@ -262,7 +262,7 @@ div.z-listbox-body td
 		.z-tree-cell,
 			.z-tree-cell-cnt
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 }
 
 	/* combo box */
@@ -282,34 +282,38 @@ div.z-listbox-body td
 	.z-combobox-pp .z-comboitem-text
 
 {
-	font-family:	'宋体';
+	font-family:	'文泉驿点阵正黑', '新宋体';
 	font-size:	9pt;
 }
 
-/* ----------------------- 去掉 ZK 5/6/7 多余的填充 ------------------------- */
-.z-textbox, .z-decimalbox, .z-intbox, .z-longbox, .z-doublebox,
+/* ---------------------------- ZK 5/6/7 ------------------------------------ */
+/* 去掉 ZK 5/6/7 多余的填充 */
 .z-combobox-input, .z-bandbox-input, .z-datebox-input, .z-timebox-input, .z-spinner-input, .z-doublespinner-input,
 .z-column-content, .z-row-content, .z-group-content, .z-groupfoot-content, .z-footer-content,
-.z-listheader-content, .z-listcell-content, .z-listgroup-content, .z-listgroupfoot-content, .z-listfooter-content,
 .z-listcell-content,
-/* .z-tab-text, */
-.z-window-header
+.z-tab-text,
+.z-window-header,
+tr.z-row td.z-row-inner, tr.z-row td.z-cell, tr.z-group td.z-group-inner, tr.z-groupfoot td.z-groupfoot-inner
 {
-	font-family:	'宋体';
-	font-size:	9pt;
-
-	padding: 0;
+	padding: 2px;
 }
 
-.z-comboitem
-{
-	text-shadow: none;	/* 原有的向下 1px 的白色阴影导致字体发虚 */
-}
-
-.z-row:hover > .z-row-inner, .z-row:hover > .z-cell
-,.z-row:hover > .z-row-inner > .z-row-content
+/* 去掉 ZK 5/6/7 的 grid 中的 row 在鼠标划过时背景更换的问题，太突兀的设计，让人感觉该组件是可操作的，实际不是 */
+tr.z-row-over > td.z-row-inner, tr.z-row-over > td.z-cell
 {
 	background-color: inherit;
+}
+tr.z-row-over > td.z-row-inner
+{
+	border-top: 1px solid;
+	border-bottom: 1px solid;
+	border-color: #FFF transparent #FFF #FFF;
+}
+
+tr.z-row td.z-row-inner, tr.z-row .z-cell,
+div.z-listcell-cnt
+{
+	line-height: inherit;
 }
 
 /* -------------------------- 业务相关的样式 ---------------------------- */

@@ -179,7 +179,7 @@ void LoadHtmlJsonTemplate (Map t)
 	textboxHtmlJsonTemplateForm_Selector.setText (t.get("selector"));
 	textboxHtmlJsonTemplateForm_SubSelector.setText (t.get("sub_selector"));
 	textboxHtmlJsonTemplateForm_PaddingLeft.setText (t.get("padding_left"));
-	textboxHtmlJsonTemplateForm_Extract.setText (t.get("extract"));
+	comboboxHtmlJsonTemplateForm_Extract.setText (t.get("extract"));
 	textboxHtmlJsonTemplateForm_Attribute.setText (t.get("attr"));
 	textboxHtmlJsonTemplateForm_PaddingRight.setText (t.get("padding_right"));
 
@@ -231,7 +231,7 @@ void SaveHtmlJsonTemplate ()
 	String sSubSelector = textboxHtmlJsonTemplateForm_SubSelector.getValue();
 
 	String sPaddingLeft = textboxHtmlJsonTemplateForm_PaddingLeft.getValue ();
-	String sExtract = textboxHtmlJsonTemplateForm_Extract.getValue ();
+	String sExtract = comboboxHtmlJsonTemplateForm_Extract.getValue ();
 	String sAttribute = textboxHtmlJsonTemplateForm_Attribute.getValue ();
 	String sPaddingRight = textboxHtmlJsonTemplateForm_PaddingRight.getValue ();
 

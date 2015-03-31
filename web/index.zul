@@ -123,7 +123,25 @@
 			</div>
 			<div>
 				左填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingLeft' value=''/>
-				取值 <textbox id='textboxHtmlJsonTemplateForm_Extract' value=''/>
+				取值 <combobox id='comboboxHtmlJsonTemplateForm_Extract'>
+						<comboitem label=''/>
+						<comboitem label='text'/>
+						<comboitem label='html'/>
+						<comboitem label='inner'/>
+						<comboitem label='innerhtml'/>
+						<comboitem label='outerhtml'/>
+						<comboitem label='outer'/>
+						<comboitem label='attr'/>
+						<comboitem label='attribute'/>
+						<comboitem label='tagname'/>
+						<comboitem label='nodename'/>
+						<comboitem label='classname'/>
+						<comboitem label='owntext'/>
+						<comboitem label='data'/>
+						<comboitem label='id'/>
+						<comboitem label='val'/>
+						<comboitem label='value'/>
+					</combobox>
 				属性值 <textbox id='textboxHtmlJsonTemplateForm_Attribute' value=''/> *仅仅当“取值”="attr"时用到
 				右填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingRight' value=''/>
 			</div>
