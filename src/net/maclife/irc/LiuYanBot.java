@@ -1058,6 +1058,8 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 						sHTTemplateName = args[0].substring (0, iFirstDotIndex);
 						sCommandOptions = args[0].substring (iFirstDotIndex);
 					}
+					else
+						sHTTemplateName = args[0];
 					if (StringUtils.containsIgnoreCase (sCommandOptions, ".to"))
 					{
 						if (args.length < 2)
@@ -1068,8 +1070,12 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 							sHTParameters = args[2];
 					}
 					else
+					{
 						if (args.length > 1)	// 如果这个 ht 命令带了其他参数
 							sHTParameters = args[1];
+						if (args.length > 2)	// 如果这个 ht 命令带了其他参数
+							sHTParameters = sHTParameters + " " + args[2];
+					}
 					SetupDataSource ();
 					conn = botDS.getConnection ();
 					stmt = conn.prepareStatement ("SELECT content_type FROM html_parser_templates WHERE name=?");
