@@ -1,0 +1,337 @@
+* {
+	font-size:	9pt;
+	font-family:	'宋体';
+}
+
+html {
+}
+
+fieldset {
+	margin: 4px;
+	padding:	8px;
+	/*
+	border:	1px double green;
+	border-bottom:	1px double green;
+	background-color:	#EEFFEE;
+	*/
+}
+
+legend {
+	font-size:	9pt;
+	font-family:	'宋体';
+	font-weight:	bold;
+
+	/*
+	border:	1px dashed;
+	width:	80%;
+
+	color:	white;
+	background-color:	darkblue;
+	*/
+
+	margin-left:	2em;
+	padding-left:	1em;
+	padding-right:	1em;
+}
+
+p, div, span, label, a, li, dt, dd, input, button, textarea, pre, body, td {
+	font-family:	'宋体', Verdana, Tahoma, Arial, serif;
+	font-size:	9pt;
+	font-weight: normal;
+}
+
+/* -------------------------- ZK 3.5.x ---------------------------- */
+.z-label, .z-chkbox {
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+.z-button, .z-button-os {
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+.z-toolbar-button {
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+.z-separator-hor, .z-separator-ver {
+}
+.z-hbox,
+	.z-hbox-sep
+{
+}
+.z-vbox {
+}
+.z-textbox, .z-textbox-focus, .z-intbox, .z-longbox, .z-decimalbox, .z-doublebox,
+.z-datebox,
+	.z-datebox-inp,
+	.z-datebox-btn,
+	.z-datebox-pp,
+.z-timebox,
+	.z-timebox-inp,
+	.z-timebox-btn,
+	.z-timebox-pp,
+.z-spinner,
+	.z-spinner-inp,
+	.z-spinner-btn,
+	.z-spinner-img
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+	/* fieldset/groupbox */
+.z-fieldset, .z-fieldset-colpsd, .z-fieldset legend,
+	.z-fieldset-cnt
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+	/* radio/radiogroup */
+.z-radio,
+	.z-radio-cnt
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+
+	/* tabbox */
+.z-tabbox,
+	.z-tabs,
+		.z-tabs-header,
+		.z-tabs-cnt,
+			.z-tab,
+				.z-tab-hl,
+					.z-tab-hr,
+						.z-tab-hm,
+							.z-tab .z-tab-text, .z-tab-text,
+			.z-tab-seld,
+				.z-tab-seld .z-tab-text,
+			.z-tab-disd,
+				.z-tab-disd .z-tab-text,
+		.z-tabs-edge,
+			.z-clear,
+		.z-tabs-space,
+	.z-tabbox-scrolltabs,
+		.z-tabbox-scrollright,
+		.z-tabbox-scrollleft,
+		.z-tabbox-header,
+			.z-tabbox-ul,
+		.z-tabbox-space
+	.z-tabpanels,
+		.z-tabpanel
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+	/* listbox */
+div.listbox, div.z-listbox,
+	tr.z-list-group,
+		td.z-list-group-inner,
+			td.z-list-group-inner div.z-list-cell-cnt,
+			img.z-list-group-img, img.z-list-group-img-open,
+	tr.z-list-group-foot,
+		td.z-list-group-foot-inner,
+	tr.z-list-group-footer,
+	div.z-listbox-header,
+		tr.z-list-head,
+			th.z-list-header,
+				div.z-list-header-cnt,
+	div.z-listbox-body,
+		tr.z-list-item,	tr.z-listbox-odd,
+			td.z-list-cell,
+				div.z-list-cell-cnt, div.z-overflow-hidden,
+	.z-listbox-footer,
+		.z-list-foot,
+			.z-list-footer,
+				div.z-list-footer-cnt
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+
+div.z-listbox-body td
+{
+	border-left: 1px solid;
+}
+	/* paging */
+.z-paging, .z-paging div, .z-paging input, .z-paging span, .z-paging button,
+		.z-paging-btn, .z-paging-btn-disd,
+			.z-paging-first, .z-paging-prev, .z-paging-next, .z-paging-last,
+		.z-paging-sep,
+		.z-paging-inp,
+		.z-paging-text,
+		.z-paging-info
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+
+
+	/* grid */
+.z-grid,
+	.z-grid-header,
+		.z-columns,
+			.z-column,
+				.z-column-cnt, div.z-column-cnt,
+	.z-grid-body,
+		.z-rows,
+			.z-row,
+				.z-row, .z-row-odd,
+					.z-row-inner,
+						.z-row-cnt
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+
+
+	/* border layout */
+.z-border-layout-tool,
+.z-north,
+	.z-north-header,
+		.z-north-collapse,
+	.z-north-body,
+.z-north-split,
+.z-north-collapsed,
+	.z-north-expand,
+.z-south,
+.z-center,
+.z-west,
+.z-east {
+}
+
+
+	/* window */
+.z-ie-shadow,
+.z-window-overlapped,
+	.z-window-overlapped-tl,
+		.z-window-overlapped-tr,
+			.z-window-overlapped-tm,
+				.z-window-overlapped-header,
+	.z-window-overlapped-body,
+		.z-window-overlapped-cl,
+			.z-window-overlapped-cr,
+				.z-window-overlapped-cm,
+					.z-window-overlapped-cnt,
+		.z-window-overlapped-bl,
+{
+}
+
+	/* grid */
+.z-grid
+	.z-grid-body,
+		.z-rows,
+			.z-row, .z-grid-odd,
+				.z-row-inner,
+					.z-row-cnt
+{
+}
+
+	/* tab */
+.z-tabbox
+	.z-tabs, .z-tabs-scroll,
+		.z-tabs-header,
+			.z-tabs-cnt,
+				.z-tab, .z-tab-seld,
+					.z-tab-hl,
+						.z-tab-hr,
+							.z-tab-hm,
+								.z-tab-text,
+				.z-tabs-edge,
+					.z-clear,
+			.z-tabs-space,
+	.z-tabpanels,
+		.z-tabpanel,
+			.z-tabpanel-cnt
+{
+	font-family:	'宋体';
+}
+
+	/* tree */
+.z-tree,
+.z-dottree,
+	.z-dottree-header,
+	.z-dottree-body,
+.z-xptree,
+.z-vistatree,
+
+.z-tree-cols,
+	.z-tree-col,
+		.z-tree-col-cnt,
+.z-tree-children,
+	.z-tree-row,
+		.z-tree-cell,
+			.z-tree-cell-cnt
+{
+	font-family:	'宋体';
+}
+
+	/* combo box */
+.z-combobox
+	.z-combobox-inp,
+	.z-combobox-btn,
+		.z-combobox-img,
+	.z-combobox-pp,
+		.z-combo-item,
+			.z-combo-item-img,
+			.z-combo-item-text,
+	.z-combobox-pp .z-combo-item-text,
+		/* --- ZK 5: z-comboitem --- */
+		.z-comboitem,
+			.z-comboitem-img,
+			.z-comboitem-text,
+	.z-combobox-pp .z-comboitem-text
+
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+}
+
+/* ----------------------- 去掉 ZK 5/6/7 多余的填充 ------------------------- */
+.z-textbox, .z-decimalbox, .z-intbox, .z-longbox, .z-doublebox,
+.z-combobox-input, .z-bandbox-input, .z-datebox-input, .z-timebox-input, .z-spinner-input, .z-doublespinner-input,
+.z-column-content, .z-row-content, .z-group-content, .z-groupfoot-content, .z-footer-content,
+.z-listheader-content, .z-listcell-content, .z-listgroup-content, .z-listgroupfoot-content, .z-listfooter-content,
+.z-listcell-content,
+/* .z-tab-text, */
+.z-window-header
+{
+	font-family:	'宋体';
+	font-size:	9pt;
+
+	padding: 0;
+}
+
+.z-comboitem
+{
+	text-shadow: none;	/* 原有的向下 1px 的白色阴影导致字体发虚 */
+}
+
+.z-row:hover > .z-row-inner, .z-row:hover > .z-cell
+,.z-row:hover > .z-row-inner > .z-row-content
+{
+	background-color: inherit;
+}
+
+/* -------------------------- 业务相关的样式 ---------------------------- */
+
+.SuccessInfo {
+	font-size: 14pt;
+	font-weight: bold;
+	color: green;
+}
+
+.ErrorInfo {
+	font-size: 14pt;
+	font-weight: bold;
+	color: red;
+}
+
+.NewMessage
+{
+	background: lime !important;
+}
+.NewMessage > .z-listcell > .z-listcell-content
+{
+	color: green;
+	font-weight: bold;
+}

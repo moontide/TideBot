@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Context path='/qa'>
+	<Resource
+		name='jdbc/ds'
+		type='javax.sql.DataSource'
+		driverClassName='com.mysql.jdbc.Driver'
+		url='jdbc:mysql://192.168.115.88/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull'
+
+		auth='Container'
+		username='bot'
+		password=''
+
+		maxActive='40'
+		maxIdle='3'
+		maxWait='10000'
+	/>
+</Context>

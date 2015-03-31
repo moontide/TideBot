@@ -1,0 +1,173 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?taglib uri='http://www.zkoss.org/dsp/web/core' prefix='c' ?>
+<?page title='TideBot Web 管理' id='indexPage'?>
+<zk xmlns:n='http://www.zkoss.org/2005/zk/native'>
+
+<zscript src='common.java'/>
+<!--
+<zscript src='include_checkLogin.java'/>
+-->
+<zscript src='index.java'/>
+
+<timer id='timer' running='true' delay='300000' repeats='true' onTimer='OnTimer()'/>
+<timer id='init_timer' running='true' delay='500' repeats='false' onTimer='Init()'/>
+
+<div style='width:100%; padding-top:8px; overflow:hidden;'>
+	<label value='TideBot Web 管理' style='color:#0000CC; font-family:"楷体_GB2312","黑体"; font-size:30px; float:left;'/>
+</div>
+
+<separator/>
+
+<tabbox>
+	<tabs>
+		<tab label='HTML/JSON 模板'/>
+		<tab label='鞭挞'/>
+	</tabs>
+	<tabpanels>
+		<tabpanel>
+<grid>
+<columns>
+	<column width='100px'/>
+	<column/>
+</columns>
+<rows>
+	<row>
+		模板名称
+		<textbox id='textboxHtmlJsonTemplateQueryForm_Name'/>
+	</row>
+	<row>
+		网址
+		<textbox id='textboxHtmlJsonTemplateQueryForm_URL' width='100ex'/>
+	</row>
+	<row>
+		内容类型
+		<radiogroup id='radiogroupHtmlJsonTemplateQueryForm_ContentType'>
+			<radio value='' label='--不限--' checked='true'/>
+			<radio value='html' label='html'/>
+			<radio value='json' label='json'/>
+			<radio value='js' label='javascript'/>
+		</radiogroup>
+	</row>
+	<row>
+		<label/>
+		<button image='images/icon-button-refresh.png' label='查询 HTML/JSON 模板' onClick='查询HTML_JSON模板_GUI ();'/>
+	</row>
+</rows>
+</grid>
+
+<separator/>
+<listbox id='listboxHtmlJsonTemplatesList' mold='paging' pagingPosition='top' pageSize='10' onSelect='LoadHtmlJsonTemplate (self.selectedItem.value)'>
+<listhead sizable='true'>
+	<listheader label='#' width='6ex'/>
+	<listheader label='名称'/>
+	<listheader label='URL'/>
+	<listheader label='ContentType' width='8ex'/>
+	<listheader label='Selector'/>
+	<listheader label='SubSelector'/>
+	<listheader label='URLParamHelp'/>
+</listhead>
+</listbox>
+<button label='删除选中的HTML_JSON模板' onClick='删除选中的HTML_JSON模板 ()'/>
+
+<separator/>
+<grid id='gridHtmlJsonTemplateForm'>
+	<columns>
+		<column width='150px'/>
+		<column/>
+	</columns>
+	<rows>
+		<row>
+			#
+			<div><textbox id='textboxHtmlJsonTemplateForm_ID' disabled='true'/><button label='新建HTML_JSON模板/清空表单' onClick='LoadHtmlJsonTemplate (Collections.EMPTY_MAP);' style='background-color: #CFC'/></div>
+		</row>
+		<row>
+			名称
+			<textbox id='textboxHtmlJsonTemplateForm_Name' value='' width='95%' constraint='no empty'/>
+		</row>
+		<row>
+			网址
+			<div>
+				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='100%' constraint='no empty'/> 网址中可包含 \$\{p} \$\{p2} \$\{p3} 参数
+				<separator/>
+				URL参数帮助信息 <textbox id='textboxHtmlJsonTemplateForm_URLParamUsage' value='' width='50%'/> (需要给使用者说明这些参数该填啥)
+				<separator/>
+				<checkbox id='checkboxHtmlJsonTemplateForm_IgnoreHTTPSCertificateValidation' label='忽略 https 证书验证 (仅对 https　网址生效)' checked='true'/>
+			</div>
+		</row>
+		<row>
+			内容类型
+			<div>
+				<radiogroup id='radiogroupHtmlJsonTemplateForm_ContentType' onCheck='onHtmlJsonTemplateContentTypeChanged ();'>
+					<radio value='' label='HTML' checked='true'/>
+					<radio value='json' label='JSON'/>
+					<radio value='js' label='JavaScript'/>
+				</radiogroup>
+				<separator/>
+				<checkbox id='checkboxHtmlJsonTemplateForm_IgnoreContentType' label='忽略 ContentType (仅对 html　的内容类型生效)' checked='true'/>
+				<div id='divHtmlJsonTemplateForm_JSCut_Wrapper' visible='false'>
+				JS去头 <intbox id='intboxHtmlJsonTemplateForm_JSCutStart' value='0'/> 个字符
+				JS去尾 <intbox id='intboxHtmlJsonTemplateForm_JSCutEnd' value='0'/> 个字符
+				</div>
+			</div>
+		</row>
+		<row id='rowHtmlJsonTemplateForm_Selector'>
+			Selector
+			<div><textbox id='textboxHtmlJsonTemplateForm_Selector' value='' width='100%'/> 这里的 selector 仅仅适用于 html 内容类型， json/js 内容类型不读该信息。 jsoup 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html</div>
+		</row>
+		<row>
+			SubSelector及取值
+			<hbox>
+			<div>
+				<textbox id='textboxHtmlJsonTemplateForm_SubSelector' value='' multiline='true' rows='10' width='100%'/>
+				对于 html 内容类型，这里填写 Selector 取出的 element 内的 SubSelector 选定的元素。对于 json/js 内容类型，这里填写 javascript 代码
+			</div>
+			<div>
+				左填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingLeft' value=''/>
+				取值 <textbox id='textboxHtmlJsonTemplateForm_Extract' value=''/>
+				属性值 <textbox id='textboxHtmlJsonTemplateForm_Attribute' value=''/> *仅仅当“取值”="attr"时用到
+				右填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingRight' value=''/>
+			</div>
+			</hbox>
+		</row>
+		<row>
+			仿浏览器(User-Agent)
+			<textbox id='textboxHtmlJsonTemplateForm_UserAgent' value='' width='95%'/>
+		</row>
+		<row>
+			请求方法
+			<radiogroup id='radiogroupHtmlJsonTemplateForm_RequestMethod'>
+				<radio value='' label='GET' checked='true'/>
+				<radio value='POST' label='POST'/>
+			</radiogroup>
+		</row>
+		<row>
+			Referer
+			<textbox id='textboxHtmlJsonTemplateForm_Referer' value='' width='95%'/>
+		</row>
+		<row>
+			添加
+			<div>
+			<label id='labelHtmlJsonTemplateForm_AddedBy'/>!<label id='labelHtmlJsonTemplateForm_AddedByUser'/>@<label id='labelHtmlJsonTemplateForm_AddedByHost'/>, <label id='labelHtmlJsonTemplateForm_AddedTime'/>
+			</div>
+		</row>
+		<row>
+			更新
+			<div>
+			<label id='labelHtmlJsonTemplateForm_UpdatedBy'/>!<label id='labelHtmlJsonTemplateForm_UpdatedByUser'/>@<label id='labelHtmlJsonTemplateForm_UpdatedByHost'/>, <label id='labelHtmlJsonTemplateForm_UpdatedTime'/>, 次数=<label id='labelHtmlJsonTemplateForm_UpdatedTimes'/>
+			</div>
+		</row>
+	</rows>
+	<foot>
+		<footer></footer>
+		<footer><button label='-- 保存HTML_JSON模板 --' onClick='SaveHtmlJsonTemplate ()'/></footer>
+	</foot>
+</grid>
+
+		</tabpanel>
+
+		<tabpanel>
+		</tabpanel>
+	</tabpanels>
+</tabbox>
+
+</zk>

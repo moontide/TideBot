@@ -1,0 +1,28 @@
+<zk>
+	<desktop-config>
+		<theme-uri>/style*.css</theme-uri>
+	</desktop-config>
+
+	<library-property>
+		<name>org.zkoss.theme.preferred</name>
+		<value>sapphire</value>
+	</library-property>
+
+	<system-config>
+		<upload-charset>GBK</upload-charset>
+		<!-- 解决 ZK 5 Messgebox 立即返回的问题，使之与 ZK 3 有相同的特性 -->
+		<disable-event-thread>false</disable-event-thread>
+	</system-config>
+
+	<session-config>
+		<timer-keep-alive>true</timer-keep-alive>
+	<!--
+		<session-timeout>3600</session-timeout>
+	-->
+	</session-config>
+	<preference>
+		<!-- 禁用窗口弹出时淡入淡出或者动画效果 -->
+		<name>org.zkoss.zul.Window.defaultActionOnShow</name>
+		<value></value>
+	</preference>
+</zk>
