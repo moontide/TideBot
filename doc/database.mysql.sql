@@ -212,7 +212,7 @@ CREATE TABLE html_parser_templates
 	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
 	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
-	method ENUM('','GET', 'POST') NOT NULL DEFAULT '' COMMENT 'HTTP 方法，只允许 GET 和 POST',
+	request_method ENUM('','GET', 'POST') NOT NULL DEFAULT '' COMMENT 'HTTP 方法，只允许 GET 和 POST',
 	referer VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'Referer 头',
 
 	max TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT '最多获取/显示多少行。注意: 此数值仍然受 bot 最大响应行数上限的限制',

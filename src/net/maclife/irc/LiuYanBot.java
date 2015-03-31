@@ -5022,7 +5022,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		List<String> listRightPaddings = new ArrayList<String> ();
 
 		String sHTTPUserAgent = null;
-		String sHTTPMethod = null;
+		String sHTTPRequestMethod = null;
 		String sHTTPReferer = null;
 		String sHTTPTimeout = null;
 		int nHTTPTimeout = WATCH_DOG_TIMEOUT_LENGTH;
@@ -5131,7 +5131,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					else if (param.equalsIgnoreCase ("ua") || param.equalsIgnoreCase ("user-agent") || param.equalsIgnoreCase ("浏览器"))
 						sHTTPUserAgent = value;
 					else if (param.equalsIgnoreCase ("m") || param.equalsIgnoreCase ("method") || param.equalsIgnoreCase ("方法"))
-						sHTTPMethod = value;
+						sHTTPRequestMethod = value;
 					else if (param.equalsIgnoreCase ("r") || param.equalsIgnoreCase ("ref") || param.equalsIgnoreCase ("refer") || param.equalsIgnoreCase ("referer") || param.equalsIgnoreCase ("来源"))
 						sHTTPReferer = value;
 
@@ -5353,10 +5353,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						sbSQL.append ("	AND ua LIKE ?\n");
 						listSQLParams.add ("%" + sHTTPUserAgent + "%");
 					}
-					if (! StringUtils.isEmpty (sHTTPMethod))
+					if (! StringUtils.isEmpty (sHTTPRequestMethod))
 					{
-						sbSQL.append ("	AND method = ?\n");
-						listSQLParams.add (sHTTPMethod);
+						sbSQL.append ("	AND request_method = ?\n");
+						listSQLParams.add (sHTTPRequestMethod);
 					}
 					if (! StringUtils.isEmpty (sHTTPReferer))
 					{
@@ -5441,8 +5441,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 					if (StringUtils.isEmpty (sHTTPUserAgent))
 						sHTTPUserAgent = rs.getString ("ua");
-					if (StringUtils.isEmpty (sHTTPMethod))
-						sHTTPMethod = rs.getString ("method");
+					if (StringUtils.isEmpty (sHTTPRequestMethod))
+						sHTTPRequestMethod = rs.getString ("request_method");
 					if (StringUtils.isEmpty (sHTTPReferer))
 						sHTTPReferer = rs.getString ("referer");
 
@@ -5541,7 +5541,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							sbHelp.append (" ");
 							sbHelp.append (rs.getString ("updated_time").substring (0, 19));
 							sbHelp.append (" ");
-							sbHelp.append (rs.getString ("updated_times").substring (0, 19));
+							sbHelp.append (rs.getString ("updated_times"));
 							sbHelp.append (" 次");
 						}
 						SendMessage (ch, nick, mapGlobalOptions, sbHelp.toString ());
@@ -5569,7 +5569,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			}
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
-				sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
+				sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
 				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
@@ -5668,7 +5668,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			String sQueryString = null;
 			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
 			System.clearProperty ("javax.net.ssl.trustPassword");
-			if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST") && sURL.contains ("?"))
+			if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST") && sURL.contains ("?"))
 			{
 				int i = sURL.indexOf ('?');
 				sQueryString = sURL.substring (i+1);	// 得到 QueryString，用来将其传递到 POST 消息体中
@@ -5717,14 +5717,14 @@ System.out.println (sHTTPReferer);
 					http.setRequestProperty ("Referer", sHTTPReferer);
 				}
 
-				if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
+				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
 				{
 					http.setDoOutput (true);
 					//http.setRequestProperty ("Content-Type", "application/x-www-form-urlencoded");
 					http.setRequestProperty ("Content-Length", sQueryString);
 				}
 				http.connect ();
-				if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
+				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
 				{
 					DataOutputStream dos = new DataOutputStream (http.getOutputStream());
 					dos.writeBytes (sQueryString);
@@ -5840,7 +5840,14 @@ fw.close ();
 				String text = null;
 				//text = EvaluateJSONExpression (node, sSelector, listExtracts.get(0));
 				text = sbText.toString ();
-				SendMessage (ch, nick, mapGlobalOptions, text);
+				String[]arrayLines = text.split ("\n+");
+				for (int i=(int)iStart; i<arrayLines.length; i++)
+				{
+					if (nLines >= opt_max_response_lines)
+						break;
+					SendMessage (ch, nick, mapGlobalOptions, arrayLines[i]);
+					nLines ++;
+				}
 			}
 			else
 			{
@@ -5867,9 +5874,9 @@ System.out.println (sHTTPReferer);
 					jsoup_conn.referrer (sHTTPReferer);
 				}
 
-				if (StringUtils.equalsIgnoreCase (sHTTPMethod, "POST"))
+				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
 				{
-System.out.println (sHTTPMethod);
+System.out.println (sHTTPRequestMethod);
 					if (! StringUtils.isEmpty (sQueryString))
 					{
 System.out.println (sQueryString);
