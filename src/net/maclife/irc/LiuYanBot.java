@@ -79,7 +79,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * <strong>另外，本变量未用 <code>final</code> 来修饰，是因为：假设程序能动态计算出可用字节数的话，程序还可以更改该数值</strong>
 	 * </p>
 	 */
-	public static int MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE = 420;
+	public static int MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE = 450;
 	public static final int MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT = 510;	// 512 - \r\n
 	public static final int MAX_SPLIT_LINES = 3;	// 最大分割行数 (可由参数调整)
 	public static final int MAX_SPLIT_LINES_LIMIT = 10;	// 最大分割行数 (真的不能大于该行数)
@@ -458,6 +458,10 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		if (opt_reply_to_option_on && !StringUtils.equalsIgnoreCase (user, opt_reply_to))
 			user = opt_reply_to;
 		SendMessage (channel, user, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, msg);
+	}
+	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
+	{
+		SendMessage (channel, user, opt_output_username, opt_max_response_lines, 1, LiuYanBot.MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 	}
 	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, int opt_max_split_lines, int opt_max_bytes_per_line, String msg)
 	{
