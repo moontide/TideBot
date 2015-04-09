@@ -3,7 +3,6 @@ package net.maclife.irc.game;
 import java.security.*;
 import java.util.*;
 
-import org.apache.commons.lang3.*;
 import org.jibble.pircbot.*;
 
 import net.maclife.ansi.*;

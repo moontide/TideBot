@@ -88,43 +88,43 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
 
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
-	public static final String BOT_PRIMARY_COMMAND_Help	            = "/Help";
-	public static final String BOT_PRIMARY_COMMAND_Alias	        = "/Alias";
-	public static final String BOT_PRIMARY_COMMAND_Cmd	            = "Cmd";
+	public static final String BOT_PRIMARY_COMMAND_Help             = "/Help";
+	public static final String BOT_PRIMARY_COMMAND_Alias            = "/Alias";
+	public static final String BOT_PRIMARY_COMMAND_Cmd              = "Cmd";
 	public static final String BOT_PRIMARY_COMMAND_ParseCmd	        = "ParseCmd";
 	public static final String BOT_PRIMARY_COMMAND_IPLocation	    = "IPLocation";
-	public static final String BOT_PRIMARY_COMMAND_GeoIP	        = "GeoIP";
+	public static final String BOT_PRIMARY_COMMAND_GeoIP            = "GeoIP";
 	public static final String BOT_PRIMARY_COMMAND_PageRank         = "PageRank";
 	public static final String BOT_PRIMARY_COMMAND_StackExchange    = "StackExchange";
 	public static final String BOT_PRIMARY_COMMAND_Google           = "/Google";
 	public static final String BOT_PRIMARY_COMMAND_RegExp           = "RegExp";
-	public static final String BOT_PRIMARY_COMMAND_Ban	            = "/ban";
-	public static final String BOT_PRIMARY_COMMAND_JavaScript	    = "JavaScript";
-	public static final String BOT_PRIMARY_COMMAND_Java	            = "Java";
-	public static final String BOT_PRIMARY_COMMAND_TextArt	        = "ANSIArt";
-	public static final String BOT_PRIMARY_COMMAND_Tag	            = "dic";
+	public static final String BOT_PRIMARY_COMMAND_Ban              = "/ban";
+	public static final String BOT_PRIMARY_COMMAND_JavaScript       = "JavaScript";
+	public static final String BOT_PRIMARY_COMMAND_Java             = "Java";
+	public static final String BOT_PRIMARY_COMMAND_TextArt          = "ANSIArt";
+	public static final String BOT_PRIMARY_COMMAND_Tag              = "dic";
 	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "/GitHub";
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
 	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
 	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
 	public static final String BOT_PRIMARY_COMMAND_MAC_MANUFACTORY  = "Mac";	// 查询 MAC 地址所属的制造商
 
-	public static final String BOT_PRIMARY_COMMAND_Time	            = "/Time";
-	public static final String BOT_PRIMARY_COMMAND_Action	        = "Action";
-	public static final String BOT_PRIMARY_COMMAND_Notice	        = "Notice";
+	public static final String BOT_PRIMARY_COMMAND_Time             = "/Time";
+	public static final String BOT_PRIMARY_COMMAND_Action           = "Action";
+	public static final String BOT_PRIMARY_COMMAND_Notice           = "Notice";
 
 	public static final String BOT_PRIMARY_COMMAND_URLDecode        = "URLDecode";
 	public static final String BOT_PRIMARY_COMMAND_URLEncode        = "URLEncode";
 	public static final String BOT_PRIMARY_COMMAND_HTTPHead         = "HTTPHead";
 
-	public static final String BOT_PRIMARY_COMMAND_TimeZones	    = "TimeZones";
-	public static final String BOT_PRIMARY_COMMAND_Locales	        = "Locales";
-	public static final String BOT_PRIMARY_COMMAND_Env	            = "Env";
-	public static final String BOT_PRIMARY_COMMAND_Properties	    = "Properties";
+	public static final String BOT_PRIMARY_COMMAND_TimeZones        = "TimeZones";
+	public static final String BOT_PRIMARY_COMMAND_Locales          = "Locales";
+	public static final String BOT_PRIMARY_COMMAND_Env              = "Env";
+	public static final String BOT_PRIMARY_COMMAND_Properties       = "Properties";
 
-	public static final String BOT_PRIMARY_COMMAND_Set	            = "/set";
-	public static final String BOT_PRIMARY_COMMAND_Raw	            = "/raw";
-	public static final String BOT_PRIMARY_COMMAND_Version	        = "/Version";
+	public static final String BOT_PRIMARY_COMMAND_Set              = "/set";
+	public static final String BOT_PRIMARY_COMMAND_Raw              = "/raw";
+	public static final String BOT_PRIMARY_COMMAND_Version          = "/Version";
 
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Reconnect= "/Reconnect";	// 重新连接
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Join     = "/Join";	    // 进入频道
@@ -135,7 +135,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action   = "/me";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick     = "/nick";
 
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Verbose	= "/Verbose";	// 调试开关切换
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Verbose  = "/Verbose";	// 调试开关切换
 
 	static final String[][] BOT_COMMAND_ALIASES =
 	{
@@ -461,7 +461,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	}
 	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
 	{
-		SendMessage (channel, user, opt_output_username, opt_max_response_lines, 1, LiuYanBot.MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
+		SendMessage (channel, user, opt_output_username, opt_max_response_lines, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 	}
 	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, int opt_max_split_lines, int opt_max_bytes_per_line, String msg)
 	{
@@ -5146,6 +5146,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	 */
 	void ProcessCommand_HTMLParser (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+
+		boolean isOutputScheme = false;	// 是否输出 URL 中的 scheme (如 http://  https://)，这是应对一些不用命令前缀来触发其命令的 bot “智能”输出网页标题 的功能而设置的 (最起码，如果别人发的消息只有 1 个 url，你才输出其标题好吧)
+
 		String sAction = null;
 		if (listCmdEnv!=null && listCmdEnv.size()>0)
 		{
@@ -5162,6 +5165,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					sAction = "list";
 				else if (env.equalsIgnoreCase ("stats"))
 					sAction = "stats";
+				else if (env.equalsIgnoreCase ("os"))
+					isOutputScheme = true;
 				else
 					continue;
 			}
@@ -5942,7 +5947,7 @@ System.out.println (sHTTPReferer);
 				}
 				StringBuilder sbJSON = new StringBuilder ();
 				String sJSON;
-File f = new File ("test.txt");
+File f = new File ("ht-js-log.js");
 FileWriter fw = new FileWriter (f);
 fw.write (sContent);
 fw.close ();
@@ -6106,7 +6111,17 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						if (StringUtils.isEmpty (sExtract))	// 如果 Extract 是空的话，对 tagName 是 a 的做特殊处理
 						{
 							if (e2.tagName ().equalsIgnoreCase ("a"))
-								text = e2.attr ("abs:href") + " " + e2.text ();	// abs:href : 将相对地址转换为全地址
+							{
+								String sHref = e2.attr ("abs:href");
+								if (! isOutputScheme)
+								{
+									if (StringUtils.startsWithIgnoreCase (sHref, "https://"))
+										sHref = sHref.substring (8);
+									else if (StringUtils.startsWithIgnoreCase (sHref, "http://"))
+										sHref = sHref.substring (7);
+								}
+								text = sHref + " " + e2.text ();	// abs:href : 将相对地址转换为全地址
+							}
 							else
 								text = e2.text ();
 						}
@@ -6119,6 +6134,16 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						else if (sExtract.equalsIgnoreCase ("attr") || sExtract.equalsIgnoreCase ("attribute"))
 						{
 							text = e2.attr (sAttr);
+							if (e2.tagName ().equalsIgnoreCase ("a") && (sAttr.equalsIgnoreCase ("href") || sAttr.equalsIgnoreCase ("abs:href")))
+							{
+								if (! isOutputScheme)
+								{
+									if (StringUtils.startsWithIgnoreCase (text, "https://"))
+										text = text.substring (8);
+									else if (StringUtils.startsWithIgnoreCase (text, "http://"))
+										text = text.substring (7);
+								}
+							}
 //System.err.println ("	sExtract " + sExtract + " 榨取属性 " + sAttr + " = " + text);
 						}
 						else if (sExtract.equalsIgnoreCase ("TagName"))
@@ -6558,7 +6583,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			//|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
 			)
 		{
-			throw new RuntimeException ("not implemented yet");
+			game = new Game2048 (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else
 		{

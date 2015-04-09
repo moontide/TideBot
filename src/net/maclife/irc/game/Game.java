@@ -6,7 +6,6 @@ import org.apache.commons.lang3.*;
 
 import net.maclife.irc.*;
 import net.maclife.irc.dialog.*;
-import net.maclife.irc.dialog.Dialog.*;
 
 public abstract class Game implements Runnable, DialogUser
 {
