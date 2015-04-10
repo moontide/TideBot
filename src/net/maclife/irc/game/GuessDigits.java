@@ -96,7 +96,7 @@ public class GuessDigits extends Game
 	{
 		try
 		{
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始… 请回答/猜一个 " + nDigits + " 位无重复数字的数字… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始… 请回答/猜一个 " + nDigits + " 位无重复数字的数字… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。");
 			InitDigits ();
 
 			boolean isParticipantWannaQuit = false;
@@ -176,9 +176,9 @@ public class GuessDigits extends Game
 				if (t==1 || a==arrayDigitsToGuess.length || isParticipantWannaQuit)
 				{
 					if (isParticipantWannaQuit)
-						bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: 有人" + answer);
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: 有人" + answer);
 					else
-						bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: " + sb + ". 答案: " + Arrays.toString (arrayDigitsToGuess));
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: " + sb + ". 答案: " + Arrays.toString (arrayDigitsToGuess));
 
 					break;
 				}
@@ -188,7 +188,7 @@ public class GuessDigits extends Game
 						sDeltaInfo = ANSIEscapeTool.COLOR_DARK_RED + "啊哦" + Colors.NORMAL;
 					else if (a>previousA || (a==previousA && b>previousB))
 						sDeltaInfo = Colors.GREEN + "加油" + Colors.NORMAL;
-					bot.SendMessage (channel, "", false, 1, sb + (sDeltaInfo==null ? "" : " " + sDeltaInfo) + ". 还剩下 " + (t-1) + " 次, 继续猜…");
+					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sb + (sDeltaInfo==null ? "" : " " + sDeltaInfo) + ". 还剩下 " + (t-1) + " 次, 继续猜…");
 					previousA = a;
 					previousB = b;
 				}
@@ -197,7 +197,7 @@ public class GuessDigits extends Game
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏异常: " + e);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏异常: " + e);
 		}
 		finally
 		{

@@ -158,7 +158,7 @@ public class ANSIEscapeTool
 	/**
 	 * IRC 彩虹色（12 个颜色，按“<font color='red'>红</font><font color='orange'>橙</font><font color='yellow'>黄</font><font color='green'>绿</font><font color='blue'>蓝</font><font color='cyan'>青</font><font color='purple'>紫</font>”顺序）
 	 */
-	public static String[] IRC_Rainbow_COLORS =
+	public static final String[] IRC_Rainbow_COLORS =
 	{
 		COLOR_DARK_RED, COLOR_ORANGE, Colors.RED, Colors.YELLOW, Colors.GREEN,
 		Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.BLUE, COLOR_DARK_CYAN, Colors.CYAN,

@@ -14,6 +14,9 @@ public class Dialog implements Callable<Map<String, Object>>
 	public static final int MESSAGE_TARGET_MASK_PM      = 1;
 	public static final int MESSAGE_TARGET_MASK_CHANNEL = 2;
 
+	public static final boolean SHOW_MESSAGE            = true;
+	public static final boolean DO_NOT_SHOW_MESSAGE     = false;
+
 	public long threadID = 0;
 	public long starttime = 0;
 	public long endtime = 0;
@@ -73,7 +76,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		return Type.开放;
 	}
 
-	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean showQuestion, Object participants, List<String[]> listCandidateAnswers,
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean isShowQuestion, int messageTargetMask, Object participants, List<String[]> listCandidateAnswers,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -83,7 +86,8 @@ public class Dialog implements Callable<Map<String, Object>>
 		listDialogs.add (this);
 		type = (qt==null ? Type.开放 : qt);
 		question = q;	// (StringUtils.endsWithAny (q, "?", "？") ? q : q + "?");	// 如果问题不是以问号结尾，则在问题后面加上问号
-		this.showQuestion = showQuestion;
+		this.showQuestion = isShowQuestion;
+		this.msgTargetMask = messageTargetMask;
 		if (participants instanceof Collection<?>)
 			this.participants.addAll ((Collection<String>)participants);
 		else if (participants instanceof String)
@@ -133,14 +137,22 @@ public class Dialog implements Callable<Map<String, Object>>
 		}
 		System.out.println ("候选答案: " + sb);
 	}
-
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean isShowQuestion, Object participants, List<String[]> listCandidateAnswers,
+			String ch, String nick, String login, String hostname,
+			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		this (dlgUser, bot, listDialogs, qt, q, isShowQuestion, MESSAGE_TARGET_MASK_PM, participants, listCandidateAnswers,
+			ch, nick, login, hostname,
+			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
+			);
+	}
 	/**
 	 * 开放题构造函数
 	 * @param dlgUser
 	 * @param bot
 	 * @param listDialogs
 	 * @param q
-	 * @param showQuestion
+	 * @param isShowQuestion
 	 * @param participants
 	 * @param ch
 	 * @param nick
@@ -152,11 +164,11 @@ public class Dialog implements Callable<Map<String, Object>>
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, String q, boolean showQuestion, Object participants,
+	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, String q, boolean isShowQuestion, Object participants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		this (dlgUser, bot, listDialogs, Type.开放, q, showQuestion, participants, null,
+		this (dlgUser, bot, listDialogs, Type.开放, q, isShowQuestion, participants, null,
 			ch, nick, login, hostname,
 			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
@@ -259,7 +271,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		if (! isValidParticipant)
 		{
 			//throw new RuntimeException ("您不是当前对话的参与者");
-			bot.SendMessage (ch, n, true, 1, "您不是当前对话的参与者");
+			bot.SendMessage (ch, n, LiuYanBot.OPT_OUTPUT_USER_NAME, 1, "您不是当前对话的参与者");
 			return false;	// 如果抛出异常，则可能让不是对话参与者、但想执行其他 bot 命令的人在对话期间无法操作
 		}
 
@@ -320,10 +332,10 @@ public class Dialog implements Callable<Map<String, Object>>
 		{
 			String msg = "谢谢，请等待其他 " + (participants.size () - participantAnswers.size ()) +  " 人回答完毕。";
 			// 发到对话发起的频道里
-			bot.SendMessage (channel, n, true, 1, msg);
+			bot.SendMessage (channel, n, LiuYanBot.OPT_OUTPUT_USER_NAME, 1, msg);
 
 			if (StringUtils.isEmpty (ch))	// 如果用户通过私信发送的答案，则也再在私信里发一次
-				bot.SendMessage (null, n, false, 1, msg);
+				bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
 			return true;
 		}
 

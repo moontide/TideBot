@@ -46,6 +46,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final Charset JVM_CHARSET = Charset.defaultCharset();
 	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
 	public static final Charset UTF8_CHARSET = Charset.forName ("utf-8");
+	public static final Charset GBK_CHARSET = Charset.forName ("GBK");
+	public static final Charset GB2312_CHARSET = Charset.forName ("GB2312");
 	public static int JAVA_MAJOR_VERSION;	// 1.7　中的 1
 	public static int JAVA_MINOR_VERSION;	// 1.7　中的 7
 	static
@@ -54,6 +56,9 @@ public class LiuYanBot extends PircBot implements Runnable
 		JAVA_MAJOR_VERSION = Integer.parseInt (arrayJavaVersions[0]);
 		JAVA_MINOR_VERSION = Integer.parseInt (arrayJavaVersions[1]);
 	}
+
+	public static final boolean OPT_OUTPUT_USER_NAME         = true;
+	public static final boolean OPT_DO_NOT_OUTPUT_USER_NAME  = false;
 
 	public static final String DEFAULT_TIME_FORMAT_STRING = "yyyy-MM-dd a KK:mm:ss Z EEEE";
 	public static final DateFormat DEFAULT_TIME_FORMAT = new SimpleDateFormat (DEFAULT_TIME_FORMAT_STRING);
@@ -496,6 +501,10 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 					continue;
 				sendMessage (msgTo, line);
 			}
+		}
+		else if (JVM_CHARSET.equals (GBK_CHARSET) || JVM_CHARSET.equals (GB2312_CHARSET))
+		{
+
 		}
 		else
 			sendMessage (msgTo, msg);
@@ -6461,7 +6470,12 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			}
 		}
 
-		if (StringUtils.isEmpty (params))
+		if (StringUtils.isEmpty (params) &&
+			! (	// 不需要加额外参数就能玩的游戏要排除掉
+				StringUtils.equalsIgnoreCase (botCmdAlias, "猜数字")
+				|| StringUtils.equalsIgnoreCase (botCmdAlias, "2048")
+			)
+			)
 		{
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -6477,7 +6491,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		//	return;
 		//}
 
-		if (games.size () > 0)
+		if (games.size () > 5)
 		{
 			SendMessage (ch, nick, mapGlobalOptions, "当前已有 " + games.size () + " 个游戏在进行，请等待游戏结束再开启新的游戏");
 			return;
@@ -6497,7 +6511,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			setParticipants.add (nick);
 
 		byte option_stage = 0;
-		for (int i=0; i<listParams.size (); i++)
+		for (int i=0; listParams!=null && i<listParams.size (); i++)
 		{
 			String param = listParams.get (i);
 			if (i==0 && StringUtils.isEmpty (sGame))
@@ -6579,9 +6593,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		{
 			game = new SanGuoSha (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
-		else if (StringUtils.equalsIgnoreCase (sGame, "2048")
-			//|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
-			)
+		else if (StringUtils.equalsIgnoreCase (sGame, "2048"))
 		{
 			game = new Game2048 (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}

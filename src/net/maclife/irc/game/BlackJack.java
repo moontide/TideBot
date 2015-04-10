@@ -17,7 +17,7 @@ public class BlackJack extends CardGame
 		try
 		{
 			StringBuilder sb = null;	//new StringBuilder ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
 
 			// 洗牌
 			if (mapGlobalOptions.containsKey ("ace-test"))
@@ -40,7 +40,7 @@ public class BlackJack extends CardGame
 
 			// 分暗牌
 			deal ("暗牌: ", Dialog.MESSAGE_TARGET_MASK_PM);
-			bot.SendMessage (channel, null, false, 1, "每人发了一张暗牌，已通过私信发送具体牌，请注意查看");
+			bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "每人发了一张暗牌，已通过私信发送具体牌，请注意查看");
 
 			// 分明牌
 			deal ("明牌: ", Dialog.MESSAGE_TARGET_MASK_CHANNEL | Dialog.MESSAGE_TARGET_MASK_PM);
@@ -109,12 +109,12 @@ public class BlackJack extends CardGame
 			Collections.sort (deadParticipants, comparator);
 			GeneratePlayersCardsInfoTo (deadParticipants, "爆牌", sb, ANSIEscapeTool.COLOR_DARK_RED, true);
 
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。" + sb.toString ());
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。" + sb.toString ());
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏异常: " + e);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏异常: " + e);
 		}
 		finally
 		{
@@ -277,10 +277,10 @@ public class BlackJack extends CardGame
 		}
 
 		if ((msgTarget & Dialog.MESSAGE_TARGET_MASK_CHANNEL) > 0)
-			bot.SendMessage (channel, p, true, 1, "[底牌] " + msg + GenerateCardsInfoTo(p, false) + Colors.NORMAL);
+			bot.SendMessage (channel, p, LiuYanBot.OPT_OUTPUT_USER_NAME, 1, "[底牌] " + msg + GenerateCardsInfoTo(p, false) + Colors.NORMAL);
 
 		if ((msgTarget & Dialog.MESSAGE_TARGET_MASK_PM) > 0)
-			bot.SendMessage (null, p, false, 1, GenerateCardsInfoTo(p, true) + Colors.NORMAL);
+			bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, GenerateCardsInfoTo(p, true) + Colors.NORMAL);
 
 		return player_cards;
 	}

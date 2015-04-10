@@ -17,7 +17,7 @@ public class DouDiZhu extends CardGame
 		try
 		{
 			StringBuilder sb = new StringBuilder ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
 			InitDeck ();
 
 			// 每人 17 张牌
@@ -46,7 +46,7 @@ public class DouDiZhu extends CardGame
 				for (String p : participants)
 				{
 					if (! StringUtils.equalsIgnoreCase (p, participants.get (iTurn)))
-						bot.SendMessage (null, p, false, 1, "请等 " + participants.get (iTurn) + " 抢地主…");
+						bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + participants.get (iTurn) + " 抢地主…");
 				}
 				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
 					answer = (String)participantAnswers.get (participants.get (iTurn));
@@ -55,7 +55,7 @@ public class DouDiZhu extends CardGame
 				msg = sTurnPlayer + (StringUtils.isEmpty (value) ? " 未选择，系统自动认为【不抢】" : " 选了 " + dlg.GetFullCandidateAnswerByValueOrLabel(answer));
 				for (String p : participants)
 				{
-					bot.SendMessage (null, p, false, 1, msg);
+					bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
 				}
 				if (value.equalsIgnoreCase ("3"))
 				{	// 有人叫到了 3 分，抢地主立刻结束，此人称为地主
@@ -96,7 +96,7 @@ public class DouDiZhu extends CardGame
 
 				iTurn = NextTurn (iTurn);
 			}
-			bot.SendMessage (channel, "", false, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 地主是 " + landlord);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 地主是 " + landlord);
 
 			// 底牌明示，归地主所有
 			assert (landlord != null);
@@ -107,9 +107,9 @@ public class DouDiZhu extends CardGame
 			msg = "地主是 " + landlord + "，地主获得了底牌: "+ sb;
 			for (String p : participants)
 			{
-				bot.SendMessage (null, p, false, 1, msg);
+				bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
 			}
-			bot.SendMessage (null, landlord, false, 1, "" + GenerateCardsInfoTo (player_cards, null));
+			bot.SendMessage (null, landlord, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "" + GenerateCardsInfoTo (player_cards, null));
 
 			// 开始循环
 			int iRound = participants.indexOf (landlord);	// 谁的回合
@@ -148,7 +148,7 @@ public class DouDiZhu extends CardGame
 					for (String p : participants)
 					{
 						if (! StringUtils.equalsIgnoreCase (p, sRoundPlayer))
-							bot.SendMessage (null, p, false, 1, sRoundPlayer + " 的回合开始，请等他/她出牌…");
+							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sRoundPlayer + " 的回合开始，请等他/她出牌…");
 					}
 					Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
 						answer = (String)participantAnswers.get (sRoundPlayer);
@@ -177,7 +177,7 @@ public class DouDiZhu extends CardGame
 				lastPlayedCardType = GetCardsType (listCardRanks_RoundPlayer);	// 这里不应该抛出异常了，因为 dialog 调用的 ValidateAnswer 已经验证过有效性了
 				for (String p : participants)
 				{
-					bot.SendMessage (null, p, false, 1,
+					bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,
 						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ? "你" : sRoundPlayer) +
 						" 打出了 " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_RoundPlayer +
 						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ?
@@ -237,7 +237,7 @@ public class DouDiZhu extends CardGame
 						for (String p : participants)
 						{
 							if (! StringUtils.equalsIgnoreCase (p, sTurnPlayer))
-								bot.SendMessage (null, p, false, 1, "请等 " + sTurnPlayer + " 出牌…");
+								bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + sTurnPlayer + " 出牌…");
 						}
 						Map<String, Object> participantAnswers_response = bot.executor.submit (dlg_response).get ();
 							answer = (String)participantAnswers_response.get (sTurnPlayer);
@@ -256,7 +256,7 @@ public class DouDiZhu extends CardGame
 						msg = (StringUtils.isEmpty (answer) ? "未出牌，自动过牌" : "过牌");
 						for (String p : participants)
 						{
-							bot.SendMessage (null, p, false, 1, (StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) + " " + msg);
+							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, (StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) + " " + msg);
 						}
 						nPassed ++;
 					}
@@ -269,7 +269,7 @@ public class DouDiZhu extends CardGame
 
 						for (String p : participants)
 						{
-							bot.SendMessage (null, p, false, 1,
+							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,
 								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) +
 								" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_TurnPlayer +
 								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ?
@@ -351,17 +351,17 @@ public class DouDiZhu extends CardGame
 				sbResult.append (GenerateCardsInfoTo(landlord));
 			}
 			msg = sbResult.toString ();
-			bot.SendMessage (channel, "", false, 1, msg);	// 在频道里显示结果
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);	// 在频道里显示结果
 			participants.add (landlord);	// 再把地主加回来，通过私信告知每个人游戏结果
 			for (String p : participants)
 			{
-				bot.SendMessage (null, p, false, 1, msg);
+				bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
 			}
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏异常: " + e);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏异常: " + e);
 		}
 		finally
 		{
@@ -633,11 +633,11 @@ public class DouDiZhu extends CardGame
 				player_cards.add (deck.get (i*3 + ip));
 			}
 			Collections.sort (player_cards, comparator);
-			bot.SendMessage (null, p, false, 1, "您摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(p));
+			bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "您摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(p));
 		}
 		for (int i=0; i<3*17; i++)	// 剔除摸掉的牌
 			deck.remove (0);
-		bot.SendMessage (channel, "", false, 1, "每人摸了 17 张牌 ");
+		bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "每人摸了 17 张牌 ");
 	}
 
 	void RemovePlayedCards (String p, List<String> listCardRanks)

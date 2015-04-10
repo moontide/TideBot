@@ -49,7 +49,7 @@ public class SanGuoSha extends Game
 			List<String> 当前游戏身份 = Arrays.asList (Arrays.copyOf (身份, participants.size ()));
 			Collections.shuffle (当前游戏身份);
 			System.out.println ("游戏身份确定: ");
-			bot.SendMessage (channel, "", false, 1, name + " 游戏身份确定: ");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏身份确定: ");
 			for (int i=0; i<participants.size (); i++)
 			{
 				String p = participants.get (i);
@@ -78,18 +78,18 @@ public class SanGuoSha extends Game
 				}
 
 				System.out.println (String.format ("%-15s", p) + " " + sANSIColor + role + sANSIEnd);
-				bot.SendMessage (channel, "", false, 1, String.format ("%15s", p) + " " + sIRCColor + role + Colors.NORMAL);
+				bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, String.format ("%15s", p) + " " + sIRCColor + role + Colors.NORMAL);
 			}
 
 			// 挑选武将
 
 			//
-			bot.SendMessage (channel, "", false, 1, name + " 游戏结束。");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏结束。");
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", false, 1, name + " 游戏异常: " + e);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏异常: " + e);
 		}
 		finally
 		{
