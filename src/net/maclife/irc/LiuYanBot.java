@@ -1037,6 +1037,8 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 			{
 				for (Dialog d : dialogs)
 				{
+					if (! d.isParticipant (nick))
+						continue;
 					if (d.onAnswerReceived (channel, nick, login, hostname, message))
 						return;
 				}
@@ -1776,10 +1778,16 @@ System.err.println (message);
 					formatBotParameterInstance ("猜数字", true) +
 					"|" + formatBotParameterInstance ("21点", true) +
 					"|" + formatBotParameterInstance ("斗地主", true) +
-					", ." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + "  - 猜几位数字" +
+					"|" + formatBotParameterInstance ("2048", true) +
+					", ." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字" +
 					". " + formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数." +
 					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主"
 				);
+			SendMessage (ch, u, mapGlobalOptions,
+				formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (".w=格子宽度", true) + formatBotOption (".h=格子高度", true) + formatBotOption (".p=2的幂指数", true) +
+				" 来改变方格的大小、赢数的大小。限制： p的大小必须小于 w*h，比如：宽3x高3，则p最高只能取值为8。 p=11 就是默认的达到 2048 就赢。 一般在 IRC 中玩，建议 .w=3.h=3.p=8或者7 (因为速度的原因)" +
+				""
+			);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_MAC_MANUFACTORY;         if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAD 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC (4) AA BB CC");

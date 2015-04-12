@@ -247,6 +247,20 @@ public class Dialog implements Callable<Map<String, Object>>
 		return GetCandidateAnswerValueByValueOrLabel (answer, candidateAnswers);
 	}
 
+	public boolean isParticipant (String n)
+	{
+		boolean isParticipant = false;
+		for (String p : participants)
+		{
+			if (StringUtils.equalsIgnoreCase (p, n))
+			{
+				isParticipant = true;
+				break;
+			}
+		}
+		return isParticipant;
+	}
+
 	/**
 	 * 有人尝试应答对话
 	 * @param ch 哪个频道
@@ -259,15 +273,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	 */
 	public boolean onAnswerReceived (String ch, String n, String u, String host, String answer)
 	{
-		boolean isValidParticipant = false;
-		for (String p : participants)
-		{
-			if (StringUtils.equalsIgnoreCase (p, n))
-			{
-				isValidParticipant = true;
-				break;
-			}
-		}
+		boolean isValidParticipant = isParticipant (n);
 		if (! isValidParticipant)
 		{
 			//throw new RuntimeException ("您不是当前对话的参与者");

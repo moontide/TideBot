@@ -24,11 +24,13 @@ import net.maclife.irc.dialog.*;
 
 	<dt>如何控制</dt>
 	<dd>
+		这里的控制键设置，是针对 “美式键盘布局” 而设置的。<br/>
+		此设置是仿照 Counter-Strike 游戏的移动键 <code>w a s d</code>，然后整体向右移一格，变成 <code>e s d f</code>，这样左手正常打字时，不用再移动。
 		<ul>
-			<li><code>w</code> - 向上移动</li>
-			<li><code>s</code> - 向下移动</li>
-			<li><code>a</code> - 向左移动</li>
-			<li><code>d</code> - 向右移动</li>
+			<li><code>e</code> - 向上移动</li>
+			<li><code>d</code> - 向下移动</li>
+			<li><code>s</code> - 向左移动</li>
+			<li><code>f</code> - 向右移动</li>
 		</ul>
 	</dd>
 
@@ -38,11 +40,12 @@ import net.maclife.irc.dialog.*;
 		<ul>
 			<li><code>.w=宽度</code> 宽度取值范围： [1, 30]，即：不能小于 1，不能大于 30。</li>
 			<li><code>.h=高度</code> 高度取值范围： [1, 30]，即：不能小于 1，不能大于 30。</li>
-			<li><code>.p=2 的幂指数</code> 幂指数取值范围： [3, 30]，即不能小于 3，不能大于 30。</li>
-			<li>幂指数 不能大于 宽度 * 高度，这样会导致没有足够的空格子来移动/中转。所以，
+			<li><code>.p=2的幂指数</code> 幂指数取值范围： [3, 30]，即不能小于 3，不能大于 30。</li>
+			<li>宽度高度与幂指数的关系<br/>
+				幂指数 [不能大于等于/只能小于] 宽度 * 高度，大于等于的话会导致没有足够的空格子来移动/中转。所以，
 				<ol>
-					<li><del>虽然宽度、高度最大为 30，但 宽度 * 高度 不能大于 30 (10 * 10 是不行的)</del> </li>
-					<li>虽然宽度、高度最小为 1 ，但不能同时为 1（其实 1 边是 1 时，另一边都不能小于 3）</li>
+					<li>虽然可以把宽度、高度都设置为 30，但 p 不会大于 30</li>
+					<li>虽然宽度、高度最小为 1 ，但不能同时为 1（其实 1 边是 1 时，另一边都不能小于 3），这是因为 p 最小只能到 3 的原因导致的。</li>
 				</ol>
 			</li>
 		</ul>
@@ -62,19 +65,19 @@ public class Game2048 extends Game
 	public static final int MAX_HEIGHT = 30;
 	public static final int MAX_POWER = 30;
 	/**
-	 * 格子的横向数量。
+	 * 格子的横向数量。因为在 IRC 玩的关系（速度慢），将默认高度减小为 3
 	 */
-	public int width = 4;
+	public int width = 3;
 
 	/**
-	 * 格子的竖向数量
+	 * 格子的竖向数量。因为在 IRC 玩的关系（速度慢），将默认高度减小为 3
 	 */
-	public int height = 4;
+	public int height = 3;
 
 	/**
-	 * 2 的幂数。 nPower 必须小于  nWidth * nHeight
+	 * 2 的幂数。power 必须小于  width * height。因为在 IRC 玩的关系（速度慢），将默认高度减小为 8 (玩到 256 就算赢)。
 	 */
-	public int power = 11;	// 2^11 = 2048，取值范围:  3 - 30 (4 字节整数决定的), 即: 赢数 8 - 1073741824 (0x40000000)
+	public int power = 8;	// 2^11 = 2048，取值范围:  3 - 30 (4 字节整数决定的), 即: 赢数 8 - 1073741824 (0x40000000)
 
 	public int winNumber = 0;	// 合并到该数值就算赢。= 2^power
 	public int winNumberDecimalDigitsLength = 0;	// 赢值的十进制数字个数，如 2048 = 4; 512 = 3; 64 = 4; 此数值用来输出时进行排版
@@ -84,7 +87,7 @@ public class Game2048 extends Game
 	 */
 	public int score = 0;
 	/**
-	 移动次数
+
 	 */
 	public int maxNumber = 0;
 	/**
@@ -125,6 +128,7 @@ public class Game2048 extends Game
 
 	int[][] arrayDigitsBoard;
 
+	@SuppressWarnings ("unchecked")
 	public Game2048 (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -132,6 +136,8 @@ public class Game2048 extends Game
 		super ("2048", bot, listGames, setParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
+
+		StringBuilder sbNote = new StringBuilder ();
 		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get("env");
 		String sWidth = mapUserEnv.get("w");
 		String sHeight = mapUserEnv.get("h");
@@ -144,19 +150,19 @@ public class Game2048 extends Game
 				if (width < MIN_WIDTH)
 				{
 					width = MIN_WIDTH;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 的格子宽度不能小于 " + MIN_WIDTH + "，已纠正为 " + MIN_WIDTH + "");
+					sbNote.append (name + "游戏 的格子宽度不能小于 " + MIN_WIDTH + ", 已纠正为 " + MIN_WIDTH + "; ");
 				}
 				else if (width > MAX_WIDTH)
 				{
 					width = MAX_WIDTH;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 的格子宽度不能大于 " + MAX_WIDTH + "，已纠正为 " + MAX_WIDTH + "");
+					sbNote.append (name + "游戏 的格子宽度不能大于 " + MAX_WIDTH + "，已纠正为 " + MAX_WIDTH + "; ");
 				}
 				else
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " 已将 " + name + " 游戏的格子宽度调整为 " + width + "");
+					sbNote.append ("已将 " + name + " 游戏的格子宽度调整为 " + width + "; ");
 			}
 			catch(Exception e)
 			{
-				bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, e.toString ());
+				sbNote.append (e.toString ());
 			}
 		}
 		if (! StringUtils.isEmpty (sHeight))
@@ -167,19 +173,19 @@ public class Game2048 extends Game
 				if (height < MIN_HEIGHT)
 				{
 					height = MIN_HEIGHT;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 的格子高度不能小于 " + MIN_HEIGHT + "，已纠正为 " + MIN_HEIGHT + "");
+					sbNote.append (name + "游戏 的格子高度不能小于 " + MIN_HEIGHT + "，已纠正为 " + MIN_HEIGHT + "; ");
 				}
 				else if (height > MAX_HEIGHT)
 				{
 					height = MAX_HEIGHT;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 的格子高度不能大于 " + MAX_HEIGHT + "，已纠正为 " + MAX_HEIGHT + "");
+					sbNote.append (name + "游戏 的格子高度不能大于 " + MAX_HEIGHT + "，已纠正为 " + MAX_HEIGHT + "; ");
 				}
 				else
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " 已将 " + name + " 游戏的格子高度调整为 " + height + "");
+					sbNote.append ("已将 " + name + " 游戏的格子高度调整为 " + height + "; ");
 			}
 			catch(Exception e)
 			{
-				bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, e.toString ());
+				sbNote.append (e.toString ());
 			}
 		}
 		if (! StringUtils.isEmpty (sPower))
@@ -190,17 +196,17 @@ public class Game2048 extends Game
 				if (power < MIN_POWER)
 				{
 					power = MIN_POWER;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 的 2幂指数 不能小于 " + MIN_POWER + "，已纠正为 " + MIN_POWER + "");
+					sbNote.append (name + "游戏 的 2幂指数 不能小于 " + MIN_POWER + "，已纠正为 " + MIN_POWER + "; ");
 				}
 				else if (power > MAX_POWER)
 				{
 					power = MAX_POWER;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 的 2幂指数 不能大于 " + MAX_POWER + "，已纠正为 " + MAX_POWER + "");
+					sbNote.append (name + "游戏 的 2幂指数 不能大于 " + MAX_POWER + "，已纠正为 " + MAX_POWER + "; ");
 				}
 			}
 			catch(Exception e)
 			{
-				bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, e.toString ());
+				sbNote.append (e.toString ());
 			}
 		}
 
@@ -208,8 +214,12 @@ public class Game2048 extends Game
 		if (power >= tiles)
 		{
 			power = tiles - 1;
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "2 的幂指数 只能小于格子数量" + tiles + "(宽"+width+"*高"+height+")，已将 2 的幂指数 纠正为 " + power);
+			sbNote.append ("2 的幂指数 只能小于格子数量" + tiles + "(宽"+width+"*高"+height+")，已将 2 的幂指数 纠正为 " + power + "; ");
 		}
+		if (width==3 && height==3 && power==8)
+			sbNote.append (Colors.YELLOW + "因为在 IRC 玩的关系，2048 游戏的默认格子大小改为 3x3, 玩到 256(2^8) 就赢(实际上，比 4x4->2048 难), 一般 10 分钟可玩 1 局; 可在 bot 命令后添加 .w=4.h=4.p=11 来玩普通的 2048 游戏" + Colors.NORMAL);
+		if (! (sbNote.length () == 0))
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,  sbNote.toString ());
 		winNumber = (int)Math.pow (2, power);
 		winNumberDecimalDigitsLength = String.valueOf (winNumber).length ();
 	}
@@ -232,6 +242,7 @@ public class Game2048 extends Game
 //18:27:08 GameBot2 | [    ] [    ] [4   ] [8   ]
 //18:27:09 GameBot2 | [4   ] [8   ] [16  ] [128 ]
 //18:27:16   LiuYan | s
+/*
 		arrayDigitsBoard[0][0] = 2;
 		arrayDigitsBoard[0][2] = 4;
 		arrayDigitsBoard[0][3] = 8;
@@ -246,6 +257,24 @@ public class Game2048 extends Game
 		arrayDigitsBoard[3][1] = 8;
 		arrayDigitsBoard[3][2] = 16;
 		arrayDigitsBoard[3][3] = 128;
+*/
+//19:23:22  [2048] | [64 ] [4  ] [2  ] [4  ]
+//19:23:23  [2048] | [2  ] [8  ] [   ] [   ]
+//19:23:24  [2048] | [8  ] [2  ] [   ] [   ]
+//19:23:26  LiuYan | f
+//19:23:27  [2048] | [64 ] [4  ] [2  ] [4  ]
+//19:23:28  [2048] | [2  ] [   ] [   ] [8  ]
+//19:23:29  [2048] | [8  ] [4  ] [   ] [2  ]
+		arrayDigitsBoard[0][0] = 64;
+		arrayDigitsBoard[0][1] = 4;
+		arrayDigitsBoard[0][2] = 2;
+		arrayDigitsBoard[0][3] = 4;
+
+		arrayDigitsBoard[1][0] = 2;
+		arrayDigitsBoard[1][1] = 8;
+
+		arrayDigitsBoard[2][0] = 8;
+		arrayDigitsBoard[2][1] = 2;
 
 		DisplayDigitsBoard (-1);
 	}
@@ -303,7 +332,6 @@ public class Game2048 extends Game
 	 */
 	boolean isCanMove ()
 	{
-		int t = 0;
 		for (int y=0; y<height; y++)
 		{
 			for (int x=0; x<width; x++)
@@ -314,66 +342,36 @@ public class Game2048 extends Game
 				if (isEmpty (arrayDigitsBoard[y][x]))
 					return true;
 
-				// 往右找
-//System.err.println ("从 [y][x] ["+y+"]["+x+"]=" + arrayDigitsBoard[y][x] + " 向右检查有没有空格子或相同数值的格子");
-				for (t=x+1; t<width; t++)
-				{
-					if (isEmpty (arrayDigitsBoard[y][t]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[y][t])
-						return true;
-					if (arrayDigitsBoard[y][x] != arrayDigitsBoard[y][t])
-						break;
-				}
 
-				// 往左找
-//System.err.println ("从 [y][x] ["+y+"]["+x+"]=" + arrayDigitsBoard[y][x] + " 向左检查有没有空格子或相同数值的格子");
-				for (t=x-1; t>-1; t--)
-				{
-					if (isEmpty (arrayDigitsBoard[y][t]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[y][t])
-						return true;
-					if (arrayDigitsBoard[y][x] != arrayDigitsBoard[y][t])
-						break;
-				}
-
-				// 往上找
-//System.err.println ("从 [y][x] ["+y+"]["+x+"]=" + arrayDigitsBoard[y][x] + " 向上检查有没有空格子或相同数值的格子");
-				for (t=y-1; t>-1; t--)
-				{
-					if (isEmpty (arrayDigitsBoard[t][x]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[t][x])
-						return true;
-					if (arrayDigitsBoard[y][x] != arrayDigitsBoard[t][x])
-						break;
-				}
-
-				// 往下找
-//System.err.println ("从 [y][x] ["+y+"]["+x+"]=" + arrayDigitsBoard[y][x] + " 向下检查有没有空格子或相同数值的格子");
-				for (t=y+1; t<height; t++)
-				{
-					if (isEmpty (arrayDigitsBoard[t][x]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[t][x])
-						return true;
-					if (arrayDigitsBoard[y][x] != arrayDigitsBoard[t][x])
-						break;
-				}
+				if (
+					false
+					|| (x!=width-1 &&  (isEmpty (arrayDigitsBoard[y][x+1]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[y][x+1]))	// 往右找
+					|| (x!=0 &&        (isEmpty (arrayDigitsBoard[y][x-1]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[y][x-1]))	// 往左找
+					|| (y!=height-1 && (isEmpty (arrayDigitsBoard[y+1][x]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[y+1][x]))	// 往下找
+					|| (y!=0        && (isEmpty (arrayDigitsBoard[y-1][x]) || arrayDigitsBoard[y][x]==arrayDigitsBoard[y-1][x]))	// 往上找
+				)
+					return true;
 			}
 		}
 		return false;
 	}
 
-	void Up ()
+	public void Up ()
 	{
 		Move ('↑');
 	}
 
-	void Down ()
+	public void Down ()
 	{
 		Move ('↓');
 	}
 
-	void Left ()
+	public void Left ()
 	{
 		Move ('←');
 	}
 
-	void Right ()
+	public void Right ()
 	{
 		Move ('→');
 	}
@@ -387,13 +385,6 @@ public class Game2048 extends Game
 	{
 		int nMergedTiles = 0;
 		int nMovedTiles = 0;
-		int nEmptyTilesInThisLineOrColumn = 0;	// 某行/某列 空格子数量（如果全是空的，则跳过移动）
-
-		//boolean xDirection = true;	// x 索引号方向： true=从0递增, false=从最右往前递减
-		//boolean yDirection = true;	// y 索引号方向： true=从0递增, false=从最下往上递减
-
-		//int xLoop_Start = 0, xLoop_End = width;
-		//int yLoop_Start = 0, yLoop_End = height;
 
 		boolean isWinInThisMove = false;
 		int x, y, t;
@@ -433,7 +424,6 @@ public class Game2048 extends Game
 					}
 				}
 
-				nEmptyTilesInThisLineOrColumn = 0;
 				// 然后移动/挤压
 				for (y=0; y<height; y++)
 				{
@@ -450,13 +440,10 @@ public class Game2048 extends Game
 							nMovedTiles ++;
 							break;
 						}
-						else
-							nEmptyTilesInThisLineOrColumn ++;
 					}
-					if (nEmptyTilesInThisLineOrColumn == height-y)
-						break;
 				}
 			}
+			upCount += (nMergedTiles > 0  ||  nMovedTiles > 0) ? 1 : 0;
 			break;
 		case '↓':	// ↓ 下 Down
 			for (x=0; x<width; x++)
@@ -492,7 +479,6 @@ public class Game2048 extends Game
 					}
 				}
 
-				nEmptyTilesInThisLineOrColumn = 0;
 				// 然后移动/挤压
 				for (y=height-1; y>-1; y--)
 				{
@@ -509,15 +495,10 @@ public class Game2048 extends Game
 							nMovedTiles ++;
 							break;
 						}
-						else
-							nEmptyTilesInThisLineOrColumn ++;
 					}
-					if (nEmptyTilesInThisLineOrColumn == height-y)
-						break;
 				}
 			}
-			//yLoop_Start = height - 1;
-			//yLoop_End = -1;
+			downCount += (nMergedTiles > 0  ||  nMovedTiles > 0) ? 1 : 0;
 			break;
 		case '←':	// ← 左 Left
 			for (y=0; y<height; y++)
@@ -554,7 +535,6 @@ public class Game2048 extends Game
 					}
 				}
 
-				nEmptyTilesInThisLineOrColumn = 0;
 				// 然后移动/挤压
 				for (x=0; x<width; x++)
 				{
@@ -572,16 +552,10 @@ public class Game2048 extends Game
 							nMovedTiles ++;
 							break;
 						}
-						else
-							nEmptyTilesInThisLineOrColumn ++;
-					}
-					if (nEmptyTilesInThisLineOrColumn == width-x)
-					{
-//System.err.println (cMove + " 挤压 y="+y+", x="+x+". [y][x]="+arrayDigitsBoard[y][x] + " 时，遇到 nEmptyTiles == width-x == " + nEmptyTilesInThisLineOrColumn);
-						break;
 					}
 				}
 			}
+			leftCount += (nMergedTiles > 0  ||  nMovedTiles > 0) ? 1 : 0;
 			break;
 		case '→':	// → 右 Right
 			for (y=0; y<height; y++)
@@ -617,7 +591,6 @@ public class Game2048 extends Game
 					}
 				}
 
-				nEmptyTilesInThisLineOrColumn = 0;
 				// 然后移动/挤压
 				for (x=width-1; x>-1; x--)
 				{
@@ -634,20 +607,17 @@ public class Game2048 extends Game
 							nMovedTiles ++;
 							break;
 						}
-						else
-							nEmptyTilesInThisLineOrColumn ++;
 					}
-					if (nEmptyTilesInThisLineOrColumn == width-x)
-						break;
 				}
 			}
-			//xLoop_Start = width - 1;
-			//xLoop_End = -1;
+			rightCount += (nMergedTiles > 0  ||  nMovedTiles > 0) ? 1 : 0;
 			break;
 		}
 
+		moveCount ++;
 		if (nMergedTiles > 0  ||  nMovedTiles > 0)	// 只有合并过、移动过方格后，才来产生新的随机数方格
 		{
+			validMoveCount ++;
 			DisplayDigitsBoard (GenerateRandomNumber ());
 		}
 		else
@@ -680,8 +650,8 @@ public class Game2048 extends Game
 					else
 					{
 						int nExponentOfThisNumber = Integer.numberOfTrailingZeros (arrayDigitsBoard[y][x]); //(int)Math.sqrt (arrayDigitsBoard[y][x]);
-						sColor = ANSIEscapeTool.IRC_Rainbow_COLORS [nExponentOfThisNumber % ANSIEscapeTool.IRC_Rainbow_COLORS.length];	// 数值从小到大 按 红橙黄绿蓝靛紫 的彩虹色排列
-						//sColor = ANSIEscapeTool.IRC_Rainbow_COLORS [ANSIEscapeTool.IRC_Rainbow_COLORS.length - 1 - nExponentOfThisNumber % ANSIEscapeTool.IRC_Rainbow_COLORS.length];	// 数值从大到小 按 红橙黄绿蓝靛紫 的彩虹色排列
+						sColor = ANSIEscapeTool.IRC_Rainbow_COLORS [(nExponentOfThisNumber-1) % ANSIEscapeTool.IRC_Rainbow_COLORS.length];	// 数值从小到大 按 红橙黄绿蓝靛紫 的彩虹色排列
+						//sColor = ANSIEscapeTool.IRC_Rainbow_COLORS [ANSIEscapeTool.IRC_Rainbow_COLORS.length - (nExponentOfThisNumber-1) % ANSIEscapeTool.IRC_Rainbow_COLORS.length];	// 数值从大到小 按 红橙黄绿蓝靛紫 的彩虹色排列
 					}
 					sLine = sLine + String.format ("[" + sColor + "%-" + winNumberDecimalDigitsLength + "d" + Colors.NORMAL + "] ", arrayDigitsBoard[y][x]);
 				}
@@ -716,7 +686,7 @@ public class Game2048 extends Game
 	{
 		try
 		{
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 #" + Thread.currentThread ().getId () + " 开始… ");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 开始… ");
 			InitDigitsBoard ();
 			//InitTestBoard ();
 
@@ -788,9 +758,11 @@ public class Game2048 extends Game
 				if (isWin || isLose || isParticipantWannaQuit)
 				{
 					if (isParticipantWannaQuit)
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: " + sQuitGamePlayer + " " + answer + ". 得分=" + score);
-					else
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, " " + name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: " + sb + ". 得分=" + score);
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 结束: " + sQuitGamePlayer + " " + answer + GetStatistics());
+					else if (isWin)
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 结束: " + Colors.GREEN + "赢了" + (isLose ? ANSIEscapeTool.COLOR_DARK_RED + "然后又输了" : "") + Colors.NORMAL + GetStatistics());
+					else if (isLose)
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 结束: " + ANSIEscapeTool.COLOR_DARK_RED + "输了" + Colors.NORMAL + GetStatistics());
 
 					break;
 				}
@@ -800,12 +772,25 @@ public class Game2048 extends Game
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏异常: " + e + ". 得分=" + score);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏异常: " + e + GetStatistics());
 			DisplayDigitsBoard (-1);
 		}
 		finally
 		{
 			games.remove (this);
 		}
+	}
+
+	public String GetStatistics ()
+	{
+		return (score > 0 ? ". 得分=" + score : "")
+			+ (moveCount > 0 ?
+				", 共移动 " + moveCount + " 次"
+				+ (upCount>0?", "+upCount+"↑":"")
+				+ (downCount>0?", "+downCount+"↓":"")
+				+ (leftCount>0?", "+leftCount+"←":"")
+				+ (rightCount>0?", "+rightCount+"→":"")
+				: ""
+			);
 	}
 }
