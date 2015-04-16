@@ -5932,6 +5932,10 @@ System.out.println (sHTTPReferer);
 					InputStream is = null;
 					is = http.getInputStream();
 					sContent = org.apache.commons.io.IOUtils.toString (is, JVM_CHARSET);
+					sContent = sContent.trim ();
+
+					if (sContent.isEmpty ())
+						throw new RuntimeException ("返回的是空内容，不是有效的 json 数据");
 				}
 				else
 				{
@@ -5971,7 +5975,6 @@ fw.close ();
 //System.err.println (sContent);
 				if (StringUtils.equalsIgnoreCase (sContentType, "json") )	//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json"))
 				{
-
 					if (nJS_Cut_Start > 0)
 						//sbJSON =
 						sContent = sContent.substring (nJS_Cut_Start);
