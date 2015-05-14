@@ -3,6 +3,7 @@ package net.maclife.irc;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.*;
+import java.security.*;
 import java.security.cert.*;
 import java.sql.*;
 import java.text.*;
@@ -251,12 +252,6 @@ public class LiuYanBot extends PircBot implements Runnable
 	String chunzhenIPDBVersion = null;
 	long chunzhenIPCount = 0;
 
-	/**
-	 * 执行 Google 搜索时，利用 GoAgent 代理时所使用的 trustStore、trustPassword
-	 * 这里需要记忆在这里，因为命令执行时，可能临时通过 .proxyOff 关闭代理，而关闭代理时，需要从系统属性中删除…… 删除后，下一个命令还需要再加回去……
-	 */
-	public static String sslTrustStore = null;
-	public static String sslTrustPassword = null;
 	/**
 	 * 4 数字分组 Pattern
 	 */
@@ -705,7 +700,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 			msg = "要添加的通配符表达式已经被添加过，更新之";
 			System.err.println (msg);
 			SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
-			userToAdd.put ("UpdatedTime", new Timestamp(System.currentTimeMillis ()));
+			userToAdd.put ("UpdatedTime", new java.sql.Timestamp(System.currentTimeMillis ()));
 			int nTimes = userToAdd.get ("AddedTimes")==null ? 1 : (int)userToAdd.get ("AddedTimes");
 			nTimes ++;
 			userToAdd.put ("AddedTimes", nTimes);
@@ -719,7 +714,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		userToAdd.put ("Wildcard", wildcardPattern);
 		userToAdd.put ("RegExp", WildcardToRegularExpression(wildcardPattern));
 		userToAdd.put ("BotCmd", botCmd);
-		userToAdd.put ("AddedTime", new Timestamp(System.currentTimeMillis ()));
+		userToAdd.put ("AddedTime", new java.sql.Timestamp(System.currentTimeMillis ()));
 		userToAdd.put ("AddedTimes", 1);
 		userToAdd.put ("Reason", reason);
 		list.add (userToAdd);
@@ -1160,10 +1155,10 @@ System.err.println (message);
 				if (banInfo != null)
 				{
 					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
-					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
+					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((java.sql.Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
 					{
 						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "禁止执行命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
-						banInfo.put ("NotifyTime", new Timestamp(System.currentTimeMillis ()));
+						banInfo.put ("NotifyTime", new java.sql.Timestamp(System.currentTimeMillis ()));
 					}
 					return;
 				}
@@ -3744,6 +3739,349 @@ System.err.println (message);
 		}
 	}
 
+	/**
+	 * 从 URL 获取信息，并返回。
+	 * 本函数参数较多，建议使用参数简化版的函数，如:
+	 *  {@link #CURL(String)}
+	 *  {@link #CURL_Post(String)}
+	 *  {@link #CURL_ViaProxy(String, String, String, String)}
+	 *  {@link #CURL_Post_ViaProxy(String, String, String, String)}
+
+	 *  {@link #CURL_Stream(String)}
+	 *  {@link #CURL_Stream_Post(String)}
+	 *  {@link #CURL_Stream_ViaProxy(String, String, String, String)}
+	 *  {@link #CURL_Stream_Post_ViaProxy(String, String, String, String)}
+	 * <p>
+	 * 返回的数据可以是 {@link String}，也可以是 {@link InputStream}，取决于 {@code isReturnContentOrStream} 的取值是 true 还是 false
+	 * </p>
+	 * @param sRequestMethod 请求方法，{@code GET} 或 {@code POST}，当为 {@code POST} 时，本函数会自动将 URL 中 ? 前的 URL 以及 ? 后的 QueryString 截取出来（如果有的话），并用 {@code POST} 方法请求到新的 URL (截取后的 URL)。
+	 * @param sURL 网址，必须是以 http:// 开头或者以 https:// 开头的网址 (ftp:// 不行的)
+	 * @param isReturnContentOrStream 是返回 {@link String} 数据，还是 {@link InputStream}　数据。当 true　时，返回 {@link String}， false　时返回 {@link InputStream}
+	 * @param sContentCharset 当 isReturnContentOrStream 为 true 时，指定网页的字符集编码。如果不指定 (null 或 空白)，则默认为 UTF-8 字符集
+	 * @param isFollowRedirects 设置是否跟随重定向 (HTTP 3XX)。 true - 跟随. false - 不跟随
+	 * @param sProxyType 代理服务器类型(不区分大小写)。 "http" - HTTP 代理， "socks" - SOCKS 代理， 其他值 - 不使用代理
+	 * @param sProxyHost 代理服务器主机地址
+	 * @param sProxyPort 代理服务器端口
+	 * @param isIgnoreTLSCertificateValidation 是否忽略 TLS 服务器证书验证
+	 * @param isIgnoreTLSHostnameValidation 是否忽略 TLS 主机名验证
+	 * @param sTLSTrustStoreType (以下所有带 TLS 名称的参数都仅仅用于访问 https:// 的设置)。 TLS [信任证书/服务器证书]仓库类型。 "jks" 或 "pkcs12"，null 或 "" 被当做 "jks"
+	 * @param sTLSTrustStoreFileName TLS [信任证书/服务器证书]仓库文件名 (不是证书自身的文件名)，此仓库中应当包含 信任证书/服务器证书
+	 * @param sTLSTrustStorePassword TLS [信任证书/服务器证书]仓库的密码。当为 null 或 "" 时，被当做 java 默认的 "changeit" 密码来用
+	 * @param sTLSClientKeyStoreType TLS [客户端证书] 仓库类型，取值与 sTLSTrustStoreType 相同。
+	 * @param isTLSClientCertificate TLS [客户端证书] 仓库文件名 (不是证书自身的文件名)，此仓库中应当包含 客户端证书
+	 * @param sTLSClientCertificatePassword TLS [客户端证书] 仓库的密码。当为 null 或 "" 时，被当做 java 默认的 "changeit" 密码来用
+	 * @return
+	 * @throws IOException
+	 * @throws NoSuchAlgorithmException
+	 * @throws KeyManagementException
+	 * @throws KeyStoreException
+	 * @throws CertificateException
+	 * @throws UnrecoverableKeyException
+	 */
+	public static Object CURL (
+			String sRequestMethod,
+			String sURL,
+			boolean isReturnContentOrStream,
+			String sContentCharset,
+			boolean isFollowRedirects,
+
+			String sProxyType,
+			String sProxyHost,
+			String sProxyPort,
+
+			boolean isIgnoreTLSCertificateValidation,
+			boolean isIgnoreTLSHostnameValidation,
+			String sTLSTrustStoreType,
+			String sTLSTrustStoreFileName,
+			String sTLSTrustStorePassword,
+			String sTLSClientKeyStoreType,
+			InputStream isTLSClientCertificate,
+			String sTLSClientCertificatePassword
+			) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		String sQueryString = "";
+		// 将请求方法名规范化
+		if (StringUtils.equalsIgnoreCase("POST", sRequestMethod))
+		{
+			sRequestMethod = "POST";
+
+			int i = sURL.indexOf('?');
+			if (i != -1)
+			{
+				sQueryString = sURL.substring (i+1);
+				sURL = sURL.substring (0, i);
+			}
+		}
+		else
+			sRequestMethod = "GET";
+
+		URL url = new URL (sURL);
+
+		InputStream is = null;
+		URLConnection http = null;
+
+		Proxy.Type proxyType = null;
+		if (StringUtils.endsWithIgnoreCase (sProxyType, "http"))
+			proxyType = Proxy.Type.HTTP;
+		else if (StringUtils.endsWithIgnoreCase (sProxyType, "socks"))
+			proxyType = Proxy.Type.SOCKS;
+
+		if (proxyType == null)
+			http = url.openConnection ();
+		else
+		{
+			Proxy proxy = new Proxy (proxyType, new InetSocketAddress(sProxyHost, Integer.parseInt (sProxyPort)));
+			System.out.println (proxy);
+			http = url.openConnection (proxy);
+		}
+		http.setConnectTimeout (30000);
+		http.setReadTimeout (30000);
+
+		((HttpURLConnection)http).setInstanceFollowRedirects (isFollowRedirects);
+
+		// 设置 https 参数
+		if (url.getProtocol ().equalsIgnoreCase ("https"))
+		{
+			HttpsURLConnection https = (HttpsURLConnection)http;
+
+			if (isIgnoreTLSHostnameValidation)
+				https.setHostnameVerifier (hvAllowAllHostnames);
+			if (isIgnoreTLSCertificateValidation)
+			{
+				/*
+				SSLContext ctx = SSLContext.getInstance("TLS");
+
+				// 服务器证书，如果有的话
+				TrustManagerFactory tmf = null;
+				if (! StringUtils.isEmpty (sTLSTrustStoreFileName))
+				{
+					tmf = TrustManagerFactory.getInstance ("SunX509");
+					KeyStore ksServerCertificate = KeyStore.getInstance (StringUtils.isEmpty(sTLSTrustStoreType) ? "JKS" : sTLSTrustStoreType);
+					FileInputStream fisServerCertificate = new FileInputStream (sTLSTrustStoreFileName);
+					ksServerCertificate.load (fisServerCertificate, (StringUtils.isEmpty (sTLSTrustStorePassword) ? "changeit" : sTLSTrustStorePassword).toCharArray());
+						fisServerCertificate.close ();
+					tmf.init (ksServerCertificate);
+				}
+
+				// 客户端证书，如果有的话
+				KeyManagerFactory kmf = null;
+				if (isTLSClientCertificate != null)
+				{
+					kmf = KeyManagerFactory.getInstance ("SunX509");
+					KeyStore ksClientCertificate = KeyStore.getInstance ("PKCS12");
+					ksClientCertificate.load (isTLSClientCertificate, sTLSClientCertificatePassword.toCharArray());
+						isTLSClientCertificate.close();
+					kmf.init (ksClientCertificate, sTLSClientCertificatePassword.toCharArray());
+					//kmf
+				}
+
+				//ctx.init (kmf!=null ? kmf.getKeyManagers () : null, tmf!=null ? tmf.getTrustManagers () : null, new java.security.SecureRandom());
+				ctx.init (null, tmTrustAllCertificates, new java.security.SecureRandom());
+				https.setSSLSocketFactory (ctx.getSocketFactory());
+				//*/
+				https.setSSLSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());
+			}
+		}
+
+		if (StringUtils.equalsIgnoreCase("POST", sRequestMethod))
+		{
+			((HttpURLConnection)http).setRequestMethod (sRequestMethod);
+			http.setDoOutput (true);
+			//http.setRequestProperty ("Content-Type", "application/x-www-form-urlencoded");
+			http.setRequestProperty ("Content-Length", String.valueOf (sQueryString.length()));
+
+			DataOutputStream dos = new DataOutputStream (http.getOutputStream());
+			dos.writeBytes (sQueryString);
+			dos.flush ();
+			dos.close ();
+		}
+
+		int iResponseCode = ((HttpURLConnection)http).getResponseCode();
+		String sStatusLine = http.getHeaderField(0);	// HTTP/1.1 200 OK、HTTP/1.1 404 Not Found
+
+		int iMainResponseCode = iResponseCode/100;
+		if (iMainResponseCode==2)
+		{
+			is = http.getInputStream ();
+			if (isReturnContentOrStream)
+			{
+				Charset cs =  UTF8_CHARSET;
+				if (! StringUtils.isEmpty (sContentCharset))
+					cs = Charset.forName (sContentCharset);
+				return IOUtils.toString (is, cs);
+			}
+			else
+				return is;
+		}
+		else
+		{
+			String s = "";
+			try
+			{
+				if (iMainResponseCode >= 4)
+					is = ((HttpURLConnection)http).getErrorStream();
+				else
+					is = http.getInputStream();
+
+				if (StringUtils.isEmpty (sContentCharset))
+					s = IOUtils.toString (is, UTF8_CHARSET);
+				else
+					s = IOUtils.toString (is, sContentCharset);
+			}
+			catch (Exception e)
+			{
+				//e.printStackTrace ();
+				System.err.println (e);
+			}
+
+			throw new IllegalStateException ("HTTP 响应不是 2XX: " + sStatusLine + "\n" + s);
+		}
+	}
+
+	/**
+	 * 最简化版的 CURL - GET。
+	 * <ul>
+	 * 	<li>GET 方法</li>
+	 * 	<li>返回 Content 而不是 InputStream</li>
+	 * 	<li>默认字符集(UTF-8)</li>
+	 * 	<li>跟随重定向</li>
+	 * 	<li>不用代理</li>
+	 * 	<li>不设置 https 证书(服务器端 以及 客户端)</li>
+	 * 	<li>不验证 https 服务器证书有效性</li>
+	 * 	<li>不验证 https 主机名有效性</li>
+	 * </ul>
+	 * @param sURL 网址
+	 * @return String Content
+	 */
+	public static String CURL (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL (sURL, null);
+	}
+
+	/**
+	 * 简化版的 CURL - GET content decoded by specific charset。
+	 * 除了增加了字符集编码设置以外，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @param sCharSet 返回的字符串内容的字符集编码
+	 * @return String Content
+	 */
+	public static String CURL (String sURL, String sCharSet) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (String)CURL (null, sURL, true, sCharSet, true,
+				null, null, null,
+				true, true, null, null, null, null, null, null
+			);
+	}
+
+	/**
+	 * 最简化版的 CURL - Post。
+	 * 除了请求方法换为 POST 以外，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @return String Content
+	 */
+	public static String CURL_Post (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (String)CURL ("POST", sURL, true, null, true,
+				null, null, null,
+				true, true, null, null, null, null, null, null
+			);
+	}
+
+	/**
+	 * 参数简化版的 CURL - GET via Proxy。
+	 * 除了增加了代理服务器以外，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @return String Content
+	 */
+	public static String CURL_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL_ViaProxy (sURL, null, sProxyType, sProxyHost, sProxyPort);
+	}
+
+	/**
+	 * 参数简化版的 CURL - GET content decoded by specific charset via Proxy。
+	 * 除了增加了字符集编码设置、增加了代理服务器以外，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @param sCharSet 返回的字符串内容的字符集编码
+	 * @return String Content
+	 */
+	public static String CURL_ViaProxy (String sURL, String sCharSet, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (String)CURL (null, sURL, true, sCharSet, true,
+				sProxyType, sProxyHost, sProxyPort,
+				true, true, null, null, null, null, null, null
+			);
+	}
+
+	/**
+	 * 参数简化版的 CURL - POST via Proxy。
+	 * 除了请求方法改为 POST、增加了代理服务器以外，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @return String Content
+	 */
+	public static String CURL_Post_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (String)CURL ("POST", sURL, true, null, true,
+				sProxyType, sProxyHost, sProxyPort,
+				true, true, null, null, null, null, null, null
+			);
+	}
+
+	/**
+	 * 参数简化版的 CURL - GET InputStream。
+	 * 除了返回的是 InputStream 而不是 Content，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @return Input Stream
+	 */
+	public static InputStream CURL_Stream (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (InputStream)CURL (null, sURL, false, null, true,
+				null, null, null,
+				true, true, null, null, null, null, null, null
+			);
+	}
+
+	/**
+	 * 参数简化版的 CURL - POST InputStream。
+	 * 除了请求方法改为 POST、返回的是 InputStream 而不是 Content，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @return Input Stream
+	 */
+	public static InputStream CURL_Post_Stream (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (InputStream)CURL ("POST", sURL, false, null, true,
+				null, null, null,
+				true, true, null, null, null, null, null, null
+			);
+	}
+
+	/**
+	 * 参数简化版的 CURL - GET InputStream via Proxy。
+	 * 除了增加了代理服务器、返回的是 InputStream 而不是 Content，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @return Input Stream
+	 */
+	public static InputStream CURL_Stream_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (InputStream)CURL (null, sURL, false, null, true,
+				sProxyType, sProxyHost, sProxyPort,
+				true, true, null, null, null, null, null, null
+			);
+	}
+
+	/**
+	 * 参数简化版的 CURL - POST InputStream via Proxy。
+	 * 除了请求方法改为 POST、增加了代理服务器、返回的是 InputStream 而不是 Content，其他与 {@link #CURL(String)} 相同
+	 * @param sURL 网址
+	 * @return Input Stream
+	 */
+	public static InputStream CURL_Post_Stream_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return (InputStream)CURL ("POST", sURL, false, null, true,
+				sProxyType, sProxyHost, sProxyPort,
+				true, true, null, null, null, null, null, null
+			);
+	}
 
 	/**
 	 * Google 搜索
@@ -3792,34 +4130,11 @@ System.err.println (message);
 		{
 			String sGoogleSearchURL = sGoogleSearchURLBase + "?v=" + sGoogleSearchAPIVersion + "&q=" + URLEncoder.encode (q, getEncoding ());
 System.out.println (sGoogleSearchURL);
-			URL url = new URL (sGoogleSearchURL);
-
-			//Reader reader = null;
 			InputStream is = null;
-			URLConnection http = null;
 			if (bProxyOff)
-			{
-				System.clearProperty ("javax.net.ssl.trustStore");
-				System.clearProperty ("javax.net.ssl.trustPassword");
-				http = url.openConnection ();
-			}
+				is = CURL_Stream (sGoogleSearchURL);
 			else
-			{
-				if (! StringUtils.isEmpty (sslTrustStore))
-					System.setProperty ("javax.net.ssl.trustStore", sslTrustStore);
-				if (! StringUtils.isEmpty (sslTrustPassword))
-					System.setProperty ("javax.net.ssl.trustPassword", sslTrustPassword);
-				// 利用 GoAgent 代理搜索
-				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
-				// keytool -import -alias GoAgentCert -file CA.crt
-				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress(System.getProperty ("GoAgent.proxyHost"), Integer.parseInt (System.getProperty ("GoAgent.proxyPort"))));
-				System.out.println (proxy);
-				http = url.openConnection (proxy);
-			}
-			http.setConnectTimeout (30000);
-			http.setReadTimeout (30000);
-			((HttpURLConnection)http).setInstanceFollowRedirects (true);
-			is = http.getInputStream ();
+				is = CURL_Stream_ViaProxy (sGoogleSearchURL, System.getProperty ("GFWProxy.Type"), System.getProperty ("GFWProxy.Host"), System.getProperty ("GFWProxy.Port"));
 
 			ObjectMapper om = new ObjectMapper();
 			om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
@@ -4485,39 +4800,12 @@ System.out.println (evaluateResult);
 				}
 			}
 
-			URL url = new URL (params);
-
-			//Reader reader = null;
-			InputStream is = null;
-			URLConnection conn = null;
+			String sANSIString = null;
 			if (bProxyOn)
-			{
-				if (! StringUtils.isEmpty (sslTrustStore))
-					System.setProperty ("javax.net.ssl.trustStore", sslTrustStore);
-				if (! StringUtils.isEmpty (sslTrustPassword))
-					System.setProperty ("javax.net.ssl.trustPassword", sslTrustPassword);
-				// 利用 GoAgent 代理搜索
-				// 注意： 运行 bot 的 jvm 需要导入 GoAgent 的证书:
-				// keytool -import -alias GoAgentCert -file CA.crt
-				Proxy proxy = new Proxy (Proxy.Type.HTTP, new InetSocketAddress(System.getProperty ("GoAgent.proxyHost"), Integer.parseInt (System.getProperty ("GoAgent.proxyPort"))));
-				System.out.println (proxy);
-				conn = url.openConnection (proxy);
-			}
+				sANSIString = CURL_ViaProxy (params, sCharSet, System.getProperty ("GFWProxy.Type"), System.getProperty ("GFWProxy.Host"), System.getProperty ("GFWProxy.Port"));
 			else
-			{
-				System.clearProperty ("javax.net.ssl.trustStore");
-				System.clearProperty ("javax.net.ssl.trustPassword");
-				conn = url.openConnection ();
-			}
-			conn.setConnectTimeout (30000);
-			conn.setReadTimeout (30000);
-			if (conn instanceof HttpURLConnection)
-			{
-				((HttpURLConnection)conn).setInstanceFollowRedirects (true);
-			}
-			is = conn.getInputStream ();
+				sANSIString = CURL (params, sCharSet);
 
-			String sANSIString = IOUtils.toString (is, sCharSet);
 			if (sCharSet.equalsIgnoreCase ("437")
 				|| sCharSet.equalsIgnoreCase ("CP437")
 				|| sCharSet.equalsIgnoreCase ("IBM437")
@@ -4934,10 +5222,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				sURL = "https://github.com/" + params;
 			}
 
-			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-			System.clearProperty ("javax.net.ssl.trustPassword");
 			doc = org.jsoup.Jsoup.connect (sURL).get();
-			//doc = org.jsoup.Jsoup.parse(input, "UTF-8");
 
 			int nLines = 0;
 			if (isTags)
@@ -5116,13 +5401,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		};
 
 	// Install the all-trusting trust manager
-	static SSLContext sc = null;
+	static SSLContext sslContext_TrustAllCertificates = null;
 	static
 	{
 		try
 		{
-			sc = SSLContext.getInstance ("SSL");
-			sc.init (null, tmTrustAllCertificates, new java.security.SecureRandom());
+			sslContext_TrustAllCertificates = SSLContext.getInstance ("TLS");
+			sslContext_TrustAllCertificates.init (null, tmTrustAllCertificates, new java.security.SecureRandom());
 		}
 		catch (java.security.NoSuchAlgorithmException e)
 		{
@@ -5135,7 +5420,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	}
 
 	// Create all-trusting host name verifier
-	HostnameVerifier hvAllowAllHostnames =
+	public static HostnameVerifier hvAllowAllHostnames =
 		new HostnameVerifier()
 		{
 			@Override
@@ -5837,28 +6122,26 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (StringUtils.isEmpty (sURLParam1))
 						sURL = StringUtils.replace (sURL, "${p}", "");
 					else
-						sURL = StringUtils.replace (sURL, "${p}", URLEncoder.encode (sURLParam1, JVM_CHARSET.name ()));
+						sURL = StringUtils.replace (sURL, "${p}", URLEncoder.encode (sURLParam1, UTF8_CHARSET.name ()));
 				}
 				if (StringUtils.containsIgnoreCase (sURL, "${p2}"))
 				{
 					if (StringUtils.isEmpty (sURLParam2))
 						sURL = StringUtils.replace (sURL, "${p2}", "");
 					else
-						sURL = StringUtils.replace (sURL, "${p2}", URLEncoder.encode (sURLParam2, JVM_CHARSET.name ()));
+						sURL = StringUtils.replace (sURL, "${p2}", URLEncoder.encode (sURLParam2, UTF8_CHARSET.name ()));
 				}
 				if (StringUtils.containsIgnoreCase (sURL, "${p3}"))
 				{
 					if (StringUtils.isEmpty (sURLParam3))
 						sURL = StringUtils.replace (sURL, "${p3}", "");
 					else
-						sURL = StringUtils.replace (sURL, "${p3}", URLEncoder.encode (sURLParam3, JVM_CHARSET.name ()));
+						sURL = StringUtils.replace (sURL, "${p3}", URLEncoder.encode (sURLParam3, UTF8_CHARSET.name ()));
 				}
 			}
 
 			Document doc = null;
 			String sQueryString = null;
-			System.clearProperty ("javax.net.ssl.trustStore");	// 去掉，否则如果在使用 http 代理的环境下，会用 GoAgent 的证书去访问，然后报错： javax.net.ssl.SSLHandshakeException: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-			System.clearProperty ("javax.net.ssl.trustPassword");
 			if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST") && sURL.contains ("?"))
 			{
 				int i = sURL.indexOf ('?');
@@ -5894,7 +6177,7 @@ System.out.println (sURL);
 				if (https != null && isIgnoreHTTPSCertificateValidation)
 				{
 					// 参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
-					https.setSSLSocketFactory (sc.getSocketFactory());
+					https.setSSLSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());
 					https.setHostnameVerifier (hvAllowAllHostnames);
 				}
 				if (! StringUtils.isEmpty (sHTTPUserAgent))
@@ -6045,14 +6328,15 @@ fw.close ();
 			}
 			else
 			{
-				if (sURL.startsWith ("https") && isIgnoreHTTPSCertificateValidation)
-				{	// 由于 Jsoup 还没有设置 https 参数的地方，所以，要设置成全局/默认的（不过，这样设置后，就影响到后续的 https 访问，即使是没设置 IgnoreHTTPSCertificateValidation 的……）
-					// 参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
-					HttpsURLConnection.setDefaultSSLSocketFactory (sc.getSocketFactory());
-					HttpsURLConnection.setDefaultHostnameVerifier (hvAllowAllHostnames);
-				}
 				org.jsoup.Connection jsoup_conn = null;
 				jsoup_conn = org.jsoup.Jsoup.connect (sURL);
+				//if (sURL.startsWith ("https") && isIgnoreHTTPSCertificateValidation)
+				//{	// 由于 Jsoup 还没有设置 https 参数的地方，所以，要设置成全局/默认的（不过，这样设置后，就影响到后续的 https 访问，即使是没设置 IgnoreHTTPSCertificateValidation 的……）
+				//	// 参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
+				//	HttpsURLConnection.setDefaultSSLSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());
+				//	HttpsURLConnection.setDefaultHostnameVerifier (hvAllowAllHostnames);
+				//}
+				jsoup_conn.validateTLSCertificates (isIgnoreHTTPSCertificateValidation);	// jsoup 1.8.2 增加了“是否忽略证书”的设置
 				jsoup_conn.ignoreHttpErrors (true)
 						.ignoreContentType (isIgnoreContentType)
 						.timeout (nHTTPTimeout * 1000)
@@ -7804,8 +8088,6 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		}
 
 		LiuYanBot bot = new LiuYanBot ();
-		sslTrustStore = System.getProperty ("javax.net.ssl.trustStore");
-		sslTrustPassword = System.getProperty ("javax.net.ssl.trustPassword");
 		String sMessageDelay = System.getProperty ("message.delay");
 		if (! StringUtils.isEmpty (sMessageDelay))
 		{
