@@ -5430,6 +5430,45 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	    	}
 		};
 
+	public static final String REGEXP_FindHtParameter = "\\$\\{p(\\d*)(=[^{}]*)?\\}";
+	public static Pattern PATTERN_FindHtParameter = Pattern.compile (REGEXP_FindHtParameter, Pattern.CASE_INSENSITIVE);
+
+	/**
+	 * 用于 ht 命令中的网址中的参数展开。
+	 * 类似 Bash 的默认值参数展开 的实现，但与 Bash 的 {@code ${parameter:-默认值}}  不同， :- 用 = 代替，变成 {@code ${parameter=默认值}}，也就是说，C/C++ 语言的默认参数值风格。
+	 * @param sURL 网址(正常情况下应该含有类似 ${p}、 ${p2=默认值} 的参数)
+	 * @param listOrderedParams 参数列表。注意，参数号是从 1 开始的，也就是说，参数列表中的 0 (其实是 ht 命令的别名) 忽略
+	 * @return 参数展开后的 url
+	 * @throws UnsupportedEncodingException
+	 */
+	public static String HtParameterExpansion_DefaultValue_CStyle (String sURL, List<String> listOrderedParams) throws UnsupportedEncodingException
+	{
+logger.fine ("url: " + sURL);
+logger.fine ("params: " + listOrderedParams);
+		Matcher matcher = PATTERN_FindHtParameter.matcher (sURL);
+		StringBuffer sbReplace = new StringBuffer ();
+		boolean bMatched = false;
+		while (matcher.find ())
+		{
+			bMatched = true;
+			String sN = matcher.group (1);
+			String sDefault = matcher.group (2);
+			if (sDefault == null)
+				sDefault = "";
+			else if (sDefault.startsWith ("="))
+				sDefault = sDefault.substring (1);
+			int n = sN.isEmpty () ? 1 : Integer.parseInt (sN);
+			matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? URLEncoder.encode (listOrderedParams.get (n), UTF8_CHARSET.name ()) : sDefault);
+		}
+		matcher.appendTail (sbReplace);
+//System.out.println (sbReplace);
+
+		if (bMatched)
+			sURL = sbReplace.toString ();
+
+logger.fine ("url after parameter expansion: " + sURL);
+		return sURL;
+	}
 	/**
 	 * 获取任意 HTML 网址的内容，将解析结果显示出来。
 	 * 目前支持读取 Content-Type 为 text/*, application/xml, or application/xhtml+xml (这些是 Jsoup 默认支持的内容类型) 和 application/json (这是单独处理的) 的内容的读取。
@@ -5477,16 +5516,13 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
-		String sContentType = null;	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json
+		String sContentType = "html";	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json
 		int nJS_Cut_Start = 0;
 		int nJS_Cut_End = 0;
 		//String sID = null;
 		long nID = 0;
 		String sName = null;
 		String sURL = null;
-		String sURLParam1 = null;
-		String sURLParam2 = null;
-		String sURLParam3 = null;
 		String sURLParamsHelp = null;
 		String sSelector = null;
 		//String sSubSelector = null;
@@ -5700,12 +5736,6 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					else
 						sName = value;
 				}
-				if (listOrderedParams.size () > 1)
-					sURLParam1 = listOrderedParams.get (1);
-				if (listOrderedParams.size () > 2)
-					sURLParam2 = listOrderedParams.get (2);
-				if (listOrderedParams.size () > 3)
-					sURLParam3 = listOrderedParams.get (3);
 				if (nID == 0 && StringUtils.isEmpty (sName))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "必须指定 <模板编号>(纯数字) 或者 <模板名称>(非纯数字) 参数.");
@@ -6105,39 +6135,10 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 				return;
 			}
 
-			// 最后，如果带有 URLParam，将其替换掉 sURL 中的 ${p} 字符串
+			// 最后，如果带有 URLParam，将其替换掉 sURL 中的 ${p} 字符串 (${p} ${p=} ${p=默认值} ${p2=...} ... )
 			if (StringUtils.equalsIgnoreCase (sAction, "run"))
 			{
-				if (StringUtils.containsIgnoreCase (sURL, "${p}") && StringUtils.isEmpty (sURLParam1)
-					//|| StringUtils.containsIgnoreCase (sURL, "${p2}") && StringUtils.isEmpty (sURLParam2)
-					//|| StringUtils.containsIgnoreCase (sURL, "${p3}") && StringUtils.isEmpty (sURLParam3)
-					)
-				{
-					SendMessage (ch, nick, mapGlobalOptions, Colors.RED + sName + Colors.NORMAL + " 中的 URL " + Colors.DARK_GREEN + sURL + Colors.NORMAL + " 需要提供参数。" + sURLParamsHelp);
-					return;
-				}
-
-				if (StringUtils.containsIgnoreCase (sURL, "${p}"))
-				{
-					if (StringUtils.isEmpty (sURLParam1))
-						sURL = StringUtils.replace (sURL, "${p}", "");
-					else
-						sURL = StringUtils.replace (sURL, "${p}", URLEncoder.encode (sURLParam1, UTF8_CHARSET.name ()));
-				}
-				if (StringUtils.containsIgnoreCase (sURL, "${p2}"))
-				{
-					if (StringUtils.isEmpty (sURLParam2))
-						sURL = StringUtils.replace (sURL, "${p2}", "");
-					else
-						sURL = StringUtils.replace (sURL, "${p2}", URLEncoder.encode (sURLParam2, UTF8_CHARSET.name ()));
-				}
-				if (StringUtils.containsIgnoreCase (sURL, "${p3}"))
-				{
-					if (StringUtils.isEmpty (sURLParam3))
-						sURL = StringUtils.replace (sURL, "${p3}", "");
-					else
-						sURL = StringUtils.replace (sURL, "${p3}", URLEncoder.encode (sURLParam3, UTF8_CHARSET.name ()));
-				}
+				sURL = HtParameterExpansion_DefaultValue_CStyle (sURL, listOrderedParams);
 			}
 
 			Document doc = null;
@@ -6288,13 +6289,8 @@ fw.close ();
 					String sRightPadding = listRightPaddings.get (i);
 					try
 					{
-						// 由于 JavaScript 可能需要读取参数 1 2 3，所以，要识别 javascript 代码中的 ${p} ${p2} ${p3} 参数声明，并将其替换为参数值
-						if (StringUtils.containsIgnoreCase (sSubSelector, "${p}"))
-							sSubSelector = StringUtils.replace (sSubSelector, "${p}", sURLParam1);
-						if (StringUtils.containsIgnoreCase (sSubSelector, "${p2}"))
-							sSubSelector = StringUtils.replace (sSubSelector, "${p2}", sURLParam2);
-						if (StringUtils.containsIgnoreCase (sSubSelector, "${p3}"))
-							sSubSelector = StringUtils.replace (sSubSelector, "${p3}", sURLParam3);
+						// 由于 JavaScript 代码中可能需要读取参数 1 2 3.. N ...，所以，要识别 javascript 代码中的 ${p} ${p2} ${p3}...${pN} 参数声明，并将其替换为参数值
+						sSubSelector = HtParameterExpansion_DefaultValue_CStyle (sSubSelector, listOrderedParams);
 
 						evaluateResult = jse.eval (sSubSelector, jsContext);
 						if (! StringUtils.isEmpty (evaluateResult.toString ()))
