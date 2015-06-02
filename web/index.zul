@@ -151,7 +151,7 @@
 			SubSelectors及取值
 			<div>
 				<div id='divHtmlJsonTemplateForm_OtherSubSelectorsContainer'></div>
-				<button label='＋ 增加 SubSelector' src='/images/icon-button-add.png' onClick='AddNewSubSelector ("", "", "", "", "", "");'/>
+				<button label='＋ 增加 SubSelector' src='/images/icon-button-add.png' onClick='AddNewSubSelector ("", "", " ", "", "", "");'/>
 
 			</div>
 		</row>
