@@ -9,6 +9,7 @@ import net.maclife.ansi.*;
 import net.maclife.irc.*;
 import net.maclife.irc.dialog.*;
 
+@SuppressWarnings ("unchecked")
 public class DouDiZhu extends CardGame
 {
 	@Override
@@ -207,7 +208,8 @@ public class DouDiZhu extends CardGame
 					continue;
 
 				int nPassed = 0;	// 过牌的人数
-			turn:
+
+			//turn:
 				while (true)
 				{
 					if (stop_flag)
@@ -517,7 +519,7 @@ public class DouDiZhu extends CardGame
 		AddJokerCardsToDeck ();
 
 		// 洗牌
-		Collections.shuffle (deck);
+		Collections.shuffle (deck, rand);
 //System.out.println (deck);
 	}
 
@@ -693,7 +695,6 @@ public class DouDiZhu extends CardGame
 	 * @param sb_in
 	 * @return
 	 */
-	@SuppressWarnings ("unchecked")
 	StringBuilder GenerateCardsInfoTo (String p, StringBuilder sb_in)
 	{
 		StringBuilder sb = sb_in==null ? new StringBuilder () : sb_in;
@@ -1021,7 +1022,7 @@ public class DouDiZhu extends CardGame
 		int nTrio1 = (int)cards1.get ("nTrio");
 		int nQuartette1 = (int)cards1.get ("nQuartette");
 		boolean isBomb1 = (boolean)cards1.get ("IsBomb");
-		boolean isSerial1 = (boolean)cards1.get ("IsSerial");
+		//boolean isSerial1 = (boolean)cards1.get ("IsSerial");
 
 		int nPrimaryCardType2 = (int)cards2.get ("PrimaryCardType");
 		int nMaxPoint2 = (int)cards2.get ("MaxPoint");
@@ -1030,7 +1031,7 @@ public class DouDiZhu extends CardGame
 		int nTrio2 = (int)cards2.get ("nTrio");
 		int nQuartette2 = (int)cards2.get ("nQuartette");
 		boolean isBomb2 = (boolean)cards2.get ("IsBomb");
-		boolean isSerial2 = (boolean)cards2.get ("IsSerial");
+		//boolean isSerial2 = (boolean)cards2.get ("IsSerial");
 
 		if (isBomb1)
 		{

@@ -1,6 +1,5 @@
 package net.maclife.irc.game;
 
-import java.security.*;
 import java.util.*;
 
 import org.apache.commons.lang3.*;
@@ -123,8 +122,6 @@ public class Game2048 extends Game
 	 是否输了。所谓输了，其实就是没法再移动了。它可以和 isWin 同时为 true
 	 */
 	boolean isLose = false;
-
-	Random rand = new SecureRandom ();
 
 	int[][] arrayDigitsBoard;
 

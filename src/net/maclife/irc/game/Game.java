@@ -1,5 +1,6 @@
 package net.maclife.irc.game;
 
+import java.security.*;
 import java.util.*;
 
 import org.apache.commons.lang3.*;
@@ -32,6 +33,9 @@ public abstract class Game implements Runnable, DialogUser
 	protected Map<String, Object> mapGlobalOptions;
 	protected List<String> listCmdEnv;
 	protected String params;
+
+	// 产生随机数
+	Random rand = new SecureRandom ();
 
 	public Game ()
 	{

@@ -1,6 +1,5 @@
 package net.maclife.irc.game;
 
-import java.security.*;
 import java.util.*;
 
 import org.jibble.pircbot.*;
@@ -39,7 +38,6 @@ public class GuessDigits extends Game
 	void InitDigits ()
 	{
 		arrayDigitsToGuess = new char[nDigits];
-		Random rand = new SecureRandom ();
 		for (int i=0; i<arrayDigitsToGuess.length; i++)
 		{
 			if (i==0)

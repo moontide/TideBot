@@ -215,7 +215,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 3;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
-	Random rand = new Random ();
+	Random rand = new SecureRandom ();
 
 
 	public static final byte BAN_OBJECT_TYPE_DEFAULT  = 0;	// <自定义的 IRCPrefix 字符串
@@ -5088,7 +5088,7 @@ logger.fine ("指定了序号 " + opt_max_response_lines + "，只有一行");	/
 						}
 						else
 						{
-							int iRandomRow = new java.util.Random(System.currentTimeMillis ()).nextInt (nCount);
+							int iRandomRow = rand.nextInt (nCount);
 							int nRandomRow = iRandomRow + 1;
 							bValidRow = rs.absolute (nRandomRow);
 logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bValidRow = " + bValidRow);
