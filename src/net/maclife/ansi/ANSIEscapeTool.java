@@ -160,14 +160,14 @@ public class ANSIEscapeTool
 	 */
 	public static final String[] IRC_Rainbow_COLORS =
 	{
-		COLOR_DARK_RED, COLOR_ORANGE, Colors.RED, Colors.YELLOW, Colors.GREEN,
-		Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.BLUE, COLOR_DARK_CYAN, Colors.CYAN,
-		Colors.MAGENTA, Colors.PURPLE,
+		COLOR_DARK_RED, COLOR_ORANGE, Colors.RED, Colors.YELLOW,
+		Colors.GREEN, Colors.DARK_GREEN, Colors.DARK_BLUE, Colors.BLUE,
+		Colors.CYAN, COLOR_DARK_CYAN, Colors.PURPLE, Colors.MAGENTA,
 	};
 	/**
 	 * IRC 彩虹背景色（12 个颜色，按“<font color='red'>红</font><font color='orange'>橙</font><font color='yellow'>黄</font><font color='green'>绿</font><font color='blue'>蓝</font><font color='cyan'>青</font><font color='purple'>紫</font>”顺序）
 	 * <br/>
-	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码</span>
+	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03,' 之后的代码</span>
 	 */
 	public static String[] IRC_BACKGROUND_Rainbow_COLORS =
 	{
@@ -199,6 +199,16 @@ public class ANSIEscapeTool
 	public static String[] ANSI_8_BACKGROUND_COLORS =
 	{
 		"40",   "41",   "42",   "43",   "44",   "45",   "46",   "47",
+	};
+	/**
+	 * ANSI 彩虹色（12 个颜色，按“<font color='red'>红</font><font color='orange'>橙</font><font color='yellow'>黄</font><font color='green'>绿</font><font color='blue'>蓝</font><font color='cyan'>青</font><font color='purple'>紫</font>”顺序）
+	 * 此颜色不包含 $CSI (ESC + "[")，这是为了便于前景、背景通用
+	 */
+	public static final String[] ANSI_Rainbow_COLORS =
+	{
+		"31",   "33",   "31;1", "33;1",
+		"32;1", "32",   "34",   "34;1",
+		"36;1", "36",   "35",   "35;1",
 	};
 
 	/**

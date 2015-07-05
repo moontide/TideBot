@@ -35,8 +35,9 @@ import org.jsoup.nodes.*;
 import org.jsoup.select.*;
 
 import net.maclife.util.qqwry.*;
-import net.maclife.ansi.*;
+import net.maclife.mac.*;
 import net.maclife.seapi.*;
+import net.maclife.ansi.*;
 import net.maclife.irc.dialog.*;
 import net.maclife.irc.game.*;
 
@@ -252,6 +253,9 @@ public class LiuYanBot extends PircBot implements Runnable
 	String chunzhenIPDBVersion = null;
 	long chunzhenIPCount = 0;
 
+	MacManufactoryTool macman = null;
+	String ouiFileName = null;
+
 	/**
 	 * 4 数字分组 Pattern
 	 */
@@ -357,6 +361,10 @@ public class LiuYanBot extends PircBot implements Runnable
 		{
 			e.printStackTrace ();
 		}
+	}
+	public void setOUIFileName (String fn)
+	{
+		ouiFileName = fn;
 	}
 
 	/**
@@ -1774,18 +1782,15 @@ System.err.println (message);
 					"|" + formatBotParameterInstance ("21点", true) +
 					"|" + formatBotParameterInstance ("斗地主", true) +
 					"|" + formatBotParameterInstance ("2048", true) +
-					", ." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字" +
-					". " + formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数." +
-					" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主"
-				);
-			SendMessage (ch, u, mapGlobalOptions,
-				formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (".w=格子宽度", true) + formatBotOption (".h=格子高度", true) + formatBotOption (".p=2的幂指数", true) +
+				", ." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字" +
+				". " + formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数." +
+				" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主 " + formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (".w=格子宽度", true) + formatBotOption (".h=格子高度", true) + formatBotOption (".p=2的幂指数", true) +
 				" 来改变方格的大小、赢数的大小。限制： p的大小必须小于 w*h，比如：宽3x高3，则p最高只能取值为8。 p=11 就是默认的达到 2048 就赢。 一般在 IRC 中玩，建议 .w=3.h=3.p=8或者7 (因为速度的原因)" +
 				""
 			);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_MAC_MANUFACTORY;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAD 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC (4) AA BB CC");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAC 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -6546,7 +6551,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		}
 	}
 
-	public void ValidateNickNames (String ch, Set<String> setParticipants)
+	public void ValidateNickNames (String ch, Collection<String> collectionParticipants)
 	{
 		User[] users = getUsers (ch);
 //System.out.println ("channel=" + ch);
@@ -6554,7 +6559,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		if (users == null)
 			return;
 
-		for (String nick : setParticipants)
+		for (String nick : collectionParticipants)
 		{
 			boolean bFound = false;
 			for (User u : users)
@@ -6617,7 +6622,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		List<String> listParams = splitCommandLine (params);
 		String question = "";
 		Dialog.Type qt = Dialog.Type.开放;
-		Set<String> setParticipants = new HashSet<String> ();
+		Set<String> setParticipants = new CopyOnWriteArraySet<String> ();	//new HashSet<String> ();
 			// 如果没有添加自己，则加进去： 一定包含发起人
 			setParticipants.add (nick);
 
@@ -6797,7 +6802,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "2048")
 			)
 			sGame = botCmdAlias;
-		Set<String> setParticipants = new HashSet<String> ();
+		Set<String> setParticipants = new CopyOnWriteArraySet<String> ();	//new HashSet<String> ();
 			// 如果没有添加自己，则加进去： 一定包含发起人
 			setParticipants.add (nick);
 
@@ -6910,6 +6915,66 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 	 */
 	void ProcessCommand_MacManufactory (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		if (StringUtils.isEmpty (params))
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+
+		if (macman == null)
+		{
+			if (StringUtils.isEmpty (ouiFileName))
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "此 bot 实例没有指定 OUI 数据文件，所以，无法查询");
+				return;
+			}
+			macman = new MacManufactoryTool (ouiFileName);
+		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+
+		String[] queries = null;
+		if (! StringUtils.isEmpty (params))
+			queries = params.split (" +");
+
+		int iCount = 0;
+		try
+		{
+			Map<String, String> manufactory = null;
+			List<Map<String, String>> listResults = null;
+			listResults = macman.Query (queries);
+
+			for (int i=0; i<listResults.size (); i++)
+			{
+				manufactory = listResults.get (i);
+
+				iCount ++;
+				if (iCount > opt_max_response_lines)
+					break;
+
+				if (manufactory == null)
+				{
+					continue;
+				}
+
+				SendMessage (ch, nick, mapGlobalOptions,
+							String.format ("%-17s", queries[i]) + "    " +
+							Colors.DARK_GREEN + manufactory.get ("name") + Colors.NORMAL +
+							"    oui.txt行号: "  + manufactory.get ("line-number") +
+							"    地址: "  + manufactory.get ("address") +
+							"    该厂商共有 " + macman.mapCache_GroupByManufactories.get (manufactory.get ("name")).size () + " 条记录"  +
+							"    该国家/地区共有 " + macman.mapCache_GroupByRegion.get (manufactory.get ("region")).size () + " 条记录"  +
+							(i==0 ?
+								"    (oui.txt 数据版本: " + macman.dbGeneratedTime + ", 共 " + macman.mapCache_All.size () + " 条记录" + ")"
+								: "")	// 第一条加上数据库信息
+					);
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, "查询出错: " + e.toString ());
+		}
 	}
 
 	/**
@@ -7997,11 +8062,12 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		String encoding = "UTF-8";
 		String geoIPDB = null;
 		String chunzhenIPDB = null;
+		String sOUIFileName = null;	// "../db/oui.txt"
 		String[] arrayBans;
 		String banWildcardPatterns = null;
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-e 字符集编码] [-ban 要封锁的用户名，多个名字用 ',' 分割]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-oui 从ieee.org下载oui.txt文件] [-e 字符集编码] [-ban 要封锁的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -8080,6 +8146,16 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					chunzhenIPDB = args[i+1];
 					i ++;
 				}
+				else if (arg.equalsIgnoreCase("oui"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定 oui.txt 数据文件路径");
+						return;
+					}
+					sOUIFileName = args[i+1];
+					i ++;
+				}
 			}
 		}
 
@@ -8097,6 +8173,8 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			bot.setGeoIPDatabaseFileName(geoIPDB);
 		if (chunzhenIPDB != null)
 			bot.set纯真IPDatabaseFileName (chunzhenIPDB);
+		if (sOUIFileName != null)
+			bot.setOUIFileName (sOUIFileName);
 
 		bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, null, "名称中含有 bot (被认定为机器人)");
 		if (banWildcardPatterns != null)

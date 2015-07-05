@@ -631,28 +631,41 @@ public class Game2048 extends Game
 	 */
 	void DisplayDigitsBoard (int iNewGeneratedTileIndex)
 	{
+		StringBuilder sbBoardInANSIString = new StringBuilder ();
 		for (int y=0; y<height; y++)
 		{
 //System.err.print (String.format ("%02: ", (y+1)));
 			String sLine = "";
+			String sANSILine = "";
 			for (int x=0; x<width; x++)
 			{
 				if (isEmpty(arrayDigitsBoard[y][x]))
-					sLine = sLine + String.format ("[%-" + winNumberDecimalDigitsLength + "s] ", "");
+				{
+					sLine = sLine + String.format ("[%" + winNumberDecimalDigitsLength + "s] ", "");
+					sANSILine = sANSILine + String.format ("[%" + winNumberDecimalDigitsLength + "s] ", "");
+				}
 				else
 				{
 					String sColor = "";
+					String sANSIColor = "";
 					if (iNewGeneratedTileIndex == y*width + x)
+					{
 						sColor = "\u000300,03";
+						sANSIColor = "42;1";
+					}
 					else
 					{
 						int nExponentOfThisNumber = Integer.numberOfTrailingZeros (arrayDigitsBoard[y][x]); //(int)Math.sqrt (arrayDigitsBoard[y][x]);
 						sColor = ANSIEscapeTool.IRC_Rainbow_COLORS [(nExponentOfThisNumber-1) % ANSIEscapeTool.IRC_Rainbow_COLORS.length];	// 数值从小到大 按 红橙黄绿蓝靛紫 的彩虹色排列
 						//sColor = ANSIEscapeTool.IRC_Rainbow_COLORS [ANSIEscapeTool.IRC_Rainbow_COLORS.length - (nExponentOfThisNumber-1) % ANSIEscapeTool.IRC_Rainbow_COLORS.length];	// 数值从大到小 按 红橙黄绿蓝靛紫 的彩虹色排列
+						sANSIColor = ANSIEscapeTool.ANSI_Rainbow_COLORS [(nExponentOfThisNumber-1) % ANSIEscapeTool.ANSI_Rainbow_COLORS.length];
 					}
-					sLine = sLine + String.format ("[" + sColor + "%-" + winNumberDecimalDigitsLength + "d" + Colors.NORMAL + "] ", arrayDigitsBoard[y][x]);
+					sLine = sLine + String.format ("[" + sColor + "%" + winNumberDecimalDigitsLength + "d" + Colors.NORMAL + "] ", arrayDigitsBoard[y][x]);
+					sANSILine = sANSILine + String.format ("[" + ANSIEscapeTool.CSI + sANSIColor + "m" + "%" + winNumberDecimalDigitsLength + "d" + ANSIEscapeTool.CSI + "m" + "] ", arrayDigitsBoard[y][x]);
 				}
 			}
+			sbBoardInANSIString.append (sANSILine);
+			sbBoardInANSIString.append ("\n");
 			if (iNewGeneratedTileIndex==-1 && y<4)	// 默认在频道输出时，只输出 4 行（2048 原作者的默认棋盘高度）
 			{
 				bot.SendMessage (channel, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sLine);
@@ -661,6 +674,7 @@ public class Game2048 extends Game
 				bot.SendMessage (null, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sLine);
 //System.err.println (sLine);
 		}
+System.err.println (sbBoardInANSIString);
 	}
 
 	@Override
@@ -670,9 +684,7 @@ public class Game2048 extends Game
 			return true;
 
 		// 先检查是否是有效的移动命令
-		if (! answer.matches ("(?i)e+") && ! answer.matches ("(?i)s+") && ! answer.matches ("(?i)d+") && ! answer.matches ("(?i)f+")	// 移动命令，仿照 Counter-Strike 里的移动快捷键 w a s d，整体向右移动一键，变成 e s d f，这样，左手可以不用动
-			&& ! answer.matches ("(?i)c+") && ! answer.matches ("(?i)g+")	// Continue / Go on 是否继续的答案
-			)
+		if (! answer.matches ("(?i)[esdfcg]+"))	// Continue / Go on 是否继续的答案
 			throw new IllegalArgumentException ("需要用 e(↑) s(←) d(↓) f(→) 来移动。 [" + answer + "] 不符合要求。");
 
 		return true;
