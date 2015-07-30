@@ -1,4 +1,6 @@
 echo -e '\e[31;1m禁用掉一些命令，以较安全的方式执行\e[m'
+#export server=card.freenode.net
+export server=weber.freenode.net
 #export botdir=${botdir-/home/liuyan/ircbot/src}
 export botdir=$(dirname $0)
 export nick=GameBot2

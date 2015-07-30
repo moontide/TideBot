@@ -15,11 +15,12 @@ export database_username=bot
 #export database_passwrd=
 export database_url="jdbc:mysql://localhost/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"
 
-#export GFWProxyType=http
+#export GFWProxyType=HTTP
 #export GFWProxyHost=localhost
 #export GFWProxyPort=8087
 
-export GFWProxyType=socks
+# GFWProxyType 要注意用大写，因为是要用 java.net.Proxy.Type 解析的，如果小写则会报错： java.lang.IllegalArgumentException: No enum constant java.net.Proxy.Type.socks
+export GFWProxyType=SOCKS
 export GFWProxyHost=192.168.90.201
 export GFWProxyPort=9999
 
