@@ -198,6 +198,7 @@ CREATE TABLE html_parser_templates
 	name VARCHAR(50) NOT NULL DEFAULT '' UNIQUE KEY,
 
 	url VARCHAR(300) NOT NULL DEFAULT '',
+	use_gfw_proxy TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否使用 GFWProxy 代理服务器访问该 URL。默认不使用，除非特别的接口需要翻墙才能访问时才需要使用。',
 	ignore_https_certificate_validation TINYINT(1) NOT NULL DEFAULT 1 COMMENT '忽略 https 的证书有效性验证 -- ht 命令非关键任务，不需要验证证书有效性；此参数仅对 https 网址生效， http 不处理该参数。参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/',
 	content_type ENUM('', 'html', 'json', 'js') NOT NULL DEFAULT '',
 	ignore_content_type TINYINT(1) NOT NULL DEFAULT 1 COMMENT '这是给 jsoup 库用到的是否忽略 http 返回的内容类型，json 目前不关心此信息（一直假定为文本数据）',

@@ -162,6 +162,7 @@ void 查询HTML_JSON模板_GUI ()
 void onHtmlJsonTemplateContentTypeChanged ()
 {
 	rowHtmlJsonTemplateForm_Selector.setVisible (radiogroupHtmlJsonTemplateForm_ContentType.getSelectedItem().getValue().isEmpty());
+	checkboxHtmlJsonTemplateForm_IgnoreContentType.setVisible (rowHtmlJsonTemplateForm_Selector.isVisible());
 	divHtmlJsonTemplateForm_JSCut_Wrapper.setVisible (! rowHtmlJsonTemplateForm_Selector.isVisible());
 }
 
@@ -172,6 +173,7 @@ void LoadHtmlJsonTemplate (Map t)
 	textboxHtmlJsonTemplateForm_URL.setRawValue (t.get("url"));
 	textboxHtmlJsonTemplateForm_URLParamUsage.setValue (t.get("url_param_usage"));
 	checkboxHtmlJsonTemplateForm_IgnoreHTTPSCertificateValidation.setChecked (parseBoolean(t.get("ignore_https_certificate_validation"), true));
+	checkboxHtmlJsonTemplateForm_UseGFWProxy.setChecked (parseBoolean(t.get("use_gfw_proxy"), false));
 
 	Select (radiogroupHtmlJsonTemplateForm_ContentType, t.get("content_type"), 0);
 		onHtmlJsonTemplateContentTypeChanged ();
@@ -361,12 +363,12 @@ void SaveHtmlJsonTemplate ()
 	Object[] params;
 
 	// 保存 HTML_JSON模板 信息
-	String sSQL_Insert = "INSERT INTO html_parser_templates (name, url, url_param_usage, ignore_https_certificate_validation, content_type, " +
+	String sSQL_Insert = "INSERT INTO html_parser_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, " +
 	"ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, " +
 	"padding_left, extract, attr, padding_right, ua, " +
 	"request_method, referer, " +
-	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,'','','', CURRENT_TIMESTAMP)";
-	String sSQL_Update = "UPDATE html_parser_templates SET name=?, url=?, url_param_usage=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, padding_right=?, ua=?, request_method=?, referer=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
+	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,'','', '',CURRENT_TIMESTAMP)";
+	String sSQL_Update = "UPDATE html_parser_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, padding_right=?, ua=?, request_method=?, referer=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
 	String sSQL_Insert_OtherSubSelectors = "INSERT INTO html_parser_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, padding_right) VALUES (?,?,?,?,?, ?)";
 
 	String [] params_OtherSubSelectors =
@@ -377,6 +379,7 @@ void SaveHtmlJsonTemplate ()
 	String sName = textboxHtmlJsonTemplateForm_Name.getValue();
 	String sURL = textboxHtmlJsonTemplateForm_URL.getValue();
 	String sURLParamUsage = textboxHtmlJsonTemplateForm_URLParamUsage.getValue();
+	boolean isUseGFWProxy = checkboxHtmlJsonTemplateForm_UseGFWProxy.isChecked();
 	boolean isIgnoreHTTPSCertificateValidation = checkboxHtmlJsonTemplateForm_IgnoreHTTPSCertificateValidation.isChecked();
 	String sContentType = radiogroupHtmlJsonTemplateForm_ContentType.getSelectedItem().getValue();
 	boolean isIgnoreContentType = checkboxHtmlJsonTemplateForm_IgnoreContentType.isChecked();
@@ -401,14 +404,14 @@ void SaveHtmlJsonTemplate ()
 
 	Object[] params_Insert =
 	{
-		sName,	sURL,	sURLParamUsage,	isIgnoreHTTPSCertificateValidation,	sContentType,
+		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
 		sPaddingLeft,	sExtract,	sAttribute,	sPaddingRight,	sUserAgent,
 		sRequestMethod,	sReferer,
 	};
 	Object[]params_Update =
 	{
-		sName,	sURL,	sURLParamUsage,	isIgnoreHTTPSCertificateValidation,	sContentType,
+		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
 		sPaddingLeft,	sExtract,	sAttribute,	sPaddingRight,	sUserAgent,
 		sRequestMethod,	sReferer,

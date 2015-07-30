@@ -87,11 +87,11 @@
 		<row>
 			网址
 			<div>
-				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='100%' constraint='no empty'/> 网址中可包含 \$\{p} \$\{p2} \$\{p3} 参数
+				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='95%' constraint='no empty'/> 网址中可包含 \$\{p} \$\{p2} \$\{p3} 参数
 				<separator/>
 				URL参数帮助信息 <textbox id='textboxHtmlJsonTemplateForm_URLParamUsage' value='' width='50%'/> (需要给使用者说明这些参数该填啥)
 				<separator/>
-				<checkbox id='checkboxHtmlJsonTemplateForm_IgnoreHTTPSCertificateValidation' label='忽略 https 证书验证 (仅对 https　网址生效)' checked='true'/>
+				<checkbox id='checkboxHtmlJsonTemplateForm_UseGFWProxy' label='此网址需要使用 GFW 代理'/> <checkbox id='checkboxHtmlJsonTemplateForm_IgnoreHTTPSCertificateValidation' label='忽略 https 证书验证 (仅对 https　网址生效)' checked='true'/>
 			</div>
 		</row>
 		<row>
@@ -112,13 +112,13 @@
 		</row>
 		<row id='rowHtmlJsonTemplateForm_Selector'>
 			Selector
-			<div><textbox id='textboxHtmlJsonTemplateForm_Selector' value='' width='100%'/> 这里的 selector 仅仅适用于 html 内容类型， json/js 内容类型不读该信息。 jsoup 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html</div>
+			<div><textbox id='textboxHtmlJsonTemplateForm_Selector' value='' width='95%'/> 这里的 selector 仅仅适用于 html 内容类型， json/js 内容类型不读该信息。 jsoup 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html</div>
 		</row>
 		<row>
 			SubSelector及取值
 			<hbox>
 			<div>
-				<textbox id='textboxHtmlJsonTemplateForm_SubSelector' value='' multiline='true' rows='10' width='100%'/>
+				<textbox id='textboxHtmlJsonTemplateForm_SubSelector' value='' multiline='true' rows='10' width='95%'/>
 				对于 html 内容类型，这里填写 Selector 取出的 element 内的 SubSelector 选定的元素。对于 json/js 内容类型，这里填写 javascript 代码
 			</div>
 			<div>

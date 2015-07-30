@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<Context path='/qa'>
+<Context>
 	<Resource
 		name='jdbc/ds'
 		type='javax.sql.DataSource'
@@ -10,7 +10,7 @@
 		username='bot'
 		password=''
 
-		maxActive='40'
+		maxActive='5'
 		maxIdle='3'
 		maxWait='10000'
 	/>
