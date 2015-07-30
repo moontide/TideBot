@@ -148,7 +148,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	{
 		{BOT_PRIMARY_COMMAND_Help, },
 		{BOT_PRIMARY_COMMAND_Alias, },
-		{BOT_PRIMARY_COMMAND_Cmd, "exec", },
+		{BOT_PRIMARY_COMMAND_Cmd, },
 		{BOT_PRIMARY_COMMAND_ParseCmd, },
 		{BOT_PRIMARY_COMMAND_IPLocation, "iploc", "ipl", },
 		{BOT_PRIMARY_COMMAND_GeoIP, },
@@ -1633,9 +1633,9 @@ System.err.println (message);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("命令(不需要加 bot 命令前缀)", true) + "]...    -- 显示指定的命令的帮助信息. 命令可输入多个, 若有多个, 则显示所有这些命令的帮助信息");
 		primaryCmd = BOT_PRIMARY_COMMAND_Alias;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("命令(不需要加 bot 命令前缀)",true) + "]...    -- 列出 bot 命令的别名, 多数 bot 命令存在别名, 一些别名可能更容易记住. 命令可输入多个.");
-		primaryCmd = BOT_PRIMARY_COMMAND_Cmd;            if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "exec"))
+		primaryCmd = BOT_PRIMARY_COMMAND_Cmd;            if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("exec", true) + "[" + formatBotOption (".全局选项", true) + "][" + formatBotOption (".语言", true) + "[" + formatBotOption (".字符集", true) + "]] <" + formatBotParameter ("命令", true) + "> [" + formatBotParameter ("命令参数", true) + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 重定向(><) 之外, shell 中类似变量取值($var) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".全局选项", true) + "][" + formatBotOption (".语言", true) + "[" + formatBotOption (".字符集", true) + "]] <" + formatBotParameter ("命令", true) + "> [" + formatBotParameter ("命令参数", true) + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 重定向(><) 之外, shell 中类似变量取值($var) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotCommandInstance (BOT_PRIMARY_COMMAND_Cmd, true) + " 命令特有的全局选项: " +
@@ -1715,7 +1715,7 @@ System.err.println (message);
 			SendMessage (null, u, mapGlobalOptions,
 				formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("jsoup", true) + "|" +
 				formatBotCommandInstance ("ht", true) +
-				"<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("exec", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "> " +	//  + "|." + formatBotOptionInstance ("stats", true)
+				"<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("run", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "> " +	//  + "|." + formatBotOptionInstance ("stats", true)
 				"[<" + formatBotParameter ("网址", true) + "> <" + formatBotParameter ("CSS 选择器", true) + ">] " +
 				//"[/# " + formatBotParameter ("HTML 解析模板编号", true) + "] " +
 				"[/ct " + formatBotParameter ("内容类型，可取值为 html 和 json", true) + "] " +
@@ -1749,7 +1749,7 @@ System.err.println (message);
 			SendMessage (null, u, mapGlobalOptions,
 				"当 ." + formatBotOptionInstance ("list", true) + " 时, 列出已保存的模板. 可用 /start <起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." +
 				formatBotOptionInstance ("add", true) + " 时, 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". ." +
-				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("exec", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ${p3}" + Colors.NORMAL);
+				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("run", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四...个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ... ${pNNN}" + Colors.NORMAL + " 或无转义的参数 ${u} ${u2} ... ${uNNN}");
 			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
 			//SendMessage (ch, u, mapGlobalOptions, "");
 		}
@@ -5435,18 +5435,19 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	    	}
 		};
 
-	public static final String REGEXP_FindHtParameter = "\\$\\{p(\\d*)(=[^{}]*)?\\}";
+	public static final String REGEXP_FindHtParameter = "\\$\\{([pu])(\\d*)(=[^{}]*)?\\}";
 	public static Pattern PATTERN_FindHtParameter = Pattern.compile (REGEXP_FindHtParameter, Pattern.CASE_INSENSITIVE);
 
 	/**
 	 * 用于 ht 命令中的网址中的参数展开。
 	 * 类似 Bash 的默认值参数展开 的实现，但与 Bash 的 {@code ${parameter:-默认值}}  不同， :- 用 = 代替，变成 {@code ${parameter=默认值}}，也就是说，C/C++ 语言的默认参数值风格。
 	 * @param sURL 网址(正常情况下应该含有类似 ${p}、 ${p2=默认值} 的参数)
-	 * @param listOrderedParams 参数列表。注意，参数号是从 1 开始的，也就是说，参数列表中的 0 (其实是 ht 命令的别名) 忽略
+	 * @param listOrderedParams 参数列表。注意，参数号是从 1 开始的，也就是说，参数列表中的 0 其实是 ht 命令的别名，被忽略
+	 * @param sURLParamsHelp 参数帮助信息。如果 URL 中含有参数，但未指定值、也没有默认值，则给出该提示信息。
 	 * @return 参数展开后的 url
 	 * @throws UnsupportedEncodingException
 	 */
-	public static String HtParameterExpansion_DefaultValue_CStyle (String sURL, List<String> listOrderedParams) throws UnsupportedEncodingException
+	public static String HtParameterExpansion_DefaultValue_CStyle (String sURL, List<String> listOrderedParams, String sURLParamsHelp) throws UnsupportedEncodingException
 	{
 logger.fine ("url: " + sURL);
 logger.fine ("params: " + listOrderedParams);
@@ -5456,14 +5457,22 @@ logger.fine ("params: " + listOrderedParams);
 		while (matcher.find ())
 		{
 			bMatched = true;
-			String sN = matcher.group (1);
-			String sDefault = matcher.group (2);
-			if (sDefault == null)
-				sDefault = "";
-			else if (sDefault.startsWith ("="))
+			String sParamCommand = matcher.group(1);
+			String sN = matcher.group (2);
+			String sDefault = matcher.group (3);
+			if (StringUtils.startsWith (sDefault, "="))
 				sDefault = sDefault.substring (1);
 			int n = sN.isEmpty () ? 1 : Integer.parseInt (sN);
-			matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? URLEncoder.encode (listOrderedParams.get (n), UTF8_CHARSET.name ()) : sDefault);
+			if (sDefault==null && listOrderedParams.size () <= n)
+				throw new IllegalArgumentException ("第 " + n + " 个参数未指定参数值，也未设置默认值。 " + (StringUtils.isEmpty (sURLParamsHelp) ? "" : sURLParamsHelp));
+			if (StringUtils.endsWithIgnoreCase (sParamCommand, "u"))	// "u": unescape
+			{
+				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? listOrderedParams.get (n) : sDefault);
+			}
+			else
+			{
+				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? URLEncoder.encode (listOrderedParams.get (n), UTF8_CHARSET.name ()) : sDefault);
+			}
 		}
 		matcher.appendTail (sbReplace);
 //System.out.println (sbReplace);
@@ -5478,7 +5487,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 	 * 获取任意 HTML 网址的内容，将解析结果显示出来。
 	 * 目前支持读取 Content-Type 为 text/*, application/xml, or application/xhtml+xml (这些是 Jsoup 默认支持的内容类型) 和 application/json (这是单独处理的) 的内容的读取。
 	 *   - 最直接的方式就是直接执行：  ht  <网址> <CSS选择器>
-	 *   - 模板化： 对于经常用到的 html 网址可做成模板，用 ht.exec <模板名/或模板ID> 来执行
+	 *   - 模板化： 对于经常用到的 html 网址可做成模板，用 ht.run <模板名/或模板ID> 来执行
 	 *
 	 * @param ch
 	 * @param nick
@@ -5492,7 +5501,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 	 */
 	void ProcessCommand_HTMLParser (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-
+		boolean usingGFWProxy = false;
 		boolean isOutputScheme = false;	// 是否输出 URL 中的 scheme (如 http://  https://)，这是应对一些不用命令前缀来触发其命令的 bot “智能”输出网页标题 的功能而设置的 (最起码，如果别人发的消息只有 1 个 url，你才输出其标题好吧)
 
 		String sAction = null;
@@ -5513,6 +5522,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 					sAction = "stats";
 				else if (env.equalsIgnoreCase ("os"))
 					isOutputScheme = true;
+				else if (env.equalsIgnoreCase ("gfw") || env.equalsIgnoreCase ("ProxyOn"))
+					usingGFWProxy = true;
 				else
 					continue;
 			}
@@ -5915,6 +5926,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 						sName = rs.getString ("name");
 					if (StringUtils.isEmpty (sURL))
 						sURL = rs.getString ("url");
+					if (! usingGFWProxy)	// 如果默认未指定用 GFW 代理，则从数据库中读取“是否用 GFW 代理”的配置
+						usingGFWProxy = rs.getBoolean ("use_gfw_proxy");
 					sContentType = rs.getString ("content_type");
 					if (StringUtils.equalsIgnoreCase (sContentType, "json") || StringUtils.equalsIgnoreCase (sContentType, "js"))
 						isIgnoreContentType = true;
@@ -6112,7 +6125,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.close ();
 				conn.close ();
 				if (nRowsAffected > 0)
-					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID + Colors.NORMAL + (StringUtils.containsIgnoreCase (sURL, "${p}") || StringUtils.containsIgnoreCase (sURL, "${p2}") || StringUtils.containsIgnoreCase (sURL, "${p3}") ? "    由于你添加的 URL 是带参数的，所以在执行此模板时要加参数，比如: ht.exec  '" + sName + "'  <c++>" : ""));
+					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID + Colors.NORMAL + (StringUtils.containsIgnoreCase (sURL, "${p}") || StringUtils.containsIgnoreCase (sURL, "${p2}") || StringUtils.containsIgnoreCase (sURL, "${p3}") ? "    由于你添加的 URL 是带参数的，所以在执行此模板时要加参数，比如: ht.run  '" + sName + "'  <c++>" : ""));
 				else
 					SendMessage (ch, nick, mapGlobalOptions, "保存失败。 这条信息应该不会出现……");
 
@@ -6143,7 +6156,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			// 最后，如果带有 URLParam，将其替换掉 sURL 中的 ${p} 字符串 (${p} ${p=} ${p=默认值} ${p2=...} ... )
 			if (StringUtils.equalsIgnoreCase (sAction, "run"))
 			{
-				sURL = HtParameterExpansion_DefaultValue_CStyle (sURL, listOrderedParams);
+				sURL = HtParameterExpansion_DefaultValue_CStyle (sURL, listOrderedParams, sURLParamsHelp);
 			}
 
 			Document doc = null;
@@ -6156,6 +6169,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 			}
 System.out.println (sURL);
 
+			Proxy proxy = null;
+			if (usingGFWProxy)
+			{
+				proxy = new Proxy (Proxy.Type.valueOf (System.getProperty ("GFWProxy.Type")), new InetSocketAddress(System.getProperty ("GFWProxy.Host"), Integer.parseInt (System.getProperty ("GFWProxy.Port"))));
+				System.out.println (proxy);
+			}
 			if (StringUtils.equalsIgnoreCase (sContentType, "json")
 				//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json")
 				|| StringUtils.equalsIgnoreCase (sContentType, "js")
@@ -6168,14 +6187,23 @@ System.out.println (sURL);
 				HttpsURLConnection https = null;
 				if (sURL.startsWith ("https"))
 				{
-					https = (HttpsURLConnection)url.openConnection ();
+					if (proxy != null)
+						https = (HttpsURLConnection)url.openConnection (proxy);
+					else
+						https = (HttpsURLConnection)url.openConnection ();
+
 					http = https;
 				}
 				else
-					http = (HttpURLConnection)url.openConnection ();
+				{
+					if (proxy != null)
+						http = (HttpURLConnection)url.openConnection (proxy);
+					else
+						http = (HttpURLConnection)url.openConnection ();
+				}
 
-				http.setConnectTimeout (20000);
-				http.setReadTimeout (20000);
+				http.setConnectTimeout (nHTTPTimeout * 1000);
+				http.setReadTimeout (nHTTPTimeout * 1000);
 				//HttpURLConnection.setFollowRedirects (false);
 				//http.setInstanceFollowRedirects (false);    // 不自动跟随重定向连接，我们只需要得到这个重定向连接 URL
 				http.setDefaultUseCaches (false);
@@ -6295,7 +6323,7 @@ fw.close ();
 					try
 					{
 						// 由于 JavaScript 代码中可能需要读取参数 1 2 3.. N ...，所以，要识别 javascript 代码中的 ${p} ${p2} ${p3}...${pN} 参数声明，并将其替换为参数值
-						sSubSelector = HtParameterExpansion_DefaultValue_CStyle (sSubSelector, listOrderedParams);
+						sSubSelector = HtParameterExpansion_DefaultValue_CStyle (sSubSelector, listOrderedParams, sURLParamsHelp);
 
 						evaluateResult = jse.eval (sSubSelector, jsContext);
 						if (! StringUtils.isEmpty (evaluateResult.toString ()))
@@ -6329,6 +6357,16 @@ fw.close ();
 			}
 			else
 			{
+				//if (proxy != null)
+				if (usingGFWProxy)
+				{
+					//jsoup_conn.
+				}
+				else
+				{
+					//System.setProperty ("http.proxyHost", null);
+					//System.setProperty ("http.proxyPort", null);
+				}
 				org.jsoup.Connection jsoup_conn = null;
 				jsoup_conn = org.jsoup.Jsoup.connect (sURL);
 				//if (sURL.startsWith ("https") && isIgnoreHTTPSCertificateValidation)
