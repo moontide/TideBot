@@ -14,6 +14,7 @@ import java.util.regex.*;
 
 import javax.net.ssl.*;
 import javax.script.*;
+import bsh.*;
 
 import org.apache.commons.io.*;
 import org.apache.commons.io.output.*;
@@ -158,6 +159,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split", },
 		{BOT_PRIMARY_COMMAND_Ban, "/vip", },
 		{BOT_PRIMARY_COMMAND_JavaScript, "js", },
+		{BOT_PRIMARY_COMMAND_Java, "beanshell", },
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
 		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
@@ -1392,6 +1394,8 @@ System.err.println (message);
 				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_JavaScript))
 				ProcessCommand_EvaluateJavaScript (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Java))
+				ProcessCommand_EvaluateJava (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_TextArt))
 				ProcessCommand_TextArt (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag))
@@ -1698,6 +1702,8 @@ System.err.println (message);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("js", true) + " <" + formatBotParameter ("javascript 脚本", true) + ">    -- 执行 JavaScript 脚本。");
+		primaryCmd = BOT_PRIMARY_COMMAND_Java;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("beanshell", true) + " <" + formatBotParameter ("java 代码", true) + ">    -- 执行 Java 代码。注意： java 代码是用 BeanShell ( http://www.beanshell.org ) 解释执行的，因为 BeanShell 多年已未更新，所以目前不支持类似 Java 泛型之类的语法…… 例如，不能写成下面的样式： " + Colors.DARK_GREEN + "Map<String, Object> map = new HashMap<String, Object>();" + Colors.NORMAL + " <-- 不支持");
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("字符集", true) + "][." + formatBotOptionInstance ("COLUMNS", true) + "=" + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("字符艺术画文件 URL 地址(http:// file://)", true) + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + formatBotOption ("字符集", true) + " 如果不指定，默认为 " + formatBotOptionInstance ("437", true) + " 字符集。 ." + formatBotOptionInstance ("COLUMNS", true) + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
@@ -4726,6 +4732,100 @@ System.out.println (evaluateResult);
 		{
 			e.printStackTrace ();
 			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
+		}
+	}
+
+	/**
+	 * 用 BeanShell 解释执行 Java 源代码（因为 BeanShell 已多年未更新，所以，目前只支持 Java 5 语法，不支持泛型语法）。
+	 *
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_EvaluateJava (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (StringUtils.isEmpty (params))
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+System.out.println ("Java 代码：");
+System.out.println (params);
+
+		PrintStream systemOut = System.out;
+		PrintStream systemErr = System.err;
+		Interpreter bsh = null;
+		try
+		{
+			bsh = new Interpreter ();
+			OutputStream osOut = new java.io.ByteArrayOutputStream ();
+			OutputStream osErr = new java.io.ByteArrayOutputStream ();
+			PrintStream out = new PrintStream (osOut);
+			PrintStream err = new PrintStream (osErr);
+			bsh.setOut (out);
+			bsh.setErr (err);
+			System.setOut (out);
+			System.setErr (err);
+
+			bsh.eval (params);
+			String sOut = osOut.toString ();
+			String sErr = osErr.toString ();
+			int nLines = 0;
+			if (! StringUtils.isEmpty (sOut))
+			{
+				if (sOut.contains ("\n"))
+				{
+					String[] arrayLines = sOut.split ("\\n");
+					for (int i=0; i<arrayLines.length; i++)
+					{
+						nLines ++;
+						SendMessage (ch, nick, mapGlobalOptions, arrayLines[i]);
+						if (nLines >= opt_max_response_lines)
+							break;
+					}
+				}
+				else
+				{
+					SendMessage (ch, nick, mapGlobalOptions, sOut);
+					nLines ++;
+				}
+			}
+			if (! StringUtils.isEmpty (sErr) && nLines<opt_max_response_lines)
+			{
+				if (sErr.contains ("\n"))
+				{
+					String[] arrayLines = sErr.split ("\\n");
+					for (int i=0; i<arrayLines.length; i++)
+					{
+						nLines ++;
+						SendMessage (ch, nick, mapGlobalOptions, arrayLines[i]);
+						if (nLines >= opt_max_response_lines)
+							break;
+					}
+				}
+				else
+				{
+					SendMessage (ch, nick, mapGlobalOptions, sErr);
+					nLines ++;
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
+		}
+		finally
+		{
+			System.setOut (systemOut);
+			System.setErr (systemErr);
 		}
 	}
 
