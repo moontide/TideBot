@@ -134,6 +134,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Raw              = "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version          = "/Version";
 
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Connect  = "/Connect";	// 连接指定的服务器
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Disconnect= "/Disconnect";	// 断开连接
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Reconnect= "/Reconnect";	// 重新连接
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Join     = "/Join";	    // 进入频道
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Part     = "/Part";	    // 离开频道
@@ -185,6 +187,8 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Raw, },
 		{BOT_PRIMARY_COMMAND_Version, },
 
+		{BOT_PRIMARY_COMMAND_CONSOLE_Connect, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Disconnect, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Reconnect, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Join, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Part, "/leave", },
@@ -8486,11 +8490,11 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quit))
 					{
 						params = sTerminalInput.split (" +", 2);
-						if (params.length < 1)
-						{
-							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Quit + " -- 从 IRC 服务器退出，然后退出程序。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " 原因]");
-							continue;
-						}
+						//if (params.length < 1)
+						//{
+							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Quit + " -- 从 IRC 服务器退出，然后退出程序。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " [原因]");
+						//	continue;
+						//}
 						String reason = null;
 						if (params.length >= 2)
 							reason = params[1];
@@ -8503,6 +8507,23 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						TimeUnit.SECONDS.sleep (1);
 						System.exit (0);
 					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Disconnect))
+					{
+						System.err.println ("开始断开连接……");
+						disconnect ();
+					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Connect))
+					{
+						params = sTerminalInput.split (" +", 2);
+						if (params.length < 2)
+						{
+							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Connect + " -- 连接到 IRC 服务器。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " <服务器地址>");
+							continue;
+						}
+						String server = params[1];
+						System.err.println ("开始连接到 [" + server + "]……");
+						connect (server);
+					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Reconnect))
 					{
 						System.err.println ("开始重连……");
@@ -8510,12 +8531,12 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Verbose))
 					{
-						toggleVerbose ();;
+						toggleVerbose ();
 						System.err.println ("verbose 改为 " + getVerbose ());
 					}
 					else
 					{
-						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set 和 say /msg  /me /reconnect 命令");
+						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set /verbose 和 /connect /disconnect /reconnect /join /part /quit /nick /msg /me 命令");
 						continue;
 					}
 				}
