@@ -14,6 +14,7 @@ import java.util.regex.*;
 
 import javax.net.ssl.*;
 import javax.script.*;
+
 import bsh.*;
 
 import org.apache.commons.io.*;
@@ -116,6 +117,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
 	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
 	public static final String BOT_PRIMARY_COMMAND_MAC_MANUFACTORY  = "Mac";	// 查询 MAC 地址所属的制造商
+	public static final String BOT_PRIMARY_COMMAND_VOTE             = "/Vote";	// 投票
 
 	public static final String BOT_PRIMARY_COMMAND_Time             = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action           = "Action";
@@ -144,6 +146,20 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Msg      = "/msg";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action   = "/me";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick     = "/nick";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Identify = "/Identify";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Invite   = "/Invite";
+
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Kick     = "/Kick";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_IRCBan   = "/IRCBan";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_UnBan    = "/UnBan";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_OP       = "/OP";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_DeOP     = "/DeOP";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Voice    = "/Voice";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_DeVoice  = "/DeVoice";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Gag      = "/Gag";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_UnGag    = "/UnGag";
+
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Mode     = "/Mode";
 
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Verbose  = "/Verbose";	// 调试开关切换
 
@@ -169,6 +185,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "2048", },
 		{BOT_PRIMARY_COMMAND_MAC_MANUFACTORY, "oui", "macm", },
+		{BOT_PRIMARY_COMMAND_VOTE, "/voteKick", "/voteBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteGag", "/voteMute", "/voteQuiet", "/voteUnGag", "/voteUnMute", "/voteUnQuiet",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -197,6 +214,20 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_CONSOLE_Msg, "/say", },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Action, "/action", },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Nick, "/name", },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Identify, "/auth", },
+
+		{BOT_PRIMARY_COMMAND_CONSOLE_Invite, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Kick, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_IRCBan, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_UnBan, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_OP, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_DeOP, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Voice, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_DeVoice, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Gag, "/mute", "/quiet",},
+		{BOT_PRIMARY_COMMAND_CONSOLE_UnGag, "/unmute", "/unquiet", },
+
+		{BOT_PRIMARY_COMMAND_CONSOLE_Mode, },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Verbose, "/debug"},
 	};
@@ -1263,7 +1294,7 @@ System.err.println (message);
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
-							logger.finer ("cmd 命令“执行超时时长”设置为: " + opt_timeout_length_seconds + " 秒");
+							logger.finer ("“执行超时时长”设置为: " + opt_timeout_length_seconds + " 秒");
 							continue;
 						}
 						if (varName.equals("ocs") || varName.equalsIgnoreCase("OutputCharSet") || varName.equalsIgnoreCase("encoding"))
@@ -1281,6 +1312,7 @@ System.err.println (message);
 								&& !isUserInWhiteList(hostname, login, nick, botCmd)	// 不在白名单
 							)
 								opt_max_split_lines = MAX_SPLIT_LINES_LIMIT;
+							logger.finer ("“最大分割行数”设置为: " + opt_max_split_lines + " 行");
 							continue;
 						}
 						if (varName.equals("mbpl") || varName.equalsIgnoreCase("MaxBytesPerLine"))
@@ -1288,6 +1320,7 @@ System.err.println (message);
 							opt_max_bytes_per_line = Integer.parseInt (varValue);
 							if (opt_max_bytes_per_line > MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT)
 								opt_max_bytes_per_line = MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT;
+							logger.finer ("“每行最大字节数”设置为: " + opt_max_bytes_per_line + " 字节");
 							continue;
 						}
 
@@ -1397,9 +1430,9 @@ System.err.println (message);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
 				ProcessCommand_RegExp (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_JavaScript))
-				ProcessCommand_EvaluateJavaScript (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+				ProcessCommand_JavaScript (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Java))
-				ProcessCommand_EvaluateJava (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+				ProcessCommand_Java (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_TextArt))
 				ProcessCommand_TextArt (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag))
@@ -1415,6 +1448,10 @@ System.err.println (message);
 
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_MAC_MANUFACTORY))
 				ProcessCommand_MacManufactory (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+
+
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_VOTE))
+				ProcessCommand_Vote (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
 				ProcessCommand_BanOrWhite (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -1802,6 +1839,9 @@ System.err.println (message);
 		primaryCmd = BOT_PRIMARY_COMMAND_MAC_MANUFACTORY;         if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAC 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC");
 
+		primaryCmd = BOT_PRIMARY_COMMAND_VOTE;         if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].    -- 投票管理功能。动作可以为： kick  ban unBan op deOP voice deVoice gag unGag");
+
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		primaryCmd = BOT_PRIMARY_COMMAND_Action;         if (isThisCommandSpecified (args, primaryCmd))
@@ -2024,7 +2064,7 @@ System.err.println (message);
 	}
 
 	/**
-	 * 封锁用户 (/ban) / 白名单 (/white)。 此命令需要从控制台执行、或者用户在白名单内
+	 * 封锁用户 (/ban) / 白名单 (/white)。 此命令仅仅针对本 Bot 而用，不是对 IRC 频道的管理功能。 此命令需要从控制台执行、或者用户在白名单内
 	 * @param channel
 	 * @param nick
 	 * @param login
@@ -2256,6 +2296,289 @@ System.err.println (message);
 					"在" + Colors.NORMAL + " " + sListName + " 中。" +
 					(userInfo==null ? "" : "匹配的模式=" + userInfo.get("Wildcard") + "，原因=" + userInfo.get ("Reason"))
 				);
+		}
+	}
+
+	static VoteRunner voteMachine = null;
+	long lLastVoteTime = 0;
+	Map<String, Boolean> mapChannelOPFlag = new HashMap<String, Boolean> ();
+
+	@Override
+	protected void onOp (String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient)
+	{
+		super.onOp (channel, sourceNick, sourceLogin, sourceHostname, recipient);
+		if (StringUtils.equalsIgnoreCase (recipient, getNick()))
+			mapChannelOPFlag.put (channel, true);
+	}
+
+	@Override
+	protected void onDeop (String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient)
+	{
+		super.onDeop (channel, sourceNick, sourceLogin, sourceHostname, recipient);
+		if (StringUtils.equalsIgnoreCase (recipient, getNick()))
+			mapChannelOPFlag.remove (channel);
+	}
+
+	/**
+	 * 对 IRC 频道的投票管理功能。此功能要求本 Bot 具有 OP 权限，否则投票后无法操作
+	 * @param channel
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias /vote 或 /voteKick /voteBan /voteUnBan /voteOP /voteDeOP /voteVoice /voteDeVoice /voteGag /voiteMute /voteQuiet  或 /voteInvite
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params /vote 命令参数格式： &lt;动作&gt;  &lt;目标&gt;  [原因]...  /voteXXXX 命令格式与 /vote 类似，只不过少了 动作 参数
+	 * <br/>
+	 * 动作有
+	 * <dl>
+	 * 	<dt><code>kick</code></dt>
+	 * 	<dd></dd>
+	 * </dl>
+	 */
+	void ProcessCommand_Vote (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		String[] arrayParams = null;
+		if (! StringUtils.isEmpty (params))
+			arrayParams = params.split (" +", 3);
+		if (arrayParams == null || arrayParams.length<1)
+		{
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		if (StringUtils.isEmpty (channel))
+		{
+			SendMessage (channel, nick, mapGlobalOptions, "发起投票功能必须在频道内执行，不接受私信方式执行");
+			return;
+		}
+		if (! hostname.contains ("/"))
+		{
+			SendMessage (channel, nick, mapGlobalOptions, "发起投票功能仅限于已验证身份的用户才能使用");
+			return;
+		}
+		if (voteMachine != null)
+		{
+			SendMessage (channel, nick, mapGlobalOptions, "当前有一个投票正在进行，等当前投票结束后，过一段时间再发起投票……");
+			return;
+		}
+		if (mapChannelOPFlag.get (channel)==null || !mapChannelOPFlag.get (channel))
+		{
+			SendMessage (channel, nick, mapGlobalOptions, "得等我变身 OP 后才能发起投票……");
+			return;
+		}
+
+		String sVoteAction = "";
+		String sVoteTarget = "";
+		String sVoteReason = "";
+		if (StringUtils.equalsIgnoreCase (botCmdAlias, "/vote"))
+		{
+			arrayParams = params.split (" +", 3);
+			sVoteAction = arrayParams[0];
+			if (arrayParams.length > 1)
+				sVoteTarget = arrayParams[1];
+			else
+			{
+				SendMessage (channel, nick, mapGlobalOptions, "未指定投票动作。");
+				return;
+			}
+			if (arrayParams.length > 2)
+				sVoteReason = arrayParams[2];
+
+			if (StringUtils.equalsIgnoreCase (sVoteAction, "kick")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "ban")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "unBan")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "unGag") || StringUtils.equalsIgnoreCase (sVoteAction, "unMute") || StringUtils.equalsIgnoreCase (sVoteAction, "unQuiet")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "deVoice")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "op")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "deOp")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "invite"))
+			{
+				//
+			}
+			else
+			{
+				SendMessage (channel, nick, mapGlobalOptions, "未知的投票动作: " + sVoteAction);
+				return;
+			}
+		}
+		else //if (botCmdAlias.matches ("(?i)^/vote(\\w+)"))
+		{
+			sVoteAction = botCmdAlias.substring (5);
+			arrayParams = params.split (" +", 2);
+			sVoteTarget = arrayParams[0];
+			if (arrayParams.length > 1)
+				sVoteReason = arrayParams[1];
+		}
+
+		if (StringUtils.equalsIgnoreCase (sVoteTarget, getNick()))
+		{
+			SendMessage (channel, nick, mapGlobalOptions, "禁止针对 bot 自身进行投票…");
+			return;
+		}
+
+		if (StringUtils.equalsIgnoreCase (sVoteAction, "op") || StringUtils.equalsIgnoreCase (sVoteAction, "deop"))
+		{
+			if (! (false
+				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+				|| isUserInWhiteList(hostname, login, nick, botcmd)
+				)
+			)
+			{
+				String msg = "禁止执行 /voteOp /voteDeOp: 不在白名单内";
+				System.err.println (msg);
+				if (! StringUtils.isEmpty (nick))
+					SendMessage (channel, nick, mapGlobalOptions, msg);
+				return;
+			}
+		}
+
+		voteMachine = new VoteRunner (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params, sVoteAction, sVoteTarget, sVoteReason);
+		executor.execute (voteMachine);
+	}
+
+	class VoteRunner implements Runnable, DialogUser
+	{
+		protected LiuYanBot bot;
+
+		// 对话发起人信息
+		protected String channel;
+		protected String nick;
+		protected String login;
+		protected String host;
+		protected String botcmd;
+		protected String botCmdAlias;
+		Map<String, Object> mapGlobalOptions;
+		List<String> listCmdEnv;
+		String params;
+
+		String voteAction;
+		String voteTarget;
+		String voteReason;
+
+		public VoteRunner (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params, String sVoteAction, String sVoteNick, String sVoteReason)
+		{
+			bot = LiuYanBot.this;
+
+			this.channel = channel;
+			this.nick = nick;
+			this.login = login;
+			this.host = hostname;
+			this.botcmd = botcmd;
+			this.botCmdAlias = botCmdAlias;
+			this.mapGlobalOptions = mapGlobalOptions;
+			this.listCmdEnv = listCmdEnv;
+			this.params = params;
+
+			this.voteAction = sVoteAction;
+			this.voteTarget = sVoteNick;
+			this.voteReason = sVoteReason;
+		}
+		@Override
+		public void run ()
+		{
+			logger.fine ("vote Thread ID = " + Thread.currentThread().getId());
+			System.out.println (voteAction);
+			try
+			{
+				Dialog dlg = new Dialog (this,
+						bot, dialogs, Dialog.Type.是否, nick + " 发起投票： " + voteAction + " " + voteTarget + (StringUtils.isEmpty (voteReason) ? "" : ", 原因: " + voteReason) + "。请通过 '" + getNick() + ": <答案>' 的方式进行投票，所有已验证身份的用户都可参与投票表决", true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, "*", null,
+						channel, null, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+				dlg.showUsage = false;
+				//dlg.timeout_second = 30;
+				dlg.useHostAsAnswersKey = true;
+				Map<String, Object> participantAnswers = executor.submit (dlg).get ();
+				int nAgreed = 0;
+				double dRatio = 0.0;
+				if (participantAnswers.size () > 0)
+				{
+					for (Object answer : participantAnswers.values ())
+					{
+						if (dlg.GetCandidateAnswerValueByValueOrLabel ((String)answer).equals ("1"))
+							nAgreed ++;
+					}
+					dRatio = nAgreed / (double)participantAnswers.size ();
+				}
+
+				if (participantAnswers.size () < 3)
+				{
+					bot.SendMessage (channel, nick, mapGlobalOptions, (participantAnswers.size() == 0 ? "无人投票": "只有 " + participantAnswers.size() + " 人投票，投票人数未达到投票最低人数 -- 3 人") + "，不做处理。");
+				}
+				else if (dRatio < 2.0/3)
+				{
+					bot.SendMessage (channel, nick, mapGlobalOptions, (participantAnswers.size() == 0 ? "无人投票": participantAnswers.size() + " 人投票，" + nAgreed + "人投同意票。同意数量未达到投票人数的 2/3") + "，不做处理。");
+				}
+				else
+				{
+					bot.SendMessage (channel, nick, mapGlobalOptions, participantAnswers.size() + "人投票，" + nAgreed + "人投同意票。同意数量达到投票人数的 2/3，执行投票结果……");
+					if (StringUtils.equalsIgnoreCase (voteAction, "kick"))
+					{
+						kick (channel, voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "ban"))
+					{
+						ban (channel, voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "unBan"))
+					{
+						unBan (channel, voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "gag") || StringUtils.equalsIgnoreCase (voteAction, "mute") || StringUtils.equalsIgnoreCase (voteAction, "quiet"))
+					{
+						setMode (channel, "+q " + voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "unGag") || StringUtils.equalsIgnoreCase (voteAction, "unMute") || StringUtils.equalsIgnoreCase (voteAction, "unQuiet"))
+					{
+						setMode (channel, "-q " + voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "voice"))
+					{
+						voice (channel, voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "deVoice"))
+					{
+						deVoice (channel, voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "op"))
+					{
+						op (channel, voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "deOp"))
+					{
+						deOp (channel, voteTarget);
+					}
+					else if (StringUtils.equalsIgnoreCase (voteAction, "invite"))
+					{
+						sendInvite (channel, voteTarget);
+					}
+				}
+			}
+			catch (InterruptedException | ExecutionException e)
+			{
+				e.printStackTrace();
+			}
+			finally
+			{
+				voteMachine = null;
+			}
+		}
+
+		@Override
+		public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+		{
+			if (! StringUtils.equalsIgnoreCase (ch, channel))
+			{
+				SendMessage (ch, nick, true, 1, "当前投票活动跟你不在一个频道");
+				return false;
+			}
+			if (! host.contains ("/"))
+			{
+				SendMessage (channel, nick, mapGlobalOptions, "投票功能仅限于已验证身份的用户才能使用");
+				return false;
+			}
+			return true;	// 由于题目类型是预知的 “是否” 题，所以可以由 Dialog 类内部处理
 		}
 	}
 
@@ -3774,6 +4097,8 @@ System.err.println (message);
 	 * @param isReturnContentOrStream 是返回 {@link String} 数据，还是 {@link InputStream}　数据。当 true　时，返回 {@link String}， false　时返回 {@link InputStream}
 	 * @param sContentCharset 当 isReturnContentOrStream 为 true 时，指定网页的字符集编码。如果不指定 (null 或 空白)，则默认为 UTF-8 字符集
 	 * @param isFollowRedirects 设置是否跟随重定向 (HTTP 3XX)。 true - 跟随. false - 不跟随
+	 * @param nTimeoutSeconds_Connect 连接操作的超时时长，单位：秒。 如果小于等于 0，则改用默认值 30
+	 * @param nTimeoutSeconds_Read 读取操作的超时时长，单位：秒。 如果小于等于 0，则改用默认值 30
 	 * @param sProxyType 代理服务器类型(不区分大小写)。 "http" - HTTP 代理， "socks" - SOCKS 代理， 其他值 - 不使用代理
 	 * @param sProxyHost 代理服务器主机地址
 	 * @param sProxyPort 代理服务器端口
@@ -3799,6 +4124,8 @@ System.err.println (message);
 			boolean isReturnContentOrStream,
 			String sContentCharset,
 			boolean isFollowRedirects,
+			int nTimeoutSeconds_Connect,
+			int nTimeoutSeconds_Read,
 
 			String sProxyType,
 			String sProxyHost,
@@ -3849,8 +4176,8 @@ System.err.println (message);
 			System.out.println (proxy);
 			http = url.openConnection (proxy);
 		}
-		http.setConnectTimeout (30000);
-		http.setReadTimeout (30000);
+		http.setConnectTimeout ((nTimeoutSeconds_Connect <= 0 ? 30 : nTimeoutSeconds_Connect) * 1000);
+		http.setReadTimeout ((nTimeoutSeconds_Read <= 0 ? 30 : nTimeoutSeconds_Read) * 1000);
 
 		((HttpURLConnection)http).setInstanceFollowRedirects (isFollowRedirects);
 
@@ -3960,6 +4287,7 @@ System.err.println (message);
 	 * 	<li>返回 Content 而不是 InputStream</li>
 	 * 	<li>默认字符集(UTF-8)</li>
 	 * 	<li>跟随重定向</li>
+	 * 	<li>默认超时时长 30 秒</li>
 	 * 	<li>不用代理</li>
 	 * 	<li>不设置 https 证书(服务器端 以及 客户端)</li>
 	 * 	<li>不验证 https 服务器证书有效性</li>
@@ -3970,7 +4298,11 @@ System.err.println (message);
 	 */
 	public static String CURL (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return CURL (sURL, null);
+		return CURL (sURL, 0);
+	}
+	public static String CURL (String sURL, int nTimeoutSeconds) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL (sURL, null, nTimeoutSeconds);
 	}
 
 	/**
@@ -3978,14 +4310,19 @@ System.err.println (message);
 	 * 除了增加了字符集编码设置以外，其他与 {@link #CURL(String)} 相同
 	 * @param sURL 网址
 	 * @param sCharSet 返回的字符串内容的字符集编码
+	 * @param nTimeoutSeconds 超时时长（秒）
 	 * @return String Content
 	 */
-	public static String CURL (String sURL, String sCharSet) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static String CURL (String sURL, String sCharSet, int nTimeoutSeconds) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (String)CURL (null, sURL, true, sCharSet, true,
+		return (String)CURL (null, sURL, true, sCharSet, true, nTimeoutSeconds, nTimeoutSeconds,
 				null, null, null,
 				true, true, null, null, null, null, null, null
 			);
+	}
+	public static String CURL (String sURL, String sCharSet) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL (sURL, sCharSet, 0);
 	}
 
 	/**
@@ -3994,23 +4331,16 @@ System.err.println (message);
 	 * @param sURL 网址
 	 * @return String Content
 	 */
-	public static String CURL_Post (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static String CURL_Post (String sURL, int nTimeoutSeconds) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (String)CURL ("POST", sURL, true, null, true,
+		return (String)CURL ("POST", sURL, true, null, true, nTimeoutSeconds, nTimeoutSeconds,
 				null, null, null,
 				true, true, null, null, null, null, null, null
 			);
 	}
-
-	/**
-	 * 参数简化版的 CURL - GET via Proxy。
-	 * 除了增加了代理服务器以外，其他与 {@link #CURL(String)} 相同
-	 * @param sURL 网址
-	 * @return String Content
-	 */
-	public static String CURL_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static String CURL_Post (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return CURL_ViaProxy (sURL, null, sProxyType, sProxyHost, sProxyPort);
+		return CURL_Post (sURL, 0);
 	}
 
 	/**
@@ -4020,12 +4350,16 @@ System.err.println (message);
 	 * @param sCharSet 返回的字符串内容的字符集编码
 	 * @return String Content
 	 */
-	public static String CURL_ViaProxy (String sURL, String sCharSet, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static String CURL_ViaProxy (String sURL, String sCharSet, int nTimeoutSeconds, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (String)CURL (null, sURL, true, sCharSet, true,
+		return (String)CURL (null, sURL, true, sCharSet, true, nTimeoutSeconds, nTimeoutSeconds,
 				sProxyType, sProxyHost, sProxyPort,
 				true, true, null, null, null, null, null, null
 			);
+	}
+	public static String CURL_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL_ViaProxy (sURL, null, 0, sProxyType, sProxyHost, sProxyPort);
 	}
 
 	/**
@@ -4034,12 +4368,16 @@ System.err.println (message);
 	 * @param sURL 网址
 	 * @return String Content
 	 */
-	public static String CURL_Post_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static String CURL_Post_ViaProxy (String sURL, int nTimeoutSeconds, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (String)CURL ("POST", sURL, true, null, true,
+		return (String)CURL ("POST", sURL, true, null, true, nTimeoutSeconds, nTimeoutSeconds,
 				sProxyType, sProxyHost, sProxyPort,
 				true, true, null, null, null, null, null, null
 			);
+	}
+	public static String CURL_Post_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL_Post_ViaProxy (sURL, 0, sProxyType, sProxyHost, sProxyPort);
 	}
 
 	/**
@@ -4048,12 +4386,16 @@ System.err.println (message);
 	 * @param sURL 网址
 	 * @return Input Stream
 	 */
-	public static InputStream CURL_Stream (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static InputStream CURL_Stream (String sURL, int nTimeoutSeconds) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (InputStream)CURL (null, sURL, false, null, true,
+		return (InputStream)CURL (null, sURL, false, null, true, nTimeoutSeconds, nTimeoutSeconds,
 				null, null, null,
 				true, true, null, null, null, null, null, null
 			);
+	}
+	public static InputStream CURL_Stream (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL_Stream (sURL, 0);
 	}
 
 	/**
@@ -4062,12 +4404,16 @@ System.err.println (message);
 	 * @param sURL 网址
 	 * @return Input Stream
 	 */
-	public static InputStream CURL_Post_Stream (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static InputStream CURL_Post_Stream (String sURL, int nTimeoutSeconds) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (InputStream)CURL ("POST", sURL, false, null, true,
+		return (InputStream)CURL ("POST", sURL, false, null, true, nTimeoutSeconds, nTimeoutSeconds,
 				null, null, null,
 				true, true, null, null, null, null, null, null
 			);
+	}
+	public static InputStream CURL_Post_Stream (String sURL) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL_Post_Stream (sURL, 0);
 	}
 
 	/**
@@ -4076,12 +4422,16 @@ System.err.println (message);
 	 * @param sURL 网址
 	 * @return Input Stream
 	 */
-	public static InputStream CURL_Stream_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static InputStream CURL_Stream_ViaProxy (String sURL, int nTimeoutSeconds, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (InputStream)CURL (null, sURL, false, null, true,
+		return (InputStream)CURL (null, sURL, false, null, true, nTimeoutSeconds, nTimeoutSeconds,
 				sProxyType, sProxyHost, sProxyPort,
 				true, true, null, null, null, null, null, null
 			);
+	}
+	public static InputStream CURL_Stream_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL_Stream_ViaProxy (sURL, 0, sProxyType, sProxyHost, sProxyPort);
 	}
 
 	/**
@@ -4090,12 +4440,16 @@ System.err.println (message);
 	 * @param sURL 网址
 	 * @return Input Stream
 	 */
-	public static InputStream CURL_Post_Stream_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	public static InputStream CURL_Post_Stream_ViaProxy (String sURL, int nTimeoutSeconds, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
 	{
-		return (InputStream)CURL ("POST", sURL, false, null, true,
+		return (InputStream)CURL ("POST", sURL, false, null, true, nTimeoutSeconds, nTimeoutSeconds,
 				sProxyType, sProxyHost, sProxyPort,
 				true, true, null, null, null, null, null, null
 			);
+	}
+	public static InputStream CURL_Post_Stream_ViaProxy (String sURL, String sProxyType, String sProxyHost, String sProxyPort) throws IOException, NoSuchAlgorithmException, KeyManagementException, KeyStoreException, CertificateException, UnrecoverableKeyException
+	{
+		return CURL_Post_Stream_ViaProxy (sURL, 0, sProxyType, sProxyHost, sProxyPort);
 	}
 
 	/**
@@ -4120,6 +4474,7 @@ System.err.println (message);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 		if (! opt_max_response_lines_specified)
@@ -4147,9 +4502,9 @@ System.err.println (message);
 System.out.println (sGoogleSearchURL);
 			InputStream is = null;
 			if (bProxyOff)
-				is = CURL_Stream (sGoogleSearchURL);
+				is = CURL_Stream (sGoogleSearchURL, opt_timeout_length_seconds);
 			else
-				is = CURL_Stream_ViaProxy (sGoogleSearchURL, System.getProperty ("GFWProxy.Type"), System.getProperty ("GFWProxy.Host"), System.getProperty ("GFWProxy.Port"));
+				is = CURL_Stream_ViaProxy (sGoogleSearchURL, opt_timeout_length_seconds, System.getProperty ("GFWProxy.Type"), System.getProperty ("GFWProxy.Host"), System.getProperty ("GFWProxy.Port"));
 
 			ObjectMapper om = new ObjectMapper();
 			om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
@@ -4663,7 +5018,7 @@ function 彩虹(s) { var r=""; for (var i=0; i<s.length; i++) { var c = s.charAt
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	void ProcessCommand_EvaluateJavaScript (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_JavaScript (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (StringUtils.isEmpty (params))
 		{
@@ -4739,6 +5094,29 @@ System.out.println (evaluateResult);
 		}
 	}
 
+	static Interpreter public_bsh = new Interpreter ();
+	static
+	{
+		try
+		{
+			public_bsh.eval ("import java.io.*;");
+			public_bsh.eval ("import java.lang.reflect.*;");
+			public_bsh.eval ("import java.math.*;");
+			public_bsh.eval ("import java.net.*;");
+			public_bsh.eval ("import java.nio.*;");
+			public_bsh.eval ("import java.nio.channels.*;");
+			public_bsh.eval ("import java.nio.charset.*;");
+			public_bsh.eval ("import java.sql.*;");
+			public_bsh.eval ("import java.text.*;");
+			public_bsh.eval ("import java.util.*;");
+			public_bsh.eval ("import java.util.concurrent.*;");
+			public_bsh.eval ("import java.util.regex.*;");
+		}
+		catch (EvalError e)
+		{
+			e.printStackTrace();
+		}
+	}
 	/**
 	 * 用 BeanShell 解释执行 Java 源代码（因为 BeanShell 已多年未更新，所以，目前只支持 Java 5 语法，不支持泛型语法）。
 	 *
@@ -4751,7 +5129,7 @@ System.out.println (evaluateResult);
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	void ProcessCommand_EvaluateJava (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Java (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (StringUtils.isEmpty (params))
 		{
@@ -4768,7 +5146,7 @@ System.out.println (params);
 		Interpreter bsh = null;
 		try
 		{
-			bsh = new Interpreter ();
+			bsh = public_bsh;	//new Interpreter ();
 			OutputStream osOut = new java.io.ByteArrayOutputStream ();
 			OutputStream osErr = new java.io.ByteArrayOutputStream ();
 			PrintStream out = new PrintStream (osOut);
@@ -4886,6 +5264,7 @@ System.out.println (params);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get("env");
@@ -4911,9 +5290,9 @@ System.out.println (params);
 
 			String sANSIString = null;
 			if (bProxyOn)
-				sANSIString = CURL_ViaProxy (params, sCharSet, System.getProperty ("GFWProxy.Type"), System.getProperty ("GFWProxy.Host"), System.getProperty ("GFWProxy.Port"));
+				sANSIString = CURL_ViaProxy (params, sCharSet, opt_timeout_length_seconds, System.getProperty ("GFWProxy.Type"), System.getProperty ("GFWProxy.Host"), System.getProperty ("GFWProxy.Port"));
 			else
-				sANSIString = CURL (params, sCharSet);
+				sANSIString = CURL (params, sCharSet, opt_timeout_length_seconds);
 
 			if (sCharSet.equalsIgnoreCase ("437")
 				|| sCharSet.equalsIgnoreCase ("CP437")
@@ -5633,6 +6012,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			}
 		}
 
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
@@ -5658,8 +6038,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 		String sHTTPUserAgent = null;
 		String sHTTPRequestMethod = null;
 		String sHTTPReferer = null;
-		String sHTTPTimeout = null;
-		int nHTTPTimeout = WATCH_DOG_TIMEOUT_LENGTH;
 
 		//String sIgnoreContentType = null;
 		boolean isIgnoreContentType = false;
@@ -5770,14 +6148,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 						sHTTPRequestMethod = value;
 					else if (param.equalsIgnoreCase ("r") || param.equalsIgnoreCase ("ref") || param.equalsIgnoreCase ("refer") || param.equalsIgnoreCase ("referer") || param.equalsIgnoreCase ("来源"))
 						sHTTPReferer = value;
-
-					else if (param.equalsIgnoreCase ("t") || param.equalsIgnoreCase ("timeout") || param.equalsIgnoreCase ("超时"))
-					{
-						sHTTPTimeout = value;
-						nHTTPTimeout = Integer.parseInt (value);
-						if (nHTTPTimeout > WATCH_DOG_TIMEOUT_LENGTH_LIMIT)
-							nHTTPTimeout = WATCH_DOG_TIMEOUT_LENGTH_LIMIT;
-					}
 					else if (param.equalsIgnoreCase ("start") || param.equalsIgnoreCase ("offset") || param.equalsIgnoreCase ("起始") || param.equalsIgnoreCase ("偏移量"))
 					{
 						//sStart = value;
@@ -6210,8 +6580,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setString (iParam++, StringUtils.trimToEmpty (listAttributes.get (0)));
 
 				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPUserAgent));
+				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPRequestMethod));
 				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPReferer));
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPTimeout));
 
 				stmt.setInt (iParam++, opt_max_response_lines);
 
@@ -6306,8 +6676,8 @@ System.out.println (sURL);
 						http = (HttpURLConnection)url.openConnection ();
 				}
 
-				http.setConnectTimeout (nHTTPTimeout * 1000);
-				http.setReadTimeout (nHTTPTimeout * 1000);
+				http.setConnectTimeout (opt_timeout_length_seconds * 1000);
+				http.setReadTimeout (opt_timeout_length_seconds * 1000);
 				//HttpURLConnection.setFollowRedirects (false);
 				//http.setInstanceFollowRedirects (false);    // 不自动跟随重定向连接，我们只需要得到这个重定向连接 URL
 				http.setDefaultUseCaches (false);
@@ -6482,7 +6852,7 @@ fw.close ();
 				jsoup_conn.validateTLSCertificates (isIgnoreHTTPSCertificateValidation);	// jsoup 1.8.2 增加了“是否忽略证书”的设置
 				jsoup_conn.ignoreHttpErrors (true)
 						.ignoreContentType (isIgnoreContentType)
-						.timeout (nHTTPTimeout * 1000)
+						.timeout (opt_timeout_length_seconds * 1000)
 						;
 				if (! StringUtils.isEmpty (sHTTPUserAgent))
 				{
@@ -8528,6 +8898,137 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					{
 						System.err.println ("开始重连……");
 						reconnect ();
+					}
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Identify)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Mode)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Invite)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Gag)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnGag)
+						)
+					{
+						params = sTerminalInput.split (" +", 3);
+						if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Identify))
+						{
+							if (params.length < 2)
+							{
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Identify + " -- 通过 NickServ 验证。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Identify + " <密码>");
+								continue;
+							}
+							identify (params[1]);
+							continue;
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Mode))
+						{
+							if (params.length < 2 || (StringUtils.isEmpty (currentChannel) && params.length < 3))
+							{
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Mode + " -- 设置频道/用户模式。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Mode + " [#频道] <模式>。如果事先通过 /channel <#频道> 命令设置了预设频道时，则必须忽略 [#频道] 参数");
+								continue;
+							}
+							if (StringUtils.isEmpty (currentChannel))
+								setMode (params[1], params[2]);
+							else
+								setMode (currentChannel, params[2]);
+							continue;
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick))
+						{
+							if (StringUtils.isEmpty (currentChannel))
+								params = sTerminalInput.split (" +", 4);
+							//else
+							//	params = sTerminalInput.split (" +", 3);
+							if (params.length < 2 || (StringUtils.isEmpty (currentChannel) && params.length < 3))
+							{
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Kick + " -- 将用户踢出频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Kick + " <用户昵称> [#频道] [原因]。只有当事先通过 /channel <#频道> 命令设置了预设频道时，才允许忽略 [#频道] 参数");
+								continue;
+							}
+							if (StringUtils.isEmpty (currentChannel))
+							{
+								if (params.length <= 3)
+									kick (params[2], params[1]);
+								else
+									kick (params[2], params[1], params[3]);
+							}
+							else
+							{
+								if (params.length <= 3)
+									kick (currentChannel, params[1]);
+								else
+									kick (currentChannel, params[2]);
+							}
+							continue;
+						}
+
+						String sChannel = currentChannel;
+						String sTarget = null;
+						if (params.length < 2 || (StringUtils.isEmpty (currentChannel) && params.length < 3))
+						{
+							System.err.println (cmd + " 命令语法： " + cmd + " <目标> [#频道]。如果事先通过 /channel <#频道> 命令设置了预设频道时，则必须忽略 [#频道] 参数");
+							continue;
+						}
+						if (StringUtils.isEmpty (currentChannel))
+						{
+							sTarget = params[1];
+							sChannel = params[2];
+						}
+						else
+						{
+							params = sTerminalInput.split (" +", 2);
+							sTarget = params[1];
+							//sChannel = currentChannel;
+						}
+
+						if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Invite))
+						{
+							System.err.println (" -- 邀请用户进入频道");
+							sendInvite (sTarget, sChannel);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan))
+						{
+							System.err.println (" -- 封锁指定用户进入频道 (+b)");
+							ban (sChannel, sTarget);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan))
+						{
+							System.err.println (" -- 取消对指定用户进入频道的封锁 (-b)");
+							unBan (sChannel, sTarget);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP))
+						{
+							System.err.println (" -- 将用户设置为 OP (+o)");
+							op (sChannel, sTarget);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP))
+						{
+							System.err.println (" -- 收回用户的 OP 权限 (-o)");
+							deOp (sChannel, sTarget);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice))
+						{
+							System.err.println (" -- 将用户设置为 Voice 模式 (+v)");
+							voice (sChannel, sTarget);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice))
+						{
+							System.err.println (" -- 取消用户的 Voice 模式 (-v)");
+							deVoice (sChannel, sTarget);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Gag))
+						{
+							System.err.println (" -- 禁止用户发言 (+q)");
+							setMode (sChannel, "+q " + sTarget);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnGag))
+						{
+							System.err.println (" -- 解除对用户发言的禁止 (-q)");
+							setMode (sChannel, "-q " + sTarget);
+						}
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Verbose))
 					{

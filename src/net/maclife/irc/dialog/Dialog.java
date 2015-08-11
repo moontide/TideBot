@@ -26,8 +26,10 @@ public class Dialog implements Callable<Map<String, Object>>
 
 	//
 	String question;
+	boolean isParticipantsQuantityIndefinitely = false;	// 参与者人数是不是不确定的。比如，一个频道内所有人都能参加的对话框，参与人数就是不确定的
 	List<String> participants = new ArrayList<String> ();	// 参与者
 	List<String[]> candidateAnswers = new ArrayList<String[]> ();	// 候选答案
+	public boolean useHostAsAnswersKey = false;	// 使用 host 作为 participantAnswers 的 key。这在“参与者人数不确定”时，能够起到避免用户故意更改昵称设置多个答案
 	Map<String, Object> participantAnswers = new HashMap<String, Object> ();
 
 	public boolean showQuestion = true;
@@ -52,7 +54,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	public Lock lock;
 	public Condition endCondition;
 
-	DialogUser user = null;
+	DialogUser dlguser = null;
 	Type type = Type.开放;	// MessageBox (只有‘确认’) QuestionDialog(YES/NO,  自定义答案)
 	public enum Type
 	{
@@ -80,7 +82,7 @@ public class Dialog implements Callable<Map<String, Object>>
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		this.user = dlgUser;
+		this.dlguser = dlgUser;
 		this.bot = bot;
 		this.dialogs = listDialogs;
 		listDialogs.add (this);
@@ -91,7 +93,11 @@ public class Dialog implements Callable<Map<String, Object>>
 		if (participants instanceof Collection<?>)
 			this.participants.addAll ((Collection<String>)participants);
 		else if (participants instanceof String)
+		{
+			if ( ((String)participants).equals ("*") )
+				isParticipantsQuantityIndefinitely = true;
 			this.participants.add ((String)participants);
+		}
 		else
 			throw new IllegalArgumentException ("Dialog 参与者参数的数据类型不符合要求，必须为 List<String> (多人) 或 String (单人)");
 
@@ -249,6 +255,8 @@ public class Dialog implements Callable<Map<String, Object>>
 
 	public boolean isParticipant (String n)
 	{
+		if (isParticipantsQuantityIndefinitely)
+			return true;
 		boolean isParticipant = false;
 		for (String p : participants)
 		{
@@ -282,11 +290,15 @@ public class Dialog implements Callable<Map<String, Object>>
 		}
 
 		// 使用者先检查答案有效性
-		if (user != null)
+		if (dlguser != null)
 		{
-			if (! user.ValidateAnswer (ch, n, u, host, answer))
+			if (! dlguser.ValidateAnswer (ch, n, u, host, answer))
 				return false;
 		}
+
+		String irc_user = n;
+		if (useHostAsAnswersKey)
+			irc_user = host;
 
 		// 检查答案有效性
 		if (type == Type.单选)
@@ -295,7 +307,7 @@ public class Dialog implements Callable<Map<String, Object>>
 			if (StringUtils.isEmpty (sFullAnswer) )	// 答案无效
 				throw new IllegalArgumentException ("无效单选回答。");
 
-			participantAnswers.put (n, answer);
+			participantAnswers.put (irc_user, answer);
 		}
 		else if (type == Type.多选)
 		{
@@ -310,12 +322,12 @@ public class Dialog implements Callable<Map<String, Object>>
 				if (StringUtils.isEmpty (sFullAnswer) )	// 答案无效
 					throw new IllegalArgumentException ("无效多选回答 " + a);
 			}
-			participantAnswers.put (n, listAnswers);
+			participantAnswers.put (irc_user, listAnswers);
 		}
 		else if (type == Type.确认)
 		{
 			if (StringUtils.equalsIgnoreCase (answer, "1") || StringUtils.equalsIgnoreCase (answer, "2") || StringUtils.equalsIgnoreCase (answer, "确认") || StringUtils.equalsIgnoreCase (answer, "取消"))
-				participantAnswers.put (n, answer);
+				participantAnswers.put (irc_user, answer);
 			else
 			{
 				throw new IllegalArgumentException ("无效回答。回答只能为 1、2、确认、取消");
@@ -324,25 +336,30 @@ public class Dialog implements Callable<Map<String, Object>>
 		else if (type == Type.是否)
 		{
 			if (StringUtils.equalsIgnoreCase (answer, "1") || StringUtils.equalsIgnoreCase (answer, "2") || StringUtils.equalsIgnoreCase (answer, "是") || StringUtils.equalsIgnoreCase (answer, "否"))
-				participantAnswers.put (n, answer);
+				participantAnswers.put (irc_user, answer);
 			else
 				throw new IllegalArgumentException ("无效回答。回答只能为 1、2、是、否");
 		}
 		else if (type == Type.开放)
 		{
-			participantAnswers.put (n, answer);
+			participantAnswers.put (irc_user, answer);
 		}
 
-		// 还有其他用户没回答，不触发 endCondition 条件
-		if (participantAnswers.size () != participants.size ())
+		if (isParticipantsQuantityIndefinitely)
+			return true;	// 人数不确定时，收到答案不触发结束条件。等待 Dialog 超时自己结束……
+		else
 		{
-			String msg = "谢谢，请等待其他 " + (participants.size () - participantAnswers.size ()) +  " 人回答完毕。";
-			// 发到对话发起的频道里
-			bot.SendMessage (channel, n, LiuYanBot.OPT_OUTPUT_USER_NAME, 1, msg);
+			// 还有其他用户没回答，不触发 endCondition 条件
+			if (participantAnswers.size () != participants.size ())
+			{
+				String msg = "谢谢，请等待其他 " + (participants.size () - participantAnswers.size ()) +  " 人回答完毕。";
+				// 发到对话发起的频道里
+				bot.SendMessage (channel, n, LiuYanBot.OPT_OUTPUT_USER_NAME, 1, msg);
 
-			if (StringUtils.isEmpty (ch))	// 如果用户通过私信发送的答案，则也再在私信里发一次
-				bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
-			return true;
+				if (StringUtils.isEmpty (ch))	// 如果用户通过私信发送的答案，则也再在私信里发一次
+					bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
+				return true;
+			}
 		}
 
 
@@ -369,16 +386,19 @@ public class Dialog implements Callable<Map<String, Object>>
 		System.out.println ("Dialog #" + threadID + " started. " + question);
 		StringBuilder sb = new StringBuilder ();
 
-		if (user == null || showQuestion)
+		if (dlguser == null || showQuestion)
 		{
-			// 显示对话框用法
-			for (int i=0; i<participants.size (); i++)
+			if (! isParticipantsQuantityIndefinitely)
 			{
-				if (i>0)
-					sb.append (" ");
-				sb.append (participants.get (i));
+				// 显示对话框用法
+				for (int i=0; i<participants.size (); i++)
+				{
+					if (i>0)
+						sb.append (" ");
+					sb.append (participants.get (i));
+				}
+				sb.append (": ");
 			}
-			sb.append (": ");
 			if (showType)
 			{
 				sb.append (type);
@@ -444,7 +464,7 @@ public class Dialog implements Callable<Map<String, Object>>
 			endtime = System.currentTimeMillis ();
 
 			System.out.println ("Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s");
-			if (user == null)
+			if (dlguser == null)
 			{	// 仅仅在对话没有使用者的情况下生成默认的对话结果消息
 				sb = new StringBuilder ();
 				sb.append ("对话 [");
@@ -456,8 +476,8 @@ public class Dialog implements Callable<Map<String, Object>>
 					sb.append (" 没收到任何回答.");
 				else
 				{
-					if (participants.size () == 1)
-					{	// 一个人，只有一个答案，显示“明细”
+					if (participants.size () == 1 && !isParticipantsQuantityIndefinitely)
+					{	// 一个人、且不是不定人数，只有一个答案，显示“明细”
 						sb.append (" 收到回答: ");
 						if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.开放)
 						{
@@ -491,10 +511,17 @@ public class Dialog implements Callable<Map<String, Object>>
 					else
 					{	// 多个人，多个答案，显示“统计”(非开放问题)
 
-						if (participantAnswers.size () == participants.size ())
-							sb.append (" 收到了所有人的回答. ");
+						if (isParticipantsQuantityIndefinitely)	// 如果参与人数不定，则只显示收到多少份回答
+						{
+							sb.append (" 收到了 " + participantAnswers.size () + " 份回答. ");
+						}
 						else
-							sb.append (" 收到了 " + participantAnswers.size () + " 份回答, " + (participants.size () - participantAnswers.size ()) + " 人未回答. ");
+						{
+							if (participantAnswers.size () == participants.size ())
+								sb.append (" 收到了所有人的回答. ");
+							else
+								sb.append (" 收到了 " + participantAnswers.size () + " 份回答, " + (participants.size () - participantAnswers.size ()) + " 人未回答. ");
+						}
 						if (type == Type.单选 || type == Type.确认 || type == Type.是否 || type == Type.多选)
 						{
 							sb.append ("回答统计: ");
@@ -538,7 +565,8 @@ public class Dialog implements Callable<Map<String, Object>>
 						else if (type == Type.开放)
 						{	// 开放问题无法统计，只能显示明细
 							sb.append (": ");
-							for (String p : participants)
+							//for (String p : participants)
+							for (String p : participantAnswers.keySet ())	// 因为目前支持不定人数的参与者，所以，不能再从 participants 取的参与人名称，因为里面的名称可能就只是一个通配符
 							{
 								String answer = (String)participantAnswers.get (p);
 								sb.append (" ");
@@ -567,7 +595,7 @@ public class Dialog implements Callable<Map<String, Object>>
 			lock.unlock ();
 		}
 
-		if (user == null)
+		if (dlguser == null)
 			bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// "Dialog #" + threadID + " ended. cost " + (endtime - starttime)/1000 + " s." + (StringUtils.isEmpty (answer) ? "" : " 获得答案: " + Colors.BOLD + answer + Colors.BOLD
 		//else
 		//	user.
