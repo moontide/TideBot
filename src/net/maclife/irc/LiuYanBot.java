@@ -116,8 +116,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
 	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
 	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
-	public static final String BOT_PRIMARY_COMMAND_MAC_MANUFACTORY  = "Mac";	// 查询 MAC 地址所属的制造商
-	public static final String BOT_PRIMARY_COMMAND_VOTE             = "/Vote";	// 投票
+	public static final String BOT_PRIMARY_COMMAND_MacManufactory   = "Mac";	// 查询 MAC 地址所属的制造商
+	public static final String BOT_PRIMARY_COMMAND_Vote             = "/Vote";	// 投票
 
 	public static final String BOT_PRIMARY_COMMAND_Time             = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action           = "Action";
@@ -156,8 +156,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_DeOP     = "/DeOP";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Voice    = "/Voice";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_DeVoice  = "/DeVoice";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Gag      = "/Gag";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_UnGag    = "/UnGag";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Quiet    = "/Quiet";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet  = "/UnQuiet";
 
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Mode     = "/Mode";
 
@@ -184,8 +184,8 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "json", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "2048", },
-		{BOT_PRIMARY_COMMAND_MAC_MANUFACTORY, "oui", "macm", },
-		{BOT_PRIMARY_COMMAND_VOTE, "/voteKick", "/voteBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteGag", "/voteMute", "/voteQuiet", "/voteUnGag", "/voteUnMute", "/voteUnQuiet",},
+		{BOT_PRIMARY_COMMAND_MacManufactory, "oui", "macm", },
+		{BOT_PRIMARY_COMMAND_Vote, "/voteKick", "/voteBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteQuiet", "/voteGag", "/voteMute", "/voteUnQuiet", "/voteUnGag", "/voteUnMute", "/voteInvite", },
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -224,8 +224,8 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_CONSOLE_DeOP, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Voice, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_DeVoice, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Gag, "/mute", "/quiet",},
-		{BOT_PRIMARY_COMMAND_CONSOLE_UnGag, "/unmute", "/unquiet", },
+		{BOT_PRIMARY_COMMAND_CONSOLE_Quiet, "/mute", "/gag",},
+		{BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag", },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Mode, },
 
@@ -1446,11 +1446,11 @@ System.err.println (message);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Game))
 				ProcessCommand_Game (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
-			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_MAC_MANUFACTORY))
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_MacManufactory))
 				ProcessCommand_MacManufactory (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 
-			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_VOTE))
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Vote))
 				ProcessCommand_Vote (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Ban))
@@ -1645,6 +1645,10 @@ System.err.println (message);
 				" " + BOT_PRIMARY_COMMAND_Google +
 				" " + BOT_PRIMARY_COMMAND_RegExp +
 				" " + BOT_PRIMARY_COMMAND_JavaScript +
+				" " + BOT_PRIMARY_COMMAND_Java +
+				" " + BOT_PRIMARY_COMMAND_MacManufactory +
+				" " + BOT_PRIMARY_COMMAND_Vote +
+				" " + BOT_PRIMARY_COMMAND_Dialog +
 
 				" " + BOT_PRIMARY_COMMAND_ParseCmd +
 				" " + BOT_PRIMARY_COMMAND_Action +
@@ -1836,11 +1840,11 @@ System.err.println (message);
 				""
 			);
 		}
-		primaryCmd = BOT_PRIMARY_COMMAND_MAC_MANUFACTORY;         if (isThisCommandSpecified (args, primaryCmd))
+		primaryCmd = BOT_PRIMARY_COMMAND_MacManufactory;         if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAC 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC");
 
-		primaryCmd = BOT_PRIMARY_COMMAND_VOTE;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].    -- 投票管理功能。动作可以为： kick  ban unBan op deOP voice deVoice gag unGag");
+		primaryCmd = BOT_PRIMARY_COMMAND_Vote;         if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].  -- 投票管理功能。动作可以为： kick  ban unBan  op deOP  voice deVoice  quiet unQuiet  invite。 /vote 和动作可以连写在一起，如： /voteKick");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -2364,7 +2368,7 @@ System.err.println (message);
 		}
 		if (mapChannelOPFlag.get (channel)==null || !mapChannelOPFlag.get (channel))
 		{
-			SendMessage (channel, nick, mapGlobalOptions, "得等我变身 OP 后才能发起投票……");
+			SendMessage (channel, nick, mapGlobalOptions, "待我变身 OP 后才能发起投票……");
 			return;
 		}
 
@@ -2484,7 +2488,7 @@ System.err.println (message);
 			try
 			{
 				Dialog dlg = new Dialog (this,
-						bot, dialogs, Dialog.Type.是否, nick + " 发起投票： " + voteAction + " " + voteTarget + (StringUtils.isEmpty (voteReason) ? "" : ", 原因: " + voteReason) + "。请通过 '" + getNick() + ": <答案>' 的方式进行投票，所有已验证身份的用户都可参与投票表决", true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, "*", null,
+						bot, dialogs, Dialog.Type.是否, nick + " 发起投票： " + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL + (StringUtils.isEmpty (voteReason) ? "" : "； 原因: " + Colors.MAGENTA + voteReason + Colors.NORMAL) + "。请通过 '" + getNick() + ": <答案>' 的方式进行投票，所有已验证身份的用户都可参与投票表决", true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, "*", null,
 						channel, null, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 				dlg.showUsage = false;
 				//dlg.timeout_second = 30;
@@ -2512,10 +2516,13 @@ System.err.println (message);
 				}
 				else
 				{
-					bot.SendMessage (channel, nick, mapGlobalOptions, participantAnswers.size() + "人投票，" + nAgreed + "人投同意票。同意数量达到投票人数的 2/3，执行投票结果……");
+					bot.SendMessage (channel, nick, mapGlobalOptions, "共 " + participantAnswers.size() + " 人投票，其中 " + nAgreed + " 人投同意票，同意比=" + String.format ("%.2f%%", dRatio*100) + "。同意数量达到投票人数的 2/3，执行投票结果：" + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL);
 					if (StringUtils.equalsIgnoreCase (voteAction, "kick"))
 					{
-						kick (channel, voteTarget);
+						if (StringUtils.isEmpty (voteReason))
+							kick (channel, voteTarget);
+						else
+							kick (channel, voteTarget, nick + " 提供的原因: " + voteReason);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "ban"))
 					{
@@ -2551,7 +2558,7 @@ System.err.println (message);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "invite"))
 					{
-						sendInvite (channel, voteTarget);
+						sendInvite (voteTarget, channel);
 					}
 				}
 			}
@@ -5922,9 +5929,23 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	public static Pattern PATTERN_FindHtParameter = Pattern.compile (REGEXP_FindHtParameter, Pattern.CASE_INSENSITIVE);
 
 	/**
-	 * 用于 ht 命令中的网址中的参数展开。
-	 * 类似 Bash 的默认值参数展开 的实现，但与 Bash 的 {@code ${parameter:-默认值}}  不同， :- 用 = 代替，变成 {@code ${parameter=默认值}}，也就是说，C/C++ 语言的默认参数值风格。
-	 * @param sURL 网址(正常情况下应该含有类似 ${p}、 ${p2=默认值} 的参数)
+	 * 用于 ht 命令中的网址中的参数展开。<br/>
+	 * 类似 Bash 的默认值参数展开 的实现，但与 Bash 的 {@code ${parameter:-默认值}}  不同， :- 用 = 代替，变成 {@code ${parameter=默认值}}，也就是说，C/C++ 语言的默认参数值风格。<br/>
+	 * 参数命名规则
+		<dl>
+			<dt>${p} ${p=默认值} ${p1} ${p1=默认值} ... ${p<font color='red'>N</font>} ${p<font color='red'>N</font>=默认值}</dt>
+			<dd>p 是经过 URLEncode.encode() 之后的数值，如“济南”会变成“%E6%B5%8E%E5%8D%97”
+				<ul>
+					<li>如果没有默认值，则参数 p/p1/pN 必须指定值，否则给出错误提示 sURLParamsHelp。</li>
+					<li>如果有默认值，并且该参数未传递值，则该参数会采用默认值</li>
+					<li>如果有默认值，并且该参数传递了数值，则该参数会采用传递的数值</li>
+				</ul>
+			</dd>
+
+			<dt>${u} ${u=默认值} ${u1} ${u1=默认值} ... ${u<font color='red'>N</font>} ${u<font color='red'>N</font>=默认值}</dt>
+			</dd>与 p 类似，只不过，u 的数值不会被 URLEncode.encode()。所以，<font color='darkcyan'><b>一般来说， json 的 subselector 脚本中通常应该用 u 参数</b></font></dd>
+		</dl>
+	 * @param sURL 网址(正常情况下应该含有类似 ${p}、 ${p2=默认值} 的参数)。 如果是 js/json 数据类型，则 subselector 脚本中可能也包含 ${p} ${u} 参数
 	 * @param listOrderedParams 参数列表。注意，参数号是从 1 开始的，也就是说，参数列表中的 0 其实是 ht 命令的别名，被忽略
 	 * @param sURLParamsHelp 参数帮助信息。如果 URL 中含有参数，但未指定值、也没有默认值，则给出该提示信息。
 	 * @return 参数展开后的 url
@@ -5948,7 +5969,7 @@ logger.fine ("params: " + listOrderedParams);
 			int n = sN.isEmpty () ? 1 : Integer.parseInt (sN);
 			if (sDefault==null && listOrderedParams.size () <= n)
 				throw new IllegalArgumentException ("第 " + n + " 个参数未指定参数值，也未设置默认值。 " + (StringUtils.isEmpty (sURLParamsHelp) ? "" : sURLParamsHelp));
-			if (StringUtils.endsWithIgnoreCase (sParamCommand, "u"))	// "u": unescape
+			if (StringUtils.equalsIgnoreCase (sParamCommand, "u"))	// "u": unescape
 			{
 				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? listOrderedParams.get (n) : sDefault);
 			}
@@ -6158,7 +6179,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						//sIgnoreContentType = value;
 						isIgnoreContentType = BooleanUtils.toBoolean (value);
 					}
-					else if (param.equalsIgnoreCase ("cv") || param.equalsIgnoreCase ("CertificateValidation") || param.equalsIgnoreCase ("icv") || param.equalsIgnoreCase ("IgnoreHTTPSCertificateValidation"))
+					else if (param.equalsIgnoreCase ("icv") || param.equalsIgnoreCase ("IgnoreHTTPSCertificateValidation"))
 					{
 						isIgnoreHTTPSCertificateValidation = BooleanUtils.toBoolean (value);
 					}
@@ -6659,7 +6680,7 @@ System.out.println (sURL);
 				URL url = new URL (sURL);
 				HttpURLConnection http = null;
 				HttpsURLConnection https = null;
-				if (sURL.startsWith ("https"))
+				if (url.getProtocol ().equalsIgnoreCase ("https"))
 				{
 					if (proxy != null)
 						https = (HttpsURLConnection)url.openConnection (proxy);
@@ -7455,6 +7476,9 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			Map<String, String> manufactory = null;
 			List<Map<String, String>> listResults = null;
 			listResults = macman.Query (queries);
+
+			if (listResults.size() == 0)
+				SendMessage (ch, nick, mapGlobalOptions, "未查到厂商");
 
 			for (int i=0; i<listResults.size (); i++)
 			{
@@ -8909,8 +8933,8 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Gag)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnGag)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quiet)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet)
 						)
 					{
 						params = sTerminalInput.split (" +", 3);
@@ -8957,10 +8981,10 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 							}
 							else
 							{
-								if (params.length <= 3)
+								if (params.length <= 2)
 									kick (currentChannel, params[1]);
 								else
-									kick (currentChannel, params[2]);
+									kick (currentChannel, params[1], params[2]);
 							}
 							continue;
 						}
@@ -9019,12 +9043,12 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 							System.err.println (" -- 取消用户的 Voice 模式 (-v)");
 							deVoice (sChannel, sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Gag))
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quiet))
 						{
 							System.err.println (" -- 禁止用户发言 (+q)");
 							setMode (sChannel, "+q " + sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnGag))
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet))
 						{
 							System.err.println (" -- 解除对用户发言的禁止 (-q)");
 							setMode (sChannel, "-q " + sTarget);
@@ -9037,7 +9061,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					}
 					else
 					{
-						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set /verbose 和 /connect /disconnect /reconnect /join /part /quit /nick /msg /me 命令");
+						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set /verbose 和 /connect /disconnect /reconnect /join /part /quit /nick /msg /me  /identify /auth /invite  /kick /IRCBan /unBan /op /deOP /voice /deVoice /quiet /unQuiet  命令");
 						continue;
 					}
 				}
