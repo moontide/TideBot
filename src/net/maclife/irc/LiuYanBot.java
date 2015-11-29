@@ -116,7 +116,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
 	public static final String BOT_PRIMARY_COMMAND_Dialog           = "Dialog";	// 概念性交互功能
 	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
-	public static final String BOT_PRIMARY_COMMAND_MacManufactory   = "Mac";	// 查询 MAC 地址所属的制造商
+	public static final String BOT_PRIMARY_COMMAND_MacManufactory   = "/Mac";	// 查询 MAC 地址所属的制造商
 	public static final String BOT_PRIMARY_COMMAND_Vote             = "/Vote";	// 投票
 
 	public static final String BOT_PRIMARY_COMMAND_Time             = "/Time";
@@ -1104,7 +1104,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 				ResultSet rs = null;
 				try
 				{
-					if (! StringUtils.isEmpty (BOT_COMMAND_PREFIX))
+					if (! StringUtils.isEmpty (BOT_COMMAND_PREFIX) && message.length () > BOT_COMMAND_PREFIX.length ())
 						message = message.substring (BOT_COMMAND_PREFIX.length ());
 					args = message.split (" +", 3);
 					if (args[0].contains ("."))
@@ -2022,7 +2022,7 @@ System.err.println (message);
 		}
 		String[] arrayParams = null;
 		if (! StringUtils.isEmpty (params))
-			arrayParams = params.split (" ", 2);
+			arrayParams = params.split (" +", 2);
 		if (arrayParams == null || arrayParams.length<1)
 		{
 			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
@@ -2031,7 +2031,7 @@ System.err.println (message);
 		String param = arrayParams[0];
 		String value = null;
 		if (arrayParams.length >= 2)
-			value = arrayParams[1];
+			value = StringUtils.trimToEmpty (arrayParams[1]);
 
 		if (param.equalsIgnoreCase ("loglevel"))	// 日志级别
 		{
