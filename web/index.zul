@@ -87,7 +87,7 @@
 		<row>
 			网址
 			<div>
-				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='95%' constraint='no empty'/> 网址中可包含 \$\{p} \$\{p2} \$\{p3} 参数
+				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='95%' constraint='no empty'/> 网址中可包含 \$\{p} \$\{p2} \$\{p3}... 参数(参数会经过 urlencode 处理) 或 \$\{u} \$\{u2} \$\{u3}... 参数(参数原样传递，不经过 urlencode 处理)
 				<separator/>
 				URL参数帮助信息 <textbox id='textboxHtmlJsonTemplateForm_URLParamUsage' value='' width='50%'/> (需要给使用者说明这些参数该填啥)
 				<separator/>

@@ -13,5 +13,9 @@
 		maxActive='5'
 		maxIdle='3'
 		maxWait='10000'
+
+		testWhileIdle='true'
+		validationQuery='/* ping */'
+		validationInterval='28800000'
 	/>
 </Context>
