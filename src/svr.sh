@@ -1,7 +1,13 @@
 echo -e '\e[31;1m禁用掉一些命令，以较安全的方式执行\e[m'
 # 目前服务器连这个服务器相对稳定，很少断线
-#export server=${server-weber.freenode.net}
+# card.freenode.net 北美洲 美国 (纯真IP数据库: 美国 华盛顿Cogent通信公司)
 export server=${server-card.freenode.net}
+# weber.freenode.net 北美洲 美国  加利福尼亚州
+#export server=${server-weber.freenode.net}
+# orwell.freenode.net 欧洲 荷兰  阿姆斯特丹 (纯真IP数据库: 巴西)
+#export server=${server-orwell.freenode.net}
+# roddenberry.freenode.net 大洋洲 澳大利亚 (纯真IP数据库: 澳大利亚 悉尼)
+#export server=${server-orwell.freenode.net}
 export botdir=${botdir-$(dirname $0)}
 export nick=GameBot
 export botcmdPrefix=
