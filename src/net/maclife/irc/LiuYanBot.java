@@ -2942,7 +2942,7 @@ System.err.println (message);
 		openGeoIPDatabaseFile ();
 		if (geoIP2DatabaseReader==null)
 		{
-			SendMessage (ch, u, mapGlobalOptions, " 没有 IP 数据库");
+			SendMessage (ch, u, mapGlobalOptions, " 没有 GeoIP 数据库");
 			return;
 		}
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
@@ -2962,7 +2962,7 @@ System.err.println (message);
 				if (host.contains ("/"))
 				{
 					iCount++;
-					SendMessage (ch, u, mapGlobalOptions, "您的地址 " + host + " 看起来像是隐身衣，无法查询");
+					SendMessage (ch, u, mapGlobalOptions, "您的IP地址/主机名 " + host + " 看起来像是隐身衣，无法查询其地理位置");
 					continue;
 				}
 			}
@@ -3099,7 +3099,7 @@ System.err.println (message);
 				if (q.contains ("/"))
 				{
 					iCount++;
-					SendMessage (ch, u, mapGlobalOptions, "您的地址 " + q + " 看起来像是隐身衣，无法查询");
+					SendMessage (ch, u, mapGlobalOptions, "您的 IP 地址/主机名 " + q + " 看起来像是隐身衣，无法查询其地理位置");
 					continue;
 				}
 			}
@@ -7478,7 +7478,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			listResults = macman.Query (queries);
 
 			if (listResults.size() == 0)
-				SendMessage (ch, nick, mapGlobalOptions, "未查到厂商");
+				SendMessage (ch, nick, mapGlobalOptions, "未查到 [" +  params + "] 的制造商信息");
 
 			for (int i=0; i<listResults.size (); i++)
 			{
@@ -7488,22 +7488,22 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 				if (iCount > opt_max_response_lines)
 					break;
 
-				if (manufactory == null)
-				{
-					continue;
-				}
-
 				SendMessage (ch, nick, mapGlobalOptions,
-							String.format ("%-17s", queries[i]) + "    " +
-							Colors.DARK_GREEN + manufactory.get ("name") + Colors.NORMAL +
-							"    oui.txt行号: "  + manufactory.get ("line-number") +
-							"    地址: "  + manufactory.get ("address") +
-							"    该厂商共有 " + macman.mapCache_GroupByManufactories.get (manufactory.get ("name")).size () + " 条记录"  +
-							"    该国家/地区共有 " + macman.mapCache_GroupByRegion.get (manufactory.get ("region")).size () + " 条记录"  +
-							(i==0 ?
-								"    (oui.txt 数据版本: " + macman.dbGeneratedTime + ", 共 " + macman.mapCache_All.size () + " 条记录" + ")"
-								: "")	// 第一条加上数据库信息
-					);
+					String.format ("%-17s", queries[i]) + "  " +
+					(manufactory == null ?
+						"          未找到该 MAC　地址的厂商信息"
+						:
+						manufactory.get ("mac") + "  " +
+						Colors.DARK_GREEN + manufactory.get ("name") + Colors.NORMAL +
+						"  行号: "  + manufactory.get ("line-number") +
+						",  地址: "  + manufactory.get ("address") +
+						",  该厂商共有 " + macman.mapCache_GroupByManufactories.get (manufactory.get ("name")).size () + " 条" +
+						",  该地区共有 " + macman.mapCache_GroupByRegion.get (manufactory.get ("region")).size () + " 条"
+					) +
+					(i==0 ?
+						"    (oui.txt 版本: " + macman.dbGeneratedTime + ", 共 " + macman.mapCache_All.size () + " 条" + ")"
+						: "")	// 第一条加上数据库信息
+				);
 			}
 		}
 		catch (Exception e)
