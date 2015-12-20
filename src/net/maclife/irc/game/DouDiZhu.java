@@ -18,7 +18,12 @@ public class DouDiZhu extends CardGame
 		try
 		{
 			StringBuilder sb = new StringBuilder ();
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
+			for (String p : participants)
+			{
+				bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "--------------------------------------------------------------------------------");
+				bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
+				bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "出牌时，大王★可用dw或d代替, 小王☆可用xw或x代替, 10可用0或1代替。 在回牌时，可输入 " + Colors.REVERSE + "pass" + Colors.REVERSE + " / " + Colors.REVERSE + "p" + Colors.REVERSE + " / " + Colors.REVERSE + "过" + Colors.REVERSE + " / " + Colors.REVERSE + "g" + Colors.REVERSE + " / " + Colors.REVERSE + "n" + Colors.REVERSE + " 过牌");
+			}
 			InitDeck ();
 
 			// 每人 17 张牌
@@ -30,7 +35,7 @@ public class DouDiZhu extends CardGame
 			String msg = null;
 			String answer;
 			String value = null;
-			String landlord = null;
+			String sLandlordName = null;
 			// 确定地主
 			stage = STAGE_抢地主;
 			while (true)
@@ -61,7 +66,7 @@ public class DouDiZhu extends CardGame
 				if (value.equalsIgnoreCase ("3"))
 				{	// 有人叫到了 3 分，抢地主立刻结束，此人称为地主
 					无人继续抢地主次数 = 0;
-					landlord = participants.get (iTurn);
+					sLandlordName = participants.get (iTurn);
 					break;
 				}
 				else if (value.equalsIgnoreCase ("1") || value.equalsIgnoreCase ("2"))
@@ -81,39 +86,39 @@ public class DouDiZhu extends CardGame
 						}
 					}
 					无人继续抢地主次数 = 0;
-					landlord = participants.get (iTurn);
+					sLandlordName = participants.get (iTurn);
 				}
 				else if (StringUtils.isEmpty (value) || value.equalsIgnoreCase ("N"))
 				{
 					无人继续抢地主次数 ++;
-					if ((无人继续抢地主次数==2 && landlord!=null))
+					if ((无人继续抢地主次数==2 && sLandlordName!=null))
 					{	// 如果有人之前抢过地主（未到 3 分），其他 2 人不再继续抢，则地主就是他了
 						break;
 					}
-					if (无人继续抢地主次数>=3 && landlord==null)
+					if (无人继续抢地主次数>=3 && sLandlordName==null)
 						// 连续 3 人都没人叫地主，荒局
 						throw new RuntimeException ("都没人抢地主，荒局");
 				}
 
 				iTurn = NextTurn (iTurn);
 			}
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 地主是 " + landlord);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 地主是 " + FormatPlayerName (sLandlordName, sLandlordName));
 
 			// 底牌明示，归地主所有
-			assert (landlord != null);
-			List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (landlord);
+			assert (sLandlordName != null);
+			List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (sLandlordName);
 			player_cards.addAll (deck);
 				Collections.sort (player_cards, comparator);
 			GenerateCardsInfoTo (deck, sb);
-			msg = "地主是 " + landlord + "，地主获得了底牌: "+ sb;
+			msg = "地主是 " + FormatPlayerName (sLandlordName, sLandlordName) + "，地主获得了底牌: "+ sb;
 			for (String p : participants)
 			{
 				bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
 			}
-			bot.SendMessage (null, landlord, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "" + GenerateCardsInfoTo (player_cards, null));
+			bot.SendMessage (null, sLandlordName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "" + GenerateCardsInfoTo (player_cards, null));
 
 			// 开始循环
-			int iRound = participants.indexOf (landlord);	// 谁的回合
+			int iRound = participants.indexOf (sLandlordName);	// 谁的回合
 			String sWinner = "";
 
 		round:
@@ -142,14 +147,20 @@ public class DouDiZhu extends CardGame
 				else
 				{
 					Dialog dlg = new Dialog (this,
-							bot, bot.dialogs, "你的回合开始, 请出牌. 当前手牌: " + GenerateCardsInfoTo (sRoundPlayer) + ". 大王★可用dw或d代替, 小王☆可用xw或x代替, 10可用0或1代替" + (StringUtils.equalsIgnoreCase (sRoundPlayer, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""), true, sRoundPlayer,
+							bot, bot.dialogs,
+							"你的回合开始, 请出牌. 当前手牌: " + GenerateCardsInfoTo (sRoundPlayer) + ". " +
+							(StringUtils.equalsIgnoreCase (sRoundPlayer, getStarter()) ?
+								"回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" :
+								""
+							),
+							true, sRoundPlayer,
 							channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 					dlg.showUsage = false;
 					dlg.timeout_second = 3 * player_cards.size () + 10;	// 每张牌 3 秒钟的出牌时间，外加 10 秒钟的 IRC 延时时间
 					for (String p : participants)
 					{
 						if (! StringUtils.equalsIgnoreCase (p, sRoundPlayer))
-							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sRoundPlayer + " 的回合开始，请等他/她出牌…");
+							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, FormatPlayerName (sRoundPlayer, sLandlordName) + " 的回合开始，请等他/她出牌…");
 					}
 					Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
 						answer = (String)participantAnswers.get (sRoundPlayer);
@@ -179,7 +190,7 @@ public class DouDiZhu extends CardGame
 				for (String p : participants)
 				{
 					bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,
-						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ? "你" : sRoundPlayer) +
+						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ? "你" : FormatPlayerName (sRoundPlayer, sLandlordName)) +
 						" 打出了 " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_RoundPlayer +
 						(StringUtils.equalsIgnoreCase (p, sRoundPlayer) ?
 							(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p) + " (" + player_cards.size () + " 张牌)") :
@@ -194,7 +205,7 @@ public class DouDiZhu extends CardGame
 				}
 				if (player_cards.size () == 0)
 				{	// 出完牌了，则结束
-					if (StringUtils.equalsIgnoreCase (landlord, sRoundPlayer))
+					if (StringUtils.equalsIgnoreCase (sLandlordName, sRoundPlayer))
 						sWinner = "地主";
 					else
 						sWinner = "农民";
@@ -229,8 +240,7 @@ public class DouDiZhu extends CardGame
 								bot, bot.dialogs,
 								//sLastPlayedPlayer + " 打出了 " + lastPlayedCardType + " " + listLastPlayedCardRanks + ". " +
 									"你的手牌: " + GenerateCardsInfoTo (sTurnPlayer) +
-									", 请出牌打过 " + sLastPlayedPlayer + " 的牌. 大王★可用dw或d代替, 小王☆可用xw或x代替, 10可用0或1代替; 或答复 " +
-									Colors.REVERSE + "pass" + Colors.REVERSE + " / " + Colors.REVERSE + "p" + Colors.REVERSE + " / " + Colors.REVERSE + "过" + Colors.REVERSE + " / " + Colors.REVERSE + "g" + Colors.REVERSE + " / " + Colors.REVERSE + "n" + Colors.REVERSE + " 过牌" +
+									", 请出牌打过 " + FormatPlayerName (sLastPlayedPlayer, sLandlordName) + " 的牌. " +
 									(StringUtils.equalsIgnoreCase (sTurnPlayer, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""),
 								true, sTurnPlayer,
 								channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
@@ -239,7 +249,7 @@ public class DouDiZhu extends CardGame
 						for (String p : participants)
 						{
 							if (! StringUtils.equalsIgnoreCase (p, sTurnPlayer))
-								bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + sTurnPlayer + " 出牌…");
+								bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + FormatPlayerName (sTurnPlayer, sLandlordName) + " 出牌…");
 						}
 						Map<String, Object> participantAnswers_response = bot.executor.submit (dlg_response).get ();
 							answer = (String)participantAnswers_response.get (sTurnPlayer);
@@ -258,7 +268,7 @@ public class DouDiZhu extends CardGame
 						msg = (StringUtils.isEmpty (answer) ? "未出牌，自动过牌" : "过牌");
 						for (String p : participants)
 						{
-							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, (StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) + " " + msg);
+							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, (StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : FormatPlayerName (sTurnPlayer, sLandlordName)) + " " + msg);
 						}
 						nPassed ++;
 					}
@@ -272,7 +282,7 @@ public class DouDiZhu extends CardGame
 						for (String p : participants)
 						{
 							bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,
-								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : sTurnPlayer) +
+								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ? "你" : FormatPlayerName (sTurnPlayer, sLandlordName)) +
 								" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_TurnPlayer +
 								(StringUtils.equalsIgnoreCase (p, sTurnPlayer) ?
 									(player_cards.size ()==0 ? ", 牌已出光！" : ", 还剩下 " + GenerateCardsInfoTo(p) + " (" + player_cards.size () + " 张牌)") :
@@ -287,7 +297,7 @@ public class DouDiZhu extends CardGame
 						}
 						if (player_cards.size () == 0)
 						{	// 如果回应的人也出完牌了，则也结束
-							if (StringUtils.equalsIgnoreCase (landlord, sTurnPlayer))
+							if (StringUtils.equalsIgnoreCase (sLandlordName, sTurnPlayer))
 								sWinner = "地主";
 							else
 								sWinner = "农民";
@@ -312,49 +322,52 @@ public class DouDiZhu extends CardGame
 			// 游戏结束，显示结果
 			StringBuilder sbResult = new StringBuilder ();
 			sbResult.append (name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。");
-			participants.remove (landlord);
+			participants.remove (sLandlordName);
 			if (sWinner.equalsIgnoreCase ("地主"))
 			{
 				sbResult.append ("赢家: 地主 ");
 				sbResult.append (Colors.DARK_GREEN);
-				sbResult.append (landlord);
+				sbResult.append (FormatPlayerName (sLandlordName, sLandlordName));
 				sbResult.append (Colors.NORMAL);
 				sbResult.append (", 输家: 农民 ");
-				sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
 				for (String p : participants)
 				{
-					sbResult.append (p);
-					sbResult.append (" ");
-				}
-				sbResult.append (Colors.NORMAL);
-				for (String p : participants)
-				{
-					sbResult.append (p);
-					sbResult.append (" 剩牌 ");
-					sbResult.append (GenerateCardsInfoTo(p));
-					sbResult.append (". ");
+					sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
+					sbResult.append (FormatPlayerName (p, sLandlordName));
+					sbResult.append (Colors.NORMAL);
+					player_cards = (List<Map<String, Object>>)players_cards.get (p);
+					sbResult.append (" [");
+					if (player_cards.isEmpty ())
+						sbResult.append ("牌已出完");
+					else
+						sbResult.append (GenerateCardsInfoTo(p));
+					sbResult.append ("] ");
 				}
 			}
 			else
 			{
 				sbResult.append ("赢家: 农民 ");
-				sbResult.append (Colors.DARK_GREEN);
 				for (String p : participants)
 				{
-					sbResult.append (p);
-					sbResult.append (" ");
+					sbResult.append (Colors.DARK_GREEN);
+					sbResult.append (FormatPlayerName (p, sLandlordName));
+					sbResult.append (Colors.NORMAL);
+					sbResult.append (" [");
+					sbResult.append (GenerateCardsInfoTo(p));
+					sbResult.append ("] ");
 				}
 				sbResult.append (Colors.NORMAL);
 				sbResult.append (", 输家: 地主 ");
 				sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
-				sbResult.append (landlord);
+				sbResult.append (FormatPlayerName (sLandlordName, sLandlordName));
 				sbResult.append (Colors.NORMAL);
-				sbResult.append (". 地主剩牌 ");
-				sbResult.append (GenerateCardsInfoTo(landlord));
+				sbResult.append (" [");
+				sbResult.append (GenerateCardsInfoTo(sLandlordName));
+				sbResult.append ("]");
 			}
 			msg = sbResult.toString ();
 			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);	// 在频道里显示结果
-			participants.add (landlord);	// 再把地主加回来，通过私信告知每个人游戏结果
+			participants.add (sLandlordName);	// 再把地主加回来，通过私信告知每个人游戏结果
 			for (String p : participants)
 			{
 				bot.SendMessage (null, p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
@@ -371,6 +384,13 @@ public class DouDiZhu extends CardGame
 		}
 	}
 
+	public static String FormatPlayerName (String sPlayerName, String sLandloardName)
+	{
+		if (StringUtils.equals (sPlayerName, sLandloardName))
+			return "☻" + sPlayerName;
+		else
+			return "☺" + sPlayerName;
+	}
 	String sLastPlayedPlayer = null;
 	Map<String, Object> mapLastPlayedCards = null;
 	List<String> listLastPlayedCardRanks = null;
