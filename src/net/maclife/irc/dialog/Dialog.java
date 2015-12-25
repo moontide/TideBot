@@ -353,11 +353,11 @@ public class Dialog implements Callable<Map<String, Object>>
 			if (participantAnswers.size () != participants.size ())
 			{
 				String msg = "谢谢，请等待其他 " + (participants.size () - participantAnswers.size ()) +  " 人回答完毕。";
-				// 发到对话发起的频道里
-				bot.SendMessage (channel, n, LiuYanBot.OPT_OUTPUT_USER_NAME, 1, msg);
-
-				if (StringUtils.isEmpty (ch))	// 如果用户通过私信发送的答案，则也再在私信里发一次
-					bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
+				//// 发到对话发起的频道里
+				//bot.SendMessage (channel, n, LiuYanBot.OPT_OUTPUT_USER_NAME, 1, msg);
+				//if (StringUtils.isEmpty (ch))	// 如果用户通过私信发送的答案，则也再在私信里发一次
+				//	bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
+				bot.SendMessage (ch, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
 				return true;
 			}
 		}

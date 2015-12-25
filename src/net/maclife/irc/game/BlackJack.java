@@ -40,10 +40,10 @@ public class BlackJack extends CardGame
 
 			// 分暗牌
 			deal ("暗牌: ", Dialog.MESSAGE_TARGET_MASK_PM);
-			bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "每人发了一张暗牌，已通过私信发送具体牌，请注意查看");
+			//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "每人发了一张暗牌，已通过私信发送具体牌，请注意查看");
 
 			// 分明牌
-			deal ("明牌: ", Dialog.MESSAGE_TARGET_MASK_CHANNEL | Dialog.MESSAGE_TARGET_MASK_PM);
+			deal ("明牌: ", Dialog.MESSAGE_TARGET_MASK_PM);
 
 			// 开始
 			List<String> liveParticipants = participants;
@@ -77,7 +77,7 @@ public class BlackJack extends CardGame
 					if (StringUtils.equalsIgnoreCase (value, "1"))
 					{	// 要牌
 						isAllDontWannaCards = false;
-						deal (p, "", Dialog.MESSAGE_TARGET_MASK_PM | Dialog.MESSAGE_TARGET_MASK_CHANNEL);
+						deal (p, "", Dialog.MESSAGE_TARGET_MASK_PM);
 						int nSum = CalculatePoints (p);
 						if (nSum > BURST_POINT)
 						{	// 爆牌 （死亡）
