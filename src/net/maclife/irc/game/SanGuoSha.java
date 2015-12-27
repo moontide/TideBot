@@ -23,7 +23,7 @@ public class SanGuoSha extends Game
 		"忠臣",
 	};
 
-	public SanGuoSha (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
+	public SanGuoSha (LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -52,7 +52,7 @@ public class SanGuoSha extends Game
 			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏身份确定: ");
 			for (int i=0; i<participants.size (); i++)
 			{
-				String p = participants.get (i);
+				String p = (String)participants.get (i);
 				String role = 当前游戏身份.get (i);
 				String sIRCColor = "", sANSIColor="", sANSIEnd="\u001B[m";
 				// 沿袭官方三国杀角色的颜色

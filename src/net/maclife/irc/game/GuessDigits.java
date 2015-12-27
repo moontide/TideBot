@@ -14,7 +14,7 @@ public class GuessDigits extends Game
 	public static final int MAX_GUESS_TIMES = 8;
 	char[] arrayDigitsToGuess;
 
-	public GuessDigits (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
+	public GuessDigits (LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -117,7 +117,7 @@ public class GuessDigits extends Game
 				String sDeltaInfo = null;
 				for (int i=0; i<participants.size (); i++)
 				{
-					String p = participants.get (i);
+					String p = (String)participants.get (i);
 					answer = (String)participantAnswers.get (p);
 					if (isQuitGameAnswer(answer))
 					{

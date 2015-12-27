@@ -108,8 +108,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Google           = "/Google";
 	public static final String BOT_PRIMARY_COMMAND_RegExp           = "RegExp";
 	public static final String BOT_PRIMARY_COMMAND_Ban              = "/ban";
-	public static final String BOT_PRIMARY_COMMAND_JavaScript       = "JavaScript";
-	public static final String BOT_PRIMARY_COMMAND_Java             = "Java";
+	public static final String BOT_PRIMARY_COMMAND_JavaScript       = "/JavaScript";
+	public static final String BOT_PRIMARY_COMMAND_Java             = "/Java";
 	public static final String BOT_PRIMARY_COMMAND_TextArt          = "ANSIArt";
 	public static final String BOT_PRIMARY_COMMAND_Tag              = "dic";
 	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "/GitHub";
@@ -176,10 +176,10 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Google, "/goo+gle", },
 		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split", },
 		{BOT_PRIMARY_COMMAND_Ban, "/vip", },
-		{BOT_PRIMARY_COMMAND_JavaScript, "js", },
+		{BOT_PRIMARY_COMMAND_JavaScript, "/js", },
 		{BOT_PRIMARY_COMMAND_Java, "beanshell", },
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
-		{BOT_PRIMARY_COMMAND_Tag, "bt", "鞭挞", "sm", "tag",},
+		{BOT_PRIMARY_COMMAND_Tag, "/bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "json", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
@@ -7086,6 +7086,16 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 
 	public void ValidateNickNames (String ch, Collection<String> collectionParticipants)
 	{
+		ValidateNickNames (ch, collectionParticipants, null);
+	}
+	/**
+	 * 检查昵称的有效性
+	 * @param ch 频道名
+	 * @param collectionParticipants 一组昵称的集合
+	 * @param sNickPrefixToSkipValidation 如果昵称以此为开头，则跳过有效性检查。如果此参数为 null 或 ""，则不跳过检查
+	 */
+	public void ValidateNickNames (String ch, Collection<String> collectionParticipants, String sNickPrefixToSkipValidation)
+	{
 		User[] users = getUsers (ch);
 //System.out.println ("channel=" + ch);
 //System.out.println ("users=" + users);
@@ -7094,6 +7104,9 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 
 		for (String nick : collectionParticipants)
 		{
+			if (StringUtils.isNotEmpty (sNickPrefixToSkipValidation) && StringUtils.startsWithIgnoreCase (nick, sNickPrefixToSkipValidation))
+				continue;	// “这个昵称你不用检查了”
+
 			boolean bFound = false;
 			for (User u : users)
 			{
@@ -7339,7 +7352,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			// 如果没有添加自己，则加进去： 一定包含发起人
 			setParticipants.add (nick);
 
-		byte option_stage = 0;
+		byte option_stage = 0;	// 1: 读取 参与者列表 参数环节。
 		for (int i=0; listParams!=null && i<listParams.size (); i++)
 		{
 			String param = listParams.get (i);
@@ -7387,7 +7400,11 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			if (StringUtils.isEmpty (ch))
 				channel = opt_reply_to;
 			ValidateChannelName (channel);
-			ValidateNickNames (channel, setParticipants);
+			if ( StringUtils.equalsIgnoreCase (sGame, "斗地主") || StringUtils.equalsIgnoreCase (sGame, "ddz") )
+				// 斗地主加入了 bot 的支持，bot 的名字肯定不在频道里，所以特殊处理……
+				ValidateNickNames (channel, setParticipants, "@");
+			else
+				ValidateNickNames (channel, setParticipants);
 		}
 		else
 		{	// 昵称
@@ -7414,7 +7431,30 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			|| StringUtils.equalsIgnoreCase (sGame, "ddz")
 			)
 		{
-			game = new DouDiZhu (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			Set<Object> setParticipants_WithBotPlayers = new CopyOnWriteArraySet<Object> ();
+			for (String p : setParticipants)
+			{
+				if (StringUtils.startsWithIgnoreCase (p, "@"))
+				{
+					String[] parts = StringUtils.split (StringUtils.substring (p, 1), ":");
+					String sBotClassName = parts[0];
+					String sBotName = "";
+					if (parts.length > 1)
+						sBotName = parts[1];
+					sBotName = p;
+					if (setParticipants_WithBotPlayers.contains (sBotName))
+						throw new IllegalArgumentException ("斗地主游戏添加机器人玩家时，该机器人名称 " + sBotName + " 与已有的玩家名称重名");
+					if (StringUtils.startsWithIgnoreCase (sBotClassName, "不出牌的"))
+						setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_不出牌的机器人(p));
+					//else if (StringUtils.startsWithIgnoreCase (sBotClassName, "谁都打的") || StringUtils.startsWithIgnoreCase (sBotClassName, "能出牌就出牌的"))
+					//	setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_能出牌就出牌的机器人(p));
+					else
+						throw new IllegalArgumentException ("斗地主游戏添加机器人玩家时，遇到了不认识的机器人种类: " + sBotClassName);
+				}
+				else
+					setParticipants_WithBotPlayers.add (p);
+			}
+			game = new DouDiZhu (this, games, setParticipants_WithBotPlayers,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "三国杀")
 			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")

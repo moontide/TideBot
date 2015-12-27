@@ -46,9 +46,9 @@ public class BlackJack extends CardGame
 			deal ("明牌: ", Dialog.MESSAGE_TARGET_MASK_PM);
 
 			// 开始
-			List<String> liveParticipants = participants;
-			List<String> standParticipants = new ArrayList<String> ();	// 停牌的玩家
-			List<String> deadParticipants = new ArrayList<String> ();	// 爆牌的玩家
+			List<Object> liveParticipants = participants;
+			List<Object> standParticipants = new ArrayList<Object> ();	// 停牌的玩家
+			List<Object> deadParticipants = new ArrayList<Object> ();	// 爆牌的玩家
 			while (true)
 			{
 				if (stop_flag)
@@ -65,7 +65,7 @@ public class BlackJack extends CardGame
 				boolean isAllDontWannaCards = true;
 				for (int i=0; i<liveParticipants.size (); i++)
 				{
-					String p = participants.get (i);
+					String p = participants.get (i).toString ();
 					answer = (String)participantAnswers.get (p);
 					value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
 					if (isQuitGameAnswer(answer))
@@ -81,7 +81,7 @@ public class BlackJack extends CardGame
 						int nSum = CalculatePoints (p);
 						if (nSum > BURST_POINT)
 						{	// 爆牌 （死亡）
-							deadParticipants.add (liveParticipants.remove (i));	i --;
+							deadParticipants.add (liveParticipants.remove (i).toString ());	i --;
 						}
 					}
 					else if (StringUtils.equalsIgnoreCase (value, "2"))
@@ -89,7 +89,7 @@ public class BlackJack extends CardGame
 					}
 					else if (StringUtils.equalsIgnoreCase (value, "T"))
 					{
-						standParticipants.add (liveParticipants.remove (i));	i --;
+						standParticipants.add (liveParticipants.remove (i).toString ());	i --;
 					}
 				}
 
@@ -135,7 +135,7 @@ public class BlackJack extends CardGame
 
 	int deck_number = 1;
 
-	public BlackJack (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
+	public BlackJack (LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -289,7 +289,7 @@ public class BlackJack extends CardGame
 	{
 		for (int i=0; i<participants.size (); i++)
 		{
-			String p = participants.get (i);
+			String p = participants.get (i).toString();
 			deal (p, msg, msgTarget);
 		}
 	}
@@ -299,13 +299,13 @@ public class BlackJack extends CardGame
 	 * @author liuyan
 	 *
 	 */
-	class PointsComparator implements Comparator<String>
+	class PointsComparator implements Comparator<Object>
 	{
 		@Override
-		public int compare (String o1, String o2)
+		public int compare (Object o1, Object o2)
 		{
-			String k1 = getPointsKey (o1);
-			String k2 = getPointsKey (o2);
+			String k1 = getPointsKey ((String)o1);
+			String k2 = getPointsKey ((String)o2);
 			int v1 = (int)players_cards.get (k1);
 			int v2 = (int)players_cards.get (k2);
 			return v1-v2;
@@ -437,7 +437,7 @@ public class BlackJack extends CardGame
 	 * @param sIRCColorOfPlayerName 该列表的玩家名颜色
 	 * @return
 	 */
-	StringBuilder GeneratePlayersCardsInfoTo (List<String>players, String listName, StringBuilder sb_in, String sIRCColorOfPlayerName, boolean includeHoleCard)
+	StringBuilder GeneratePlayersCardsInfoTo (List<? extends Object>players, String listName, StringBuilder sb_in, String sIRCColorOfPlayerName, boolean includeHoleCard)
 	{
 		StringBuilder sb = sb_in==null ? new StringBuilder () : sb_in;
 		if (players.size () == 0)
@@ -445,16 +445,16 @@ public class BlackJack extends CardGame
 
 		sb.append (listName);
 		sb.append (": ");
-		for (String p : players)
+		for (Object p : players)
 		{
 			if (sIRCColorOfPlayerName!=null)
 				sb.append (sIRCColorOfPlayerName);
-			sb.append (p);
+			sb.append ((String)p);
 			if (sIRCColorOfPlayerName!=null)
 				sb.append (Colors.NORMAL);
 			sb.append (":");
 
-			GenerateCardsInfoTo (p, sb, includeHoleCard);
+			GenerateCardsInfoTo ((String)p, sb, includeHoleCard);
 		}
 
 		return sb;

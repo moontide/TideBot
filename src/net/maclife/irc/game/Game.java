@@ -19,7 +19,7 @@ public abstract class Game implements Runnable, DialogUser
 	public long timeout_second = 60;
 	protected List<Game> games = null;
 
-	protected List<String> participants = new ArrayList<String> ();	// 参与者
+	protected List<Object> participants = new ArrayList<Object> ();	// 参与者
 
 	protected LiuYanBot bot;
 
@@ -41,7 +41,7 @@ public abstract class Game implements Runnable, DialogUser
 	{
 
 	}
-	public Game (String n, LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
+	public Game (String n, LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{

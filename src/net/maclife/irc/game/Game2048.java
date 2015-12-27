@@ -126,7 +126,7 @@ public class Game2048 extends Game
 	int[][] arrayDigitsBoard;
 
 	@SuppressWarnings ("unchecked")
-	public Game2048 (LiuYanBot bot, List<Game> listGames, Set<String> setParticipants,
+	public Game2048 (LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -719,7 +719,7 @@ System.err.println (sbBoardInANSIString);
 				StringBuilder sb = new StringBuilder ();
 				for (int i=0; i<participants.size (); i++)
 				{
-					String p = participants.get (i);
+					String p = participants.get (i).toString ();
 					answer = (String)participantAnswers.get (p);
 					if (isQuitGameAnswer(answer))
 					{
