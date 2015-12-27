@@ -7446,8 +7446,8 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						throw new IllegalArgumentException ("斗地主游戏添加机器人玩家时，该机器人名称 " + sBotName + " 与已有的玩家名称重名");
 					if (StringUtils.startsWithIgnoreCase (sBotClassName, "不出牌的"))
 						setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_不出牌的机器人(p));
-					//else if (StringUtils.startsWithIgnoreCase (sBotClassName, "谁都打的") || StringUtils.startsWithIgnoreCase (sBotClassName, "能出牌就出牌的"))
-					//	setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_能出牌就出牌的机器人(p));
+					else if (StringUtils.startsWithIgnoreCase (sBotClassName, "谁都打的") || StringUtils.startsWithIgnoreCase (sBotClassName, "能出牌就出牌的"))
+						setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_能出牌就出牌的机器人(p));
 					else
 						throw new IllegalArgumentException ("斗地主游戏添加机器人玩家时，遇到了不认识的机器人种类: " + sBotClassName);
 				}
