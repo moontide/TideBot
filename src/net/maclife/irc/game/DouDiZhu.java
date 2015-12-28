@@ -79,7 +79,8 @@ public class DouDiZhu extends CardGame
 				{
 					sTurnPlayer_抢地主 = ((DouDiZhuBotPlayer)turnPlayer_抢地主).getName ();
 
-					value = (String)((DouDiZhuBotPlayer)turnPlayer_抢地主).抢地主 ();
+					answer = (String)((DouDiZhuBotPlayer)turnPlayer_抢地主).抢地主 ();
+					value = answer;
 					value_and_label = value;
 				}
 
@@ -152,7 +153,7 @@ public class DouDiZhu extends CardGame
 			int iRound = participants.indexOf (地主 /*sLandlordName*/);	// 谁的回合
 			String sWinner = "";
 
-		round:
+		turn:
 			while (true)
 			{
 				if (stop_flag)
@@ -209,7 +210,15 @@ public class DouDiZhu extends CardGame
 					}
 					else if (turnPlayer_回合阶段 instanceof DouDiZhuBotPlayer)
 					{
-						answer = (String)((DouDiZhuBotPlayer)turnPlayer_回合阶段).出牌 ();
+						for (Object p : participants)
+						{
+							if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段))
+								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName) + " 的回合开始，请等他/她出牌…");
+						}
+						System.out.println (sTurnPlayer_回合阶段 + " 的手牌");
+						System.out.println (GenerateCardsInfoTo (sTurnPlayer_回合阶段));
+
+						answer = (String)((DouDiZhuBotPlayer)turnPlayer_回合阶段).出牌 (player_cards);
 						//value = answer;
 						//value_and_label = value;
 					}
@@ -270,7 +279,6 @@ public class DouDiZhu extends CardGame
 
 				int nPassed = 0;	// 过牌的人数
 
-			//turn:
 				while (true)
 				{
 					if (stop_flag)
@@ -301,8 +309,8 @@ public class DouDiZhu extends CardGame
 									bot, bot.dialogs,
 									//sLastPlayedPlayer + " 打出了 " + lastPlayedCardType + " " + listLastPlayedCardRanks + ". " +
 										"你的手牌: " + GenerateCardsInfoTo (sTurnPlayer_回牌阶段) +
-										", 请出牌打过 " + FormatPlayerName (sLastPlayedPlayer, sLandlordName) + " 的牌. " +
-										(StringUtils.equalsIgnoreCase (sTurnPlayer_回牌阶段, getStarter()) ? ". 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""),
+										", 请出牌打过 " + FormatPlayerName (sLastPlayedPlayer, sLandlordName) + " 的牌." +
+										(StringUtils.equalsIgnoreCase (sTurnPlayer_回牌阶段, getStarter()) ? " 回答 " + Colors.REVERSE + "掀桌子" + Colors.REVERSE + " 结束游戏" : ""),
 									true, sTurnPlayer_回牌阶段,
 									channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 							dlg_response.showUsage = false;
@@ -317,6 +325,14 @@ public class DouDiZhu extends CardGame
 						}
 						else if (turnPlayer_回牌阶段 instanceof DouDiZhuBotPlayer)
 						{
+							for (Object p : participants)
+							{
+								if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段))
+									bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " 出牌…");
+							}
+							System.out.println (sTurnPlayer_回牌阶段 + " 的手牌");
+							System.out.println (GenerateCardsInfoTo (sTurnPlayer_回牌阶段));
+
 							answer = (String)((DouDiZhuBotPlayer)turnPlayer_回牌阶段).回牌 (listLastPlayedCardRanks, mapLastPlayedCardsInfo, lastPlayedCardType, player_cards);
 							//value = answer;
 							//value_and_label = value;
@@ -338,6 +354,8 @@ public class DouDiZhu extends CardGame
 						{
 							if (p instanceof String)
 								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, (StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段) ? "你" : FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName)) + " " + msg);
+							else
+								System.out.println (FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " " + msg);
 						}
 						nPassed ++;
 					}
@@ -371,7 +389,7 @@ public class DouDiZhu extends CardGame
 								sWinner = "地主";
 							else
 								sWinner = "农民";
-							break round;
+							break turn;
 						}
 						lastPlayedPlayer = turnPlayer_回牌阶段;
 						sLastPlayedPlayer = sTurnPlayer_回牌阶段;	// 最后一个出牌的玩家
@@ -921,7 +939,16 @@ public class DouDiZhu extends CardGame
 				throw new IllegalArgumentException ("四张牌带的附牌数不对: " + nSolo + "张单牌, " + nPair + "双对子");
 			}
 			else
-			{	// 不当炸弹出，真的没问题？
+			{
+				// 不当炸弹出，真的没问题？
+				// 只有在极少数情况下才这么出牌，比如：
+				// 1.
+				//    - 已知道敌方只有 1 道炸弹牌，
+				//    - 你用一个大的炸弹（含王炸）打了敌方的上道牌，敌方打不过 或者 嘚瑟的故意放水
+				//    - 你的手牌剩下了 N 个组成四牌组顺子（大飞机）的炸弹（也许带几个2单、几个2对），
+				//    - 且你的手牌单个炸弹的点数比敌方小（或者敌方炸弹点数未知）
+				// 2.
+				//    - 任性！
 				if (!isSerial)
 					throw new IllegalArgumentException (nTrio + " 组四张牌不是顺子/飞机");
 				if (nSolo==0 && nPair==0)
@@ -1017,8 +1044,18 @@ public class DouDiZhu extends CardGame
 	 * 	<dd>主牌是否是顺子。 true|false，null 时为 false</dd>
 	 * 	<dt>IsBomb<dt>
 	 * 	<dd>主牌是否是炸弹。 true|false，null 时为 false</dd>
+	 * 	<dt>SoloCards<dt>
+	 * 	<dd>单牌列表。List&lt;String&gt; 类型。</dd>
+	 * 	<dt>PairCards<dt>
+	 * 	<dd>对牌列表。List&lt;String&gt; 类型。这个列表，并非 334477 这样有重复牌的列表，只是 key 的列表，如： 347。</dd>
+	 * 	<dt>TrioCards<dt>
+	 * 	<dd>三牌组列表。List&lt;String&gt; 类型。这个列表，并非 333444777 这样有重复牌的列表，只是 key 的列表，如： 347。</dd>
+	 * 	<dt>QuartetteCards<dt>
+	 * 	<dd>四牌组列表。List&lt;String&gt; 类型。这个列表，并非 333444447777 这样有重复牌的列表，只是 key 的列表，如： 347。</dd>
+	 * 	<dt>MinPoint<dt>
+	 * 	<dd>主牌牌型的最小点数。整数类型。</dd>
 	 * 	<dt>MaxPoint<dt>
-	 * 	<dd>最大点数。整数类型。</dd>
+	 * 	<dd>主牌牌型的最大点数。整数类型。</dd>
 	 * 	<dt>nSolo<dt>
 	 * 	<dd>单牌的数量</dd>
 	 * 	<dt>nPair<dt>
@@ -1072,21 +1109,52 @@ public class DouDiZhu extends CardGame
 			}
 		}
 
-		// 排成顺子
+		// 将单、对（两牌组）、三牌组、四牌组、主牌组 的列表排成顺子
+		List<String> listSoloCards = new ArrayList<String> ();
+		List<String> listPairCards = new ArrayList<String> ();
+		List<String> listTrioCards = new ArrayList<String> ();
+		List<String> listQuartetteCards = new ArrayList<String> ();
 		List<String> listPrimaryCards = new ArrayList<String> ();
 		for (String k : result.keySet ())
 		{
+			switch ( (int)result.get (k) )
+			{
+			case 1:
+				listSoloCards.add (k);
+				break;
+			case 2:
+				listPairCards.add (k);
+				break;
+			case 3:
+				listTrioCards.add (k);
+				break;
+			case 4:
+				listQuartetteCards.add (k);
+				break;
+			}
 			if ((int)result.get (k) == nPrimaryCardType)
 				listPrimaryCards.add (k);
 		}
+		Collections.sort (listSoloCards, comparator);
+		Collections.sort (listPairCards, comparator);
+		Collections.sort (listTrioCards, comparator);
+		Collections.sort (listQuartetteCards, comparator);
 		Collections.sort (listPrimaryCards, comparator);
-		int MaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
+		int nMinPoint = RankToPoint (listPrimaryCards.get (0));	// 主牌排序后的最后一张牌做最大点数
+		int nMaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
 		boolean IsSerial = IsSerial (listPrimaryCards);
 
 		// 保存结果
 		result.put ("PrimaryCardType", nPrimaryCardType);
 		result.put ("PrimaryCards", listPrimaryCards);
-		result.put ("MaxPoint", MaxPoint);
+		result.put ("MinPoint", nMinPoint);
+		result.put ("MaxPoint", nMaxPoint);
+
+		result.put ("SoloCards", listSoloCards);
+		result.put ("PairCards", listPairCards);
+		result.put ("TrioCards", listTrioCards);
+		result.put ("QuartetteCards", listQuartetteCards);
+
 		result.put ("IsBomb", (nPrimaryCardType>=4 && nTrio==0 && nPair==0 && nSolo==0) || (listCardRanks.size ()==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★")));
 		result.put ("IsSerial", IsSerial);
 		result.put ("nSolo", nSolo);
@@ -1095,6 +1163,19 @@ public class DouDiZhu extends CardGame
 		result.put ("nQuartette", nQuartette);
 
 		return result;
+	}
+	public static List<String> PlayerCardsToCardRanks (List<Map<String, Object>> player_cards)
+	{
+		List<String> listCardRanks = new ArrayList ();
+		for (Map card : player_cards)
+		{
+			listCardRanks.add ((String)card.get ("rank"));
+		}
+		return listCardRanks;
+	}
+	public static Map<String, Object> CalculatePlayerCards (List<Map<String, Object>> player_cards)
+	{
+		return CalculateCards (PlayerCardsToCardRanks (player_cards));
 	}
 
 	/**

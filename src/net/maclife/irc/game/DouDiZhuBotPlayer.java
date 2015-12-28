@@ -12,26 +12,26 @@ public abstract class DouDiZhuBotPlayer extends TurnBasedBotPlayer
 	}
 	public abstract Object 抢地主 (Object... params);
 
-	public abstract String 找出点数值大于N的单 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的顺子 (List<Map<String, Object>> player_cards, int n);
+	public abstract String 找出点数值大于N的单 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public abstract String 找出点数值大于N的顺子 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=5 */);
 
-	public abstract String 找出点数值大于N的对 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的连对 (List<Map<String, Object>> player_cards, int n);
+	public abstract String 找出点数值大于N的对 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public abstract String 找出点数值大于N的连对 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=3 */);
 
-	public abstract String 找出点数值大于N的三 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的三带1 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的三带1对 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的飞机 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的飞机带单 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的飞机带对 (List<Map<String, Object>> player_cards, int n);
+	public abstract String 找出点数值大于N的三 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public abstract String 找出点数值大于N的三带1 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public abstract String 找出点数值大于N的三带1对 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public abstract String 找出点数值大于N的飞机 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=2 */);
+	public abstract String 找出点数值大于N的飞机带单 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=2 */);
+	public abstract String 找出点数值大于N的飞机带对 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=2 */);
 
-	public abstract String 找出点数值大于N的四带2 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的四带2对 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的大飞机 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的大飞机带2单 (List<Map<String, Object>> player_cards, int n);
-	public abstract String 找出点数值大于N的大飞机带2对 (List<Map<String, Object>> player_cards, int n);
+	public abstract String 找出点数值大于N的四带2 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public abstract String 找出点数值大于N的四带2对 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public abstract String 找出点数值大于N的大飞机 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=2 */);
+	public abstract String 找出点数值大于N的大飞机带2单 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=2 */);
+	public abstract String 找出点数值大于N的大飞机带2对 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=2 */);
 
-	public abstract String 找出点数值大于N的炸弹 (List<Map<String, Object>> player_cards, int n);
+	public abstract String 找出点数值大于N的炸弹 (List<Map<String, Object>> player_cards, int nMaxPoint);
 	public String 找出王炸 (List<Map<String, Object>> player_cards)
 	{
 		boolean 有小王 = false;
