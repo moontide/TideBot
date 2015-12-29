@@ -138,7 +138,7 @@ public class DouDiZhu extends CardGame
 			assert (sLandlordName != null);
 			List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (sLandlordName);
 			player_cards.addAll (deck);
-				Collections.sort (player_cards, comparator);
+				Collections.sort (player_cards, 斗地主点值比较器);
 			GenerateCardsInfoTo (deck, sb);
 			msg = "地主是 " + FormatPlayerName (sLandlordName, sLandlordName) + "，地主获得了底牌: "+ sb;
 			for (Object p : participants)
@@ -210,11 +210,11 @@ public class DouDiZhu extends CardGame
 					}
 					else if (turnPlayer_回合阶段 instanceof DouDiZhuBotPlayer)
 					{
-						for (Object p : participants)
-						{
-							if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段))
-								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName) + " 的回合开始，请等他/她出牌…");
-						}
+						//for (Object p : participants)
+						//{
+						//	if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段))
+						//		bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName) + " 的回合开始，请等他/她出牌…");
+						//}
 						System.out.println (sTurnPlayer_回合阶段 + " 的手牌");
 						System.out.println (GenerateCardsInfoTo (sTurnPlayer_回合阶段));
 
@@ -325,11 +325,11 @@ public class DouDiZhu extends CardGame
 						}
 						else if (turnPlayer_回牌阶段 instanceof DouDiZhuBotPlayer)
 						{
-							for (Object p : participants)
-							{
-								if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段))
-									bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " 出牌…");
-							}
+							//for (Object p : participants)
+							//{
+							//	if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段))
+							//		bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " 出牌…");
+							//}
 							System.out.println (sTurnPlayer_回牌阶段 + " 的手牌");
 							System.out.println (GenerateCardsInfoTo (sTurnPlayer_回牌阶段));
 
@@ -522,7 +522,7 @@ public class DouDiZhu extends CardGame
 	 * @param answer
 	 * @return 规整化、排序后的牌列表
 	 */
-	List<String> AnswerToCardRanksList (String answer)
+	public static List<String> AnswerToCardRanksList (String answer)
 	{
 //System.out.println (answer);
 		answer = answer
@@ -553,7 +553,7 @@ public class DouDiZhu extends CardGame
 			String r = listCardRanks.get (i);
 			listCardRanks.set (i, FormalRank(r));
 		}
-		Collections.sort (listCardRanks, comparator);
+		Collections.sort (listCardRanks, 斗地主点值比较器);
 //System.out.println (listCardRanks);
 		return listCardRanks;
 	}
@@ -569,6 +569,17 @@ public class DouDiZhu extends CardGame
 		抢地主候选答案.add (new String[]{"3", "3分"});
 		抢地主候选答案.add (new String[]{"N", "不抢"});
 	}
+	/**
+	 * 牌面的索引值就是该牌面的点数，点数从 3(3) 开始，到 19(★) 为止
+	 */
+	public static final String[] 斗地主牌面索引 =
+	{
+		"",
+		"",  "",  "3", "4", "5",
+		"6", "7", "8", "9", "10",
+		"J", "Q", "K", "A", "",
+		"2", "",  "☆", "★",
+	};
 	public enum Type
 	{
 		__未知牌型__,
@@ -671,45 +682,26 @@ public class DouDiZhu extends CardGame
 		Map<String, Object> card = new HashMap<String, Object> ();
 		card.put ("suit", "");	// 花色
 		card.put ("rank", "☆");	// 牌面 🃟☆
-		card.put ("point", 99);	// 大小
+		card.put ("point", Arrays.binarySearch (斗地主牌面索引, card.get ("rank")));	// 点数值大小
 		card.put ("color", "");
 		deck.add (card);
 
 		card = new HashMap<String, Object> ();
 		card.put ("suit", "");	// 花色
 		card.put ("rank", "★");	// 牌面 🃏★
-		card.put ("point", 100);	// 大小
+		card.put ("point", Arrays.binarySearch (斗地主牌面索引, card.get ("rank")));	// 大小
 		card.put ("color", Colors.PURPLE);
 		deck.add (card);
 	}
 
 	public static int RankToPoint (String rank)
 	{
-		if (StringUtils.equalsIgnoreCase (rank, "3")
-			|| StringUtils.equalsIgnoreCase (rank, "4")
-			|| StringUtils.equalsIgnoreCase (rank, "5")
-			|| StringUtils.equalsIgnoreCase (rank, "6")
-			|| StringUtils.equalsIgnoreCase (rank, "7")
-			|| StringUtils.equalsIgnoreCase (rank, "8")
-			|| StringUtils.equalsIgnoreCase (rank, "9")
-			)
-			return Integer.parseInt (rank);
-		else if (StringUtils.equalsIgnoreCase (rank, "10") || StringUtils.equalsIgnoreCase (rank, "0") || StringUtils.equalsIgnoreCase (rank, "1"))
-			return 10;
-		else if (StringUtils.equalsIgnoreCase (rank, "J"))
-			return 11;
-		else if (StringUtils.equalsIgnoreCase (rank, "Q"))
-			return 12;
-		else if (StringUtils.equalsIgnoreCase (rank, "K"))
-			return 13;
-		else if (StringUtils.equalsIgnoreCase (rank, "A"))
-			return 14;
-		else if (StringUtils.equalsIgnoreCase (rank, "2"))
-			return 20;	// 不能跟 A 的点数值连起来，否则在判断是否顺子时会把 2 误判断进去
-		else if (StringUtils.equalsIgnoreCase (rank, "☆") || StringUtils.equalsIgnoreCase (rank, "X") || StringUtils.equalsIgnoreCase (rank, "XW"))	// XiaoWang 小王
-			return 99;
-		else if (StringUtils.equalsIgnoreCase (rank, "★") || StringUtils.equalsIgnoreCase (rank, "D") || StringUtils.equalsIgnoreCase (rank, "DW"))	// DaWang 大王
-			return 100;
+		String sFormalRank = FormalRank (rank);
+		for (int i=0; i<斗地主牌面索引.length; i++)
+		{
+			if (StringUtils.equalsIgnoreCase (sFormalRank, 斗地主牌面索引[i]))
+				return i;
+		}
 		return 0;
 	}
 
@@ -763,7 +755,7 @@ public class DouDiZhu extends CardGame
 			{
 				player_cards.add (deck.get (i*3 + ip));
 			}
-			Collections.sort (player_cards, comparator);
+			Collections.sort (player_cards, 斗地主点值比较器);
 			if (p instanceof String)
 				bot.SendMessage (null, sPlayerName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "您摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(sPlayerName));
 		}
@@ -814,10 +806,11 @@ public class DouDiZhu extends CardGame
 				v1 = RankToPoint ((String)o1);
 				v2 = RankToPoint ((String)o2);
 			}
+			//System.out.println (o1 + " - " + o2 + " = " + v1 + " - " + v2 + " = " + (v1-v2));
 			return v1-v2;
 		}
 	}
-	public static final Comparator<Object> comparator = new DDZPointComparator ();
+	public static final Comparator<Object> 斗地主点值比较器 = new DDZPointComparator ();
 
 	/**
 	 * 	生成单个玩家的牌的信息
@@ -1056,6 +1049,7 @@ public class DouDiZhu extends CardGame
 	 * 	<dd>主牌牌型的最小点数。整数类型。</dd>
 	 * 	<dt>MaxPoint<dt>
 	 * 	<dd>主牌牌型的最大点数。整数类型。</dd>
+
 	 * 	<dt>nSolo<dt>
 	 * 	<dd>单牌的数量</dd>
 	 * 	<dt>nPair<dt>
@@ -1064,6 +1058,9 @@ public class DouDiZhu extends CardGame
 	 * 	<dd>三牌的数量</dd>
 	 * 	<dt>nQuartette<dt>
 	 * 	<dd>四牌的数量</dd>
+
+	 * 	<dt>&lt;各张牌的正式牌面（0 → 10， DW → ★）gt;<dt>
+	 * 	<dd>该牌的数量。如果该牌不存在，则 get(牌) 为 null </dd>
 	 * </dl>
 	 */
 	public static Map<String, Object> CalculateCards (List<String> listCardRanks)
@@ -1135,12 +1132,12 @@ public class DouDiZhu extends CardGame
 			if ((int)result.get (k) == nPrimaryCardType)
 				listPrimaryCards.add (k);
 		}
-		Collections.sort (listSoloCards, comparator);
-		Collections.sort (listPairCards, comparator);
-		Collections.sort (listTrioCards, comparator);
-		Collections.sort (listQuartetteCards, comparator);
-		Collections.sort (listPrimaryCards, comparator);
-		int nMinPoint = RankToPoint (listPrimaryCards.get (0));	// 主牌排序后的最后一张牌做最大点数
+		Collections.sort (listSoloCards, 斗地主点值比较器);
+		Collections.sort (listPairCards, 斗地主点值比较器);
+		Collections.sort (listTrioCards, 斗地主点值比较器);
+		Collections.sort (listQuartetteCards, 斗地主点值比较器);
+		Collections.sort (listPrimaryCards, 斗地主点值比较器);
+		int nMinPoint = RankToPoint (listPrimaryCards.get (0));	// 主牌排序后的第一张牌做最小点数
 		int nMaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
 		boolean IsSerial = IsSerial (listPrimaryCards);
 

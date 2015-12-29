@@ -1742,7 +1742,7 @@ System.err.println (message);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("正整数", true) + "] <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 ." + formatBotOption ("正整数", true) + " -- 返回几条搜索结果，默认是 2 条; 因 Google 的 API 返回结果不超过 4 条，所以，该数值超过 4 也不起作用。");
 		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("match", true) + "|" + formatBotCommandInstance ("replace", true) + "|" + formatBotCommandInstance ("substitute", true) + "|" + formatBotCommandInstance ("split", true) + ".[" + formatBotOption ("RegExp选项", true) + "].[" + formatBotOptionInstance ("color", true) + "] <" + formatBotParameter ("参数1", true) + "> [" + formatBotParameter ("参数2", true) + "] [" + formatBotParameter ("参数3", true) + "] [" + formatBotParameter ("参数4", true) + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + formatBotOptionInstance ("i", true) + "-不分大小写, " + formatBotOptionInstance ("m", true) + "-多行模式, " + formatBotOptionInstance ("s", true) + "-.也会匹配换行符; " + formatBotCommandInstance ("regexp", true) + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("match", true) + "|" + formatBotCommandInstance ("replace", true) + "|" + formatBotCommandInstance ("substitute", true) + "|" + formatBotCommandInstance ("split", true) + ".[" + formatBotOption ("RegExp选项", true) + "].[" + formatBotOptionInstance ("nocolor", true) + "] <" + formatBotParameter ("参数1", true) + "> [" + formatBotParameter ("参数2", true) + "] [" + formatBotParameter ("参数3", true) + "] [" + formatBotParameter ("参数4", true) + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + formatBotOptionInstance ("i", true) + "-不分大小写, " + formatBotOptionInstance ("m", true) + "-多行模式, " + formatBotOptionInstance ("s", true) + "-.也会匹配换行符; " + formatBotCommandInstance ("regexp", true) + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance ("match", true) + ": " + formatBotParameter ("参数1", true) + " 匹配 " + formatBotParameter ("参数2", true) + "; " + formatBotCommandInstance ("replace", true) + "/" + formatBotCommandInstance ("substitute", true) + ": " + formatBotParameter ("参数1", true) + " 中的 " + formatBotParameter ("参数2", true) + " 替换成 " + formatBotParameter ("参数3", true) + "; " + formatBotCommandInstance ("split", true) + ": 用 " + formatBotParameter ("参数2", true) + " 分割 " + formatBotParameter ("参数1", true) + ";");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
@@ -1833,8 +1833,11 @@ System.err.println (message);
 					"|" + formatBotParameterInstance ("21点", true) +
 					"|" + formatBotParameterInstance ("斗地主", true) +
 					"|" + formatBotParameterInstance ("2048", true) +
-				", ." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字" +
-				". " + formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数." +
+					""
+			);
+			SendMessage (ch, u, mapGlobalOptions,
+				"." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字" +
+				". " + formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数. 在用 /p 添加玩家时，可用 @不出牌[其他附加名] 添加不出牌的机器人，用 @谁都打[其他附加名] 或 @能出牌就出牌[其他附加名] 或 @不出牌不舒服斯基[其他附加名] 来添加谁都打的机器人玩家，用 @智能[其他附加名] 或 @有点智能[其他附加名] 或 @Smart[其他附加名] 添加稍微有点小智能的机器人。" +
 				" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主 " + formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (".w=格子宽度", true) + formatBotOption (".h=格子高度", true) + formatBotOption (".p=2的幂指数", true) +
 				" 来改变方格的大小、赢数的大小。限制： p的大小必须小于 w*h，比如：宽3x高3，则p最高只能取值为8。 p=11 就是默认的达到 2048 就赢。 一般在 IRC 中玩，建议 .w=3.h=3.p=8或者7 (因为速度的原因)" +
 				""
@@ -2517,6 +2520,7 @@ System.err.println (message);
 				else
 				{
 					bot.SendMessage (channel, nick, mapGlobalOptions, "共 " + participantAnswers.size() + " 人投票，其中 " + nAgreed + " 人投同意票，同意比=" + String.format ("%.2f%%", dRatio*100) + "。同意数量达到投票人数的 2/3，执行投票结果：" + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL);
+					TimeUnit.SECONDS.sleep (1);	// 延迟一段时间，有的时候， bot 发的操作提示消息还没到，却先收到了操作结果
 					if (StringUtils.equalsIgnoreCase (voteAction, "kick"))
 					{
 						if (StringUtils.isEmpty (voteReason))
@@ -4772,12 +4776,12 @@ System.out.println (nMatch + ": " + sMatchedString);
 		boolean bIsSrcFromLastMessage = false;
 		String sRegExp = null;
 		String sReplacement = null;
-		boolean bColorized = false;	// 是否以颜色的方式显示结果
+		boolean bNotColorized = false;	// 是否以不用颜色高亮的方式显示结果，默认： false - 用颜色
 		int opt_max_match_times = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“匹配次数”（目前仅当 bColorized = true 时有效）
 		boolean opt_match_times_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
 		if (listCmdEnv!=null && listCmdEnv.size () > 1)
 		{
-			bColorized = listCmdEnv.get (1).equalsIgnoreCase ("color");
+			bNotColorized = listCmdEnv.get (1).equalsIgnoreCase ("nocolor");
 		}
 
 		//
@@ -4804,7 +4808,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				if (! StringUtils.isEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
-				if (! bColorized)
+				if (bNotColorized)
 					SendMessage (ch, nick, mapGlobalOptions, "" + sSrc.matches (sRegExp));
 				else
 				{
@@ -4849,7 +4853,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				{
 					sSrc = sLastMessage;
 					bIsSrcFromLastMessage = true;
-					bColorized = true;	// 强制打开颜色
+					//bColorized = true;	// 强制打开颜色
 					mapGlobalOptions.put ("opt_output_username", false);	// 强制不输出用户昵称
 
 					if (ch != null)	// 仅仅在频道内才检查是不是对某人说
@@ -4898,7 +4902,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				if (! StringUtils.isEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
-				if (! bColorized)
+				if (bNotColorized)
 				{
 					if (bIsSrcFromLastMessage)
 						SendMessage (ch, nick, mapGlobalOptions, sPrefix + nick + " 纠正道: " + sSrc.replaceAll (sRegExp, sReplacement));
@@ -4937,7 +4941,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				if (! StringUtils.isEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
-				if (! bColorized)
+				if (bNotColorized)
 				{
 					if (opt_match_times_specified)
 						SendMessage (ch, nick, mapGlobalOptions, Arrays.toString (sSrc.split (sRegExp, opt_max_match_times)));
@@ -7444,14 +7448,21 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					sBotName = p;
 					if (setParticipants_WithBotPlayers.contains (sBotName))
 						throw new IllegalArgumentException ("斗地主游戏添加机器人玩家时，该机器人名称 " + sBotName + " 与已有的玩家名称重名");
-					if (StringUtils.startsWithIgnoreCase (sBotClassName, "不出牌"))
-						setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_不出牌的机器人(p));
-					else if (StringUtils.startsWithIgnoreCase (sBotClassName, "谁都打")
+
+					if (StringUtils.startsWithIgnoreCase (sBotClassName, "谁都打")
 						|| StringUtils.startsWithIgnoreCase (sBotClassName, "能出牌就出牌")
 						|| StringUtils.startsWithIgnoreCase (sBotClassName, "能上就上")
-						|| StringUtils.startsWithIgnoreCase (sBotClassName, "不出牌不舒服斯基")
+						|| StringUtils.startsWithIgnoreCase (sBotClassName, "不出牌不舒服斯基")	// 前面带“不出牌”，与不出牌的 Bot 相同，所以需要排在“不出牌”前面
 						 )
 						setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_能出牌就出牌的机器人(p));
+					else if (StringUtils.startsWithIgnoreCase (sBotClassName, "不出牌"))
+						setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_不出牌的机器人(p));
+					//else if (StringUtils.startsWithIgnoreCase (sBotClassName, "有点小智能")
+					//	|| StringUtils.startsWithIgnoreCase (sBotClassName, "智能")
+					//	|| StringUtils.startsWithIgnoreCase (sBotClassName, "Smart")
+					//	|| StringUtils.startsWithIgnoreCase (sBotClassName, "MoonTide")
+					//	)
+					//	setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_MoonTide(p));
 					else
 						throw new IllegalArgumentException ("斗地主游戏添加机器人玩家时，遇到了不认识的机器人种类: " + sBotClassName);
 				}
