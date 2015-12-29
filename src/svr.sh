@@ -12,7 +12,7 @@ export botdir=${botdir-$(dirname $0)}
 export nick=GameBot
 export botcmdPrefix=
 export channels=LiuYanBot,linuxba
-export ban="*:cmd:服务器上运行，怕被玩坏，禁止所有人使用 Cmd 命令;*:javascript;*:java"
+export ban="*:cmd:服务器上运行，怕被玩坏，禁止所有人使用 Cmd 命令;*:/javascript;*:/java"
 export LANG=zh_CN.UTF-8
 #export _JAVA_OPTIONS="-Dhttp.proxyHost=192.168.115.245 -Dhttp.proxyPort=9999 -Dhttps.proxyHost=192.168.115.245 -Dhttps.proxyPort=9999  -Dhttp.nonProxyHosts= -Dhttp.proxyUser= -Dhttp.proxyPassword="
 

@@ -6,7 +6,7 @@ export botdir=$(dirname $0)
 export nick=GameBot2
 export botcmdPrefix=
 export channels=LiuYanBot
-export ban="*:cmd:怕被玩坏，禁止所有人执行 Cmd 命令;*:javascript;*:java"
+export ban="*:cmd:怕被玩坏，禁止所有人执行 Cmd 命令;*:/javascript;*:/java"
 export LANG=zh_CN.UTF-8
 
 #export database_driver=com.mysql.jdbc.Driver
