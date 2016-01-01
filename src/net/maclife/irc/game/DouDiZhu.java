@@ -1,6 +1,7 @@
 package net.maclife.irc.game;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 import org.apache.commons.lang3.*;
 import org.jibble.pircbot.*;
@@ -542,7 +543,7 @@ public class DouDiZhu extends CardGame
 			listCardRanks = Arrays.asList (arrayCardRanks);
 		else
 			// JDK 1.7 以及以前的版本
-			Arrays.asList (Arrays.copyOfRange(arrayCardRanks, 1, arrayCardRanks.length));
+			listCardRanks = Arrays.asList (Arrays.copyOfRange(arrayCardRanks, 1, arrayCardRanks.length));
 //System.out.println (listCardRanks);
 
 //		listCardRanks.remove (0);	// split ("") 后第一个元素是空字符串，剔除掉 // Arrays.asList() 返回的是个固定尺寸的列表，不能增加、删除。 java.lang.UnsupportedOperationException //	at java.util.AbstractList.remove(AbstractList.java:161)
@@ -606,6 +607,12 @@ public class DouDiZhu extends CardGame
 
 		炸弹,
 		王炸,
+	}
+	public enum 附带牌类型
+	{
+		不带牌,
+		带单,
+		带对,
 	}
 
 	public DouDiZhu ()
@@ -903,6 +910,10 @@ public class DouDiZhu extends CardGame
 	/**
 	 * 判断牌型。
 	 * 注意：这里并不判断所有的牌是不是在自己手里，调用者需要自己判断。
+	 *
+	 * 注意：此判断牌型方法对极罕见的牌型存在误判/不能判别的问题，例如：
+	 * 飞机带另外几张单牌，但几张单牌其中的一张也在顺子中出现，如：333 444 555 (3)67
+	 *
 	 * @param listCardRanks 玩家出的牌的列表 (列表不需要排序)
 	 * @return Type 牌型
 	 * @throws IllegalArgumentException 如果牌型不正确，则通常会抛出 IllegalArgumentException 异常
@@ -1027,7 +1038,7 @@ public class DouDiZhu extends CardGame
 	/**
 	 * 计算得到牌的一些常用信息
 	 * @param listCardRanks
-	 * @return Map 对象，其中包含的 key 有
+	 * @return 如果 listCardRanks 是空的或者等于 null，则返回空 Map 对象； 否则返回一个有内容的 Map 对象，其中包含的 key 有
 	 * <dl>
 	 * 	<dt>PrimaryCardType<dt>
 	 * 	<dd>主牌牌型。整数类型。这个牌型仅仅是主牌是 1张牌 2张牌 3张牌 4张牌 的意思</dd>
@@ -1065,13 +1076,17 @@ public class DouDiZhu extends CardGame
 	 */
 	public static Map<String, Object> CalculateCards (List<String> listCardRanks)
 	{
+		if (listCardRanks==null || listCardRanks.isEmpty ())
+			return Collections.EMPTY_MAP;
 		Map<String, Object> result = new HashMap<String, Object> ();
 
 		// 首先，统计相同点数值牌的数量（数量正常情况下肯定取值 [1-4]，即：肯定相同点数值牌最少是 1 张牌 -- 单牌，最多是 4 张牌 -- 炸弹）
 		String sRank;
+		Set<String> setCardRanks = new ConcurrentSkipListSet<String> (斗地主点值比较器);
 		for (int i=0; i<listCardRanks.size (); i++)
 		{
 			sRank = FormalRank (listCardRanks.get (i));
+			setCardRanks.add (sRank);
 			if (result.get (sRank)==null)
 				result.put (sRank, 1);
 			else
@@ -1112,6 +1127,7 @@ public class DouDiZhu extends CardGame
 		List<String> listTrioCards = new ArrayList<String> ();
 		List<String> listQuartetteCards = new ArrayList<String> ();
 		List<String> listPrimaryCards = new ArrayList<String> ();
+		List<String> listUniqueCards = new ArrayList<String> ();	// 不重复的牌列表
 		for (String k : result.keySet ())
 		{
 			switch ( (int)result.get (k) )
@@ -1137,11 +1153,15 @@ public class DouDiZhu extends CardGame
 		Collections.sort (listTrioCards, 斗地主点值比较器);
 		Collections.sort (listQuartetteCards, 斗地主点值比较器);
 		Collections.sort (listPrimaryCards, 斗地主点值比较器);
+		listUniqueCards.addAll (setCardRanks);
 		int nMinPoint = RankToPoint (listPrimaryCards.get (0));	// 主牌排序后的第一张牌做最小点数
 		int nMaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
 		boolean IsSerial = IsSerial (listPrimaryCards);
 
 		// 保存结果
+		result.put ("CardRanksSet", setCardRanks);
+		result.put ("UniqueCards", listUniqueCards);
+
 		result.put ("PrimaryCardType", nPrimaryCardType);
 		result.put ("PrimaryCards", listPrimaryCards);
 		result.put ("MinPoint", nMinPoint);

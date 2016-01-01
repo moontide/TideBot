@@ -7462,7 +7462,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					//	|| StringUtils.startsWithIgnoreCase (sBotClassName, "Smart")
 					//	|| StringUtils.startsWithIgnoreCase (sBotClassName, "MoonTide")
 					//	)
-					//	setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_MoonTide(p));
+					//	setParticipants_WithBotPlayers.add (new DouDiZhuBotPlayer_有点小智能的机器人(p));
 					else
 						throw new IllegalArgumentException ("斗地主游戏添加机器人玩家时，遇到了不认识的机器人种类: " + sBotClassName);
 				}

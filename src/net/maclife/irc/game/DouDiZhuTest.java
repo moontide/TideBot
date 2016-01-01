@@ -10,123 +10,62 @@ import org.junit.*;
 
 public class DouDiZhuTest
 {
-	@Test (expected=IllegalArgumentException.class)
+	@Test //(expected=IllegalArgumentException.class)
 	public void 牌型检测 ()
 	{
 System.out.println ("牌型测试 开始");
-		List<String> listCardRanks = new ArrayList<String> ();
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("2")), Type.单);
 
-		listCardRanks.add ("2");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.单);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("22")), Type.对);
 
-		listCardRanks.add ("2");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.对);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("222")), Type.三);
 
-		listCardRanks.add ("2");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.三);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("2223")), Type.三带1);
 
-		listCardRanks.add ("3");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.三带1);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("22233")), Type.三带1对);
 
-		listCardRanks.add ("3");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.三带1对);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("2222")), Type.炸弹);
 
-		listCardRanks.remove (listCardRanks.size () - 1);
-		listCardRanks.remove (listCardRanks.size () - 1);
-		listCardRanks.add ("2");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.炸弹);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("222234")), Type.四带2);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("222233")), Type.四带2);
 
-		listCardRanks.add ("3");
-		listCardRanks.add ("3");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.四带2);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("22223344")), Type.四带2对);
 
-		listCardRanks.add ("4");
-		listCardRanks.add ("4");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.四带2对);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("345678910")), Type.顺子);
 
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("33445566")), Type.连对);
 
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("666777")), Type.飞机);
 
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("66677734")), Type.飞机带单);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("66677733")), Type.飞机带单);
 
-		listCardRanks.clear ();
-		listCardRanks.add ("10");
-		listCardRanks.add ("3");
-		listCardRanks.add ("4");
-		listCardRanks.add ("5");
-		listCardRanks.add ("6");
-		listCardRanks.add ("7");
-		listCardRanks.add ("8");
-		listCardRanks.add ("9");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.顺子);
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("6667773344")), Type.飞机带对);
+
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("666677773344")), Type.大飞机带2单);
+
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("6666777733441010AA")), Type.大飞机带2对);
+
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("66667777")), Type.大飞机);
+
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("★☆")), Type.王炸);
 
 
-
-
-		listCardRanks.clear ();
-		listCardRanks.add ("3");
-		listCardRanks.add ("3");
-		listCardRanks.add ("4");
-		listCardRanks.add ("4");
-		listCardRanks.add ("5");
-		listCardRanks.add ("5");
-		listCardRanks.add ("6");
-		listCardRanks.add ("6");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.连对);
-
-
-
-
-		listCardRanks.clear ();
-		listCardRanks.add ("6");
-		listCardRanks.add ("6");
-		listCardRanks.add ("6");
-		listCardRanks.add ("7");
-		listCardRanks.add ("7");
-		listCardRanks.add ("7");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.飞机);
-
-		listCardRanks.add ("3");
-		listCardRanks.add ("3");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.飞机带单);
-
-		listCardRanks.add ("4");
-		listCardRanks.add ("4");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.飞机带对);
-
-		listCardRanks.add ("6");
-		listCardRanks.add ("7");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.大飞机带2单);
-
-		listCardRanks.add ("10");
-		listCardRanks.add ("10");
-		listCardRanks.add ("A");
-		listCardRanks.add ("A");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.大飞机带2对);
-
-		listCardRanks.remove ("3");
-		listCardRanks.remove ("4");
-		listCardRanks.remove ("10");
-		listCardRanks.remove ("A");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.大飞机);
-
-		listCardRanks.clear ();
-		listCardRanks.add ("★");
-		listCardRanks.add ("☆");
-		assertEquals (DouDiZhu.GetCardsType(listCardRanks), Type.王炸);
-
-
-
-
-		listCardRanks.clear ();
-		listCardRanks.add ("Q");
-		listCardRanks.add ("K");
-		listCardRanks.add ("A");
-		listCardRanks.add ("2");
-		listCardRanks.add ("J");
-System.out.println (DouDiZhu.GetCardsType(listCardRanks));
+		//
+		// 不常见的牌型
+		// 已知 bug
+		//
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("33344435")), Type.飞机带单);
 System.out.println ("牌型测试 结束");
 	}
 
 	@Test (expected=IllegalArgumentException.class)
+	public void 牌型检测2 ()
+	{
+		System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("QKA2J")));
+	}
+
+	@Test// (expected=IllegalArgumentException.class)
 	public void 计算最小出牌次数 ()
 	{
 		Map<String, Object> mapResult = null;
@@ -144,7 +83,7 @@ System.out.println ("牌型测试 结束");
 		listCardRanks.add ("K");
 		listCardRanks.add ("A");
 
-		mapResult = DouDiZhuBotPlayer_MoonTide.EvaluateCards (listCardRanks);
-		assertEquals (mapResult.get ("MinTimes"), 1);
+		//mapResult = DouDiZhuBotPlayer_有点小智能的机器人.EvaluateCards (listCardRanks);
+		//assertEquals (mapResult.get ("MinTimes"), 1);
 	}
 }
