@@ -10,7 +10,7 @@ export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix -Dmessage.delay=1000 -Djava.
 
 for lf in commons-lang3-3.4 commons-io-2.4 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.4.1 commons-dbcp2-2.0.1 commons-codec-1.10 \
     mysql-connector-java-5.1.38-bin  mariadb-java-client-1.1.8 \
-    jackson-core-2.6.4  jackson-databind-2.6.4  jackson-annotations-2.6.4 \
+    jackson-core-2.7.0  jackson-databind-2.7.0  jackson-annotations-2.7.0 \
     maxmind-db-1.0.0  geoip2-2.3.1  \
     google-pagerank-api-2.0 \
     jsoup-1.8.3 \
