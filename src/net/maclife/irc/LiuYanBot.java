@@ -152,6 +152,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Kick     = "/Kick";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_IRCBan   = "/IRCBan";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_UnBan    = "/UnBan";
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_KickBan  = "/KickBan";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_OP       = "/OP";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_DeOP     = "/DeOP";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Voice    = "/Voice";
@@ -220,6 +221,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_CONSOLE_Kick, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_IRCBan, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_UnBan, },
+		{BOT_PRIMARY_COMMAND_CONSOLE_KickBan, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_OP, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_DeOP, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Voice, },
@@ -1046,9 +1048,17 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	{
 		super.onAction (sender, login, hostname, target, action);
 
-		if (sender.equalsIgnoreCase ("smbot"))
+		//
+		// 针对一些整点报时、整点动作的 bot 的响应
+		//
+		long lCurrentTimeSeconds = System.currentTimeMillis () / 1000;
+		int 小时内秒数 = (int)(lCurrentTimeSeconds % 3600);
+System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender + " 发往 " + target + " 的动作： " + action);
+		if (小时内秒数 <= 5)	// 允许本 bot 可能有 5 秒的延迟
 		{
-			//this.sendAction (target, action);
+			//if (target.startsWith ("#"))	// 仅响应发到频道里的整点动作
+			//	//sendAction (target, action);
+			//	sendAction (target, "p[i]a p[i]a p[i]a " + sender);
 		}
 	}
 
@@ -2333,7 +2343,7 @@ System.err.println (message);
 	 * @param login
 	 * @param hostname
 	 * @param botcmd
-	 * @param botCmdAlias /vote 或 /voteKick /voteBan /voteUnBan /voteOP /voteDeOP /voteVoice /voteDeVoice /voteGag /voiteMute /voteQuiet  或 /voteInvite
+	 * @param botCmdAlias /vote 或 /voteKick /voteBan /voteUnBan /voteKickBan /voteOP /voteDeOP /voteVoice /voteDeVoice /voteGag /voiteMute /voteQuiet  或 /voteInvite
 	 * @param mapGlobalOptions
 	 * @param listCmdEnv
 	 * @param params /vote 命令参数格式： &lt;动作&gt;  &lt;目标&gt;  [原因]...  /voteXXXX 命令格式与 /vote 类似，只不过少了 动作 参数
@@ -2386,7 +2396,7 @@ System.err.println (message);
 				sVoteTarget = arrayParams[1];
 			else
 			{
-				SendMessage (channel, nick, mapGlobalOptions, "未指定投票动作。");
+				SendMessage (channel, nick, mapGlobalOptions, "未指定投票表决的目标。");
 				return;
 			}
 			if (arrayParams.length > 2)
@@ -2395,6 +2405,7 @@ System.err.println (message);
 			if (StringUtils.equalsIgnoreCase (sVoteAction, "kick")
 				|| StringUtils.equalsIgnoreCase (sVoteAction, "ban")
 				|| StringUtils.equalsIgnoreCase (sVoteAction, "unBan")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "KickBan")
 				|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
 				|| StringUtils.equalsIgnoreCase (sVoteAction, "unGag") || StringUtils.equalsIgnoreCase (sVoteAction, "unMute") || StringUtils.equalsIgnoreCase (sVoteAction, "unQuiet")
 				|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
@@ -2521,18 +2532,22 @@ System.err.println (message);
 				{
 					bot.SendMessage (channel, nick, mapGlobalOptions, "共 " + participantAnswers.size() + " 人投票，其中 " + nAgreed + " 人投同意票，同意比=" + String.format ("%.2f%%", dRatio*100) + "。同意数量达到投票人数的 2/3，执行投票结果：" + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL);
 					TimeUnit.SECONDS.sleep (1);	// 延迟一段时间，有的时候， bot 发的操作提示消息还没到，却先收到了操作结果
-					if (StringUtils.equalsIgnoreCase (voteAction, "kick"))
+
+					// 如果是 kickban，先 ban，后 kick
+					if (StringUtils.equalsIgnoreCase (voteAction, "ban") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
+					{
+						ban (channel, voteTarget);
+					}
+
+					if (StringUtils.equalsIgnoreCase (voteAction, "kick") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
 					{
 						if (StringUtils.isEmpty (voteReason))
 							kick (channel, voteTarget);
 						else
 							kick (channel, voteTarget, nick + " 提供的原因: " + voteReason);
 					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "ban"))
-					{
-						ban (channel, voteTarget);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "unBan"))
+
+					if (StringUtils.equalsIgnoreCase (voteAction, "unBan"))
 					{
 						unBan (channel, voteTarget);
 					}
@@ -8984,6 +8999,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice)
@@ -9016,7 +9032,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 								setMode (currentChannel, params[2]);
 							continue;
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick))
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick) || cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
 						{
 							if (StringUtils.isEmpty (currentChannel))
 								params = sTerminalInput.split (" +", 4);
@@ -9029,6 +9045,10 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 							}
 							if (StringUtils.isEmpty (currentChannel))
 							{
+								if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+								{
+									ban (params[2], params[1]);
+								}
 								if (params.length <= 3)
 									kick (params[2], params[1]);
 								else
@@ -9036,6 +9056,10 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 							}
 							else
 							{
+								if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+								{
+									ban (currentChannel, params[1]);
+								}
 								if (params.length <= 2)
 									kick (currentChannel, params[1]);
 								else
@@ -9116,7 +9140,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 					}
 					else
 					{
-						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set /verbose 和 /connect /disconnect /reconnect /join /part /quit /nick /msg /me  /identify /auth /invite  /kick /IRCBan /unBan /op /deOP /voice /deVoice /quiet /unQuiet  命令");
+						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set /verbose 和 /connect /disconnect /reconnect /join /part /quit /nick /msg /me  /identify /auth /invite  /kick /IRCBan /unBan /kickBan /op /deOP /voice /deVoice /quiet /unQuiet  命令");
 						continue;
 					}
 				}
