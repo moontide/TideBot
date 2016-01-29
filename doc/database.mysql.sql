@@ -39,7 +39,7 @@ CREATE TABLE dic_digests
 	content_digest CHAR(40) CHARACTER SET ascii PRIMARY KEY,
 	content VARCHAR(500) NOT NULL DEFAULT '',
 	content_lowercase VARCHAR(500) NOT NULL DEFAULT ''
-) ENGINE MyISAM CHARACTER SET UTF8;
+) ENGINE MyISAM CHARACTER SET UTF8MB4;
 
 
 CREATE TABLE dics
@@ -80,14 +80,14 @@ AS
 DELIMITER $$
 CREATE PROCEDURE p_savedic
 (
-	_q VARCHAR(500),	/* question */
-	_a VARCHAR(500),	/* answer */
+	_q VARCHAR(500) CHARACTER SET UTF8MB4,	/* question */
+	_a VARCHAR(500) CHARACTER SET UTF8MB4,	/* answer */
 	_n VARCHAR(16),	/* nick name 添加人的 IRC 昵称 */
 	_u VARCHAR(16),	/* login 添加人的 IRC 登录帐号 */
 	_h VARCHAR(50)	/* host 添加人的 IRC 登录主机 */
 )
 BEGIN
-	DECLARE _q_lowercase, _a_lowercase VARCHAR(500) DEFAULT '';
+	DECLARE _q_lowercase, _a_lowercase VARCHAR(500) CHARACTER SET UTF8MB4 DEFAULT '';
 	DECLARE _q_lowercase_digest, _a_lowercase_digest, _temp_digest_string CHAR(40) CHARACTER SET ascii;
 	DECLARE _q_lowercase_digest_binary, _a_lowercase_digest_binary BINARY(20) DEFAULT '';
 	SET _q = TRIM(_q);
@@ -132,12 +132,12 @@ DELIMITER ;
 DELIMITER $$
 CREATE PROCEDURE p_getdic
 (
-	_q VARCHAR(500),	/* question */
+	_q VARCHAR(500) CHARACTER SET UTF8MB4,	/* question */
 	_q_number INT UNSIGNED,	/* 如果未指定，则随机取。如果指定了数值，则取特定记录 */
 	_reverse BOOLEAN	/* 是否“反查”，如果是“反查”，则搜索 answer 中包含（模糊匹配）查询字符串的 questions */
 )
 BEGIN
-	DECLARE _q_lowercase VARCHAR(500);
+	DECLARE _q_lowercase VARCHAR(500) CHARACTER SET UTF8MB4;
 	DECLARE _q_lowercase_digest CHAR(40) CHARACTER SET ascii;
 	DECLARE _q_lowercase_digest_binary BINARY(20);
 	DECLARE _count, _max_id INT UNSIGNED;	/* max_id 用来计算最大 ID 的字符串长度，用以对齐输出 */

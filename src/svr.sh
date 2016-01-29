@@ -9,7 +9,8 @@ export server=${server-weber.freenode.net}
 # roddenberry.freenode.net 大洋洲 澳大利亚 (纯真IP数据库: 澳大利亚 悉尼)
 #export server=${server-orwell.freenode.net}
 export botdir=${botdir-$(dirname $0)}
-export nick=GameBot
+#export nick=GameBot
+export nick=TideBot
 export botcmdPrefix=
 export channels=LiuYanBot,linuxba
 export ban="*:cmd:服务器上运行，怕被玩坏，禁止所有人使用 Cmd 命令;*:/javascript;*:/java"
@@ -19,7 +20,7 @@ export LANG=zh_CN.UTF-8
 #export database_driver=com.mysql.jdbc.Driver
 export database_username=bot
 #export database_passwrd=
-export database_url="jdbc:mysql://localhost/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"
+export database_url="jdbc:mysql://localhost/bot?autoReconnect=true&amp;zeroDateTimeBehavior=convertToNull"
 
 #export GFWProxyType=HTTP
 #export GFWProxyHost=localhost
