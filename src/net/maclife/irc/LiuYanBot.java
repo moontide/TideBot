@@ -8661,9 +8661,13 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 
 	public static void main (String[] args) throws IOException, IrcException
 	{
-		String server = "irc.freenode.net";
-		String nick = "CmdBot";
-		String channels = "#LiuYanBot,#linuxba";
+		String sServer = "irc.freenode.net";
+		String sPort = "6667";
+		int nPort = 0;
+		String sNick = "CmdBot";
+		String sAccount = "";
+		String sPassword = "";
+		String sChannels = "#LiuYanBot,#linuxba";
 		String[] arrayChannels;
 		String encoding = "UTF-8";
 		String geoIPDB = null;
@@ -8673,7 +8677,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		String banWildcardPatterns = null;
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-u Bot名] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-oui 从ieee.org下载oui.txt文件] [-e 字符集编码] [-ban 要封锁的用户名，多个名字用 ',' 分割]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-port 端口号，默认为6667] [-n 昵称] [-u 登录帐号] [-p 登录密码] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-oui 从ieee.org下载oui.txt文件] [-e 字符集编码] [-ban 要封锁的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -8682,24 +8686,55 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			if (arg.startsWith("-") || arg.startsWith("/"))
 			{
 				arg = arg.substring (1);
-				if (arg.equalsIgnoreCase("s"))
+				if (arg.equalsIgnoreCase("s") || arg.equalsIgnoreCase("server"))
 				{
 					if (i == args.length-1)
 					{
-						System.err.println ("需要指定 IRC 服务器地址");
+						System.err.println ("需要指定 IRC 服务器地址(主机名或 IP 地址)");
 						return;
 					}
-					server = args[i+1];
+					sServer = args[i+1];
 					i ++;
 				}
-				else if (arg.equalsIgnoreCase("u"))
+				else if (arg.equalsIgnoreCase("port"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定服务器端口号");
+						return;
+					}
+					sPort = args[i+1];
+					i ++;
+					nPort = Integer.parseInt (sPort);
+				}
+				else if (arg.equalsIgnoreCase("n") || arg.equalsIgnoreCase("nick") || arg.equalsIgnoreCase("name"))
 				{
 					if (i == args.length-1)
 					{
 						System.err.println ("需要指定昵称");
 						return;
 					}
-					nick = args[i+1];
+					sNick = args[i+1];
+					i ++;
+				}
+				else if (arg.equalsIgnoreCase("u") || arg.equalsIgnoreCase("account") || arg.equalsIgnoreCase("login"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定登录帐号");
+						return;
+					}
+					sAccount = args[i+1];
+					i ++;
+				}
+				else if (arg.equalsIgnoreCase("p") || arg.equalsIgnoreCase("pass") || arg.equalsIgnoreCase("password"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定登录密码");
+						return;
+					}
+					sPassword = args[i+1];
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("c"))
@@ -8709,7 +8744,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						System.err.println ("需要指定要加入的频道列表，多个频道用 ',' 分割");
 						return;
 					}
-					channels = args[i+1];
+					sChannels = args[i+1];
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("ban"))
@@ -8771,7 +8806,11 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		{
 			bot.setMessageDelay (Long.parseLong (sMessageDelay));
 		}
-		bot.setName (nick);
+		bot.setName (sNick);
+		if (StringUtils.isNotEmpty (sAccount))
+		{
+			bot.setLogin (sAccount);
+		}
 		bot.setVerbose (true);
 		bot.setAutoNickChange (true);
 		bot.setEncoding (encoding);
@@ -8807,9 +8846,14 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			}
 		}
 
-		bot.connect (server);
-		bot.changeNick (nick);
-		arrayChannels = channels.split ("[,;/]+");
+		if (nPort != 0 && StringUtils.isEmpty (sPassword))
+			bot.connect (sServer, nPort);
+		else if (nPort != 0 && StringUtils.isNotEmpty (sPassword))
+			bot.connect (sServer, nPort, sPassword);
+		else	//if (nPort == 0 || StringUtils.isEmpty (sPassword))
+			bot.connect (sServer);
+		//bot.changeNick (nick);
+		arrayChannels = sChannels.split ("[,;/]+");
 		for (String ch : arrayChannels)
 		{
 			if (StringUtils.isEmpty (ch))
@@ -8967,13 +9011,13 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						else
 							quitServer ();
 
-						System.err.println ("等几秒钟 (等连接关闭完毕)……");
+						System.err.println ("等几秒钟 (等连接关闭完毕)…");
 						TimeUnit.SECONDS.sleep (1);
 						System.exit (0);
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Disconnect))
 					{
-						System.err.println ("开始断开连接……");
+						System.err.println ("开始断开连接…");
 						disconnect ();
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Connect))
@@ -8985,12 +9029,12 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 							continue;
 						}
 						String server = params[1];
-						System.err.println ("开始连接到 [" + server + "]……");
+						System.err.println ("开始连接到 [" + server + "]…");
 						connect (server);
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Reconnect))
 					{
-						System.err.println ("开始重连……");
+						System.err.println ("开始重连…");
 						reconnect ();
 					}
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Identify)
