@@ -525,6 +525,8 @@ public class DouDiZhu extends CardGame
 	 */
 	public static List<String> AnswerToCardRanksList (String answer)
 	{
+		if (StringUtils.isEmpty (answer))	// "".split ("") 在 jdk 1.8 会产生前置的空字符串 [""]，与其文档描述不符
+			return Collections.EMPTY_LIST;
 //System.out.println (answer);
 		answer = answer
 			.replaceAll (" +", "")
@@ -538,13 +540,16 @@ public class DouDiZhu extends CardGame
 		String[] arrayCardRanks = answer.split ("");
 		List<String> listCardRanks = null;
 		if ((LiuYanBot.JAVA_MAJOR_VERSION==1 && LiuYanBot.JAVA_MINOR_VERSION>=8) || LiuYanBot.JAVA_MAJOR_VERSION>1)
+		{
 			// JDK 1.8 或更高版本
 			// 参见: http://stackoverflow.com/questions/22718744/why-does-split-in-java-8-sometimes-remove-empty-strings-at-start-of-result-array
 			listCardRanks = Arrays.asList (arrayCardRanks);
+//System.out.println ("jdk1.8  String.split(\"\") 结果=" + Arrays.toString (arrayCardRanks) + ", listCardRanks=" + listCardRanks+", .size=" + listCardRanks.size () );
+		}
 		else
 			// JDK 1.7 以及以前的版本
 			listCardRanks = Arrays.asList (Arrays.copyOfRange(arrayCardRanks, 1, arrayCardRanks.length));
-//System.out.println (listCardRanks);
+//System.out.println ("Arrays.asList( 结果=" + listCardRanks+", .size=" + listCardRanks.size () );
 
 //		listCardRanks.remove (0);	// split ("") 后第一个元素是空字符串，剔除掉 // Arrays.asList() 返回的是个固定尺寸的列表，不能增加、删除。 java.lang.UnsupportedOperationException //	at java.util.AbstractList.remove(AbstractList.java:161)
 //System.out.println (listCardRanks);
