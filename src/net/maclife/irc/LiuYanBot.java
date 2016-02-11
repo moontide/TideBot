@@ -277,6 +277,10 @@ public class LiuYanBot extends PircBot implements Runnable
 	 */
 	List<Map<String,Object>> listWhiteListPatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
 
+	/**
+	 * 此标志变量仅仅用于在 onDisconnect 事件中，不要再执行重连服务器的操作。
+	 */
+	boolean isQuiting = false;
 
 	public static String currentChannel = "";
 
@@ -969,6 +973,34 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		return defaultLang;
 	}
 
+
+	public void Quit (String reason)
+	{
+		isQuiting = true;
+		quitServer (StringUtils.trimToEmpty (reason));
+	}
+
+	@Override
+	protected void onConnect ()
+	{
+		super.onConnect ();
+	}
+
+	@Override
+	protected void onDisconnect ()
+	{
+		//super.onDisconnect ();
+		try
+		{
+			if (! isQuiting)
+				reconnect ();
+		}
+		catch (IOException | IrcException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
 	@Override
 	public void onJoin (String ch, String u, String login, String hostname)
 	{
@@ -1071,6 +1103,11 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 	@Override
 	public void onMessage (String channel, String nick, String login, String hostname, String message)
 	{
+		// 当位于 BNC 下时 (如: 多个 bot 实例通过同一个 ZNC 连接到服务器)，则有可能出现自己对自己说话的情况，
+		// 所以有可能死循环的情况。这里要禁止自己(一个 bot 实例)对自己(其他的 bot 实例)说话(发命令)
+		if (StringUtils.equalsIgnoreCase (nick, getName ()))
+			return;
+
 		boolean isSayingToMe = false;	// 是否是指名道姓的对我说
 		//System.out.println ("ch="+channel +",nick="+nick +",login="+login +",hostname="+hostname);
 		// 如果是指名道姓的直接对 Bot 说话，则把机器人用户名去掉
@@ -1114,47 +1151,53 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 				ResultSet rs = null;
 				try
 				{
-					if (! StringUtils.isEmpty (BOT_COMMAND_PREFIX) && message.length () > BOT_COMMAND_PREFIX.length ())
-						message = message.substring (BOT_COMMAND_PREFIX.length ());
-					args = message.split (" +", 3);
-					if (args[0].contains ("."))
+					if (
+						StringUtils.isNotEmpty (BOT_COMMAND_PREFIX) && StringUtils.startsWithIgnoreCase (message, BOT_COMMAND_PREFIX)
+						||  StringUtils.isEmpty (BOT_COMMAND_PREFIX)
+					)
 					{
-						int iFirstDotIndex = args[0].indexOf(".");
-						sHTTemplateName = args[0].substring (0, iFirstDotIndex);
-						sCommandOptions = args[0].substring (iFirstDotIndex);
-					}
-					else
-						sHTTemplateName = args[0];
-					if (StringUtils.containsIgnoreCase (sCommandOptions, ".to"))
-					{
-						if (args.length < 2)
-							throw new IllegalArgumentException ("用 .to 选项执行 html/json 模板时，需要先指定用户名");
+						if (StringUtils.isNotEmpty (BOT_COMMAND_PREFIX))
+							message = message.substring (BOT_COMMAND_PREFIX.length ());
+						args = message.split (" +", 3);
+						if (args[0].contains ("."))
+						{
+							int iFirstDotIndex = args[0].indexOf(".");
+							sHTTemplateName = args[0].substring (0, iFirstDotIndex);
+							sCommandOptions = args[0].substring (iFirstDotIndex);
+						}
+						else
+							sHTTemplateName = args[0];
+						if (StringUtils.containsIgnoreCase (sCommandOptions, ".to"))
+						{
+							if (args.length < 2)
+								throw new IllegalArgumentException ("用 .to 选项执行 html/json 模板时，需要先指定用户名");
 
-						msgTo = args[1];
-						if (args.length > 2)	// 如果这个 ht 命令带了其他参数
-							sHTParameters = args[2];
+							msgTo = args[1];
+							if (args.length > 2)	// 如果这个 ht 命令带了其他参数
+								sHTParameters = args[2];
+						}
+						else
+						{
+							if (args.length > 1)	// 如果这个 ht 命令带了其他参数
+								sHTParameters = args[1];
+							if (args.length > 2)	// 如果这个 ht 命令带了其他参数
+								sHTParameters = sHTParameters + " " + args[2];
+						}
+						SetupDataSource ();
+						conn = botDS.getConnection ();
+						stmt = conn.prepareStatement ("SELECT content_type FROM html_parser_templates WHERE name=?");
+							stmt.setString (1, sHTTemplateName);
+						rs = stmt.executeQuery ();
+						while (rs.next ())
+						{
+							//sHTContentType = rs.getString (1);
+							isHTCommandShortcut = true;
+							break;
+						}
+						rs.close ();
+						stmt.close ();
+						conn.close ();
 					}
-					else
-					{
-						if (args.length > 1)	// 如果这个 ht 命令带了其他参数
-							sHTParameters = args[1];
-						if (args.length > 2)	// 如果这个 ht 命令带了其他参数
-							sHTParameters = sHTParameters + " " + args[2];
-					}
-					SetupDataSource ();
-					conn = botDS.getConnection ();
-					stmt = conn.prepareStatement ("SELECT content_type FROM html_parser_templates WHERE name=?");
-						stmt.setString (1, sHTTemplateName);
-					rs = stmt.executeQuery ();
-					while (rs.next ())
-					{
-						//sHTContentType = rs.getString (1);
-						isHTCommandShortcut = true;
-						break;
-					}
-					rs.close ();
-					stmt.close ();
-					conn.close ();
 				}
 				catch (Throwable e)
 				{
@@ -9006,10 +9049,8 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						String reason = null;
 						if (params.length >= 2)
 							reason = params[1];
-						if (! StringUtils.isEmpty (reason))
-							quitServer (reason);
-						else
-							quitServer ();
+
+						Quit (reason);
 
 						System.err.println ("等几秒钟 (等连接关闭完毕)…");
 						TimeUnit.SECONDS.sleep (1);
@@ -9198,6 +9239,5 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		{
 			e.printStackTrace();
 		}
-
 	}
 }
