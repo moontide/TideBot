@@ -205,11 +205,14 @@ CREATE TABLE html_parser_templates
 	js_cut_start INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '这是为了给 json 使用的：有的接口返回了回调函数，回调函数里的参数是 JSON，这时候就需要把 JSON 切出来。该参数指定切的起始偏移量，>=0，=0 表示不切前面的字符',
 	js_cut_end INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '该参数指定从后面切的字符数，数值需要 >=0，=0 表示不切后面的字符',
 	url_param_usage VARCHAR(100) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
+
 	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的选择器表达式',
 	sub_selector VARBINARY(500) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
 	padding_left VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',	/* 原数据类型:  ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') */
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
+	format_flags VARCHAR(1) NOT NULL DEFAULT '' COMMENT '格式化字符串中的“标志”，如 “-”“0”。在此程序中，应当只用到“-”和空字符串。默认为空字符串 -- 无标志',
+	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
 	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
 	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
@@ -240,6 +243,8 @@ CREATE TABLE html_parser_templates_other_sub_selectors
 	padding_left VARCHAR(20) NOT NULL DEFAULT ' ' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
+	format_flags VARCHAR(1) NOT NULL DEFAULT '' COMMENT '格式化字符串中的“标志”，如 “-”“0”。在此程序中，应当只用到“-”和空字符串。默认为空字符串 -- 无标志',
+	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
 	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
 	PRIMARY KEY PK__html_parser_templates_other_sub_selectors (template_id, sub_selector_id)

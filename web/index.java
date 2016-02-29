@@ -188,6 +188,8 @@ void LoadHtmlJsonTemplate (Map t)
 	textboxHtmlJsonTemplateForm_PaddingLeft.setText (t.get("padding_left"));
 	comboboxHtmlJsonTemplateForm_Extract.setText (t.get("extract"));
 	textboxHtmlJsonTemplateForm_Attribute.setText (t.get("attr"));
+	textboxHtmlJsonTemplateForm_FormatFlags.setText (t.get("format_flags"));
+	textboxHtmlJsonTemplateForm_FormatWidth.setText (t.get("format_width"));
 	textboxHtmlJsonTemplateForm_PaddingRight.setText (t.get("padding_right"));
 
 	textboxHtmlJsonTemplateForm_UserAgent.setText (t.get("ua"));
@@ -211,13 +213,13 @@ void LoadHtmlJsonTemplate (Map t)
 	if (listOtherSubSelectors!=null && listOtherSubSelectors.size()>0)
 	{
 		for (Map mapSubSelector : listOtherSubSelectors)
-			AddNewSubSelector (mapSubSelector.get("sub_selector_id"), mapSubSelector.get("sub_selector"), mapSubSelector.get("padding_left"), mapSubSelector.get("extract"), mapSubSelector.get("attr"), mapSubSelector.get("padding_right"));
+			AddNewSubSelector (mapSubSelector.get("sub_selector_id"), mapSubSelector.get("sub_selector"), mapSubSelector.get("padding_left"), mapSubSelector.get("extract"), mapSubSelector.get("attr"), mapSubSelector.get("format_flags"), mapSubSelector.get("format_width"), mapSubSelector.get("padding_right"));
 	}
 }
 
 
 
-public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, String sPaddingLeft, String sExtract, String sAttribute, String sPaddingRight)
+public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, String sPaddingLeft, String sExtract, String sAttribute, String sFormatFlags, String sFormatWidth, String sPaddingRight)
 {
 	Div mainContainer = divHtmlJsonTemplateForm_OtherSubSelectorsContainer;
 	Hbox container = new Hbox();
@@ -238,6 +240,7 @@ public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, Strin
 
 	Textbox tbPaddingLeft = new Textbox(sPaddingLeft);
 	container.appendChild (tbPaddingLeft);
+	container.appendChild (new Separator());
 
 	Combobox cbExtract = new Combobox(sExtract);
 	for (Comboitem item : comboboxHtmlJsonTemplateForm_Extract.getItems())
@@ -250,6 +253,17 @@ public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, Strin
 	Textbox tbAttribute = new Textbox(sAttribute);
 	container.appendChild (tbAttribute);
 
+	Textbox tbFormatFlags = new Textbox(sFormatFlags);
+	tbFormatFlags.setWidth ("1ex");
+	tbFormatFlags.setMaxlength (1);
+	container.appendChild (tbFormatFlags);
+
+	Textbox tbFormatWidth = new Textbox(sFormatWidth);
+	tbFormatWidth.setWidth ("3ex");
+	tbFormatWidth.setMaxlength (3);
+	container.appendChild (tbFormatWidth);
+
+	container.appendChild (new Separator());
 	Textbox tbPaddingRight = new Textbox(sPaddingRight);
 	container.appendChild (tbPaddingRight);
 
@@ -274,6 +288,8 @@ public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, Strin
 	container.setAttribute ("Component_PaddingLeft", tbPaddingLeft);
 	container.setAttribute ("Component_Extract", cbExtract);
 	container.setAttribute ("Component_Attribute", tbAttribute);
+	container.setAttribute ("Component_FormatFlags", tbFormatFlags);
+	container.setAttribute ("Component_FormatWidth", tbFormatWidth);
 	container.setAttribute ("Component_PaddingRight", tbPaddingRight);
 
 	container.setAttribute ("Component_MoveUp", buttonMoveUp);
@@ -365,15 +381,15 @@ void SaveHtmlJsonTemplate ()
 	// 保存 HTML_JSON模板 信息
 	String sSQL_Insert = "INSERT INTO html_parser_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, " +
 	"ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, " +
-	"padding_left, extract, attr, padding_right, ua, " +
+	"padding_left, extract, attr, format_flags, format_width, padding_right, ua, " +
 	"request_method, referer, " +
-	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,'','', '',CURRENT_TIMESTAMP)";
-	String sSQL_Update = "UPDATE html_parser_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, padding_right=?, ua=?, request_method=?, referer=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
-	String sSQL_Insert_OtherSubSelectors = "INSERT INTO html_parser_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, padding_right) VALUES (?,?,?,?,?, ?)";
+	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, '','','',CURRENT_TIMESTAMP)";
+	String sSQL_Update = "UPDATE html_parser_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, format_flags=?, format_width=?, padding_right=?, ua=?, request_method=?, referer=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
+	String sSQL_Insert_OtherSubSelectors = "INSERT INTO html_parser_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)";
 
 	String [] params_OtherSubSelectors =
 	{
-		null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
 	};
 
 	String sName = textboxHtmlJsonTemplateForm_Name.getValue();
@@ -393,6 +409,8 @@ void SaveHtmlJsonTemplate ()
 	String sPaddingLeft = textboxHtmlJsonTemplateForm_PaddingLeft.getValue ();
 	String sExtract = comboboxHtmlJsonTemplateForm_Extract.getValue ();
 	String sAttribute = textboxHtmlJsonTemplateForm_Attribute.getValue ();
+	String sFormatFlags = textboxHtmlJsonTemplateForm_FormatFlags.getValue ();
+	String sFormatWidth = textboxHtmlJsonTemplateForm_FormatWidth.getValue ();
 	String sPaddingRight = textboxHtmlJsonTemplateForm_PaddingRight.getValue ();
 
 	String sUserAgent = textboxHtmlJsonTemplateForm_UserAgent.getValue ();
@@ -406,14 +424,14 @@ void SaveHtmlJsonTemplate ()
 	{
 		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
-		sPaddingLeft,	sExtract,	sAttribute,	sPaddingRight,	sUserAgent,
+		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,	sUserAgent,
 		sRequestMethod,	sReferer,
 	};
 	Object[]params_Update =
 	{
 		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
-		sPaddingLeft,	sExtract,	sAttribute,	sPaddingRight,	sUserAgent,
+		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,	sUserAgent,
 		sRequestMethod,	sReferer,
 
 		sID,
@@ -499,6 +517,8 @@ void SaveHtmlJsonTemplate ()
 			Textbox tbPaddingLeft = container.getAttribute ("Component_PaddingLeft");
 			Combobox cbExtract = container.getAttribute ("Component_Extract");
 			Textbox tbAttribute = container.getAttribute ("Component_Attribute");
+			Textbox tbFormatFlags = container.getAttribute ("Component_FormatFlags");
+			Textbox tbFormatWidth = container.getAttribute ("Component_FormatWidth");
 			Textbox tbPaddingRight = container.getAttribute ("Component_PaddingRight");
 			int iCol = 0;
 			params_OtherSubSelectors [iCol++] = sID;
@@ -506,6 +526,8 @@ void SaveHtmlJsonTemplate ()
 			params_OtherSubSelectors [iCol++] = tbPaddingLeft.getText();
 			params_OtherSubSelectors [iCol++] = cbExtract.getText();
 			params_OtherSubSelectors [iCol++] = tbAttribute.getText();
+			params_OtherSubSelectors [iCol++] = tbFormatFlags.getText();
+			params_OtherSubSelectors [iCol++] = tbFormatWidth.getText();
 			params_OtherSubSelectors [iCol++] = tbPaddingRight.getText();
 
 			iRowsAffected = dbaa.ExecuteUpdate (params_OtherSubSelectors);

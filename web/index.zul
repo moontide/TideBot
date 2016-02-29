@@ -78,7 +78,11 @@
 	<rows>
 		<row>
 			#
-			<div><textbox id='textboxHtmlJsonTemplateForm_ID' disabled='true'/><button label='新建HTML_JSON模板/清空表单' onClick='LoadHtmlJsonTemplate (Collections.EMPTY_MAP);' style='background-color: #CFC'/></div>
+			<div>
+				<textbox id='textboxHtmlJsonTemplateForm_ID' disabled='true'/>
+				<button label='新建HTML_JSON模板/清空表单' onClick='LoadHtmlJsonTemplate (Collections.EMPTY_MAP);' style='background-color: #CFC'/>
+				<button label='复制HTML_JSON模板/清空模板ID' onClick='textboxHtmlJsonTemplateForm_ID.setValue(""); ' style='background-color: #CFC'/>
+			</div>
 		</row>
 		<row>
 			名称
@@ -123,6 +127,7 @@
 			</div>
 			<div>
 				左填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingLeft' value=''/>
+				<n:br/>
 				取值 <combobox id='comboboxHtmlJsonTemplateForm_Extract'>
 						<comboitem label=''/>
 						<comboitem label='text'/>
@@ -142,7 +147,13 @@
 						<comboitem label='val'/>
 						<comboitem label='value'/>
 					</combobox>
+				<n:br/>
 				属性值 <textbox id='textboxHtmlJsonTemplateForm_Attribute' value=''/> *仅仅当“取值”="attr"时用到
+				<n:br/>
+				格式化标志 <textbox id='textboxHtmlJsonTemplateForm_FormatFlags' value='' maxlength='1' width='1ex'/>
+				<n:br/>
+				格式化长度 <textbox id='textboxHtmlJsonTemplateForm_FormatWidth' value='' maxlength='3' width='3ex'/>
+				<n:br/>
 				右填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingRight' value=''/>
 			</div>
 			</hbox>
@@ -151,7 +162,7 @@
 			SubSelectors及取值
 			<div>
 				<div id='divHtmlJsonTemplateForm_OtherSubSelectorsContainer'></div>
-				<button label='＋ 增加 SubSelector' src='/images/icon-button-add.png' onClick='AddNewSubSelector ("", "", " ", "", "", "");'/>
+				<button label='＋ 增加 SubSelector' src='/images/icon-button-add.png' onClick='AddNewSubSelector ("", "", " ", "", "", "", "", "");'/>
 
 			</div>
 		</row>
