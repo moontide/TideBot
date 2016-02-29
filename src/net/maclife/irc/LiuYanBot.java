@@ -343,7 +343,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public LiuYanBot ()
 	{
 		String botcmd_prefix = System.getProperty ("botcmd.prefix");
-		if (! StringUtils.isEmpty (botcmd_prefix))
+		if (StringUtils.isNotEmpty (botcmd_prefix))
 			BOT_COMMAND_PREFIX = botcmd_prefix;
 
 		// 开启控制台输入线程
@@ -777,7 +777,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 			"";
 
 		System.out.println (msg);
-		if (! StringUtils.isEmpty (nick))
+		if (StringUtils.isNotEmpty (nick))
 		{
 			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 		}
@@ -940,7 +940,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 
 			// 发送消息提示该用户，但别造成自己被跟着 flood 起来
 			if (!上次是否灌水 || 用户灌水时是否回复)
-				SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
+				SendMessage (null, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "[防洪] 您的灌水次数 = " + 灌水计数器 + " 次（累计 " + 总灌水计数器 + " 次），请在 " + (灌水计数器+DEFAULT_ANTI_FLOOD_INTERVAL) + " 秒后再使用");
 		}
 		mapUserInfo.put ("最后活动时间", now);
 		mapUserInfo.put ("灌水计数器", 灌水计数器);
@@ -1133,7 +1133,6 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 			String botCmd=null, botCmdAlias=null, params=null;
 			List<String> listEnv=null;
 			botCmd = getBotPrimaryCommand (message);
-			Map<String, Object> banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp, botCmd);
 
 			//  如果不是 bot 命令，那再判断是不是 ht 快捷命令
 			if (botCmd == null)
@@ -1233,7 +1232,7 @@ System.err.println (message);
 					// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
 					this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
 
-					if (isSayingToMe && banInfo == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
+					if (isSayingToMe && botCmd == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 					{
 						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "无法识别该命令，请使用 " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_Help, true) + " 命令显示帮助信息");
 						//ProcessCommand_Help (channel, nick, botcmd, mapGlobalOptions, listEnv, null);
@@ -1247,9 +1246,11 @@ System.err.println (message);
 				this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
 			}
 
+			Map<String, Object> banInfo = null;
 			// 先查看封锁列表 (白名单优先于黑名单，类似 apache httpd 里的 Order Deny,Allow)
 			if (!isFromConsole(channel, nick, login, hostname) && !isUserInWhiteList(hostname, login, nick, botCmd))
 			{
+				banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp, botCmd);
 				if (banInfo != null)
 				{
 					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
@@ -1269,7 +1270,7 @@ System.err.println (message);
 			// 统一命令格式处理，得到 bot 命令、bot 命令环境参数、其他参数
 			// bot命令[.语言等环境变量]... [接收人(仅当命令环境参数有 .to 时才需要本参数)] [其他参数]...
 			//  语言
-			if (! StringUtils.isEmpty (BOT_COMMAND_PREFIX))
+			if (StringUtils.isNotEmpty (BOT_COMMAND_PREFIX))
 				message = message.substring (BOT_COMMAND_PREFIX.length ());	// 这样直接去掉前缀字符串长度的字符串(而不验证 message 是否以前缀开头)，是因为前面的 getBotCommand 命令已经验证了命令前缀的有效性，否则这样直接去掉是存在缺陷的的（”任意与当前前缀相同长度的前缀都是有效的前缀“）
 			String[] args = message.split (" +", 2);
 			botCmdAlias = args[0];
@@ -1812,7 +1813,7 @@ System.err.println (message);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_HTMLParser;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			if (!StringUtils.isEmpty (ch))
+			if (StringUtils.isNotEmpty (ch))
 			{
 				SendMessage (ch, u, mapGlobalOptions, "简而言之，这就是个 万能 HTML 解析器，用以解析任意 HTML 网址的内容。由于该命令帮助信息比较多，所以，改由私信发出");
 			}
@@ -2077,7 +2078,7 @@ System.err.println (message);
 			return;
 		}
 		String[] arrayParams = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			arrayParams = params.split (" +", 2);
 		if (arrayParams == null || arrayParams.length<1)
 		{
@@ -2170,7 +2171,7 @@ System.err.println (message);
 		{
 			msg = "禁止执行: 不在白名单内, 而且, 也不是从控制台执行的";
 			System.err.println (msg);
-			if (! StringUtils.isEmpty (nick))
+			if (StringUtils.isNotEmpty (nick))
 				SendMessage (channel, nick, mapGlobalOptions, msg);
 			return;
 		}
@@ -2196,7 +2197,7 @@ System.err.println (message);
 			}
 		}
 		String[] arrayParams = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			arrayParams = params.split (" +", 4);
 		if (arrayParams == null || arrayParams.length<1)
 		{
@@ -2233,14 +2234,14 @@ System.err.println (message);
 			{
 				msg = sListName + " 是空的";
 				System.out.println (msg);
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
 
 			msg = "列出" + sListName + " (格式: 1通配符表达式    2规则表达式    3Bot命令    4原因    5添加时间    6次数    7更新时间)";
 			System.out.println (msg);
-			if (! StringUtils.isEmpty (nick))
+			if (StringUtils.isNotEmpty (nick))
 				SendMessage (null, nick, mapGlobalOptions, msg);
 			StringBuilder sb = null;
 			for (Map<String, Object> u : list)
@@ -2263,7 +2264,7 @@ System.err.println (message);
 				msg = sb.toString ();
 
 				System.out.println (msg);
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (null, nick, mapGlobalOptions, msg);
 			}
 		}
@@ -2272,7 +2273,7 @@ System.err.println (message);
 			list.clear ();
 			msg = "已清空 " + sListName;
 			System.out.println (msg);
-			if (! StringUtils.isEmpty (nick))
+			if (StringUtils.isNotEmpty (nick))
 				SendMessage (channel, nick, mapGlobalOptions, msg);
 		}
 		else if (paramAction.equalsIgnoreCase ("a") || paramAction.equalsIgnoreCase ("+") || paramAction.equalsIgnoreCase ("add") || paramAction.equalsIgnoreCase ("加") || paramAction.equalsIgnoreCase ("添加"))	// 添加
@@ -2281,7 +2282,7 @@ System.err.println (message);
 			{
 				msg = "要添加的表达式不能为空";
 				System.err.println (msg);
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
@@ -2302,7 +2303,7 @@ System.err.println (message);
 			{
 				msg = "要删除的表达式不能为空";
 				System.err.println (msg);
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
@@ -2316,21 +2317,21 @@ System.err.println (message);
 			{
 				msg = wildcardPattern + " 不在" + sListName + "中";
 				System.err.println (msg);
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
 			if (list.remove (userInfo))
 			{
 				System.out.println (ANSIEscapeTool.CSI + sShellColor_NotInList + wildcardPattern + ANSIEscapeTool.CSI + "m 已从 " + sListName + " 中剔除，当前列表还有 " + list.size () + " 个用户");
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, Colors.GREEN + wildcardPattern + Colors.NORMAL + " 已从 " + sListName + " 中剔除，当前列表还有 " + list.size () + " 个用户");
 			}
 			else
 			{
 				msg = "把 " + wildcardPattern + " 从 " + sListName + " 中删除时失败 (未曾添加过？)";
 				System.err.println (msg);
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 			}
 		}
@@ -2349,7 +2350,7 @@ System.err.println (message);
 				"在" + ANSIEscapeTool.CSI + "m" + sListName + "中。" +
 				(userInfo==null ? "" : "匹配的模式=" + userInfo.get("Wildcard") + "，原因=" + userInfo.get ("Reason"))
 			);
-			if (! StringUtils.isEmpty (nick))
+			if (StringUtils.isNotEmpty (nick))
 				SendMessage (channel, nick, mapGlobalOptions,
 					wildcardPattern + " " +
 					(bFounded ? Colors.RED : Colors.DARK_GREEN + "不") +
@@ -2400,7 +2401,7 @@ System.err.println (message);
 	void ProcessCommand_Vote (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			arrayParams = params.split (" +", 3);
 		if (arrayParams == null || arrayParams.length<1)
 		{
@@ -2490,7 +2491,7 @@ System.err.println (message);
 			{
 				String msg = "禁止执行 /voteOp /voteDeOp: 不在白名单内";
 				System.err.println (msg);
-				if (! StringUtils.isEmpty (nick))
+				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
 				return;
 			}
@@ -2685,7 +2686,7 @@ System.err.println (message);
 				l = new Locale (sLang);
 		}
 
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 		{
 			String[] args = params.split (" +", 2);
 			if (args.length >= 1)
@@ -2695,7 +2696,7 @@ System.err.println (message);
 		}
 
 		String sWarning = "";
-		if (! StringUtils.isEmpty (sTimeZoneID))
+		if (StringUtils.isNotEmpty (sTimeZoneID))
 		{
 			tz = TimeZone.getTimeZone (sTimeZoneID);
 			if (tz.getRawOffset()==0)
@@ -2735,7 +2736,7 @@ System.err.println (message);
 	void ProcessCommand_TimeZones (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -2793,7 +2794,7 @@ System.err.println (message);
 	void ProcessCommand_Locales (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -2852,7 +2853,7 @@ System.err.println (message);
 	void ProcessCommand_Environment (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -2916,7 +2917,7 @@ System.err.println (message);
 	void ProcessCommand_Properties (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] filters = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
@@ -3011,7 +3012,7 @@ System.err.println (message);
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
 		String[] ips = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			ips = params.split (" +");
 
 		CityResponse city = null;
@@ -3149,7 +3150,7 @@ System.err.println (message);
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
 		String[] queries = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			queries = params.split (" +");
 
 		int iCount = 0;
@@ -3321,7 +3322,7 @@ System.err.println (message);
 	{
 		URL url = new URL (sURL);
 		URLConnection conn = null;
-		if (! StringUtils.isEmpty (System.getProperty ("http.proxyHost")) && ! StringUtils.isEmpty (System.getProperty ("http.proxyPort")))
+		if (StringUtils.isNotEmpty (System.getProperty ("http.proxyHost")) && StringUtils.isNotEmpty (System.getProperty ("http.proxyPort")))
 		{	// 用 http 代理
 			SocketAddress proxy_addr = new InetSocketAddress (System.getProperty ("http.proxyHost"), Integer.parseInt (System.getProperty ("http.proxyPort")));
 			Proxy proxy = new Proxy (Proxy.Type.HTTP, proxy_addr);
@@ -3385,7 +3386,7 @@ System.err.println (message);
 	void ProcessCommand_StackExchange (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		String[] arrayParams = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			arrayParams = params.split (" +");
 		if (arrayParams == null || arrayParams.length<1)
 		{
@@ -4264,7 +4265,7 @@ System.err.println (message);
 
 				// 服务器证书，如果有的话
 				TrustManagerFactory tmf = null;
-				if (! StringUtils.isEmpty (sTLSTrustStoreFileName))
+				if (StringUtils.isNotEmpty (sTLSTrustStoreFileName))
 				{
 					tmf = TrustManagerFactory.getInstance ("SunX509");
 					KeyStore ksServerCertificate = KeyStore.getInstance (StringUtils.isEmpty(sTLSTrustStoreType) ? "JKS" : sTLSTrustStoreType);
@@ -4317,7 +4318,7 @@ System.err.println (message);
 			if (isReturnContentOrStream)
 			{
 				Charset cs =  UTF8_CHARSET;
-				if (! StringUtils.isEmpty (sContentCharset))
+				if (StringUtils.isNotEmpty (sContentCharset))
 					cs = Charset.forName (sContentCharset);
 				return IOUtils.toString (is, cs);
 			}
@@ -4863,7 +4864,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				sSrc = listParams.get (0);
 				sRegExp = listParams.get (1);
 
-				if (! StringUtils.isEmpty (sRegExpOption))
+				if (StringUtils.isNotEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (bNotColorized)
@@ -4957,7 +4958,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 					sReplacement = listParams.get (1);
 				}
 
-				if (! StringUtils.isEmpty (sRegExpOption))
+				if (StringUtils.isNotEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (bNotColorized)
@@ -4996,7 +4997,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 				sSrc = listParams.get (0);
 				sRegExp = listParams.get (1);
 
-				if (! StringUtils.isEmpty (sRegExpOption))
+				if (StringUtils.isNotEmpty (sRegExpOption))
 					sRegExp = "(?" + sRegExpOption + ")" + sRegExp;
 
 				if (bNotColorized)
@@ -5229,7 +5230,7 @@ System.out.println (params);
 			String sOut = osOut.toString ();
 			String sErr = osErr.toString ();
 			int nLines = 0;
-			if (! StringUtils.isEmpty (sOut))
+			if (StringUtils.isNotEmpty (sOut))
 			{
 				if (sOut.contains ("\n"))
 				{
@@ -5248,7 +5249,7 @@ System.out.println (params);
 					nLines ++;
 				}
 			}
-			if (! StringUtils.isEmpty (sErr) && nLines<opt_max_response_lines)
+			if (StringUtils.isNotEmpty (sErr) && nLines<opt_max_response_lines)
 			{
 				if (sErr.contains ("\n"))
 				{
@@ -5404,7 +5405,7 @@ System.out.println (params);
 		//botDS.setDriverClassName("org.mariadb.jdbc.Driver");
 		botDS.setDriverClassName (System.getProperty ("database.driver", "com.mysql.jdbc.Driver"));
 		botDS.setUsername (System.getProperty ("database.username", "bot"));
-		if (! StringUtils.isEmpty (System.getProperty ("database.userpassword")))
+		if (StringUtils.isNotEmpty (System.getProperty ("database.userpassword")))
 			botDS.setPassword (System.getProperty ("database.userpassword"));
 		// 要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则执行存储过程报错
 		// GRANT SELECT ON mysql.proc TO bot@'192.168.2.%'
@@ -5883,9 +5884,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 
 						author_name = author_account;	// 作者姓名 默认等于 github 帐号名
 						committer_name = committer_account;	// 提交者姓名 默认等于 github 帐号名
-						if (authorship_img_author_avatar!=null && !StringUtils.isEmpty (authorship_img_author_avatar.attr("alt")))	// 如果有作者有图片，且图片的 alt 包含了全名
+						if (authorship_img_author_avatar!=null && StringUtils.isNotEmpty (authorship_img_author_avatar.attr("alt")))	// 如果有作者有图片，且图片的 alt 包含了全名
 							author_name = authorship_img_author_avatar.attr("alt");
-						if (authorship_img_committer_avatar!=null && !StringUtils.isEmpty (authorship_img_committer_avatar.attr("alt")))	// 如果有作者有图片，且图片的 alt 包含了全名
+						if (authorship_img_committer_avatar!=null && StringUtils.isNotEmpty (authorship_img_committer_avatar.attr("alt")))	// 如果有作者有图片，且图片的 alt 包含了全名
 							committer_name = authorship_img_committer_avatar.attr("alt");
 
 						//System.out.println (author + " " + msg + " " + time);
@@ -6116,6 +6117,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 		//String sAttr = null;
 		List<String> listAttributes = new ArrayList<String> ();
 		//String sMax = null;
+		List<String> listFormatFlags = new ArrayList<String> ();
+		List<String> listFormatWidth = new ArrayList<String> ();
 		List<String> listRightPaddings = new ArrayList<String> ();
 
 		String sHTTPUserAgent = null;
@@ -6182,6 +6185,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 						listAttributes.add ("");
 						listRightPaddings.add ("");
 					}
+					else if (param.equalsIgnoreCase ("lp") || param.equalsIgnoreCase ("LeftPadding") || param.equalsIgnoreCase ("PaddingLeft") || param.equalsIgnoreCase ("左填充"))
+					{
+					}
 					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
 					{
 						//listExtracts.add (value);
@@ -6208,6 +6214,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 							listRightPaddings.add (null);
 						}
 						listAttributes.set (listAttributes.size () - 1, value);	// 更改最后 1 项
+					}
+					else if (param.equalsIgnoreCase ("rp") || param.equalsIgnoreCase ("RightPadding") || param.equalsIgnoreCase ("PaddingRight") || param.equalsIgnoreCase ("右填充"))
+					{
 					}
 					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
 					{
@@ -6325,7 +6334,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、<CSS 选择器>、/name <模板名称> 参数.");
 					return;
 				}
-				if (! StringUtils.isEmpty (sName) && sName.matches ("\\d+"))
+				if (StringUtils.isNotEmpty (sName) && sName.matches ("\\d+"))
 				{
 					SendMessage (ch, nick, mapGlobalOptions, "模板名称 不能是全数字，在执行模板时，全数字会被当做 ID 使用.");
 					return;
@@ -6390,54 +6399,54 @@ logger.fine ("url after parameter expansion: " + sURL);
 				if (StringUtils.equalsIgnoreCase (sAction, "list"))
 				{
 					sbSQL.append ("1=1\n");
-					if (! StringUtils.isEmpty (sName))
+					if (StringUtils.isNotEmpty (sName))
 					{
 						sbSQL.append ("	AND name LIKE ?\n");
 						listSQLParams.add ("%" + sName + "%");
 					}
-					if (! StringUtils.isEmpty (sURL))
+					if (StringUtils.isNotEmpty (sURL))
 					{
 						sbSQL.append ("	AND url LIKE ?\n");
 						listSQLParams.add ("%" + sURL + "%");
 					}
-					if (! StringUtils.isEmpty (sSelector))
+					if (StringUtils.isNotEmpty (sSelector))
 					{
 						sbSQL.append ("	AND selector LIKE ?\n");
 						listSQLParams.add ("%" + sSelector + "%");
 					}
 					/*
-					if (! StringUtils.isEmpty (sSubSelector))
+					if (StringUtils.isNotEmpty (sSubSelector))
 					{
 						sbSQL.append ("	AND sub_selector LIKE ?\n");
 						listSQLParams.add ("%" + sSubSelector + "%");
 					}
-					if (! StringUtils.isEmpty (sExtract))
+					if (StringUtils.isNotEmpty (sExtract))
 					{
 						sbSQL.append ("	AND extract = ?\n");
 						listSQLParams.add (sExtract);
 					}
-					if (! StringUtils.isEmpty (sAttr))
+					if (StringUtils.isNotEmpty (sAttr))
 					{
 						sbSQL.append ("	AND attr = ?\n");
 						listSQLParams.add (sAttr);
 					}
 					//*/
-					//if (! StringUtils.isEmpty (sMax))
+					//if (StringUtils.isNotEmpty (sMax))
 					//{
 					//	sbSQL.append ("	AND max = ?\n");
 					//	listSQLParams.add (sMax);
 					//}
-					if (! StringUtils.isEmpty (sHTTPUserAgent))
+					if (StringUtils.isNotEmpty (sHTTPUserAgent))
 					{
 						sbSQL.append ("	AND ua LIKE ?\n");
 						listSQLParams.add ("%" + sHTTPUserAgent + "%");
 					}
-					if (! StringUtils.isEmpty (sHTTPRequestMethod))
+					if (StringUtils.isNotEmpty (sHTTPRequestMethod))
 					{
 						sbSQL.append ("	AND request_method = ?\n");
 						listSQLParams.add (sHTTPRequestMethod);
 					}
-					if (! StringUtils.isEmpty (sHTTPReferer))
+					if (StringUtils.isNotEmpty (sHTTPReferer))
 					{
 						sbSQL.append ("	AND referer LIKE ?\n");
 						listSQLParams.add ("%" + sHTTPReferer + "%");
@@ -6503,15 +6512,19 @@ logger.fine ("url after parameter expansion: " + sURL);
 					//	sAttr = rs.getString ("attr");
 
 					listSubSelectors.clear ();
+					listLeftPaddings.clear ();
 					listExtracts.clear ();
 					listAttributes.clear ();
-					listLeftPaddings.clear ();
+					listFormatFlags.clear ();
+					listFormatWidth.clear ();
 					listRightPaddings.clear ();
 
 					listSubSelectors.add (new String(rs.getString ("sub_selector").getBytes ("iso-8859-1")));
 					listLeftPaddings.add (rs.getString ("padding_left"));
 					listExtracts.add (rs.getString ("extract"));
 					listAttributes.add (rs.getString ("attr"));
+					listFormatFlags.add (rs.getString ("format_flags"));
+					listFormatWidth.add (rs.getString ("format_width"));
 					listRightPaddings.add (rs.getString ("padding_right"));
 //System.err.println (rs.getString("sub_selector") + "； " + rs.getString("extract") + "； "+ rs.getString("attr"));
 
@@ -6539,6 +6552,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 							listLeftPaddings.add (rs_GetSubSelectors.getString ("padding_left"));
 							listExtracts.add (rs_GetSubSelectors.getString("extract"));
 							listAttributes.add (rs_GetSubSelectors.getString("attr"));
+							listFormatFlags.add (rs_GetSubSelectors.getString ("format_flags"));
+							listFormatWidth.add (rs_GetSubSelectors.getString ("format_width"));
 							listRightPaddings.add (rs_GetSubSelectors.getString ("padding_right"));
 //System.err.println (rs_GetSubSelectors.getString("sub_selector") + "； " + rs_GetSubSelectors.getString("extract") + "； "+ rs_GetSubSelectors.getString("attr"));
 						}
@@ -6566,46 +6581,76 @@ logger.fine ("url after parameter expansion: " + sURL);
 						for (int iSS=0; iSS<listSubSelectors.size (); iSS++)
 						{
 							String sSubSelector = listSubSelectors.get (iSS);
+							String sLeftPadding = listLeftPaddings.get (iSS);
 							String sExtract = listExtracts.get (iSS);
 							String sAttr = listAttributes.get (iSS);
+							String sFormatFlags = listFormatFlags.get (iSS);
+							String sFormatWidth = listFormatWidth.get (iSS);
+							String sRightPadding = listRightPaddings.get (iSS);
 
-							if (! StringUtils.isEmpty (sSubSelector))
+							if (StringUtils.isNotEmpty (sSubSelector))
 							{
 								sbHelp.append ("  /ss '");
 								sbHelp.append (Colors.PURPLE + sSubSelector + Colors.NORMAL);
 								sbHelp.append ("'");
 							}
 
-							if (! StringUtils.isEmpty (sExtract))
+							if (StringUtils.isNotEmpty (sLeftPadding))
+							{
+								sbHelp.append (" /lp '");
+								sbHelp.append (sLeftPadding);
+								sbHelp.append ("'");
+							}
+
+							if (StringUtils.isNotEmpty (sExtract))
 							{
 								sbHelp.append (" /e '");
 								sbHelp.append (sExtract);
 								sbHelp.append ("'");
 							}
 
-							if (! StringUtils.isEmpty (sAttr))
+							if (StringUtils.isNotEmpty (sAttr))
 							{
 								sbHelp.append (" /a ");
 								sbHelp.append (sAttr);
 							}
+
+							if (StringUtils.isNotEmpty (sFormatFlags))
+							{
+								sbHelp.append (" /ff ");
+								sbHelp.append (sFormatFlags);
+							}
+
+							if (StringUtils.isNotEmpty (sFormatWidth))
+							{
+								sbHelp.append (" /fw ");
+								sbHelp.append (sFormatWidth);
+							}
+
+							if (StringUtils.isNotEmpty (sRightPadding))
+							{
+								sbHelp.append (" /rp '");
+								sbHelp.append (sRightPadding);
+								sbHelp.append ("'");
+							}
 						}
-						if (! StringUtils.isEmpty (rs.getString ("ua")))
+						if (StringUtils.isNotEmpty (rs.getString ("ua")))
 						{
 							sbHelp.append (" /ua ");
 							sbHelp.append (rs.getString ("ua"));
 						}
-						if (! StringUtils.isEmpty (rs.getString ("request_method")))
+						if (StringUtils.isNotEmpty (rs.getString ("request_method")))
 						{
 							sbHelp.append (" /m ");
 							sbHelp.append (rs.getString ("request_method"));
 						}
-						if (! StringUtils.isEmpty (rs.getString ("referer")))
+						if (StringUtils.isNotEmpty (rs.getString ("referer")))
 						{
 							sbHelp.append (" /r ");
 							sbHelp.append (rs.getString ("referer"));
 						}
 
-						if (! StringUtils.isEmpty (rs.getString ("url_param_usage")))
+						if (StringUtils.isNotEmpty (rs.getString ("url_param_usage")))
 						{
 							sbHelp.append (" /h '");
 							sbHelp.append (rs.getString ("url_param_usage"));
@@ -6771,12 +6816,12 @@ System.out.println (sURL);
 					https.setSSLSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());
 					https.setHostnameVerifier (hvAllowAllHostnames);
 				}
-				if (! StringUtils.isEmpty (sHTTPUserAgent))
+				if (StringUtils.isNotEmpty (sHTTPUserAgent))
 				{
 System.out.println (sHTTPUserAgent);
 					http.setRequestProperty ("User-Agent", sHTTPUserAgent);
 				}
-				if (! StringUtils.isEmpty (sHTTPReferer))
+				if (StringUtils.isNotEmpty (sHTTPReferer))
 				{
 System.out.println (sHTTPReferer);
 					http.setRequestProperty ("Referer", sHTTPReferer);
@@ -6883,14 +6928,14 @@ fw.close ();
 						sSubSelector = HtParameterExpansion_DefaultValue_CStyle (sSubSelector, listOrderedParams, sURLParamsHelp);
 
 						evaluateResult = jse.eval (sSubSelector, jsContext);
-						if (! StringUtils.isEmpty (evaluateResult.toString ()))
+						if (StringUtils.isNotEmpty (evaluateResult.toString ()))
 						{	// 仅当要输出的字符串有内容时才会输出（并且也输出前填充、后填充）
-							if (! StringUtils.isEmpty (sLeftPadding))
+							if (StringUtils.isNotEmpty (sLeftPadding))
 								sbText.append (sLeftPadding);
 
 							sbText.append (evaluateResult);
 
-							if (! StringUtils.isEmpty (sRightPadding))
+							if (StringUtils.isNotEmpty (sRightPadding))
 								sbText.append (sRightPadding);
 						}
 					}
@@ -6937,12 +6982,12 @@ fw.close ();
 						.ignoreContentType (isIgnoreContentType)
 						.timeout (opt_timeout_length_seconds * 1000)
 						;
-				if (! StringUtils.isEmpty (sHTTPUserAgent))
+				if (StringUtils.isNotEmpty (sHTTPUserAgent))
 				{
 System.out.println (sHTTPUserAgent);
 					jsoup_conn.userAgent (sHTTPUserAgent);
 				}
-				if (! StringUtils.isEmpty (sHTTPReferer))
+				if (StringUtils.isNotEmpty (sHTTPReferer))
 				{
 System.out.println (sHTTPReferer);
 					jsoup_conn.referrer (sHTTPReferer);
@@ -6951,7 +6996,7 @@ System.out.println (sHTTPReferer);
 				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
 				{
 System.out.println (sHTTPRequestMethod);
-					if (! StringUtils.isEmpty (sQueryString))
+					if (StringUtils.isNotEmpty (sQueryString))
 					{
 System.out.println (sQueryString);
 						Map<String, String> mapParams = new HashMap<String, String> ();	// 蛋疼的 jsoup 不支持直接把 sQueryString 统一传递过去，只能重新分解成单独的参数
@@ -6973,9 +7018,11 @@ System.out.println (sQueryString);
 				Elements es = doc.select (sSelector);
 				if (es.size () == 0)
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "选择器 没有选中任何 Element/元素");
+					SendMessage (ch, nick, mapGlobalOptions, "选择器 " + Colors.BOLD + sSelector + Colors.BOLD + " 没有选中任何元素");
 					return;
 				}
+
+			ht_main_loop:
 				for (int iElementIndex=(int)iStart; iElementIndex<es.size (); iElementIndex++)
 				{
 					Element e = es.get (iElementIndex);
@@ -6986,121 +7033,48 @@ System.out.println (sQueryString);
 					}
 
 					//System.out.println (e.text());
-					Element e2 = e;
+					Element sub_e = e;
 
 					String text = "";
 					StringBuilder sbText = new StringBuilder ();
 
-System.err.println ("处理 " + e);
+//System.err.println ("处理 " + e);
+				ht_sub_loop:
 					for (int iSS=0; iSS<listSubSelectors.size (); iSS++)
 					{
 						String sSubSelector = listSubSelectors.get (iSS);
 						String sLeftPadding = listLeftPaddings.get (iSS);
 						String sExtract = listExtracts.get (iSS);
 						String sAttr = listAttributes.get (iSS);
+						String sFormatFlags = listFormatFlags.get (iSS);
+						String sFormatWidth = listFormatWidth.get (iSS);
 						String sRightPadding = listRightPaddings.get (iSS);
 
-						if (! StringUtils.isEmpty (sSubSelector))
-						{
-							e2 = e.select (sSubSelector).first ();
-System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
-						}
-						if (e2 == null)	// 子选择器可能选择到不存在的，则忽略该条（比如 糗事百科的贴图，并不是每个糗事都有贴图）
+						if (StringUtils.isEmpty (sSubSelector))
+						{	// 如果子选择器为空，则采用主选择器选出的元素
+							sub_e = e;
+							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							nLines += StringUtils.countMatches (text, '\n');	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
+							if (nLines >= opt_max_response_lines)
+								break;
 							continue;
-
-						if (StringUtils.isEmpty (sExtract))	// 如果 Extract 是空的话，对 tagName 是 a 的做特殊处理
-						{
-							if (e2.tagName ().equalsIgnoreCase ("a"))
-							{
-								String sHref = e2.attr ("abs:href");
-								if (! isOutputScheme)
-								{
-									if (StringUtils.startsWithIgnoreCase (sHref, "https://"))
-										sHref = sHref.substring (8);
-									else if (StringUtils.startsWithIgnoreCase (sHref, "http://"))
-										sHref = sHref.substring (7);
-								}
-								text = sHref + " " + e2.text ();	// abs:href : 将相对地址转换为全地址
-							}
-							else
-								text = e2.text ();
-						}
-						else if (sExtract.equalsIgnoreCase ("text"))
-								text = e2.text ();
-						else if (sExtract.equalsIgnoreCase ("html") || sExtract.equalsIgnoreCase ("innerhtml") || sExtract.equalsIgnoreCase ("inner"))
-							text = e2.html ();
-						else if (sExtract.equalsIgnoreCase ("outerhtml") || sExtract.equalsIgnoreCase ("outer"))
-							text = e2.outerHtml ();
-						else if (sExtract.equalsIgnoreCase ("attr") || sExtract.equalsIgnoreCase ("attribute"))
-						{
-							text = e2.attr (sAttr);
-							if (e2.tagName ().equalsIgnoreCase ("a") && (sAttr.equalsIgnoreCase ("href") || sAttr.equalsIgnoreCase ("abs:href")))
-							{
-								if (! isOutputScheme)
-								{
-									if (StringUtils.startsWithIgnoreCase (text, "https://"))
-										text = text.substring (8);
-									else if (StringUtils.startsWithIgnoreCase (text, "http://"))
-										text = text.substring (7);
-								}
-							}
-//System.err.println ("	sExtract " + sExtract + " 榨取属性 " + sAttr + " = " + text);
-						}
-						else if (sExtract.equalsIgnoreCase ("TagName"))
-							text = e2.tagName ();
-						else if (sExtract.equalsIgnoreCase ("NodeName"))
-							text = e2.nodeName ();
-						else if (sExtract.equalsIgnoreCase ("OwnText"))
-							text = e2.ownText ();
-						else if (sExtract.equalsIgnoreCase ("data"))
-							text = e2.data ();
-						else if (sExtract.equalsIgnoreCase ("ClassName"))
-							text = e2.className ();
-						else if (sExtract.equalsIgnoreCase ("id"))
-							text = e2.id ();
-						else if (sExtract.equalsIgnoreCase ("val") || sExtract.equalsIgnoreCase ("value"))
-							text = e2.val ();
-						else
-						{
-							text = sExtract;	// 如果以上都不是，则把 sExtract 的字符串加进去，此举是为了能自己增加一些明文文字（通常是一些分隔符、label）
 						}
 
-						text = StringUtils.replaceEach (
-							text,
-							new String[]
-							{
-								"\u0000", "\u0001", /*"\u0002", "\u0003",*/ "\u0004", "\u0005", "\u0006", "\u0007",
-								"\u0008", "\u0009"/*\t*/, "\n"/*\u000A*/, "\u000B", "\u000C", "\r"/*\u000D*/, "\u000E", /*"\u000F",*/
-								"\u0010", "\u0011", "\u0012", "\u0013", "\u0014", "\u0015", /*"\u0016",*/ "\u0017",
-								"\u0018", "\u0019", "\u001A", "\u001B", "\u001C", "\u001D", "\u001E", /*"\u001F",*/
-							},
-							new String[]
-							{
-								"", "", "", /*"", "",*/ "", "", "",
-								"", " ", " ", "", " ", " ", "", /*"",*/
-								"", "", "", "", "", "", /*"",*/ "",
-								"", "", "", "", "", "", "", /*"",*/
-							}
-							/*
-							new String[]
-							{
-								"␀", "␁", "␂", "␃", "␄", "␅", "␆", "␇",
-								"␈", "␉", "␊", "␋", "␌", "␍", "␎", "␏",
-								"␐", "␑", "␒", "␓", "␔", "␕", "␖", "␗",
-								"␘", "␙", "␚", "␛", "␜", "␝", "␞", "␟",
-							}
-							*/
-							);
-
-						if (! StringUtils.isEmpty (text))
-						{	// 仅当要输出的字符串有内容时才会输出（并且也输出前填充、后填充）
-							if (! StringUtils.isEmpty (sLeftPadding))
-								sbText.append (sLeftPadding);
-
-							sbText.append (text);
-
-							if (! StringUtils.isEmpty (sRightPadding))
-								sbText.append (sRightPadding);
+						Elements sub_elements = e.select (sSubSelector);
+						if (sub_elements.isEmpty ())
+						{
+System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m" + sSubSelector + ANSIEscapeTool.CSI + "m" + " 没有选中任何元素");
+						}
+						for (int iSSE=0; iSSE<sub_elements.size (); iSSE++)
+						{
+							sub_e = sub_elements.get (iSSE);
+System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m" + sSubSelector + ANSIEscapeTool.CSI + "m" + " 选出了第 " + (iSSE+1) + " 项: " + sub_e);
+							//if (sub_e == null)	// 子选择器可能选择到不存在的，则忽略该条（比如 糗事百科的贴图，并不是每个糗事都有贴图）
+							//	continue;
+							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							nLines += StringUtils.countMatches (text, '\n');	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
+							if (nLines >= opt_max_response_lines)
+								break ht_sub_loop;
 						}
 					}
 					//if (sbText.length () > MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE)
@@ -7126,6 +7100,131 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 			try { if (stmt_GetSubSelectors != null) stmt_GetSubSelectors.close ();} catch(Exception e) { }
 			try { if (conn != null) conn.close(); } catch(Exception e) { }
 		}
+	}
+
+	/**
+	 * 从 Element 对象根据要提取的数据类型来取出文字。
+	 * @param e Element 对象
+	 * @param sb 字符串缓冲区
+	 * @param isOutputScheme 是否输出 a 链接的 scheme (https:// 或者 http://)
+	 * @param sLeftPadding 左填充
+	 * @param sExtract 要提取的数据类型
+	 * @param sAttr 当 sExtract 为 <code>attr</code> 时，要通过此参数指定属性名
+	 * @param sFormatFlags 格式化字符串的标志。默认为空 - 无格式标志。
+	 * @param sFormatWidth 格式化字符串的宽度。默认为空 - 不指定宽度。当 sFormatWidth 和 sFormatWidth 都是空时，不执行格式化字符串操作。
+	 * @param sRightPadding 右填充
+	 * @param strings
+	 * @return
+	 */
+	public String ExtractTextFromElement (Element e, StringBuilder sb, boolean isOutputScheme, String sLeftPadding, String sExtract, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
+	{
+		String text = "";
+		if (StringUtils.isEmpty (sExtract))	// 如果 Extract 是空的话，对 tagName 是 a 的做特殊处理
+		{
+			if (e.tagName ().equalsIgnoreCase ("a"))
+			{
+				String sHref = e.attr ("abs:href");
+				if (! isOutputScheme)
+				{
+					if (StringUtils.startsWithIgnoreCase (sHref, "https://"))
+						sHref = sHref.substring (8);
+					else if (StringUtils.startsWithIgnoreCase (sHref, "http://"))
+						sHref = sHref.substring (7);
+				}
+				text = sHref + " " + e.text ();	// abs:href : 将相对地址转换为全地址
+			}
+			else
+				text = e.text ();
+		}
+		else if (sExtract.equalsIgnoreCase ("text"))
+				text = e.text ();
+		else if (sExtract.equalsIgnoreCase ("html") || sExtract.equalsIgnoreCase ("innerhtml") || sExtract.equalsIgnoreCase ("inner"))
+			text = e.html ();
+		else if (sExtract.equalsIgnoreCase ("outerhtml") || sExtract.equalsIgnoreCase ("outer"))
+			text = e.outerHtml ();
+		else if (sExtract.equalsIgnoreCase ("attr") || sExtract.equalsIgnoreCase ("attribute"))
+		{
+			text = e.attr (sAttr);
+			if (e.tagName ().equalsIgnoreCase ("a") && (sAttr.equalsIgnoreCase ("href") || sAttr.equalsIgnoreCase ("abs:href")))
+			{
+				if (! isOutputScheme)
+				{
+					if (StringUtils.startsWithIgnoreCase (text, "https://"))
+						text = text.substring (8);
+					else if (StringUtils.startsWithIgnoreCase (text, "http://"))
+						text = text.substring (7);
+				}
+			}
+//System.err.println ("	sExtract " + sExtract + " 榨取属性 " + sAttr + " = " + text);
+		}
+		else if (sExtract.equalsIgnoreCase ("TagName"))
+			text = e.tagName ();
+		else if (sExtract.equalsIgnoreCase ("NodeName"))
+			text = e.nodeName ();
+		else if (sExtract.equalsIgnoreCase ("OwnText"))
+			text = e.ownText ();
+		else if (sExtract.equalsIgnoreCase ("data"))
+			text = e.data ();
+		else if (sExtract.equalsIgnoreCase ("ClassName"))
+			text = e.className ();
+		else if (sExtract.equalsIgnoreCase ("id"))
+			text = e.id ();
+		else if (sExtract.equalsIgnoreCase ("val") || sExtract.equalsIgnoreCase ("value"))
+			text = e.val ();
+		else
+		{
+			text = sExtract;	// 如果以上都不是，则把 sExtract 的字符串加进去，此举是为了能自己增加一些明文文字（通常是一些分隔符、label）
+		}
+
+		text = StringUtils.replaceEach (
+			text,
+			new String[]
+			{
+				"\u0000", "\u0001", /*"\u0002", "\u0003",*/ "\u0004", "\u0005", "\u0006", "\u0007",
+				"\u0008", "\u0009"/*\t*/, "\n"/*\u000A*/, "\u000B", "\u000C", "\r"/*\u000D*/, "\u000E", /*"\u000F",*/
+				"\u0010", "\u0011", "\u0012", "\u0013", "\u0014", "\u0015", /*"\u0016",*/ "\u0017",
+				"\u0018", "\u0019", "\u001A", "\u001B", "\u001C", "\u001D", "\u001E", /*"\u001F",*/
+			},
+			new String[]
+			{
+				"", "", "", /*"", "",*/ "", "", "",
+				"", " ", " ", "", " ", " ", "", /*"",*/
+				"", "", "", "", "", "", /*"",*/ "",
+				"", "", "", "", "", "", "", /*"",*/
+			}
+			/*
+			new String[]
+			{
+				"␀", "␁", "␂", "␃", "␄", "␅", "␆", "␇",
+				"␈", "␉", "␊", "␋", "␌", "␍", "␎", "␏",
+				"␐", "␑", "␒", "␓", "␔", "␕", "␖", "␗",
+				"␘", "␙", "␚", "␛", "␜", "␝", "␞", "␟",
+			}
+			*/
+			);
+
+		if (StringUtils.isNotEmpty (text))
+		{	// 仅当要输出的字符串有内容时才会输出（并且也输出前填充、后填充）
+			if (StringUtils.isNotEmpty (sLeftPadding))
+				sb.append (sLeftPadding);
+
+			if (StringUtils.isNoneEmpty (sFormatFlags) || StringUtils.isNoneEmpty (sFormatWidth))
+			{
+				String sFormatString = "%" + sFormatFlags + sFormatWidth + "s";
+//System.out.print (sFormatString);
+//System.out.print ("	");
+//System.out.print (text);
+				text = String.format (sFormatString, text);
+//System.out.print ("	[");
+//System.out.print (text);
+//System.out.println ("]");
+			}
+			sb.append (text);
+
+			if (StringUtils.isNotEmpty (sRightPadding))
+				sb.append (sRightPadding);
+		}
+		return text;
 	}
 
 	public void ValidateChannelName (String ch)
@@ -7309,7 +7408,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 				throw new IllegalArgumentException (qt + "题只给出 1 个候选答案是什么心态");
 		}
 
-		if (! StringUtils.isEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
+		if (StringUtils.isNotEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
 		{	// 如果是在频道内操作，则检查接收人昵称的有效性
 			String channel = ch;
 			if (StringUtils.isEmpty (ch))
@@ -7456,7 +7555,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		}
 
 
-		if (! StringUtils.isEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
+		if (StringUtils.isNotEmpty (ch) || StringUtils.startsWith (opt_reply_to, "#"))
 		{	// 如果是在频道内操作，则检查接收人昵称的有效性
 			String channel = ch;
 			if (StringUtils.isEmpty (ch))
@@ -7580,7 +7679,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
 
 		String[] queries = null;
-		if (! StringUtils.isEmpty (params))
+		if (StringUtils.isNotEmpty (params))
 			queries = params.split (" +");
 
 		int iCount = 0;
@@ -8248,7 +8347,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 				opt_escape_for_cursor_moving = (boolean)globalOpts.get("opt_escape_for_cursor_moving");
 				opt_timeout_length_seconds = (int)globalOpts.get("opt_timeout_length_seconds");
 				opt_charset = (String)globalOpts.get("opt_charset");
-				if (! StringUtils.isEmpty (opt_charset))
+				if (StringUtils.isNotEmpty (opt_charset))
 					charset = Charset.forName (opt_charset);
 				mapUserEnv = (Map<String, String>)globalOpts.get ("env");
 				if (mapUserEnv.get ("COLUMNS") != null)
@@ -8521,7 +8620,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 
 	String ConvertCharsetEncoding (String s, String src, String dst)
 	{
-		if (! StringUtils.isEmpty (src) && !src.equalsIgnoreCase(dst))
+		if (StringUtils.isNotEmpty (src) && !src.equalsIgnoreCase(dst))
 		{	// 如果设置了字符集，并且该字符集与 IRC 服务器字符集不相同，则转换之
 			logger.fine ("转换字符集编码: " + src + " -> " + dst);
 			try
@@ -8845,7 +8944,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 
 		LiuYanBot bot = new LiuYanBot ();
 		String sMessageDelay = System.getProperty ("message.delay");
-		if (! StringUtils.isEmpty (sMessageDelay))
+		if (StringUtils.isNotEmpty (sMessageDelay))
 		{
 			bot.setMessageDelay (Long.parseLong (sMessageDelay));
 		}
@@ -8982,7 +9081,7 @@ System.err.println ("	sSubSelector " + sSubSelector + " 选出了 " + e2);
 						params = sTerminalInput.split (" +", 2);
 						if (params.length < 2)
 						{
-							if (! StringUtils.isEmpty (currentChannel))
+							if (StringUtils.isNotEmpty (currentChannel))
 								System.out.println ("当前频道为: " + currentChannel);
 							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Channel + " -- 更改默认频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
 							continue;
