@@ -6183,6 +6183,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 						listLeftPaddings.add ("");
 						listExtracts.add ("");
 						listAttributes.add ("");
+						listFormatFlags.add ("");
+						listFormatWidth.add ("");
 						listRightPaddings.add ("");
 					}
 					else if (param.equalsIgnoreCase ("lp") || param.equalsIgnoreCase ("LeftPadding") || param.equalsIgnoreCase ("PaddingLeft") || param.equalsIgnoreCase ("左填充"))
@@ -6198,6 +6200,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 							listLeftPaddings.add (null);
 							listExtracts.add (null);
 							listAttributes.add (null);
+							listFormatFlags.add (null);
+							listFormatWidth.add (null);
 							listRightPaddings.add (null);
 						}
 						listExtracts.set (listExtracts.size () - 1, value);	// 更改最后 1 项
@@ -6211,6 +6215,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 							listLeftPaddings.add (null);
 							listExtracts.add (null);
 							listAttributes.add (null);
+							listFormatFlags.add (null);
+							listFormatWidth.add (null);
 							listRightPaddings.add (null);
 						}
 						listAttributes.set (listAttributes.size () - 1, value);	// 更改最后 1 项
@@ -6244,6 +6250,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 					{
 						//sStart = value;
 						iStart = Integer.parseInt (value);
+						iStart -= 1;
+						if (iStart <= 0)
+							iStart = 0;
 					}
 					else if (param.equalsIgnoreCase ("ict") || param.equalsIgnoreCase ("IgnoreContentType"))
 					{
@@ -6268,6 +6277,10 @@ logger.fine ("url after parameter expansion: " + sURL);
 			listExtracts.add (null);
 		if (listAttributes.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
 			listAttributes.add (null);
+		if (listFormatFlags.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listFormatFlags.add (null);
+		if (listFormatWidth.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listFormatWidth.add (null);
 		if (listRightPaddings.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
 			listRightPaddings.add (null);
 
