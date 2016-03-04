@@ -25,6 +25,7 @@ import org.apache.commons.dbcp2.*;
 import org.apache.commons.exec.*;
 import org.jibble.pircbot.*;
 
+import com.maxmind.db.*;
 import com.maxmind.geoip2.*;
 import com.maxmind.geoip2.model.*;
 import com.temesoft.google.pr.*;
@@ -289,6 +290,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	String geoIP2DatabaseFileName = null;
 	long geoIP2DatabaseFileTimestamp = 0;
 	DatabaseReader geoIP2DatabaseReader = null;
+	String geoIP2DatabaseMetadata = null;
 
 	String chunzhenIPDatabaseFileName = null;
 	long chunzhenIPDatabaseFileTimestamp = 0;
@@ -373,6 +375,14 @@ public class LiuYanBot extends PircBot implements Runnable
 
 			geoIP2DatabaseReader = new DatabaseReader.Builder(new File(geoIP2DatabaseFileName)).build ();
 			geoIP2DatabaseFileTimestamp = temp_timestamp;
+
+			Metadata metadata = geoIP2DatabaseReader.getMetadata ();
+			geoIP2DatabaseMetadata =
+				metadata.getDatabaseType () +
+				//" " + metadata.getBinaryFormatMajorVersion () + "." + metadata.getBinaryFormatMinorVersion () +
+				", " + new java.sql.Timestamp (metadata.getBuildDate ().getTime ()).toString ().substring (0, 19) +
+				//" 共 " + metadata.getNodeCount() + " 个节点" +
+				"";
 		}
 		catch (Exception e)
 		{
@@ -3015,8 +3025,13 @@ System.err.println (message);
 		if (StringUtils.isNotEmpty (params))
 			ips = params.split (" +");
 
+		//Metadata metadata = null;
 		CityResponse city = null;
-		//CityIspOrgResponse isp = null;
+		//CountryResponse country = null;
+		IspResponse isp = null;
+		ConnectionTypeResponse connectionType = null;
+		DomainResponse domain = null;
+		AnonymousIpResponse anonymousIP = null;
 		int iCount = 0;
 		for (String host : ips)
 		{
@@ -3038,7 +3053,11 @@ System.err.println (message);
 					if (iCount > opt_max_response_lines)
 						break;
 					city = geoIP2DatabaseReader.city (netaddr);
-					//isp = geoIP2DatabaseReader.cityIspOrg (netaddr);
+					//country = geoIP2DatabaseReader.country (netaddr);	// java.lang.UnsupportedOperationException: Invalid attempt to open a GeoLite2-City database using the country method
+					//isp = geoIP2DatabaseReader.isp (netaddr);	// java.lang.UnsupportedOperationException: Invalid attempt to open a GeoLite2-City database using the isp method
+					//connectionType = geoIP2DatabaseReader.connectionType (netaddr);	// java.lang.UnsupportedOperationException: Invalid attempt to open a GeoLite2-City database using the connectionType method
+					//domain = geoIP2DatabaseReader.domain (netaddr);
+					//anonymousIP = geoIP2DatabaseReader.anonymousIp (netaddr);
 
 					String sContinent=null, sCountry=null, sProvince=null, sCity=null, sCountry_iso_code=null, sISPName=null;
 					double latitude=0, longitude=0;
@@ -3046,18 +3065,13 @@ System.err.println (message);
 					latitude = city.getLocation().getLatitude();
 					longitude = city.getLocation().getLongitude();
 
-					sCountry_iso_code = city.getCountry().getIsoCode();
-					sContinent = city.getContinent().getNames().get(lang);
-					sCountry = city.getCountry().getNames().get(lang);
-					sProvince = city.getMostSpecificSubdivision().getNames().get(lang);
-					sCity = city.getCity().getNames().get(lang);
-					//sISPName = isp.getTraits().getIsp();
-					//sISPName = city.getTraits().getIsp();
+					sCountry_iso_code = StringUtils.trimToEmpty (city.getCountry().getIsoCode());
+					sContinent = StringUtils.trimToEmpty (city.getContinent().getNames().get(lang));
+					sCountry = StringUtils.trimToEmpty (city.getCountry().getNames().get(lang));
+					sProvince = StringUtils.trimToEmpty (city.getMostSpecificSubdivision().getNames().get(lang));
+					sCity = StringUtils.trimToEmpty (city.getCity().getNames().get(lang));
+					//sISPName = StringUtils.trimToEmpty (isp.toString ());
 
-					if (sContinent==null) sContinent = "";
-					if (sCountry==null) sCountry = "";
-					if (sCity==null) sCity = "";
-					if (sProvince==null) sProvince = "";
 					//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
 					String addr = formatHostnameAndAddress (host, netaddr);
 					SendMessage (ch, u, mapGlobalOptions, addr + "    " +
@@ -3066,7 +3080,9 @@ System.err.println (message);
 							(StringUtils.isEmpty (sProvince) ? "" : " " + sProvince)  +
 							(StringUtils.isEmpty (sCity) ? "" : " " + sCity) +
 							(sISPName==null?"" : " " + sISPName) +
-							" 经度=" + longitude + ", 纬度=" + latitude
+							" 经度=" + longitude + ", 纬度=" + latitude +
+							(iCount==1 && StringUtils.isNotEmpty (geoIP2DatabaseMetadata) ? "    (GeoIP 数据库版本: " + geoIP2DatabaseMetadata + ")" : "") +
+							""
 					);
 				}
 			}
