@@ -69,7 +69,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final DateFormat DEFAULT_TIME_FORMAT = new SimpleDateFormat (DEFAULT_TIME_FORMAT_STRING);
 	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault ();
 	public static final int MAX_RESPONSE_LINES = 3;	// 最大响应行数 (可由参数调整)
-	public static final int MAX_RESPONSE_LINES_LIMIT = 10;	// 最大响应行数 (真的不能大于该行数)
+	public static final int MAX_RESPONSE_LINES_LIMIT = 5;	// 最大响应行数 (真的不能大于该行数)。注意，这个限制并不影响 MAX_SPLIT_LINES 分割出来的行数，就是说 MAX_RESPONSE_LINES_LIMIT * MAX_SPLIT_LINES 才是实际最大的行数限制
 	public static final int MAX_RESPONSE_LINES_RedirectToPrivateMessage = 3;	// 最大响应行数，超过该行数后，直接通过私信送给执行 bot 命令的人，而不再发到频道里
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 15;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
 	public static final int WATCH_DOG_TIMEOUT_LENGTH_LIMIT = 300;
@@ -734,26 +734,27 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	 * </ul>
 	 * 。该类型决定 wildcardPattern 参数如何形成通配符表达式
 	 * @param wildcardPattern 要添加的 用户名/主机/IP/网段 表达式。具体格式参见 ProcessCommand_BanOrWhite 中的描述
-	 * @param botCmd 该用户的 Bot 命令(加入黑名单时……，加入白名单时……)
+	 * @param botCmdAliasToBanOrWhite 【禁止或允许】针对该用户的 Bot 命令或命令别名 (加入黑名单时……，加入白名单时……)
 	 * @param reason 添加的原因
 	 * @param list 列表
 	 * @param sListName 列表名
 	 * @return
 	 */
-	boolean AddUserToList (String channel, String nick, String login, String hostname, String wildcardPattern, byte banObjectType, String botCmd, String reason, List<Map<String, Object>> list, String sListName)
+	boolean AddUserToList (String channel, String nick, String login, String hostname, String wildcardPattern, byte banObjectType, String botCmdAliasToBanOrWhite, String reason, List<Map<String, Object>> list, String sListName)
 	{
 		boolean bFounded = false;
 		Map<String,Object> userToAdd = null;
 		String msg = null;
 
-		if (StringUtils.isEmpty (botCmd) || botCmd.equals ("."))
-			botCmd = "*";
+		if (StringUtils.isEmpty (botCmdAliasToBanOrWhite) || botCmdAliasToBanOrWhite.equals ("."))
+			botCmdAliasToBanOrWhite = "*";
 		if (reason==null)
 			reason = "";
 		if (banObjectType != BAN_OBJECT_TYPE_DEFAULT)
 			wildcardPattern = GetWildcardPattern (wildcardPattern, banObjectType);
+
 		// 检查是否已经添加过
-		Map<String,Object> userInfo = GetUserFromList (wildcardPattern, botCmd, list, sListName);
+		Map<String,Object> userInfo = GetUserFromList (wildcardPattern, botCmdAliasToBanOrWhite, list, sListName);
 		bFounded = (userInfo != null);
 		if (bFounded)
 		{
@@ -765,7 +766,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 			int nTimes = userToAdd.get ("AddedTimes")==null ? 1 : (int)userToAdd.get ("AddedTimes");
 			nTimes ++;
 			userToAdd.put ("AddedTimes", nTimes);
-			userToAdd.put ("BotCmd", botCmd);
+			userToAdd.put ("BotCmd", botCmdAliasToBanOrWhite);
 			userToAdd.put ("Reason", reason);
 			return true;
 		}
@@ -774,14 +775,14 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		userToAdd = new HashMap<String, Object> ();
 		userToAdd.put ("Wildcard", wildcardPattern);
 		userToAdd.put ("RegExp", WildcardToRegularExpression(wildcardPattern));
-		userToAdd.put ("BotCmd", botCmd);
+		userToAdd.put ("BotCmd", botCmdAliasToBanOrWhite);
 		userToAdd.put ("AddedTime", new java.sql.Timestamp(System.currentTimeMillis ()));
 		userToAdd.put ("AddedTimes", 1);
 		userToAdd.put ("Reason", reason);
 		list.add (userToAdd);
 
 		msg = "已把 " + wildcardPattern + " 加入到" + sListName + "中。" +
-			(botCmd.equals ("*") ? "所有命令" : "命令=" + botCmd) +
+			(botCmdAliasToBanOrWhite.equals ("*") ? "所有命令" : "命令=" + botCmdAliasToBanOrWhite) +
 			"。" +
 			(StringUtils.isEmpty (reason) ? "无原因" : "原因=" + userToAdd.get ("Reason")) +
 			"";
@@ -2135,12 +2136,13 @@ System.err.println (message);
 	}
 
 	/**
-	 * 封锁用户 (/ban) / 白名单 (/white)。 此命令仅仅针对本 Bot 而用，不是对 IRC 频道的管理功能。 此命令需要从控制台执行、或者用户在白名单内
+	 * 封锁用户 (<code>/ban</code>) / 白名单 (<code>/white</code>)。 此命令仅仅针对本 Bot 而用，不是对 IRC 频道的管理功能。 此命令需要从控制台执行、或者用户在白名单内
 	 * @param channel
 	 * @param nick
 	 * @param login
 	 * @param hostname
 	 * @param botcmd
+	 * @param botCmdAlias
 	 * @param mapGlobalOptions
 	 * @param listCmdEnv
 	 * @param params Ban/White 命令参数，格式： &lt;动作&gt; [参数]...
@@ -2230,11 +2232,13 @@ System.err.println (message);
 
 		String paramAction = arrayParams[0];
 		String paramParam = null;
-		String paramCmd = "*";
+		String paramCmd = null;
 		String paramReason = null;
 		if (arrayParams.length >= 2) paramParam = arrayParams[1];
-		if (arrayParams.length >= 3) paramCmd = arrayParams[2];
+		if (arrayParams.length >= 3) paramCmd = getBotPrimaryCommand (arrayParams[2]);
 		if (arrayParams.length >= 4) paramReason = arrayParams[3];
+		if (StringUtils.isEmpty (paramCmd))
+			paramCmd = "*";
 
 		boolean bFounded = false;
 
