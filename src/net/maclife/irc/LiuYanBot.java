@@ -68,8 +68,9 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String DEFAULT_TIME_FORMAT_STRING = "yyyy-MM-dd a KK:mm:ss Z EEEE";
 	public static final DateFormat DEFAULT_TIME_FORMAT = new SimpleDateFormat (DEFAULT_TIME_FORMAT_STRING);
 	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault ();
-	public static final int MAX_RESPONSE_LINES = 3;	// 最大响应行数 (可由参数调整)
-	public static final int MAX_RESPONSE_LINES_LIMIT = 5;	// 最大响应行数 (真的不能大于该行数)。注意，这个限制并不影响 MAX_SPLIT_LINES 分割出来的行数，就是说 MAX_RESPONSE_LINES_LIMIT * MAX_SPLIT_LINES 才是实际最大的行数限制
+	public static final int MAX_RESPONSE_LINES_SOFT_LIMIT = 3;	// 最大响应行数 (软性，可再由参数调整)
+	public static final int MAX_RESPONSE_LINES_HARD_LIMIT = 5;	// 最大响应行数 (频道内的硬性限制，真的不能大于该行数)。注意，这个限制并不影响 MAX_SPLIT_LINES 分割出来的行数，就是说 MAX_RESPONSE_LINES_LIMIT * MAX_SPLIT_LINES 才是实际最大的行数限制
+	public static final int MAX_RESPONSE_LINES_HARD_LIMIT_PM = 20;	// 私信时的最大响应行数。虽然，按理说，不应该给私信以限制，但因为 IRC 服务器不允许发大量行数的消息，所以需要排队发送 ---- 这会导致其他使用本 bot 的使用者感到“没反应了/很久才反应”
 	public static final int MAX_RESPONSE_LINES_RedirectToPrivateMessage = 3;	// 最大响应行数，超过该行数后，直接通过私信送给执行 bot 命令的人，而不再发到频道里
 	public static final int WATCH_DOG_TIMEOUT_LENGTH = 15;	// 单位：秒。最好，跟最大响应行数一致，或者大于最大响应行数(发送 IRC 消息时可能需要占用一部分时间)，ping 的时候 1 秒一个响应，刚好
 	public static final int WATCH_DOG_TIMEOUT_LENGTH_LIMIT = 300;
@@ -790,7 +791,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		System.out.println (msg);
 		if (StringUtils.isNotEmpty (nick))
 		{
-			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES_SOFT_LIMIT, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 		}
 		return true;
 	}
@@ -1289,7 +1290,7 @@ System.err.println (message);
 			boolean opt_output_stderr = false;
 			boolean opt_ansi_escape_to_irc_escape = false;
 			boolean opt_escape_for_cursor_moving = false;	// 第二种方式 escape，此方式需要先把数据全部读完，然后再 escape，不能逐行处理。这是为了处理带有光标移动的 ANSI 转义序列而设置的
-			int opt_max_response_lines = MAX_RESPONSE_LINES;
+			int opt_max_response_lines = MAX_RESPONSE_LINES_SOFT_LIMIT;
 			boolean opt_max_response_lines_specified = false;	// 是否指定了最大响应行数，如果指定了的话，达到行数后，就不再提示“[已达到响应行数限制，剩余的行将被忽略]”
 			int opt_max_split_lines = MAX_SPLIT_LINES;
 			boolean opt_max_split_lines_specified = false;
@@ -1417,10 +1418,16 @@ System.err.println (message);
 								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Game)	// 2015-01-13 除去 Game 命令的响应行数限制，该数值在 Game 命令中有可能做 “牌堆数” “数字数” 等用途
 								&& !isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
 								&& !isUserInWhiteList(hostname, login, nick, botCmd)	// 不在白名单
-								&& opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT	// 设置的大小超出了上限
+								&& (false
+									|| (StringUtils.isNotEmpty (channel) && opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT)
+									|| (StringUtils.isEmpty (channel   ) && opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT_PM)
+									)	// 设置的大小超出了上限
 							)
 							{
-								opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
+								opt_max_response_lines = StringUtils.isEmpty (channel)
+									? (opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT_PM ? MAX_RESPONSE_LINES_HARD_LIMIT_PM : opt_max_response_lines)
+									: (opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT    ? MAX_RESPONSE_LINES_HARD_LIMIT    : opt_max_response_lines)
+									;
 								SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "“最大响应行数”被重新调整到: " + opt_max_response_lines);
 							}
 						}
@@ -1550,7 +1557,7 @@ System.err.println (message);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (channel, nick, true, MAX_RESPONSE_LINES, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, e.toString ());
+			SendMessage (channel, nick, true, MAX_RESPONSE_LINES_SOFT_LIMIT, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, e.toString ());
 		}
 	}
 
@@ -1732,7 +1739,7 @@ System.err.println (message);
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotOptionInstance ("to", true) + "--将输出重定向(需要加额外的“目标”参数); " +
 				formatBotOptionInstance ("nou", true) + "--不输出用户名(NO Username), 该选项覆盖 " + formatBotOptionInstance ("to", true) + " 选项; " +
-				formatBotOption ("纯数字", true) + "--修改响应行数或其他上限(别超过" + MAX_RESPONSE_LINES_LIMIT + "); " +
+				formatBotOption ("纯数字", true) + "--修改响应行数或其他上限(别超过" + MAX_RESPONSE_LINES_HARD_LIMIT + ", 私信时别超过 " + MAX_RESPONSE_LINES_HARD_LIMIT_PM + "); " +
 				formatBotOption ("mbpl=数字", true) + "--修改长行分割时每行字节数(别超过" + MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT + "); " +
 				formatBotOption ("msl=数字", true) + "--修改长行分割时最多分割多少成行(别超过" + MAX_SPLIT_LINES_LIMIT + "); " +
 				"全局选项的顺序无关紧要, 私有选项需按命令要求的顺序出现"
@@ -3863,10 +3870,15 @@ System.err.println (message);
 			{
 				mapParams.put ("pagesize", String.valueOf (STACKEXCHANGE_DEFAULT_PAGESIZE));
 			}
-			else if (Integer.parseInt (mapParams.get ("pagesize")) > MAX_RESPONSE_LINES_LIMIT)
+			else if (Integer.parseInt (mapParams.get ("pagesize")) > MAX_RESPONSE_LINES_HARD_LIMIT || (Integer.parseInt (mapParams.get ("pagesize")) > MAX_RESPONSE_LINES_HARD_LIMIT_PM))
 			{	// 仅当指定了过大的 /pagesize 参数时才提示
-				mapParams.put ("pagesize", String.valueOf (MAX_RESPONSE_LINES_LIMIT));
-				SendMessage (ch, nick, mapGlobalOptions, "已将搜索结果限制在 " + STACKEXCHANGE_DEFAULT_PAGESIZE + " 条内");
+				mapParams.put ("pagesize", String.valueOf (
+						StringUtils.isEmpty (ch)
+						? (Integer.parseInt (mapParams.get ("pagesize")) > MAX_RESPONSE_LINES_HARD_LIMIT_PM ? MAX_RESPONSE_LINES_HARD_LIMIT_PM : Integer.parseInt (mapParams.get ("pagesize")))
+						: (Integer.parseInt (mapParams.get ("pagesize")) > MAX_RESPONSE_LINES_HARD_LIMIT    ? MAX_RESPONSE_LINES_HARD_LIMIT    : Integer.parseInt (mapParams.get ("pagesize")))
+						)
+					);
+				SendMessage (ch, nick, mapGlobalOptions, "已将搜索结果限制在 " + mapParams.get ("pagesize") + " 条内");
 			}
 
 			if (action.equalsIgnoreCase("info") || action.equalsIgnoreCase("siteInfo") || action.equalsIgnoreCase("站点信息"))
@@ -5607,8 +5619,12 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 				rs = stmt_sp.getResultSet ();
 				if (isReverseQuery)
 				{	// 反查
-					if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT && !isUserInWhiteList(hostname, login, nick, botcmd))	// 设置的大小超出了上限（因为在 bot 命令统一处理参数的地方跳过了 tag 命令，所以需要在此重做）
-						opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
+					if ((opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT || opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT_PM) && !isUserInWhiteList(hostname, login, nick, botcmd))	// 设置的大小超出了上限（因为在 bot 命令统一处理参数的地方跳过了 tag 命令，所以需要在此重做）
+						opt_max_response_lines =
+								StringUtils.isEmpty (ch)
+								? (opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT_PM ? MAX_RESPONSE_LINES_HARD_LIMIT_PM : opt_max_response_lines)
+								: (opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT    ? MAX_RESPONSE_LINES_HARD_LIMIT    : opt_max_response_lines)
+							;
 					int nLine = 0;
 					while (rs.next ())
 					{
@@ -6992,18 +7008,13 @@ fw.close ();
 			}
 			else
 			{
-				//if (proxy != null)
-				if (usingGFWProxy)
-				{
-					//jsoup_conn.
-				}
-				else
-				{
-					//System.setProperty ("http.proxyHost", null);
-					//System.setProperty ("http.proxyPort", null);
-				}
 				org.jsoup.Connection jsoup_conn = null;
 				jsoup_conn = org.jsoup.Jsoup.connect (sURL);
+				if (usingGFWProxy)
+				{
+					jsoup_conn.proxy (proxy);
+				}
+
 				//if (sURL.startsWith ("https") && isIgnoreHTTPSCertificateValidation)
 				//{	// 由于 Jsoup 还没有设置 https 参数的地方，所以，要设置成全局/默认的（不过，这样设置后，就影响到后续的 https 访问，即使是没设置 IgnoreHTTPSCertificateValidation 的……）
 				//	// 参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
