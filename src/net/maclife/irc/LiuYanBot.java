@@ -28,6 +28,7 @@ import org.jibble.pircbot.*;
 import com.maxmind.db.*;
 import com.maxmind.geoip2.*;
 import com.maxmind.geoip2.model.*;
+import com.sinovoice.hcicloudsdk.common.nlu.*;
 import com.temesoft.google.pr.*;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
@@ -43,6 +44,7 @@ import net.maclife.seapi.*;
 import net.maclife.ansi.*;
 import net.maclife.irc.dialog.*;
 import net.maclife.irc.game.*;
+import net.maclife.irc.hcicloud.*;
 
 public class LiuYanBot extends PircBot implements Runnable
 {
@@ -134,6 +136,9 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Env              = "Env";
 	public static final String BOT_PRIMARY_COMMAND_Properties       = "Properties";
 
+	public static final String BOT_PRIMARY_COMMAND_HCICloud         = "hcicloud";	// 北京捷通华声 灵云
+	public static final String BOT_PRIMARY_COMMAND_xfyun            = "xfyun";		// 安徽讯飞 讯飞云
+
 	public static final String BOT_PRIMARY_COMMAND_Set              = "/set";
 	public static final String BOT_PRIMARY_COMMAND_Raw              = "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version          = "/Version";
@@ -202,6 +207,9 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Locales, "JavaLocales", },
 		{BOT_PRIMARY_COMMAND_Env, },
 		{BOT_PRIMARY_COMMAND_Properties, },
+
+		{BOT_PRIMARY_COMMAND_HCICloud, "lingyun", },
+		{BOT_PRIMARY_COMMAND_xfyun, "iflytek", "xunfei", "xfcloud", },
 
 		{BOT_PRIMARY_COMMAND_Set, },
 		{BOT_PRIMARY_COMMAND_Raw, },
@@ -561,7 +569,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		}
 		else if (JVM_CHARSET.equals (GBK_CHARSET) || JVM_CHARSET.equals (GB2312_CHARSET))
 		{
-
+			sendMessage (msgTo, msg);
 		}
 		else
 			sendMessage (msgTo, msg);
@@ -989,7 +997,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	public void Quit (String reason)
 	{
 		isQuiting = true;
-		quitServer (StringUtils.trimToEmpty (reason));
+		quitServer (StringUtils.stripToEmpty (reason));
 	}
 
 	@Override
@@ -1127,7 +1135,7 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 		{
 			isSayingToMe = true;
 			message = message.substring (getNick ().length() + 1);	// : 后面的内容
-			message = message.trim ();
+			message = StringUtils.stripToEmpty (message);
 		}
 
 		try
@@ -1546,6 +1554,11 @@ System.err.println (message);
 				ProcessCommand_Environment (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Properties))
 				ProcessCommand_Properties (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_HCICloud))
+				ProcessCommand_HCICloud (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_xfyun))
+				ProcessCommand_XunFeiCloud (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Set))
 				ProcessCommand_Set (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
@@ -2106,7 +2119,7 @@ System.err.println (message);
 		String param = arrayParams[0];
 		String value = null;
 		if (arrayParams.length >= 2)
-			value = StringUtils.trimToEmpty (arrayParams[1]);
+			value = StringUtils.stripToEmpty (arrayParams[1]);
 
 		if (param.equalsIgnoreCase ("loglevel"))	// 日志级别
 		{
@@ -3076,12 +3089,12 @@ System.err.println (message);
 					latitude = city.getLocation().getLatitude();
 					longitude = city.getLocation().getLongitude();
 
-					sCountry_iso_code = StringUtils.trimToEmpty (city.getCountry().getIsoCode());
-					sContinent = StringUtils.trimToEmpty (city.getContinent().getNames().get(lang));
-					sCountry = StringUtils.trimToEmpty (city.getCountry().getNames().get(lang));
-					sProvince = StringUtils.trimToEmpty (city.getMostSpecificSubdivision().getNames().get(lang));
-					sCity = StringUtils.trimToEmpty (city.getCity().getNames().get(lang));
-					//sISPName = StringUtils.trimToEmpty (isp.toString ());
+					sCountry_iso_code = StringUtils.stripToEmpty (city.getCountry().getIsoCode());
+					sContinent = StringUtils.stripToEmpty (city.getContinent().getNames().get(lang));
+					sCountry = StringUtils.stripToEmpty (city.getCountry().getNames().get(lang));
+					sProvince = StringUtils.stripToEmpty (city.getMostSpecificSubdivision().getNames().get(lang));
+					sCity = StringUtils.stripToEmpty (city.getCity().getNames().get(lang));
+					//sISPName = StringUtils.stripToEmpty (isp.toString ());
 
 					//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
 					String addr = formatHostnameAndAddress (host, netaddr);
@@ -5471,7 +5484,7 @@ System.out.println (params);
 	void ProcessCommand_Tag (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		boolean isQueryingStatistics = false;
-		params = StringUtils.trimToEmpty (params);
+		params = StringUtils.stripToEmpty (params);
 		if (mapGlobalOptions.containsKey ("stats") || mapGlobalOptions.containsKey ("统计"))
 		{
 			isQueryingStatistics = true;
@@ -5570,8 +5583,8 @@ System.out.println (params);
 			if (params.contains ("//") || params.contains ("@") || params.contains ("%"))
 			{
 				String[] arrayParams = params.split (" *(//|@|%) *", 2);
-				String q = StringUtils.trimToEmpty (arrayParams[0]);
-				String a = StringUtils.trimToEmpty (arrayParams[1]);
+				String q = StringUtils.stripToEmpty (arrayParams[0]);
+				String a = StringUtils.stripToEmpty (arrayParams[1]);
 logger.fine ("q=[" + q + "]\na=[" + a + "]");
 				if (StringUtils.isEmpty (q) || StringUtils.isEmpty (a))
 				{
@@ -5605,7 +5618,7 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 			// 查词条
 			else
 			{
-				//params = StringUtils.trimToEmpty (params);
+				//params = StringUtils.stripToEmpty (params);
 				conn = botDS.getConnection ();
 				stmt_sp = conn.prepareCall ("{CALL p_getdic (?,?,?)}", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
 				stmt_sp.setString (iParamIndex++, params);
@@ -6750,15 +6763,15 @@ logger.fine ("url after parameter expansion: " + sURL);
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
 				stmt.setString (iParam++, sURL);
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sURLParamsHelp));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sURLParamsHelp));
 				stmt.setString (iParam++, sSelector);
-				stmt.setString (iParam++, StringUtils.trimToEmpty (listSubSelectors.get (0)));
-				stmt.setString (iParam++, StringUtils.trimToEmpty (listExtracts.get (0)));
-				stmt.setString (iParam++, StringUtils.trimToEmpty (listAttributes.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listSubSelectors.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listExtracts.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listAttributes.get (0)));
 
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPUserAgent));
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPRequestMethod));
-				stmt.setString (iParam++, StringUtils.trimToEmpty (sHTTPReferer));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPUserAgent));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPReferer));
 
 				stmt.setInt (iParam++, opt_max_response_lines);
 
@@ -6900,7 +6913,7 @@ System.out.println (sHTTPReferer);
 					InputStream is = null;
 					is = http.getInputStream();
 					sContent = org.apache.commons.io.IOUtils.toString (is, JVM_CHARSET);
-					sContent = sContent.trim ();
+					sContent = StringUtils.stripToEmpty (sContent);
 
 					if (sContent.isEmpty ())
 						throw new RuntimeException ("返回的是空内容，不是有效的 json 数据");
@@ -7766,6 +7779,72 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		{
 			e.printStackTrace ();
 			SendMessage (ch, nick, mapGlobalOptions, "查询出错: " + e.toString ());
+		}
+	}
+
+	HCICloudNLUBot hcicloudBot = null;
+	/**
+	 * 灵云 语义理解
+	 */
+	void ProcessCommand_HCICloud (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		String sQuestion = params;
+
+		if (hcicloudBot == null)
+		{
+			try
+			{
+				hcicloudBot = new HCICloudNLUBot ();
+				hcicloudBot.Init ();
+			}
+			catch (Exception e)
+			{
+				SendMessage (ch, u, mapGlobalOptions, e.toString());
+				return;
+			}
+		}
+
+		try
+		{
+			NluRecogResult result = hcicloudBot.Recognize (sQuestion);
+			List<NluRecogResultItem> listResultItems = result.getRecogResultItemList ();
+			ObjectMapper om = new ObjectMapper();
+			for (NluRecogResultItem ri : listResultItems)
+			{
+				JsonNode root_node = om.readTree (ri.getResult ());
+				JsonNode answer = root_node.get ("answer");
+					JsonNode content = answer.get ("content");
+						JsonNode text = content.get ("text");
+					JsonNode intention = answer.get ("intention");
+						JsonNode domain = intention.get ("domain");
+						JsonNode operation = intention.get ("operation");
+						JsonNode info = intention.get ("info");
+				SendMessage (ch, u, mapGlobalOptions, text.asText() /* + " [知识面=" + domain + ", 操作=" + operation + ",信息=" + info + "]"*/);
+			}
+		}
+		catch (Exception e)
+		{
+			SendMessage (ch, u, mapGlobalOptions, e.toString ());
+		}
+	}
+
+	/**
+	 * 讯飞云 语义理解
+	 */
+	void ProcessCommand_XunFeiCloud (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		String[] filters = null;
+		if (StringUtils.isNotEmpty (params))
+			filters = params.split (" +");
+
+		StringBuilder sb = new StringBuilder ();
+		List<StringBuilder> listMessages = new ArrayList<StringBuilder> ();
+		listMessages.add (sb);
+		Properties properties = System.getProperties ();
+
+		for (StringBuilder s : listMessages)
+		{
+			SendMessage (ch, u, mapGlobalOptions, s.toString());
 		}
 	}
 
