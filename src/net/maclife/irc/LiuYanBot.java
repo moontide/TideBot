@@ -1837,7 +1837,20 @@ System.err.println (message);
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("字符集", true) + "][." + formatBotOptionInstance ("COLUMNS", true) + "=" + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("字符艺术画文件 URL 地址(http:// file://)", true) + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + formatBotOption ("字符集", true) + " 如果不指定，默认为 " + formatBotOptionInstance ("437", true) + " 字符集。 ." + formatBotOptionInstance ("COLUMNS", true) + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true)+ "[." + formatBotOptionInstance ("reverse", true) + "|" + formatBotOptionInstance ("反查", true) + "][." + formatBotOptionInstance ("detail", true) + "|" + formatBotOptionInstance ("详细", true) + "][." + formatBotOptionInstance ("stats", true) + "|" + formatBotOptionInstance ("统计", true) + "][." + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("名称", true) + ">[" + formatBotParameterInstance ("//", true) + "<" + formatBotParameter ("定义", true) + ">]  -- 仿 smbot 的 !sm 功能。 ." + formatBotOptionInstance ("reverse", true) + ": 反查(模糊查询), 如: 哪些词条被贴有“学霸”; ." + formatBotOptionInstance ("detail", true) + ": 显示详细信息(添加者 时间…); " + formatBotOption ("正整数", true) + " -- 取该词条指定序号的定义, 但与 ." + formatBotOptionInstance ("reverse", true) + " 一起使用时，起到限制响应行数的作用");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true)
+				+ "[." + formatBotOptionInstance ("reverse", true) + "|" + formatBotOptionInstance ("反查", true)
+				+ "][." + formatBotOptionInstance ("detail", true) + "|" + formatBotOptionInstance ("详细", true)
+				+ "][." + formatBotOptionInstance ("stats", true) + "|" + formatBotOptionInstance ("统计", true)
+				+ "][." + formatBotOptionInstance ("delete", true) + "|" + formatBotOptionInstance ("deleteAll", true)
+				+ "][." + formatBotOption ("正整数", true)
+				+ "] <" + formatBotParameter ("名称", true) + ">[" + formatBotParameterInstance ("//", true) + "<" + formatBotParameter ("定义", true)
+				+ ">]  -- 仿 smbot 的 !sm 功能。 ."
+				+ formatBotOptionInstance ("reverse", true) + ": 反查(模糊查询), 如: 哪些词条被贴有“学霸”; ."
+				+ formatBotOptionInstance ("detail", true) + ": 显示详细信息(添加者 时间…); ."
+				+ formatBotOptionInstance ("delete", true) + ": 单条删除词条定义, 序号由 ." + formatBotOption ("正整数", true) + " 指定. (只能删除与自己 IRC 帐号相同的词条定义); ."
+				+ formatBotOptionInstance ("deleteAll", true) + ": 删除该词条的所有定义; ."
+				+ formatBotOption ("正整数", true) + " -- 查询或删除时指定词条序号, 但与 ." + formatBotOptionInstance ("reverse", true) + " 一起使用时，起到限制响应行数的作用")
+				;
 		primaryCmd = BOT_PRIMARY_COMMAND_GithubCommitLogs;        if (isThisCommandSpecified (args, primaryCmd))
 		{
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("gh", true) + "|" + formatBotCommandInstance ("LinuxKernel", true) + "|" + formatBotCommandInstance ("lk", true) + "|" + formatBotCommandInstance ("kernel", true) + "<." + formatBotOptionInstance ("tag", true) + "|." + formatBotOptionInstance ("log", true) + "> [" + formatBotParameter ("GitHub 项目的提交日志网址 URI，如 torvalds/linux 或 torvalds/linux/commits/master", true) + "]  -- 获取 Github 项目的打标标签、提交日志。 如果命令为 LinuxKernel 或者 lk 或者 kernel，则不需要提供网址 URI");
@@ -5472,7 +5485,7 @@ System.out.println (params);
 	 * 添加词条定义： bt  a//b
 	 * 查询词条定义： bt  a
 	 *
-	 * @param ch
+	 * @param channel
 	 * @param nick
 	 * @param login
 	 * @param hostname
@@ -5481,27 +5494,48 @@ System.out.println (params);
 	 * @param listCmdEnv
 	 * @param params
 	 */
-	void ProcessCommand_Tag (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_Tag (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		boolean isQueryingStatistics = false;
+		boolean isDeleting = false, isDeletingAll = false;
+		boolean isReverseQuery = false, isShowDetail = false;
 		params = StringUtils.stripToEmpty (params);
-		if (mapGlobalOptions.containsKey ("stats") || mapGlobalOptions.containsKey ("统计"))
+		Set<String> setKeys = mapGlobalOptions.keySet ();
+		for (String sKey : setKeys)
 		{
-			isQueryingStatistics = true;
+			if (StringUtils.equalsIgnoreCase (sKey, "stats") || StringUtils.equalsIgnoreCase (sKey, "统计"))
+			{
+				isQueryingStatistics = true;
+			}
+			else if (StringUtils.equalsIgnoreCase (sKey, "delete")
+				|| StringUtils.equalsIgnoreCase (sKey, "hide")
+				|| StringUtils.equalsIgnoreCase (sKey, "disable")
+			)
+			{
+				isDeleting = true;
+			}
+			else if (StringUtils.equalsIgnoreCase (sKey, "deleteAll")
+				|| StringUtils.equalsIgnoreCase (sKey, "hideAll")
+				|| StringUtils.equalsIgnoreCase (sKey, "disableAll")
+			)
+			{
+				isDeleting = true;
+				isDeletingAll = true;
+			}
+			else if (StringUtils.equalsIgnoreCase (sKey, "reverse") || StringUtils.equalsIgnoreCase (sKey, "反查"))
+				isReverseQuery = true;
+			else if (StringUtils.equalsIgnoreCase (sKey, "detail") || StringUtils.equalsIgnoreCase (sKey, "详细"))
+				isShowDetail = true;
 		}
-		else if (StringUtils.isEmpty (params))
+
+		if (StringUtils.isEmpty (params))
 		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
 
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
-		boolean isReverseQuery = false, isShowDetail = false;
-		if (mapGlobalOptions.containsKey ("reverse") || mapGlobalOptions.containsKey ("反查"))
-			isReverseQuery = true;
-		if (mapGlobalOptions.containsKey ("detail") || mapGlobalOptions.containsKey ("详细"))
-			isShowDetail = true;
 
 		Connection conn = null;
 		CallableStatement stmt_sp = null;
@@ -5572,7 +5606,59 @@ System.out.println (params);
 				stmt.close ();
 				conn.close ();
 
-				SendMessage (ch, nick, mapGlobalOptions, sbStats.toString ());
+				SendMessage (channel, nick, mapGlobalOptions, sbStats.toString ());
+				return;
+			}
+			// 删除/隐藏 词条
+			else if (isDeleting)
+			{
+				// 参数检错
+				if (! isDeletingAll && ! opt_max_response_lines_specified)
+				{
+					SendMessage (channel, nick, mapGlobalOptions, Colors.RED + "删除单条词条定义时，需要指定词条定义的序号");
+					return;
+				}
+
+				// 判断是否有权限删除
+				String[] arrayHostPart = hostname.split ("/");
+				boolean isMe = false;
+				for (String sHostPart : arrayHostPart)
+				{
+					isMe = StringUtils.equalsIgnoreCase (params, sHostPart);
+					if (isMe)
+						break;
+				}
+
+				if (!isMe && ! (
+					isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+					|| isUserInWhiteList(hostname, login, nick, botcmd)
+					)
+				)
+				{
+					if (StringUtils.isNotEmpty (nick))
+						SendMessage (channel, nick, mapGlobalOptions, Colors.RED + "禁止执行" + Colors.NORMAL + ": 1. 只能删除与自己的 IRC 帐号相同的词条定义;  2. 没有 VIP 权限：不在白名单内, 而且, 也不是从控制台执行的");
+					return;
+				}
+
+				// 开始执行删除
+				conn = botDS.getConnection ();
+				if (isDeletingAll)
+				{
+					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?))");
+					stmt.setString (1, params);
+				}
+				else
+				{
+					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?)) AND q_number=?");
+					stmt.setString (1, params);
+					stmt.setInt (2, opt_max_response_lines);
+				}
+
+				int iRowsAffected = stmt.executeUpdate ();
+				stmt.close ();
+				conn.close ();
+
+				SendMessage (channel, nick, mapGlobalOptions, iRowsAffected == 0 ? "没有更新任何词条定义状态（受影响的行数 = 0）" : Colors.DARK_GREEN + "✓" + Colors.NORMAL + " 成功删除了(其实只是隐藏了) " + iRowsAffected + " 行词条定义");
 				return;
 			}
 
@@ -5588,7 +5674,7 @@ System.out.println (params);
 logger.fine ("q=[" + q + "]\na=[" + a + "]");
 				if (StringUtils.isEmpty (q) || StringUtils.isEmpty (a))
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "词条及其定义不能为空");
+					SendMessage (channel, nick, mapGlobalOptions, "词条及其定义不能为空");
 					return;
 				}
 				conn = botDS.getConnection ();
@@ -5607,13 +5693,13 @@ logger.fine ("q=[" + q + "]\na=[" + a + "]");
 					updated_times = rs.getInt ("updated_times");
 					sAddedBy =  rs.getString ("added_by");
 					sAddedTime = rs.getString ("added_time");
-logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
+logger.fine ("保存词条成功后的词条定义序号=" + q_sn);
 					break;
 				}
 				if (updated_times == 0)
-					SendMessage (ch, nick, mapGlobalOptions, "" + Colors.DARK_GREEN + "✓" + Colors.NORMAL + ", #" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
+					SendMessage (channel, nick, mapGlobalOptions, "" + Colors.DARK_GREEN + "✓" + Colors.NORMAL + ", #" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
 				else
-					SendMessage (ch, nick, mapGlobalOptions, (nick.equalsIgnoreCase (sAddedBy) ?  "您已添加过该定义" : "该定义已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过") + ", #" + COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 你将是该定义的最近更新者, 更新次数=" + updated_times);
+					SendMessage (channel, nick, mapGlobalOptions, (nick.equalsIgnoreCase (sAddedBy) ?  "您已添加过该定义" : "该定义已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过") + ", #" + COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 你将是该定义的最近更新者, 更新次数=" + updated_times);
 			}
 			// 查词条
 			else
@@ -5626,7 +5712,7 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 				stmt_sp.setBoolean (iParamIndex++, isReverseQuery);
 				boolean isResultSet = stmt_sp.execute ();
 				assert (isResultSet);
-				boolean bFound = false, bValidRow = false;
+				boolean bFound = false, bValidRow = false, bDefinitionEnabled = true;
 				int nCount = 0, nMaxID = 0;
 
 				rs = stmt_sp.getResultSet ();
@@ -5634,13 +5720,19 @@ logger.fine ("保存词条成功后的词条定义编号=" + q_sn);
 				{	// 反查
 					if ((opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT || opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT_PM) && !isUserInWhiteList(hostname, login, nick, botcmd))	// 设置的大小超出了上限（因为在 bot 命令统一处理参数的地方跳过了 tag 命令，所以需要在此重做）
 						opt_max_response_lines =
-								StringUtils.isEmpty (ch)
+								StringUtils.isEmpty (channel)
 								? (opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT_PM ? MAX_RESPONSE_LINES_HARD_LIMIT_PM : opt_max_response_lines)
 								: (opt_max_response_lines > MAX_RESPONSE_LINES_HARD_LIMIT    ? MAX_RESPONSE_LINES_HARD_LIMIT    : opt_max_response_lines)
 							;
 					int nLine = 0;
 					while (rs.next ())
 					{
+						bDefinitionEnabled = rs.getBoolean ("enabled");
+						if (! bDefinitionEnabled)	// 2016-07-28 增加 enabled 字段，只选出 enabled = 1 的记录
+						{
+							continue;
+						}
+
 						bFound = true;
 						nLine ++;
 						if (nLine > opt_max_response_lines)
@@ -5661,7 +5753,7 @@ logger.fine (params + " 有 " + nCount + " 条词条定义, 最大 ID=" + nMaxID
 						sLastUpdatedTime = rs.getString ("updated_time");
 						sLastUpdatedBy = rs.getString ("updated_by");
 						if (isShowDetail)
-							SendMessage (ch, nick, mapGlobalOptions,
+							SendMessage (channel, nick, mapGlobalOptions,
 								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
 								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
 								+ "    出台" + (fetched_times+1) + "次, 添加:"
@@ -5669,13 +5761,13 @@ logger.fine (params + " 有 " + nCount + " 条词条定义, 最大 ID=" + nMaxID
 								+ (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19))
 							);
 						else
-							SendMessage (ch, nick, mapGlobalOptions,
+							SendMessage (channel, nick, mapGlobalOptions,
 								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
 								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
 							);
 					}
 					if (! bFound)
-						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
+						SendMessage (channel, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 				}
 				else
 				{	// 正查
@@ -5702,6 +5794,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						}
 						//while (rs.next ())
 						{
+							bDefinitionEnabled = rs.getBoolean ("enabled");
 							sQuestionDigest = rs.getString ("q_digest");
 							sQuestionContent = rs.getString ("q_content");
 							sAnswerContent = rs.getString ("a_content");
@@ -5717,27 +5810,32 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							//break;
 						}
 
-						stmt = conn.prepareStatement ("UPDATE dics SET fetched_times=fetched_times+1 WHERE q_digest=? AND q_number=?");
-						stmt.setString (1, sQuestionDigest);
-						stmt.setInt (2, q_sn);
-						int iRowsAffected = stmt.executeUpdate ();
-						assert iRowsAffected == 1;
-						stmt.close ();
+						if (bDefinitionEnabled)
+						{
+							stmt = conn.prepareStatement ("UPDATE dics SET fetched_times=fetched_times+1 WHERE q_digest=? AND q_number=?");
+							stmt.setString (1, sQuestionDigest);
+							stmt.setInt (2, q_sn);
+							int iRowsAffected = stmt.executeUpdate ();
+							assert iRowsAffected == 1;
+							stmt.close ();
+						}
 					}
 
 					if (! bFound)
-						SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
+						SendMessage (channel, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
+					else if (! bDefinitionEnabled)
+						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + Colors.DARK_GRAY + "该条词条已被删除（被隐藏）" + Colors.NORMAL);
 					else if (isShowDetail)
-						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
+						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
 					else
-						SendMessage (ch, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]");
+						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]");
 				}
 			}
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
+			SendMessage (channel, nick, mapGlobalOptions, e.toString ());
 		}
 		finally
 		{
