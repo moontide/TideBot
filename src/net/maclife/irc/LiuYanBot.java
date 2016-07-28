@@ -5985,7 +5985,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 							String commit_url = commit_a.attr("abs:href");
 						Element metadata = log.select (".commit-meta").first ();
 
-							Element time_author = metadata.select ("time").first ();
+							Element time_author = metadata.select ("relative-time").first ();
 
 							Element a_author = metadata.select ("a.commit-author").first ();
 							Element span_author = metadata.select ("span.commit-author").first ();
