@@ -55,6 +55,8 @@ CREATE TABLE dics
 	updated_time datetime,
 	updated_times INT NOT NULL DEFAULT 0,
 
+	enabled TINYINT(1) NOT NULL DEFAULT 1,
+
 	PRIMARY KEY PK__Q_SN (q_digest, q_number),	/* InnoDB 存储引擎不支持混合主键，只能用 MyISAM 存储引擎。 http://stackoverflow.com/questions/23794624/auto-increment-how-to-auto-increment-a-combined-key-error-1075 */
 	UNIQUE KEY UQ__Q_A (q_digest, a_digest)
 ) ENGINE MyISAM CHARACTER SET UTF8;
