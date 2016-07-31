@@ -5496,6 +5496,10 @@ System.out.println (params);
 	 */
 	void ProcessCommand_Tag (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
+
 		boolean isQueryingStatistics = false;
 		boolean isDeleting = false, isDeletingAll = false;
 		boolean isReverseQuery = false, isShowDetail = false;
@@ -5503,6 +5507,11 @@ System.out.println (params);
 		Set<String> setKeys = mapGlobalOptions.keySet ();
 		for (String sKey : setKeys)
 		{
+			// action 选项，这些选项将决定要做什么，如果指定了一个或者多个 action，则按照下面的顺序执行一个：
+			// 统计
+			// 删除所有
+			// 删除
+			// 没有指定任何动作时： 取词条
 			if (StringUtils.equalsIgnoreCase (sKey, "stats") || StringUtils.equalsIgnoreCase (sKey, "统计"))
 			{
 				isQueryingStatistics = true;
@@ -5521,7 +5530,32 @@ System.out.println (params);
 			{
 				isDeleting = true;
 				isDeletingAll = true;
+
+				Dialog dlg = new Dialog (null,
+						this, dialogs, Dialog.Type.确认, "此操作将隐藏该词条的所有定义，确定要这么做？", true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, nick, null,
+						channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+				//dlg.timeout_second = opt_timeout_length_seconds;
+				//dlg.timeout_second = 30;
+				Map<String, Object> participantAnswers;
+				try
+				{
+					participantAnswers = executor.submit (dlg).get ();
+					String answer = (String)participantAnswers.get (nick);
+					String value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
+					//String value_and_label = dlg.GetFullCandidateAnswerByValueOrLabel(answer);
+					if (! StringUtils.equalsIgnoreCase (value, "1"))
+					{
+						return;
+					}
+				}
+				catch (InterruptedException | ExecutionException e)
+				{
+					e.printStackTrace();
+					return;
+				}
 			}
+
+			// 辅助选项
 			else if (StringUtils.equalsIgnoreCase (sKey, "reverse") || StringUtils.equalsIgnoreCase (sKey, "反查"))
 				isReverseQuery = true;
 			else if (StringUtils.equalsIgnoreCase (sKey, "detail") || StringUtils.equalsIgnoreCase (sKey, "详细"))
@@ -5533,9 +5567,6 @@ System.out.println (params);
 			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
-		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
 
 		Connection conn = null;
 		CallableStatement stmt_sp = null;
@@ -5644,12 +5675,12 @@ System.out.println (params);
 				conn = botDS.getConnection ();
 				if (isDeletingAll)
 				{
-					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?))");
+					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?)) AND enabled=1");
 					stmt.setString (1, params);
 				}
 				else
 				{
-					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?)) AND q_number=?");
+					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?)) AND q_number=? AND enabled=1");
 					stmt.setString (1, params);
 					stmt.setInt (2, opt_max_response_lines);
 				}
@@ -5658,7 +5689,7 @@ System.out.println (params);
 				stmt.close ();
 				conn.close ();
 
-				SendMessage (channel, nick, mapGlobalOptions, iRowsAffected == 0 ? "没有更新任何词条定义状态（受影响的行数 = 0）" : Colors.DARK_GREEN + "✓" + Colors.NORMAL + " 成功删除了(其实只是隐藏了) " + iRowsAffected + " 行词条定义");
+				SendMessage (channel, nick, mapGlobalOptions, iRowsAffected == 0 ? "没有更新任何词条定义状态（受影响的行数 = 0），" + (isDeletingAll ? "也许没有任何词条定义，或者全部都已被隐藏" : "也许该词条定义不存在，或者已被隐藏") : Colors.DARK_GREEN + "✓" + Colors.NORMAL + " 成功删除了(其实只是隐藏了) " + iRowsAffected + " 行词条定义");
 				return;
 			}
 
@@ -5824,7 +5855,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (! bFound)
 						SendMessage (channel, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 					else if (! bDefinitionEnabled)
-						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + Colors.DARK_GRAY + "该条词条已被删除（被隐藏）" + Colors.NORMAL);
+						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + Colors.DARK_GRAY + "该条词条定义已被删除（被隐藏）" + Colors.NORMAL);
 					else if (isShowDetail)
 						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
 					else
