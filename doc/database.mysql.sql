@@ -187,6 +187,56 @@ $$
 DELIMITER ;
 
 
+DELIMITER $$
+CREATE PROCEDURE p__fix_dic_q_number_gap ()
+BEGIN
+	DECLARE done BOOL DEFAULT FALSE;
+	DECLARE var_q_digest CHAR(40);
+	DECLARE var_qn, var_max, var_dic_count INT;
+	DECLARE q_counter INT DEFAULT 0;
+	DECLARE curDicsNeedToFix CURSOR FOR SELECT q_digest, /*dd.content,*/ MAX(q_number), COUNT(*) FROM dics d JOIN dic_digests dd ON d.q_digest = dd.content_digest GROUP BY q_digest HAVING MAX(q_number) > COUNT(*);
+	DECLARE curDicDefinitionQNumbers CURSOR FOR SELECT q_number FROM dics WHERE q_digest = var_q_digest;
+/*
++------------------------------------------+-----------+---------------+----------+
+| q_digest                                 | content   | MAX(q_number) | COUNT(*) |
++------------------------------------------+-----------+---------------+----------+
+| 873ba9ccf23c55952f50c272dee3b459721a80ba | condy     |            36 |       34 |
+| a67e4ebbcdcabfc25b8ac2e903ae022dd948d5ca | bruceutut |           102 |       70 |
++------------------------------------------+-----------+---------------+----------+
+*/
+
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+	OPEN curDicsNeedToFix;
+
+	outer_loop:
+	LOOP
+		FETCH curDicsNeedToFix INTO var_q_digest, var_max, var_dic_count;
+		IF done THEN
+			LEAVE outer_loop;
+		END IF;
+
+		SET done = FALSE;
+		OPEN curDicDefinitionQNumbers;
+		inner_loop: LOOP
+			FETCH curDicDefinitionQNumbers INTO var_qn;
+			IF done THEN
+				LEAVE inner_loop;
+			END IF;
+
+			SET q_counter = q_counter + 1;
+
+			IF q_counter < var_qn THEN
+				UPDATE dics SET q_number = q_counter WHERE q_digest = var_q_digest AND q_number = var_qn;
+			END IF;
+		END LOOP;
+		CLOSE curDicDefinitionQNumbers;
+	END LOOP;
+
+	CLOSE curDicsNeedToFix;
+END;
+$$
+DELIMITER ;
 
 
 /*******************************************************************************
