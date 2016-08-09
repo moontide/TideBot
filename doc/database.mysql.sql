@@ -283,7 +283,7 @@ CREATE TABLE html_parser_templates
 	updated_time datetime,
 	updated_times INT NOT NULL DEFAULT 0,
 
-	PRIMARY KEY PK__html_parser_templates (id),
+	PRIMARY KEY PK__html_parser_templates (id DESC),	/* http://stackoverflow.com/questions/10130230/sql-index-performance-asc-vs-desc DESC indexing is not currently implemented in MySQL... the engine ignores the provided sort and always uses ASC: */
 	UNIQUE KEY UQ__html_parser_templates (name)
 ) ENGINE MyISAM CHARACTER SET UTF8;
 
@@ -299,7 +299,7 @@ CREATE TABLE html_parser_templates_other_sub_selectors
 	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
 	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
-	PRIMARY KEY PK__html_parser_templates_other_sub_selectors (template_id, sub_selector_id)
+	PRIMARY KEY PK__html_parser_templates_other_sub_selectors (template_id DESC, sub_selector_id)	/* http://stackoverflow.com/questions/10130230/sql-index-performance-asc-vs-desc DESC indexing is not currently implemented in MySQL... the engine ignores the provided sort and always uses ASC: */
 ) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '此表是 html_parser_templates 的延伸：允许一个模板有多个 sub_selector，这样可以让多个 sub element 组成成一个完整的信息';
 
 
