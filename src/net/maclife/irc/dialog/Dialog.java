@@ -438,7 +438,8 @@ public class Dialog implements Callable<Map<String, Object>>
 				sb.append (" 来回答问题");
 			}
 			sb.append ("     您有 " + timeout_second + " 秒钟的回答时间");
-			mapGlobalOptions.put ("opt_output_username", false);	// 不输出用户名，因为可能参与者可能是多人
+			if (isParticipantsQuantityIndefinitely || participants.size () > 1)
+				mapGlobalOptions.put ("opt_output_username", false);	// 不输出用户名，因为可能参与者可能是多人
 
 			if ((msgTargetMask & MESSAGE_TARGET_MASK_CHANNEL) > 0)
 				bot.SendMessage (channel, nick, mapGlobalOptions, sb.toString ());	// Dialog #" + threadID + " (" + Colors.BOLD + question + Colors.BOLD + ") started
