@@ -1859,22 +1859,36 @@ System.err.println (message);
 		{
 			if (StringUtils.isNotEmpty (ch))
 			{
-				SendMessage (ch, u, mapGlobalOptions, "简而言之，这就是个 万能 HTML 解析器，用以解析任意 HTML 网址的内容。由于该命令帮助信息比较多，所以，改由私信发出");
+				SendMessage (ch, u, mapGlobalOptions, "简而言之，这就是个多功能 HTML、JSON 解析器，用以解析任意网址的 HTML 和 JSON 内容。由于该命令帮助信息比较多，所以，改由私信发出");
 			}
 			SendMessage (null, u, mapGlobalOptions,
-				formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("jsoup", true) + "|" +
-				formatBotCommandInstance ("ht", true) +
-				"<." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("run", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "> " +	//  + "|." + formatBotOptionInstance ("stats", true)
+				formatBotCommandInstance (primaryCmd, true) +
+				"|" + formatBotCommandInstance ("jsoup", true) +
+				"|" + formatBotCommandInstance ("ht", true) +
+				"|" + formatBotCommandInstance ("json", true) +
+
+				"[." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("run", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "|." + formatBotOptionInstance ("os", true) + "|." + formatBotOptionInstance ("gfw", true) + "] " +	//  + "|." + formatBotOptionInstance ("stats", true)
 				"[<" + formatBotParameter ("网址", true) + "> <" + formatBotParameter ("CSS 选择器", true) + ">] " +
 				//"[/# " + formatBotParameter ("HTML 解析模板编号", true) + "] " +
-				"[/ct " + formatBotParameter ("内容类型，可取值为 html 和 json", true) + "] " +
+				"[/ct " + formatBotParameter ("内容类型，可取值为 html | json | js", true) + "] " +
+				"[/jcs " + formatBotParameter ("js脚本剪去前面的字符串长度", true) + "] " +
+				"[/jce " + formatBotParameter ("js脚本剪去后面的字符串长度", true) + "] " +
 				"[/n " + formatBotParameter ("HTML 解析模板名", true) + "] " +
 				"[/ss " + formatBotParameter ("子选择器(可以有多个)", true) + "]... " +
-				"[/e " + formatBotParameter ("取值项", true) + "] " +
-				"[/a " + formatBotParameter ("取值项为 attr 时的属性名", true) + "] " +
-				"[/ua User-Agent] [/m GET|POST] [/r 来源] [/t 超时_秒] [/start 偏移量]  -- 万能 HTML 解析器，用以解析任意 HTML 网址的任意内容");
+				"[/lp " + formatBotParameter ("左填充字符串", true) + "]... " +
+				"[/e " + formatBotParameter ("取值项", true) + "]... " +
+				"[/a " + formatBotParameter ("取值项为 attr 时的属性名", true) + "]... \n" +
+				"[/ff " + formatBotParameter ("格式化字符串，符号，如 '-'(左对齐)", true) + "]... " +
+				"[/fw " + formatBotParameter ("格式化字符串，长度，如 '10'", true) + "]... " +
+				"[/rp " + formatBotParameter ("右填充字符串", true) + "]... " +
+				"[/ua " + formatBotParameter ("User-Agent", true) + "] " +
+				"[/m " + formatBotParameterInstance ("GET", true) + "(默认)|" + formatBotParameterInstance ("POST", true) + "]" +
+				"[/r " + formatBotParameter ("来源", true) + "] " +
+				"[/t " + formatBotParameter ("超时_秒", true) + "] " +
+				"[/start " + formatBotParameter ("偏移量", true) + "]  -- 多功能 HTML、JSON 解析器，用以解析任意网址的 HTML 和 JSON 内容");
+			SendMessage (null, u, mapGlobalOptions, Colors.RED + "== 参数顺序 ==" + Colors.NORMAL + "： 多数参数与顺序无关，除了 /ss /lp /e /a /ff /fw /rp，因为这些是可以传递多个的， /ss 必须在 /lp /e /a /ff /fw /rp 之前。/ss 参数可以忽略，如果没有 /ss 参数（如，只需要外围的 CSS 选择器），则只能添加一组 /lp /e /a /ff /fw /rp 参数");
 			SendMessage (null, u, mapGlobalOptions,
-				formatBotParameter ("模板名", true) + "建议: 以网站名或域名开头. " +
+				formatBotParameter ("模板名", true) + "建议: 以网站名或域名开头. " + Colors.DARK_GREEN + "如果模板名不包含空格和小数点，则可以直接用模板名当做“命令”来执行" + Colors.NORMAL + ". " +
 				formatBotParameter ("网址", true) + ": 可以省去前面的 http:// ; 有的主页网址需要在域名后面加 / 才能正常获取数据; 有的网址则需要指定 User-Agent 字符串 (如 /ua Mozilla) 才能正常获取数据. " +
 				formatBotParameter ("CSS 选择器", true) + "必须是 jsoup 库支持的选择器:" + Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/select/Selector.html http://jsoup.org/cookbook/extracting-data/selector-syntax" + Colors.BOLD + ". " +
 				"");
@@ -1895,10 +1909,11 @@ System.err.println (message);
 					Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/nodes/Element.html " + Colors.BOLD +
 					""
 				);
-			SendMessage (null, u, mapGlobalOptions,
-				"当 ." + formatBotOptionInstance ("list", true) + " 时, 列出已保存的模板. 可用 /start <起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配. ." +
-				formatBotOptionInstance ("add", true) + " 时, 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". ." +
-				formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("run", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四...个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ... ${pNNN}" + Colors.NORMAL + " 或无转义的参数 ${u} ${u2} ... ${uNNN}");
+			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("list", true) + ": 列出已保存的模板. 可用 /start <起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配.");
+			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("add", true) + " : 添加模板. 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". " + Colors.RED + "由于模板目前不可修改，在添加模板前，请先测试好." + Colors.NORMAL);
+			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("run", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四...个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ... ${pNNN}" + Colors.NORMAL + " 或无转义的参数 ${u} ${u2} ... ${uNNN}");
+			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("os", true) + " : 在输出 html 的超级链接元素 a 时，把网址中的 http:// https:// 等 scheme 也输出出来，默认不输出（避免与那些未执行命令却自动取网页标题的 bot 产生冲突）.");
+			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("gfw", true) + " : 在访问网址时，使用后台配置的针对 gfw 的代理服务器，适用于访问的网站被 gfw 特别关照时的情况.");
 			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
 			//SendMessage (ch, u, mapGlobalOptions, "");
 		}
@@ -1906,7 +1921,7 @@ System.err.println (message);
 		{
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOptionInstance ("timeout", "N", true) + "] " +
-				"<" + formatBotParameter ("问题内容", true) + "> " +
+				"<" + formatBotParameter ("问题内容", true) + "(必须是第一个参数)> " +
 				"[/t " + formatBotParameter ("对话框类型", true) + "] " +
 				"[/p " + formatBotParameter ("问题接收人", true) + "...]  " +
 				"[/ca " + formatBotParameter ("候选答案", true) + "...]  " +
@@ -5499,60 +5514,198 @@ System.out.println (params);
 		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
 		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-
 		boolean isQueryingStatistics = false;
-		boolean isDeleting = false, isDeletingAll = false;
+		boolean isDisabling = false, isEnabling = false, isOperatingAll = false;
 		boolean isReverseQuery = false, isShowDetail = false;
+
 		params = StringUtils.stripToEmpty (params);
 		Set<String> setKeys = mapGlobalOptions.keySet ();
 		for (String sKey : setKeys)
 		{
 			// action 选项，这些选项将决定要做什么，如果指定了一个或者多个 action，则按照下面的顺序执行一个：
+			// 隐藏该词条的所有定义
+			// 隐藏该词条的一条定义
+			// 启用该词条的所有定义
+			// 启用该词条的一条定义
 			// 统计
-			// 删除所有
-			// 删除
 			// 没有指定任何动作时： 取词条
 			if (StringUtils.equalsIgnoreCase (sKey, "stats") || StringUtils.equalsIgnoreCase (sKey, "统计"))
 			{
 				isQueryingStatistics = true;
 			}
-			else if (StringUtils.equalsIgnoreCase (sKey, "delete")
-				|| StringUtils.equalsIgnoreCase (sKey, "hide")
-				|| StringUtils.equalsIgnoreCase (sKey, "disable")
-			)
-			{
-				isDeleting = true;
-			}
-			else if (StringUtils.equalsIgnoreCase (sKey, "deleteAll")
-				|| StringUtils.equalsIgnoreCase (sKey, "hideAll")
-				|| StringUtils.equalsIgnoreCase (sKey, "disableAll")
-			)
-			{
-				isDeleting = true;
-				isDeletingAll = true;
+			else if (StringUtils.startsWithIgnoreCase (sKey, "delete")
+				|| StringUtils.startsWithIgnoreCase (sKey, "hide")
+				|| StringUtils.startsWithIgnoreCase (sKey, "disable")
 
-				Dialog dlg = new Dialog (null,
-						this, dialogs, Dialog.Type.确认, "此操作将隐藏该词条的所有定义，确定要这么做？", true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, nick, null,
-						channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
-				//dlg.timeout_second = opt_timeout_length_seconds;
-				//dlg.timeout_second = 30;
-				Map<String, Object> participantAnswers;
-				try
+				|| StringUtils.startsWithIgnoreCase (sKey, "undelete")
+				|| StringUtils.startsWithIgnoreCase (sKey, "show")
+				|| StringUtils.startsWithIgnoreCase (sKey, "enable")
+			)
+			{
+				if (StringUtils.startsWithIgnoreCase (sKey, "delete")
+				|| StringUtils.startsWithIgnoreCase (sKey, "hide")
+				|| StringUtils.startsWithIgnoreCase (sKey, "disable")
+				)
+					isDisabling = true;
+				else
+					isEnabling = true;
+
+				if (StringUtils.endsWithIgnoreCase (sKey, "all"))	// hide他妈的all
+					isOperatingAll = true;
+
+				// 参数检错
+				if (! isOperatingAll && ! opt_max_response_lines_specified)
 				{
-					participantAnswers = executor.submit (dlg).get ();
-					String answer = (String)participantAnswers.get (nick);
-					String value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
-					//String value_and_label = dlg.GetFullCandidateAnswerByValueOrLabel(answer);
-					if (! StringUtils.equalsIgnoreCase (value, "1"))
-					{
-						return;
-					}
-				}
-				catch (InterruptedException | ExecutionException e)
-				{
-					e.printStackTrace();
+					SendMessage (channel, nick, mapGlobalOptions, Colors.RED + "操作词条的单条定义时，需要指定定义的序号");
 					return;
 				}
+
+				// 判断是否有权限操作
+				String[] arrayHostPart = hostname.split ("/");
+				boolean isMe = false;
+				for (String sHostPart : arrayHostPart)
+				{
+					isMe = StringUtils.equalsIgnoreCase (params, sHostPart);
+					if (isMe)
+						break;
+				}
+
+				if (!isMe && ! (
+					isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+					|| isUserInWhiteList(hostname, login, nick, botcmd)
+					)
+				)
+				{
+					if (StringUtils.isNotEmpty (nick))
+						SendMessage (channel, nick, mapGlobalOptions, Colors.RED + "禁止执行" + Colors.NORMAL + ": 1. 只能操作与自己的 IRC 帐号相同的词条定义;  2. 没有 VIP 权限：不在白名单内, 而且, 也不是从控制台执行的");
+					return;
+				}
+
+				class OperatingAllTagDefinitions implements Runnable, DialogUser
+				{
+					LiuYanBot bot;
+					BasicDataSource botDS;
+					boolean isDisabling;
+					boolean isOperatingAll;
+					int opt_max_response_lines;
+					int opt_timeout_length_seconds;
+					String sOperationName;
+					int nNowStateToSet;
+					String sNowStateName;
+					int nOldStateToQuery;
+
+					// 对话发起人信息
+					String channel;
+					String nick;
+					String login;
+					String host;
+					String botcmd;
+					String botCmdAlias;
+					Map<String, Object> mapGlobalOptions;
+					List<String> listCmdEnv;
+					String params;
+
+					public OperatingAllTagDefinitions (LiuYanBot bot, BasicDataSource botDS, boolean isDisabling, boolean isOperatingAll, int opt_max_response_lines, int opt_timeout_length_seconds,
+							String channel, String nick, String login, String hostname,
+							String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+					{
+						this.bot = bot;
+						this.botDS = botDS;
+						this.isDisabling = isDisabling;
+						this.sOperationName = isDisabling ? "隐藏" : "启用";
+						this.sNowStateName = isDisabling ? "隐藏的" : "启用的";
+						this.nNowStateToSet = isDisabling ? 0 : 1;
+						this.nOldStateToQuery = isDisabling ? 1 : 0;
+						this.isOperatingAll = isOperatingAll;
+						this.opt_max_response_lines = opt_max_response_lines;
+						this.opt_timeout_length_seconds = opt_timeout_length_seconds;
+
+						this.channel = channel;
+						this.nick = nick;
+						this.login = login;
+						this.host = hostname;
+						this.botcmd = botcmd;
+						this.botCmdAlias = botCmdAlias;
+						this.mapGlobalOptions = mapGlobalOptions;
+						this.listCmdEnv = listCmdEnv;
+						this.params = params;
+					}
+					@Override
+					public void run ()
+					{
+						Connection conn = null;
+						CallableStatement stmt_sp = null;
+						PreparedStatement stmt = null;
+						ResultSet rs = null;
+						try
+						{
+							if (isOperatingAll)
+							{
+								Dialog dlg = new Dialog (this,
+										bot, dialogs, Dialog.Type.确认, "这将" + sOperationName + "该词条的所有定义，确定要这么做？", true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, nick, null,
+										channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+								dlg.timeout_second = opt_timeout_length_seconds;
+								//dlg.timeout_second = 30;
+								Map<String, Object> participantAnswers;
+								participantAnswers = executor.submit (dlg).get ();
+								String answer = (String)participantAnswers.get (nick);
+								String value = dlg.GetCandidateAnswerValueByValueOrLabel (answer);
+								//String value_and_label = dlg.GetFullCandidateAnswerByValueOrLabel(answer);
+								if (! StringUtils.equalsIgnoreCase (value, "1"))
+								{
+									return;
+								}
+							}
+
+							// 开始执行隐藏或启用
+							conn = botDS.getConnection ();
+							if (isOperatingAll)
+							{
+								stmt = conn.prepareStatement ("UPDATE dics SET enabled=" + nNowStateToSet + " WHERE q_digest=SHA1(LOWER(?)) AND enabled=" + nOldStateToQuery);
+								stmt.setString (1, params);
+							}
+							else
+							{
+								stmt = conn.prepareStatement ("UPDATE dics SET enabled=" + nNowStateToSet + " WHERE q_digest=SHA1(LOWER(?)) AND q_number=? AND enabled=" + nOldStateToQuery);
+								stmt.setString (1, params);
+								stmt.setInt (2, opt_max_response_lines);
+							}
+
+							int iRowsAffected = stmt.executeUpdate ();
+							stmt.close ();
+							conn.close ();
+
+							String sOperationResult =
+									iRowsAffected == 0
+									?
+									"没有" + sOperationName + "词条【" + params + "】的" + (isOperatingAll ? "任何" : " #" + opt_max_response_lines + " 号") + "定义（受影响的行数 = 0），" +
+										(isOperatingAll ? "也许没有任何定义，或者状态原本都已是" + sNowStateName: "也许该定义不存在，或者其状态已是" + sNowStateName)
+									:
+									Colors.DARK_GREEN + "✓" + Colors.NORMAL + " 成功" + sOperationName + "了词条【" + params + "】 的 " + iRowsAffected + " 个定义";
+							SendMessage (channel, nick, mapGlobalOptions, sOperationResult);
+						}
+						catch (InterruptedException | ExecutionException | SQLException e)
+						{
+							SendMessage (channel, nick, mapGlobalOptions, e.toString ());
+						}
+						finally
+						{
+							try { if (rs != null) rs.close(); } catch(Exception e) { }
+							try { if (stmt_sp != null) stmt_sp.close(); } catch(Exception e) { }
+							try { if (conn != null) conn.close(); } catch(Exception e) { }
+						}
+					}
+
+					@Override
+					public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+					{
+						return true;
+					}
+				};
+
+				Runnable runnableOperatingAllTagsThread = new OperatingAllTagDefinitions (this, botDS, isDisabling, isOperatingAll, opt_max_response_lines, opt_timeout_length_seconds, channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+				executor.execute (runnableOperatingAllTagsThread);
+				return;
 			}
 
 			// 辅助选项
@@ -5567,6 +5720,7 @@ System.out.println (params);
 			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+
 
 		Connection conn = null;
 		CallableStatement stmt_sp = null;
@@ -5638,58 +5792,6 @@ System.out.println (params);
 				conn.close ();
 
 				SendMessage (channel, nick, mapGlobalOptions, sbStats.toString ());
-				return;
-			}
-			// 删除/隐藏 词条
-			else if (isDeleting)
-			{
-				// 参数检错
-				if (! isDeletingAll && ! opt_max_response_lines_specified)
-				{
-					SendMessage (channel, nick, mapGlobalOptions, Colors.RED + "删除单条词条定义时，需要指定词条定义的序号");
-					return;
-				}
-
-				// 判断是否有权限删除
-				String[] arrayHostPart = hostname.split ("/");
-				boolean isMe = false;
-				for (String sHostPart : arrayHostPart)
-				{
-					isMe = StringUtils.equalsIgnoreCase (params, sHostPart);
-					if (isMe)
-						break;
-				}
-
-				if (!isMe && ! (
-					isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
-					|| isUserInWhiteList(hostname, login, nick, botcmd)
-					)
-				)
-				{
-					if (StringUtils.isNotEmpty (nick))
-						SendMessage (channel, nick, mapGlobalOptions, Colors.RED + "禁止执行" + Colors.NORMAL + ": 1. 只能删除与自己的 IRC 帐号相同的词条定义;  2. 没有 VIP 权限：不在白名单内, 而且, 也不是从控制台执行的");
-					return;
-				}
-
-				// 开始执行删除
-				conn = botDS.getConnection ();
-				if (isDeletingAll)
-				{
-					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?)) AND enabled=1");
-					stmt.setString (1, params);
-				}
-				else
-				{
-					stmt = conn.prepareStatement ("UPDATE dics SET enabled=0 WHERE q_digest=SHA1(LOWER(?)) AND q_number=? AND enabled=1");
-					stmt.setString (1, params);
-					stmt.setInt (2, opt_max_response_lines);
-				}
-
-				int iRowsAffected = stmt.executeUpdate ();
-				stmt.close ();
-				conn.close ();
-
-				SendMessage (channel, nick, mapGlobalOptions, iRowsAffected == 0 ? "没有更新任何词条定义状态（受影响的行数 = 0），" + (isDeletingAll ? "也许没有任何词条定义，或者全部都已被隐藏" : "也许该词条定义不存在，或者已被隐藏") : Colors.DARK_GREEN + "✓" + Colors.NORMAL + " 成功删除了(其实只是隐藏了) " + iRowsAffected + " 行词条定义");
 				return;
 			}
 
@@ -6082,38 +6184,6 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	}
 
 
-	/**
-	 * 使 ht 命令的几个 list 列表参数的元素数量相同
-	 * @param listSubSelectors
-	 * @param listLeftPaddings
-	 * @param listExtracts
-	 * @param listAttributes
-	 * @param listRightPaddings
-	 */
-	void FixElementNumber (List<String> listSubSelectors, List<String> listLeftPaddings, List<String> listExtracts, List<String> listAttributes, List<String> listRightPaddings)
-	{
-		int nMaxElements = listSubSelectors.size ();
-		if (nMaxElements < listLeftPaddings.size ())
-			nMaxElements = listLeftPaddings.size ();
-		if (nMaxElements < listExtracts.size ())
-			nMaxElements = listExtracts.size ();
-		if (nMaxElements < listAttributes.size ())
-			nMaxElements = listAttributes.size ();
-		if (nMaxElements < listRightPaddings.size ())
-			nMaxElements = listRightPaddings.size ();
-
-		for (int n=0; n<nMaxElements - listSubSelectors.size (); n++)
-			listSubSelectors.add (null);
-		for (int n=0; n<nMaxElements - listLeftPaddings.size (); n++)
-			listLeftPaddings.add (null);
-		for (int n=0; n<nMaxElements - listExtracts.size (); n++)
-			listExtracts.add (null);
-		for (int n=0; n<nMaxElements - listAttributes.size (); n++)
-			listAttributes.add (null);
-		for (int n=0; n<nMaxElements - listRightPaddings.size (); n++)
-			listRightPaddings.add (null);
-	}
-
 	// Create a trust manager that does not validate certificate chains
 	static TrustManager[] tmTrustAllCertificates =
 		new TrustManager[]
@@ -6228,6 +6298,36 @@ logger.fine ("params: " + listOrderedParams);
 logger.fine ("url after parameter expansion: " + sURL);
 		return sURL;
 	}
+
+	/**
+	 * 修复 HT 命令与 SubSelector 参数组相关的参数，使其数量一致。且，至少保证都有 1 条。
+	 * @param listSubSelectors
+	 * @param listLeftPaddings
+	 * @param listExtracts
+	 * @param listAttributes
+	 * @param listFormatFlags
+	 * @param listFormatWidth
+	 * @param listRightPaddings
+	 */
+	void FixHTCommandSubSelectorParameterGroupsSize (List<String> listSubSelectors, List<String> listLeftPaddings, List<String> listExtracts, List<String> listAttributes, List<String> listFormatFlags, List<String> listFormatWidth, List<String> listRightPaddings)
+	{
+		if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
+			listSubSelectors.add ("");
+
+		for (int i=listLeftPaddings.size (); i<listSubSelectors.size (); i++)
+			listLeftPaddings.add ("");
+		for (int i=listExtracts.size (); i<listSubSelectors.size (); i++)
+			listExtracts.add ("");
+		for (int i=listAttributes.size (); i<listSubSelectors.size (); i++)
+			listAttributes.add ("");
+		for (int i=listFormatFlags.size (); i<listSubSelectors.size (); i++)
+			listFormatFlags.add ("");
+		for (int i=listFormatWidth.size (); i<listSubSelectors.size (); i++)
+			listFormatWidth.add ("");
+		for (int i=listRightPaddings.size (); i<listSubSelectors.size (); i++)
+			listRightPaddings.add ("");
+	}
+
 	/**
 	 * 获取任意 HTML 网址的内容，将解析结果显示出来。
 	 * 目前支持读取 Content-Type 为 text/*, application/xml, or application/xhtml+xml (这些是 Jsoup 默认支持的内容类型) 和 application/json (这是单独处理的) 的内容的读取。
@@ -6287,14 +6387,10 @@ logger.fine ("url after parameter expansion: " + sURL);
 		String sURL = null;
 		String sURLParamsHelp = null;
 		String sSelector = null;
-		//String sSubSelector = null;
 		List<String> listSubSelectors = new ArrayList<String> ();
-		//String sExtract = null;
 		List<String> listLeftPaddings = new ArrayList<String> ();
 		List<String> listExtracts = new ArrayList<String> ();
-		//String sAttr = null;
 		List<String> listAttributes = new ArrayList<String> ();
-		//String sMax = null;
 		List<String> listFormatFlags = new ArrayList<String> ();
 		List<String> listFormatWidth = new ArrayList<String> ();
 		List<String> listRightPaddings = new ArrayList<String> ();
@@ -6358,49 +6454,38 @@ logger.fine ("url after parameter expansion: " + sURL);
 					{	// 遇到 /ss 时，把 listSubSelectors listExtracts listAttributes 都添加一项，listExtracts listAttributes 添加的是空字符串，这样是为了保证三个列表的数量相同
 						// 另外：  /ss  /e  /a 的参数顺序必须保证 /ss 是在前面的
 						listSubSelectors.add (value);
-						listLeftPaddings.add ("");
-						listExtracts.add ("");
-						listAttributes.add ("");
-						listFormatFlags.add ("");
-						listFormatWidth.add ("");
-						listRightPaddings.add ("");
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 					}
 					else if (param.equalsIgnoreCase ("lp") || param.equalsIgnoreCase ("LeftPadding") || param.equalsIgnoreCase ("PaddingLeft") || param.equalsIgnoreCase ("左填充"))
 					{
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						listLeftPaddings.set (listLeftPaddings.size () - 1, value);
 					}
 					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
 					{
-						//listExtracts.add (value);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						//FixElementNumber (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listRightPaddings);
-						if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-						{
-							listSubSelectors.add (null);
-							listLeftPaddings.add (null);
-							listExtracts.add (null);
-							listAttributes.add (null);
-							listFormatFlags.add (null);
-							listFormatWidth.add (null);
-							listRightPaddings.add (null);
-						}
-						listExtracts.set (listExtracts.size () - 1, value);	// 更改最后 1 项
+						listExtracts.set (listExtracts.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性名"))
 					{
-						//listAttributes.add (value);
-						if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-						{
-							listSubSelectors.add (null);
-							listLeftPaddings.add (null);
-							listExtracts.add (null);
-							listAttributes.add (null);
-							listFormatFlags.add (null);
-							listFormatWidth.add (null);
-							listRightPaddings.add (null);
-						}
-						listAttributes.set (listAttributes.size () - 1, value);	// 更改最后 1 项
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						listAttributes.set (listAttributes.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
+					}
+					else if (param.equalsIgnoreCase ("ff") || param.equalsIgnoreCase ("FormatFlags") || param.equalsIgnoreCase ("FormatFlag") || param.equalsIgnoreCase ("格式化符号"))
+					{
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						listFormatFlags.set (listFormatFlags.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
+					}
+					else if (param.equalsIgnoreCase ("fw") || param.equalsIgnoreCase ("FormatWidth") || param.equalsIgnoreCase ("格式化宽度"))
+					{
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						listFormatWidth.set (listFormatWidth.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("rp") || param.equalsIgnoreCase ("RightPadding") || param.equalsIgnoreCase ("PaddingRight") || param.equalsIgnoreCase ("右填充"))
 					{
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						listRightPaddings.set (listRightPaddings.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
 					{
@@ -6446,21 +6531,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 					listOrderedParams.add (param);
 			}
 		}
-		// 如果 sub-selector extract attribute 都不指定，需要手工补充一条新的
-		if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-			listSubSelectors.add (null);
-		if (listLeftPaddings.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-			listLeftPaddings.add (null);
-		if (listExtracts.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-			listExtracts.add (null);
-		if (listAttributes.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-			listAttributes.add (null);
-		if (listFormatFlags.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-			listFormatFlags.add (null);
-		if (listFormatWidth.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-			listFormatWidth.add (null);
-		if (listRightPaddings.isEmpty ())	// 有可能 sub-selector extract attribute 都不指定，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
-			listRightPaddings.add (null);
+
+		FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 
 		// 处理用 json 命令别名执行命令时的特别设置： (1).强制改变 Content-Type  (2).强制忽略 http 返回的 Content-Type，否则 jsoup 会报错
 		if (botCmdAlias.equalsIgnoreCase ("json"))
@@ -6769,6 +6841,24 @@ logger.fine ("url after parameter expansion: " + sURL);
 							"'"
 							);
 
+						if (StringUtils.isNotEmpty (sContentType) && !StringUtils.equalsIgnoreCase (sContentType, "html"))
+						{
+							sbHelp.append ("  /ct '");
+							sbHelp.append (sContentType);
+							sbHelp.append ("'");
+
+							if (nJS_Cut_Start > 0)
+							{
+								sbHelp.append ("  /jcs ");
+								sbHelp.append (nJS_Cut_Start);
+							}
+							if (nJS_Cut_End > 0)
+							{
+								sbHelp.append ("  /jce ");
+								sbHelp.append (nJS_Cut_End);
+							}
+						}
+
 						for (int iSS=0; iSS<listSubSelectors.size (); iSS++)
 						{
 							String sSubSelector = listSubSelectors.get (iSS);
@@ -6886,17 +6976,29 @@ logger.fine ("url after parameter expansion: " + sURL);
 			}
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
-				sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
-				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)");
+				conn.setAutoCommit (false);
+				sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
+				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
 				stmt.setString (iParam++, sURL);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sURLParamsHelp));
-				stmt.setString (iParam++, sSelector);
+				stmt.setBoolean (iParam++, usingGFWProxy);
+				stmt.setBoolean (iParam++, isIgnoreHTTPSCertificateValidation);
+				stmt.setString (iParam++, StringUtils.equalsIgnoreCase (sContentType, "html") ? "" : sContentType);
+				stmt.setBoolean (iParam++, isIgnoreContentType);
+
+				stmt.setInt (iParam++, nJS_Cut_Start);
+				stmt.setInt (iParam++, nJS_Cut_End);
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sSelector));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listSubSelectors.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listLeftPaddings.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listExtracts.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listAttributes.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatFlags.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listRightPaddings.get (0)));
 
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPUserAgent));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
@@ -6916,7 +7018,26 @@ logger.fine ("url after parameter expansion: " + sURL);
 				}
 				rs.close ();
 				stmt.close ();
+
+				stmt = conn.prepareStatement ("INSERT html_parser_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)", new String[]{"sub_selector_id"});
+				for (int i=1; i<listSubSelectors.size (); i++)
+				{
+					iParam = 1;
+					stmt.setLong (iParam++, nID);
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listSubSelectors.get (i)));
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listLeftPaddings.get (i)));
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listExtracts.get (i)));
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listAttributes.get (i)));
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatFlags.get (i)));
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (i)));
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listRightPaddings.get (i)));
+
+					nRowsAffected += stmt.executeUpdate ();
+				}
+
+				conn.commit ();
 				conn.close ();
+
 				if (nRowsAffected > 0)
 					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID + Colors.NORMAL + (StringUtils.containsIgnoreCase (sURL, "${p}") || StringUtils.containsIgnoreCase (sURL, "${p2}") || StringUtils.containsIgnoreCase (sURL, "${p3}") ? "    由于你添加的 URL 是带参数的，所以在执行此模板时要加参数，比如: ht.run  '" + sName + "'  <c++>" : ""));
 				else
