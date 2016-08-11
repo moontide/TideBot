@@ -6603,17 +6603,17 @@ logger.fine ("url after parameter expansion: " + sURL);
 					return;
 				}
 
-				for (int i=0, ia=0; i<listExtracts.size (); i++)	// ia = 0;	// index of attribute
+				for (int i=0; i<listExtracts.size (); i++)
 				{
 					String sExtract = listExtracts.get (i);
 					if (StringUtils.equalsIgnoreCase (sExtract, "attr"))
 					{
-						if (listAttributes.size () < (ia+1))
+						if (listAttributes.size () < (i+1))
 						{
 							SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, 但 attr 需要用 /a 指定具体属性名，我已经在属性名列表里找不到剩余的属性名了.");
 							return;
 						}
-						String sAttr = listAttributes.get (ia++);
+						String sAttr = listAttributes.get (i);
 						if (StringUtils.isEmpty (sAttr))
 						{
 							SendMessage (ch, nick, mapGlobalOptions, "/e 指定了 attr, attr 需要用 /a 指定具体属性名.");
@@ -6978,7 +6978,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			{
 				conn.setAutoCommit (false);
 				sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
-				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,CURRENT_TIMESTAMP)");
+				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
@@ -6993,12 +6993,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setInt (iParam++, nJS_Cut_End);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sSelector));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listSubSelectors.get (0)));
-				stmt.setString (iParam++, StringUtils.stripToEmpty (listLeftPaddings.get (0)));
+				stmt.setString (iParam++, listLeftPaddings.get (0));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listExtracts.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listAttributes.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatFlags.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (0)));
-				stmt.setString (iParam++, StringUtils.stripToEmpty (listRightPaddings.get (0)));
+				stmt.setString (iParam++, listRightPaddings.get (0));
 
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPUserAgent));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
