@@ -4221,6 +4221,37 @@ System.err.println (message);
 	}
 
 	/**
+	 * 从 HTTPURLConnection 中获取响应的字符集编码。
+	 * 首先，将从 getContentEncoding() 中获取，若有，则返回该字符集编码。若没有，则继续从 getContentType() 中获取，若取的到，则返回该字符集编码，否则，返回默认字符集编码。
+	 * @param http
+	 * @param sDefaultCharset
+	 * @return
+	 */
+	public static String GetContentEncodingFromHTTPHead (HttpURLConnection http, String sDefaultCharset)
+	{
+		String sCharset = http.getContentEncoding ();
+		if (sCharset != null)
+			return sCharset;
+		String sContentType = http.getContentType ();
+		if (sContentType == null)
+			return sDefaultCharset;
+
+		String[] arrayContentTypeItems = sContentType.split(";");
+
+		for (int i=1; i<arrayContentTypeItems.length; i++)
+		{
+			String sAttributeString = arrayContentTypeItems[i].trim();
+
+			if (sAttributeString.toLowerCase().startsWith("charset="))
+			{
+				sCharset = sAttributeString.substring("charset=".length());
+				return sCharset;
+			}
+		}
+		return sDefaultCharset;
+	}
+
+	/**
 	 * 从 URL 获取信息，并返回。
 	 * 本函数参数较多，建议使用参数简化版的函数，如:
 	 *  {@link #CURL(String)}
@@ -7162,7 +7193,7 @@ System.out.println (sHTTPReferer);
 				{
 					InputStream is = null;
 					is = http.getInputStream();
-					sContent = org.apache.commons.io.IOUtils.toString (is, JVM_CHARSET);
+					sContent = org.apache.commons.io.IOUtils.toString (is, GetContentEncodingFromHTTPHead (http, JVM_CHARSET.toString ()));
 					sContent = StringUtils.stripToEmpty (sContent);
 
 					if (sContent.isEmpty ())
@@ -7178,7 +7209,7 @@ System.out.println (sHTTPReferer);
 						else
 							is = http.getInputStream();
 						//s = new DataInputStream (is).readUTF();
-						sContent = org.apache.commons.io.IOUtils.toString (is, JVM_CHARSET);
+						sContent = org.apache.commons.io.IOUtils.toString (is, GetContentEncodingFromHTTPHead (http, JVM_CHARSET.toString ()));
 					}
 					catch (Exception e)
 					{
