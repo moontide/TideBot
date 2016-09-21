@@ -757,10 +757,13 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 
 		if (StringUtils.isEmpty (botCmdAliasToBanOrWhite) || botCmdAliasToBanOrWhite.equals ("."))
 			botCmdAliasToBanOrWhite = "*";
+		if (! StringUtils.equalsIgnoreCase (botCmdAliasToBanOrWhite, "*"))	// 规整命令名
+			botCmdAliasToBanOrWhite = getBotPrimaryCommand (botCmdAliasToBanOrWhite);
 		if (reason==null)
 			reason = "";
 		if (banObjectType != BAN_OBJECT_TYPE_DEFAULT)
 			wildcardPattern = GetWildcardPattern (wildcardPattern, banObjectType);
+
 
 		// 检查是否已经添加过
 		Map<String,Object> userInfo = GetUserFromList (wildcardPattern, botCmdAliasToBanOrWhite, list, sListName);
