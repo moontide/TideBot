@@ -7056,12 +7056,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 					iParam = 1;
 					stmt.setLong (iParam++, nID);
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listSubSelectors.get (i)));
-					stmt.setString (iParam++, StringUtils.stripToEmpty (listLeftPaddings.get (i)));
+					stmt.setString (iParam++, listLeftPaddings.get (i));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listExtracts.get (i)));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listAttributes.get (i)));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatFlags.get (i)));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (i)));
-					stmt.setString (iParam++, StringUtils.stripToEmpty (listRightPaddings.get (i)));
+					stmt.setString (iParam++, listRightPaddings.get (i));
 
 					nRowsAffected += stmt.executeUpdate ();
 				}
@@ -7271,7 +7271,11 @@ fw.close ();
 						sSubSelector = HtParameterExpansion_DefaultValue_CStyle (sSubSelector, listOrderedParams, sURLParamsHelp);
 
 						evaluateResult = jse.eval (sSubSelector, jsContext);
-						if (StringUtils.isNotEmpty (evaluateResult.toString ()))
+						if (evaluateResult == null)
+						{
+							logger.warning ("javascript 求值返回 null 结果。脚本概览: " + StringUtils.left (sSubSelector, 80));
+						}
+						else if (StringUtils.isNotEmpty (evaluateResult.toString ()))
 						{	// 仅当要输出的字符串有内容时才会输出（并且也输出前填充、后填充）
 							if (StringUtils.isNotEmpty (sLeftPadding))
 								sbText.append (sLeftPadding);
