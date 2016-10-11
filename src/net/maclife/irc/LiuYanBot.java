@@ -1541,7 +1541,10 @@ System.err.println (message);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Time))
 				ProcessCommand_Time (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Action) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Notice))
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Action)
+				|| botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Notice)
+				|| botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_CONSOLE_Action)	// /me 在通过 IRC 操作时，与在控制台操作时结果不同： 在 IRC 操作时，会读取数据库中的 actions 表，并根据参数选出相应的 action 操作
+				)
 				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLEncode) || botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_URLDecode))
@@ -2075,9 +2078,72 @@ System.err.println (message);
 		if (!target.equalsIgnoreCase(channel))
 			msg = msg + " (发自 " + nick + (StringUtils.isEmpty (channel) ? " 的私信" : ", 频道: "+channel) + ")";
 
-		if (botcmd.equalsIgnoreCase("action"))
+		if (StringUtils.equalsIgnoreCase (botcmd, BOT_PRIMARY_COMMAND_Action))
+		{
 			sendAction (target, msg);
-		else if (botcmd.equalsIgnoreCase("notice"))
+		}
+		else if (StringUtils.equalsIgnoreCase (botcmd, BOT_PRIMARY_COMMAND_CONSOLE_Action))
+		{
+			String[] arrayParams = params.split (" +");
+			String cmd = null;
+			String targetNick = null;
+			String sAction = null;
+			if (arrayParams.length > 0)
+				cmd = arrayParams [0];
+			if (arrayParams.length > 1)
+				targetNick = arrayParams [1];
+
+			if (StringUtils.isEmpty (cmd))
+			{
+				SendMessage (channel, nick, mapGlobalOptions, "/me <命令> [目标昵称])");
+				return;
+			}
+			if (StringUtils.isNotEmpty (targetNick) && StringUtils.isNotEmpty (channel))
+			{
+				Set<String> setNicks = new HashSet<String>();
+				setNicks.add (targetNick);
+				ValidateNickNames (channel, setNicks);
+			}
+
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			boolean bFound = false;
+			try
+			{
+				String sSQL = "SELECT action FROM actions WHERE type=" + (StringUtils.isEmpty(targetNick) ? 0 : 1) + " AND cmd=?";
+				SetupDataSource ();
+				conn = botDS.getConnection ();
+				stmt = conn.prepareStatement (sSQL);
+				stmt.setString (1, cmd);
+				rs = stmt.executeQuery ();
+				while (rs.next ())
+				{
+					bFound = true;
+					sAction = rs.getString ("action");
+					break;
+				}
+				rs.close ();
+				stmt.close ();
+				conn.close ();
+
+				if (!bFound)
+				{
+					SendMessage (channel, nick, mapGlobalOptions, "未找到命令为 " + cmd + " 的动作");
+					return;
+				}
+				if (StringUtils.isNotEmpty (targetNick))
+				{
+					sAction = StringUtils.replace (sAction, "${p}", targetNick);
+				}
+				sendAction (target, nick + " " + sAction);
+			}
+			catch (Exception e)
+			{
+				SendMessage (channel, nick, mapGlobalOptions, e.toString ());
+			}
+		}
+		else if (StringUtils.equalsIgnoreCase (botcmd, BOT_PRIMARY_COMMAND_Notice))
 		{
 			if (isUserInWhiteList (host, login, nick, botcmd))
 				sendNotice (target, msg);
@@ -7072,12 +7138,13 @@ logger.fine ("url after parameter expansion: " + sURL);
 				conn.commit ();
 				conn.close ();
 
+				Matcher matcher = PATTERN_FindHtParameter.matcher (sURL);
 				if (nRowsAffected > 0)
-					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID + Colors.NORMAL + (StringUtils.containsIgnoreCase (sURL, "${p}") || StringUtils.containsIgnoreCase (sURL, "${p2}") || StringUtils.containsIgnoreCase (sURL, "${p3}") ? "    由于你添加的 URL 是带参数的，所以在执行此模板时要加参数，比如: ht.run  '" + sName + "'  <c++>" : ""));
+					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID + Colors.NORMAL + (matcher.matches () ? "    由于你添加的 URL 是带参数的，所以在执行此模板时要加参数，比如: ht.run  '" + sName + "'  <c++>" : ""));
 				else
 					SendMessage (ch, nick, mapGlobalOptions, "保存失败。 这条信息应该不会出现……");
 
-				if (StringUtils.containsIgnoreCase (sURL, "${p}") || StringUtils.containsIgnoreCase (sURL, "${p2}") || StringUtils.containsIgnoreCase (sURL, "${p3}"))	// 如果添加的 url 是模板，则不继续执行，直接返回
+				if (matcher.matches ())	// 如果添加的 url 是带参数的模板，则不继续执行，直接返回
 					return;
 			}
 
@@ -7597,10 +7664,10 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 	/**
 	 * 检查昵称的有效性
 	 * @param ch 频道名
-	 * @param collectionParticipants 一组昵称的集合
+	 * @param collectionNicks 一组昵称的集合
 	 * @param sNickPrefixToSkipValidation 如果昵称以此为开头，则跳过有效性检查。如果此参数为 null 或 ""，则不跳过检查
 	 */
-	public void ValidateNickNames (String ch, Collection<String> collectionParticipants, String sNickPrefixToSkipValidation)
+	public void ValidateNickNames (String ch, Collection<String> collectionNicks, String sNickPrefixToSkipValidation)
 	{
 		User[] users = getUsers (ch);
 //System.out.println ("channel=" + ch);
@@ -7608,7 +7675,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		if (users == null)
 			return;
 
-		for (String nick : collectionParticipants)
+		for (String nick : collectionNicks)
 		{
 			if (StringUtils.isNotEmpty (sNickPrefixToSkipValidation) && StringUtils.startsWithIgnoreCase (nick, sNickPrefixToSkipValidation))
 				continue;	// “这个昵称你不用检查了”

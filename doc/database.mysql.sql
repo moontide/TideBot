@@ -18,7 +18,7 @@
 
 */
 
-CREATE TABLE ban
+CREATE TABLE bot_ban
 (
 	ban VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
 	cmd VARCHAR(20) NOT NULL DEFAULT '',
@@ -27,6 +27,18 @@ CREATE TABLE ban
 	ban_time_length INT	/* 分钟 */
 );
 
+/*
+记录 irc kick/ban 管理日志
+*/
+CREATE TABLE irc_ban
+(
+	action ENUM('', 'kick', 'ban', 'kickban'),
+	ban,
+	time DATETIME COMMENT '操作时刻',
+	time_length INT NOT NULL DEFAULT 300 COMMENT '对于 ban 或者 kickban 操作的默认操作生效的秒数。如果是 -1，则表示永久生效',
+	time_unit ENUM('', 's', 'm', 'h', 'd', 'month', 'y') COMMENT '时间单位，默认为空白，空白=s(秒)',
+	enabled BOOLEAN NOT NULL DEFAULT true,
+);
 
 /*******************************************************************************
 
@@ -368,3 +380,32 @@ BEGIN
 END
 $$
 DELIMITER ;
+
+
+
+
+/*******************************************************************************
+
+类似 263 跑车的动作表情命令数据库
+
+*******************************************************************************/
+CREATE TABLE actions
+(
+	type TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT '0(00) - 自己动作，无参数。这个在 irc 频道里应该不会使用； 1(01) - 自己做动作，有第二个人做参数。这个在 irc 频道里应该不会使用； 2(10) - 代替别人做动作，无参数； 3(11) - 代替别人做动作，有第二个人做参数',
+	cmd VARCHAR(50) NOT NULL DEFAULT '',	/* 简短易记的命令，不能有空格 */
+	action VARCHAR(100) CHARACTER SET UTF8MB4 NOT NULL DEFAULT '',	/* */
+	language VARCHAR(3) CHARACTER SET ascii NOT NULL DEFAULT '',
+	source VARCHAR(10) NOT NULL DEFAULT '',	/* 数据来源，用来记录这些数据是从哪里来的，比如，直接从 263 聊天跑车的文件中“导出/复制粘贴”的 */
+	gender VARCHAR(1) NOT NULL DEFAULT '',
+
+	fetched_times INT NOT NULL DEFAULT 0,
+	added_by VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
+	added_time datetime,
+	updated_by VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
+	updated_time datetime,
+	updated_times INT UNSIGNED NOT NULL DEFAULT 0,
+
+	enabled TINYINT(1) NOT NULL DEFAULT 1,
+
+	PRIMARY KEY PK__actions (type, cmd)	/* InnoDB 存储引擎不支持混合主键，只能用 MyISAM 存储引擎。 http://stackoverflow.com/questions/23794624/auto-increment-how-to-auto-increment-a-combined-key-error-1075 */
+) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '类似 263 跑车的动作表情命令数据库';
