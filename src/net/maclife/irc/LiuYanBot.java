@@ -101,6 +101,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
 
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
+	public static String BOT_CUSTOMIZED_ACTION_PREFIX = ".";	// 自定义动作命令的“动作命令”前缀
 	public static final String BOT_PRIMARY_COMMAND_Help             = "/Help";
 	public static final String BOT_PRIMARY_COMMAND_Alias            = "/Alias";
 	public static final String BOT_PRIMARY_COMMAND_Cmd              = "Cmd";
@@ -517,14 +518,14 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	}
 	public void SendMessage (String channel, String user, Map<String, Object> mapGlobalOptions, String msg)
 	{
-		boolean opt_output_username = (boolean)mapGlobalOptions.get("opt_output_username");
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		//String opt_charset = (String)mapGlobalOptions.get("opt_charset");
-		int opt_max_split_lines = (int)mapGlobalOptions.get("opt_max_split_lines");
-		int opt_max_bytes_per_line = (int)mapGlobalOptions.get("opt_max_bytes_per_line");
+		boolean opt_output_username = (boolean)mapGlobalOptions.get ("opt_output_username");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		//String opt_charset = (String)mapGlobalOptions.get ("opt_charset");
+		int opt_max_split_lines = (int)mapGlobalOptions.get ("opt_max_split_lines");
+		int opt_max_bytes_per_line = (int)mapGlobalOptions.get ("opt_max_bytes_per_line");
 
-		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
-		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
+		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
+		String opt_reply_to = (String)mapGlobalOptions.get ("opt_reply_to");
 		if (opt_reply_to_option_on && !StringUtils.equalsIgnoreCase (user, opt_reply_to))
 			user = opt_reply_to;
 		SendMessage (channel, user, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, msg);
@@ -1157,17 +1158,98 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 			List<String> listEnv=null;
 			botCmd = getBotPrimaryCommand (message);
 
-			//  如果不是 bot 命令，那再判断是不是 ht 快捷命令
+
 			if (botCmd == null)
 			{
-				boolean isHTCommandShortcut = false;
+				boolean isCustomizedActionCmdShortcut = false;
+				String msgTo = null;
+				String sCustomizedActionCmd = "";
+				String sBotCommandOptions = "";
+				String sBotCommandParameters = "";
+				String[] args = null;
+				// 查看 /me 命令的动作表，看看名字是否有，如果有的话，就直接执行之
+				Connection conn = null;
+				PreparedStatement stmt = null;
+				ResultSet rs = null;
+				try
+				{
+					if (
+						StringUtils.isNotEmpty (BOT_CUSTOMIZED_ACTION_PREFIX) && StringUtils.startsWithIgnoreCase (message, BOT_CUSTOMIZED_ACTION_PREFIX)
+						||  StringUtils.isEmpty (BOT_CUSTOMIZED_ACTION_PREFIX)
+					)
+					{
+						if (StringUtils.isNotEmpty (BOT_CUSTOMIZED_ACTION_PREFIX))
+							message = message.substring (BOT_CUSTOMIZED_ACTION_PREFIX.length ());
+						args = message.split (" +", 3);
+						if (args[0].contains ("."))
+						{
+							int iFirstDotIndex = args[0].indexOf(".");
+							sCustomizedActionCmd = args[0].substring (0, iFirstDotIndex);
+							sBotCommandOptions = args[0].substring (iFirstDotIndex);
+						}
+						else
+							sCustomizedActionCmd = args[0];
+						if (StringUtils.containsIgnoreCase (sBotCommandOptions, ".to"))
+						{
+							if (args.length < 2)
+								throw new IllegalArgumentException ("用 .to 选项执行 /me 动作命令时，需要先指定用户名");
+
+							msgTo = args[1];
+							if (args.length > 2)	// 如果这个 /me 命令带了其他参数
+								sBotCommandParameters = args[2];
+						}
+						else
+						{
+							if (args.length > 1)	// 如果这个 /me 命令带了其他参数
+								sBotCommandParameters = args[1];
+							if (args.length > 2)	// 如果这个 /me 命令带了其他参数
+								sBotCommandParameters = sBotCommandParameters + " " + args[2];
+						}
+						SetupDataSource ();
+						conn = botDS.getConnection ();
+						stmt = conn.prepareStatement ("SELECT COUNT(*) AS count FROM actions WHERE type=" + (sBotCommandParameters.contains (" ") ? 1 : 0) + " AND cmd=?");
+							stmt.setString (1, sCustomizedActionCmd);
+						rs = stmt.executeQuery ();
+						while (rs.next ())
+						{
+							isCustomizedActionCmdShortcut = (rs.getInt ("count") > 0);
+							break;
+						}
+						rs.close ();
+						stmt.close ();
+						conn.close ();
+					}
+				}
+				catch (Throwable e)
+				{
+					e.printStackTrace ();
+					if (rs != null) rs.close ();
+					if (stmt != null) stmt.close ();
+					if (conn != null) conn.close ();
+				}
+
+				if (isCustomizedActionCmdShortcut)
+				{
+					botCmd = BOT_PRIMARY_COMMAND_CONSOLE_Action;
+					message =
+						botCmd + sBotCommandOptions +
+						(StringUtils.isEmpty (msgTo) ? "" : " " + msgTo) + " " +
+						sCustomizedActionCmd + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 /me 命令消息
+System.err.println (message);
+				}
+			}
+
+			//  如果不是 bot 命令，那再判断是不是 ht 模板名的快捷命令
+			if (botCmd == null)
+			{
+				boolean isHTTemplateShortcut = false;
 				//String sHTContentType = "";
 				String msgTo = null;
 				String sHTTemplateName = "";
 				String sCommandOptions = "";
 				String sHTParameters = "";
 				String[] args = null;
-				// 查看 ht 命令的模板库，看看名字是否有，如果有的话，就直接执行之
+				// 查看 ht 命令的模板表，看看名字是否有，如果有的话，就直接执行之
 				Connection conn = null;
 				PreparedStatement stmt = null;
 				ResultSet rs = null;
@@ -1213,7 +1295,7 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 						while (rs.next ())
 						{
 							//sHTContentType = rs.getString (1);
-							isHTCommandShortcut = true;
+							isHTTemplateShortcut = true;
 							break;
 						}
 						rs.close ();
@@ -1229,7 +1311,7 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 					if (conn != null) conn.close ();
 				}
 
-				if (isHTCommandShortcut)
+				if (isHTTemplateShortcut)
 				{
 					//if (StringUtils.equalsIgnoreCase (sHTContentType, "json"))
 					//	botCmd = "json";
@@ -1717,6 +1799,12 @@ System.err.println (message);
 	}
 	void ProcessCommand_Help (String ch, String u, String login, String hostname, String botcmd, String botcmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		if (StringUtils.isNotEmpty (ch))
+		{
+			SendMessage (ch, u, mapGlobalOptions, "由于本 Bot 的帮助信息又臭又长，所以全部改由私信发出…");
+			ch = null;
+		}
+
 		if (StringUtils.isEmpty (params))
 		{
 			SendMessage (ch, u, mapGlobalOptions,
@@ -1863,7 +1951,7 @@ System.err.println (message);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_HTMLParser;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			if (StringUtils.isNotEmpty (ch))
+			//if (StringUtils.isNotEmpty (ch))
 			{
 				SendMessage (ch, u, mapGlobalOptions, "简而言之，这就是个多功能 HTML、JSON 解析器，用以解析任意网址的 HTML 和 JSON 内容。由于该命令帮助信息比较多，所以，改由私信发出");
 			}
@@ -1971,9 +2059,37 @@ System.err.println (message);
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		primaryCmd = BOT_PRIMARY_COMMAND_Action;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "  [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
 		primaryCmd = BOT_PRIMARY_COMMAND_Notice;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "  [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
+		primaryCmd = BOT_PRIMARY_COMMAND_CONSOLE_Action;         if (isThisCommandSpecified (args, primaryCmd))
+		{
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) +
+				"[" + formatBotOption (".操作，默认为run", true) + "[" + formatBotOptionInstance (".0", true) + "|" + formatBotOptionInstance (".1", true) + "]]" +
+				"  [" + formatBotParameter ("动作命令", true) + "(可用汉字)]" +
+				"  [" + formatBotParameter ("动作目标昵称", true) + "]" +
+				"    -- 用快捷命令执行 IRC 动作。快捷命令可用 " + formatBotOptionInstance (".add", true) + " 操作自己添加。" + Colors.BOLD + "可省去 " + formatBotCommandInstance (primaryCmd, true) + Colors.BOLD +
+				formatBotOption (".操作", true) + " 列表： " +
+				formatBotOptionInstance (".run", true) + " - 执行(默认); " +
+				formatBotOptionInstance (".add", true) + " - 添加命令，添加时，需要用 " +
+					formatBotOptionInstance (".0", true) + " 或 " + formatBotOptionInstance (".1", true) + " 指定动作内容是否是互动类型的。" +
+						formatBotOptionInstance (".0", true) + ":自娱自乐，" +
+						formatBotOptionInstance (".1", true) + ":与目标互动类型的的动作内容; " +
+				formatBotOptionInstance (".modify", true) + " - 修改已添加的动作(只有自己[以 @host 作为判断是否是自己的依据]和 VIP 才能修改自己添加的); " +
+				formatBotOptionInstance (".list", true) + " - 列出所有动作命令; " +
+				""
+			);
+
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + formatBotOptionInstance (".add", true) + "[" + formatBotOptionInstance (".0", true) + "|" + formatBotOptionInstance (".1", true) + "] <动作命令> <动作内容> -- 添加自定义的动作。" +
+				"  动作命令必须是 UTF8 编码的字符串，可以用汉字，但受到 MySQL 的限制，单个 UTF-8 字符的编码长度不能超过 4 字节，所以，不能用太特殊的字符。" +
+				"  动作命令字符串长度：不能小于 4 英文字符、2 汉字 (VIP 可跳过该限制)，不能大于 50。" +
+				"  动作内容，如果针对目标互动的，则需要用 " + formatBotOptionInstance (".1", true) + " 选项来指定。" +
+				"动作内容中包含 ${p} 的，均是与目标互动的动作，${p} 将被替换成执行时的动作目标。 " +
+				"动作内容中的 ${me} 将被替换成自己的昵称。" +
+				"动作内容中的 ${channel} 将被替换成所在的频道名。" +
+				""
+			);
+		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_URLEncode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance (BOT_PRIMARY_COMMAND_URLDecode, true) + "[" + formatBotOption (".字符集", true) + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
@@ -2065,8 +2181,13 @@ System.err.println (message);
 			ProcessCommand_Help (channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
 		String opt_reply_to = (String)mapGlobalOptions.get ("opt_reply_to");
+		boolean isQueryingStatistics = false;
+		boolean isDisabling = false, isEnabling = false, isOperatingAll = false;
+		boolean isReverseQuery = false, isShowDetail = false;
 
 		String target = channel;	// 默认在本频道执行动作/提醒
 		String msg = params;
@@ -2084,63 +2205,217 @@ System.err.println (message);
 		}
 		else if (StringUtils.equalsIgnoreCase (botcmd, BOT_PRIMARY_COMMAND_CONSOLE_Action))
 		{
-			String[] arrayParams = params.split (" +");
-			String cmd = null;
-			String targetNick = null;
-			String sAction = null;
-			if (arrayParams.length > 0)
-				cmd = arrayParams [0];
-			if (arrayParams.length > 1)
-				targetNick = arrayParams [1];
-
-			if (StringUtils.isEmpty (cmd))
+			String sBotCmdAction = null;	// .run (默认) 、 .add、 .list 、 .listHot 、
+			if (listCmdEnv!=null && listCmdEnv.size()>0)
 			{
-				SendMessage (channel, nick, mapGlobalOptions, "/me <命令> [目标昵称])");
-				return;
-			}
-			if (StringUtils.isNotEmpty (targetNick) && StringUtils.isNotEmpty (channel))
-			{
-				Set<String> setNicks = new HashSet<String>();
-				setNicks.add (targetNick);
-				ValidateNickNames (channel, setNicks);
-			}
-
-			Connection conn = null;
-			PreparedStatement stmt = null;
-			ResultSet rs = null;
-			boolean bFound = false;
-			try
-			{
-				String sSQL = "SELECT action FROM actions WHERE type=" + (StringUtils.isEmpty(targetNick) ? 0 : 1) + " AND cmd=?";
-				SetupDataSource ();
-				conn = botDS.getConnection ();
-				stmt = conn.prepareStatement (sSQL);
-				stmt.setString (1, cmd);
-				rs = stmt.executeQuery ();
-				while (rs.next ())
+				for (String env : listCmdEnv)
 				{
-					bFound = true;
-					sAction = rs.getString ("action");
-					break;
+					if (env.equalsIgnoreCase ("add"))
+						sBotCmdAction = "add";
+					else if (env.equalsIgnoreCase ("detail") || env.equalsIgnoreCase ("详细"))
+						isShowDetail = true;
+					else
+					{
+
+					}
 				}
-				rs.close ();
-				stmt.close ();
-				conn.close ();
+			}
 
-				if (!bFound)
+			if (StringUtils.equalsIgnoreCase (sBotCmdAction, "add"))
+			{
+				String[] arrayParams = params.split (" +", 2);
+				String sActionCmd = null;
+				String sIRCAction = null;
+				if (arrayParams.length > 0)
+					sActionCmd = arrayParams [0];
+				if (arrayParams.length > 1)
+					sIRCAction = arrayParams [1];
+
+				if (StringUtils.isEmpty (sActionCmd) || StringUtils.isEmpty (sIRCAction))
 				{
-					SendMessage (channel, nick, mapGlobalOptions, "未找到命令为 " + cmd + " 的动作");
+					SendMessage (channel, nick, mapGlobalOptions, BOT_PRIMARY_COMMAND_CONSOLE_Action + ".add  <命令>  <动作内容>");
 					return;
 				}
-				if (StringUtils.isNotEmpty (targetNick))
+				/*
+				if (! (
+					isFromConsole(channel, nick, login, host)	// 控制台执行时传的“空”参数
+					|| isUserInWhiteList(host, login, nick, botcmd)
+					)
+					&&
+					(sActionCmd.matches("^\\w+$") && sActionCmd.length ()<3
+						||
+					sActionCmd.matches("") && sActionCmd.length ()<2
+					)
+				)
 				{
-					sAction = StringUtils.replace (sAction, "${p}", targetNick);
+					SendMessage (channel, nick, mapGlobalOptions, "非 VIP 用户不能用过短的动作名，至少要 3 个英文字符、2 个汉字");
+					return;
 				}
-				sendAction (target, nick + " " + sAction);
+				*/
+
+				Connection conn = null;
+				PreparedStatement stmt = null;
+				ResultSet rs = null;
+				int nRowsAffected = 0;
+				try
+				{
+					String sSQL = "INSERT INTO actions (type, cmd, action, added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?,?, CURRENT_TIMESTAMP)";
+					int type = 0, nActionNumber = 0;
+					Matcher matcher = PATTERN_FindHtParameter.matcher (sIRCAction);
+					boolean bMatched = false;
+					//bMatched = matcher.matches ();	// PATTERN_FindHtParameter 不能用 matches，只能用 find ()，因为不是全句匹配
+					bMatched = matcher.find ();
+//System.out.println (PATTERN_FindHtParameter);
+//System.out.println (sIRCAction);
+//System.out.println (bMatched);
+					type = bMatched ? 1 : 0;
+
+					SetupDataSource ();
+					conn = botDS.getConnection ();
+					stmt = conn.prepareStatement (sSQL, new String[]{"action_number"});
+					int i=1;
+					stmt.setInt (i++, type);
+					stmt.setString (i++, sActionCmd);
+					stmt.setString (i++, sIRCAction);
+					stmt.setString (i++, nick);
+					stmt.setString (i++, login);
+					stmt.setString (i++, host);
+					nRowsAffected = stmt.executeUpdate ();
+					rs = stmt.getGeneratedKeys();
+					while (rs.next())
+					{
+						nActionNumber = rs.getInt (1);
+					}
+					rs.close ();
+					stmt.close ();
+					conn.close ();
+
+					if (nRowsAffected == 0)
+					{
+						SendMessage (channel, nick, mapGlobalOptions, "SQL 执行成功，但受影响的行数为 0");
+						return;
+					}
+					else
+					{
+						SendMessage (channel, nick, mapGlobalOptions,
+								Colors.DARK_GREEN + "✓ 保存成功。#" + nActionNumber + Colors.NORMAL + "  " +
+								(bMatched ?
+									"注意：你刚刚添加的是互动类型的动作，所以在使用时，需要加上互动的目标，如： " + BOT_PRIMARY_COMMAND_CONSOLE_Action + " " + sActionCmd + " " + getNick()
+									:
+									"你刚刚添加的是自娱自乐类型的动作，在使用时不能加互动目标，如： "  + BOT_PRIMARY_COMMAND_CONSOLE_Action + " " + sActionCmd
+								)
+						);
+					}
+				}
+				catch (Exception e)
+				{
+					SendMessage (channel, nick, mapGlobalOptions, e.toString ());
+				}
 			}
-			catch (Exception e)
+			else
 			{
-				SendMessage (channel, nick, mapGlobalOptions, e.toString ());
+				String[] arrayParams = params.split (" +");
+				String sActionCmd = null;
+				String sTargetNick = null;
+				String sIRCAction = null;
+				int nActionNumber = 0;
+				int nFetchedTimes = 0;
+
+				if (arrayParams.length > 0)
+					sActionCmd = arrayParams [0];
+				if (arrayParams.length > 1)
+					sTargetNick = arrayParams [1];
+
+				if (StringUtils.isEmpty (sActionCmd))
+				{
+					SendMessage (channel, nick, mapGlobalOptions, "/me <命令> [目标昵称]");
+					return;
+				}
+				if (StringUtils.isNotEmpty (sTargetNick) && StringUtils.isNotEmpty (channel))
+				{
+					Set<String> setNicks = new HashSet<String>();
+					setNicks.add (sTargetNick);
+					ValidateNickNames (channel, setNicks);
+				}
+
+				Connection conn = null;
+				PreparedStatement stmt = null;
+				ResultSet rs = null;
+				boolean bFound = false;
+				try
+				{
+					String sSQL = "SELECT * FROM actions WHERE type=" + (StringUtils.isEmpty(sTargetNick) ? 0 : 1) + " AND cmd=? AND action_number=?";
+					SetupDataSource ();
+					conn = botDS.getConnection ();
+					if (opt_max_response_lines_specified && opt_max_response_lines > 0)
+						nActionNumber = opt_max_response_lines;
+					else
+					{	// 若未指定 action_number 序号，则随机取一个（如果有的话）
+						String sSQL_query_count_and_max = "SELECT MAX(action_number) AS max, COUNT(*) AS count FROM actions WHERE type=" + (StringUtils.isEmpty(sTargetNick) ? 0 : 1) + " AND cmd=?";
+						PreparedStatement stmt_query_count_and_max = null;
+						stmt_query_count_and_max = conn.prepareStatement (sSQL_query_count_and_max);
+						stmt_query_count_and_max.setString (1, sActionCmd);
+						//stmt_query_count_and_max.setInt (2, nActionNumber);
+						rs = stmt_query_count_and_max.executeQuery ();
+						int nMax = 0, nCount = 0;
+						while (rs.next ())
+						{
+							nMax = rs.getInt ("max");
+							nCount = rs.getInt ("count");
+
+							bFound = (nCount > 0);
+							if (bFound)	// rand.nextInt(nCount): java.lang.IllegalArgumentException: bound must be positive
+							{
+								int iRandomRow = rand.nextInt (nCount);
+								nActionNumber = iRandomRow + 1;
+//System.out.println ("共有 " + nCount + " 个 action，随机数 = " + nActionNumber);
+							}
+							break;
+						}
+						rs.close ();
+						stmt_query_count_and_max.close ();
+						if (! bFound)
+						{
+							nActionNumber = 1;
+//System.out.println ("没有命令为 " + sActionCmd + " 序号为 " + nActionNumber + " action，随机数 = " + nActionNumber);
+						}
+					}
+					stmt = conn.prepareStatement (sSQL, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+					stmt.setString (1, sActionCmd);
+					stmt.setInt (2, nActionNumber);
+					rs = stmt.executeQuery ();
+					bFound = false;
+					while (rs.next ())
+					{
+						bFound = true;
+						sIRCAction = rs.getString ("action");
+						nFetchedTimes = rs.getInt ("fetched_times");
+						rs.updateInt ("fetched_times", nFetchedTimes + 1);
+						rs.updateRow ();
+						break;
+					}
+					rs.close ();
+					stmt.close ();
+					conn.close ();
+
+					if (! bFound)
+					{
+						SendMessage (channel, nick, mapGlobalOptions, "未找到类型为 " + Colors.BOLD + (StringUtils.isEmpty(sTargetNick) ? "自娱自乐" : "互动") + Colors.BOLD + "、命令为 " + Colors.BOLD + sActionCmd + "、编号为 " + Colors.BOLD + nActionNumber + Colors.BOLD + " 的动作");
+						return;
+					}
+					if (StringUtils.isNotEmpty (sTargetNick))
+					{
+						sIRCAction = StringUtils.replace (sIRCAction, "${p}", sTargetNick);
+					}
+					sIRCAction = StringUtils.replace (sIRCAction, "${me}", nick);
+					sIRCAction = StringUtils.replace (sIRCAction, "${channel}", channel);
+					sendAction (target, (nActionNumber > 1 ? "#" + COLOR_DARK_RED + nActionNumber + Colors.NORMAL + " " : "") + nick + " " + sIRCAction);
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace ();
+					SendMessage (channel, nick, mapGlobalOptions, e.toString ());
+				}
 			}
 		}
 		else if (StringUtils.equalsIgnoreCase (botcmd, BOT_PRIMARY_COMMAND_Notice))
@@ -3139,8 +3414,8 @@ System.err.println (message);
 			SendMessage (ch, u, mapGlobalOptions, " 没有 GeoIP 数据库");
 			return;
 		}
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
 		String[] ips = null;
 		if (StringUtils.isNotEmpty (params))
@@ -3283,8 +3558,8 @@ System.err.println (message);
 			SendMessage (ch, u, mapGlobalOptions, " 没有纯真 IP 数据库");
 			return;
 		}
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
 		String[] queries = null;
 		if (StringUtils.isNotEmpty (params))
@@ -3362,8 +3637,8 @@ System.err.println (message);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
 		String[] arrayPages = params.split (" +");
 		try
@@ -4717,9 +4992,9 @@ System.err.println (message);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get ("opt_timeout_length_seconds");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 		if (! opt_max_response_lines_specified)
 			opt_max_response_lines = 2;
 
@@ -5009,8 +5284,8 @@ System.out.println (nMatch + ": " + sMatchedString);
 		String sRegExp = null;
 		String sReplacement = null;
 		boolean bNotColorized = false;	// 是否以不用颜色高亮的方式显示结果，默认： false - 用颜色
-		int opt_max_match_times = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“匹配次数”（目前仅当 bColorized = true 时有效）
-		boolean opt_match_times_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
+		int opt_max_match_times = (int)mapGlobalOptions.get ("opt_max_response_lines");	// 将最大响应行数当做“匹配次数”（目前仅当 bColorized = true 时有效）
+		boolean opt_match_times_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
 		if (listCmdEnv!=null && listCmdEnv.size () > 1)
 		{
 			bNotColorized = listCmdEnv.get (1).equalsIgnoreCase ("nocolor");
@@ -5379,8 +5654,8 @@ System.out.println (evaluateResult);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 System.out.println ("Java 代码：");
 System.out.println (params);
 
@@ -5507,10 +5782,10 @@ System.out.println (params);
 			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
 		}
-		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
-		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get("env");
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get ("opt_timeout_length_seconds");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
+		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
 		int COLUMNS = ANSIEscapeTool.DEFAULT_SCREEN_COLUMNS;
 		if (mapUserEnv.get ("COLUMNS") != null)
 		{
@@ -5611,9 +5886,9 @@ System.out.println (params);
 	 */
 	void ProcessCommand_Tag (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
-		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
-		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");	// 将最大响应行数当做“q_number”，只有反查时才作“最大响应行数”的用途
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");	// 是否指定了“匹配次数”（目前仅当 bColorized = true 时有效）
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get ("opt_timeout_length_seconds");
 		boolean isQueryingStatistics = false;
 		boolean isDisabling = false, isEnabling = false, isOperatingAll = false;
 		boolean isReverseQuery = false, isShowDetail = false;
@@ -6098,8 +6373,8 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	 */
 	void ProcessCommand_GithubCommitLogs (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
 		boolean isLogs = false;
 		boolean isTags = false;
@@ -6474,9 +6749,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 			}
 		}
 
-		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get ("opt_timeout_length_seconds");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
 		String sContentType = "html";	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json
 		int nJS_Cut_Start = 0;
@@ -7722,9 +7997,9 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			return;
 		}
 
-		int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		// opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
-		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
+		int opt_timeout_length_seconds = (int)mapGlobalOptions.get ("opt_timeout_length_seconds");
+		// opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
+		String opt_reply_to = (String)mapGlobalOptions.get ("opt_reply_to");
 		//if (opt_reply_to_option_on && StringUtils.equalsIgnoreCase (getNick (), opt_reply_to))
 		//{
 		//	mapGlobalOptions.remove ("opt_reply_to_option_on");	// 去掉 opt_reply_to，让 bot 回答使用人
@@ -7896,9 +8171,9 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			return;
 		}
 
-		//int opt_timeout_length_seconds = (int)mapGlobalOptions.get("opt_timeout_length_seconds");
-		//boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
-		String opt_reply_to = (String)mapGlobalOptions.get("opt_reply_to");
+		//int opt_timeout_length_seconds = (int)mapGlobalOptions.get ("opt_timeout_length_seconds");
+		//boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
+		String opt_reply_to = (String)mapGlobalOptions.get ("opt_reply_to");
 		//if (opt_reply_to_option_on && StringUtils.equalsIgnoreCase (getNick (), opt_reply_to))
 		//{
 		//	mapGlobalOptions.remove ("opt_reply_to_option_on");	// 去掉 opt_reply_to，让 bot 回答使用人
@@ -8087,8 +8362,8 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			}
 			macman = new MacManufactoryTool (ouiFileName);
 		}
-		int opt_max_response_lines = (int)mapGlobalOptions.get("opt_max_response_lines");
-		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get("opt_max_response_lines_specified");
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
 		String[] queries = null;
 		if (StringUtils.isNotEmpty (params))

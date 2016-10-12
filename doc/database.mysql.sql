@@ -393,19 +393,25 @@ CREATE TABLE actions
 (
 	type TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT '0(00) - 自己动作，无参数。这个在 irc 频道里应该不会使用； 1(01) - 自己做动作，有第二个人做参数。这个在 irc 频道里应该不会使用； 2(10) - 代替别人做动作，无参数； 3(11) - 代替别人做动作，有第二个人做参数',
 	cmd VARCHAR(50) NOT NULL DEFAULT '',	/* 简短易记的命令，不能有空格 */
-	action VARCHAR(100) CHARACTER SET UTF8MB4 NOT NULL DEFAULT '',	/* */
+	action VARCHAR(200) CHARACTER SET UTF8MB4 NOT NULL DEFAULT '',	/* */
+	action_number INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	language VARCHAR(3) CHARACTER SET ascii NOT NULL DEFAULT '',
 	source VARCHAR(10) NOT NULL DEFAULT '',	/* 数据来源，用来记录这些数据是从哪里来的，比如，直接从 263 聊天跑车的文件中“导出/复制粘贴”的 */
 	gender VARCHAR(1) NOT NULL DEFAULT '',
 
 	fetched_times INT NOT NULL DEFAULT 0,
-	added_by VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
+	added_by VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT '添加人的 IRC 昵称',
+	added_by_user VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT '添加人的 IRC 用户',
+	added_by_host VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT '添加人的 IRC 主机',
 	added_time datetime,
-	updated_by VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
+	updated_by VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT '更新人的 IRC 昵称',
+	updated_by_user VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT '更新人的 IRC 用户',
+	updated_by_host VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT '更新人的 IRC 主机',
 	updated_time datetime,
 	updated_times INT UNSIGNED NOT NULL DEFAULT 0,
 
 	enabled TINYINT(1) NOT NULL DEFAULT 1,
 
-	PRIMARY KEY PK__actions (type, cmd)	/* InnoDB 存储引擎不支持混合主键，只能用 MyISAM 存储引擎。 http://stackoverflow.com/questions/23794624/auto-increment-how-to-auto-increment-a-combined-key-error-1075 */
+	PRIMARY KEY PK__actions (type, action, action_number)	/* InnoDB 存储引擎不支持混合主键，只能用 MyISAM 存储引擎。 http://stackoverflow.com/questions/23794624/auto-increment-how-to-auto-increment-a-combined-key-error-1075 */
+	UNIQUE KEY UQ__actions (type, cmd, action)
 ) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '类似 263 跑车的动作表情命令数据库';
