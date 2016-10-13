@@ -97,6 +97,16 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final int MAX_SPLIT_LINES = 3;	// 最大分割行数 (可由参数调整)
 	public static final int MAX_SPLIT_LINES_LIMIT = 10;	// 最大分割行数 (真的不能大于该行数)
 
+	/**
+	 用来判断 “IRC 昵称是否在行首”的规则表达式，由下面三个连起来组成：有效的昵称 冒号或者逗号 有没有空格都无所谓。
+	 目前，现在还不支持汉字昵称 TODO
+	// http://tools.ietf.org/html/rfc2812#section-2.3.1
+	// nickname   =  ( letter / special ) *8( letter / digit / special / "-" )
+	// special    =  %x5B-60 / %x7B-7D                   ; "[", "]", "\", "`", "_", "^", "{", "|", "}"
+	 */
+	public static final String sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE = "^([a-zA-Z_\\[\\\\\\]\\^\\{\\|\\}`][\\[\\\\\\]\\^\\{\\|\\}`\\w\\-]*)[,:]\\s*";
+	public static final Pattern PATTERN_NICK_NAME_AT_BEGIN_OF_LINE = Pattern.compile (sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE);
+
 	public static final String WORKING_DIRECTORY = System.getProperty ("user.dir");
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
 
@@ -1132,14 +1142,39 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 		if (StringUtils.equalsIgnoreCase (nick, getName ()))
 			return;
 
+		String sSayTo_andSoReplyTo = null;
 		boolean isSayingToMe = false;	// 是否是指名道姓的对我说
 		//System.out.println ("ch="+channel +",nick="+nick +",login="+login +",hostname="+hostname);
 		// 如果是指名道姓的直接对 Bot 说话，则把机器人用户名去掉
-		if (StringUtils.startsWithIgnoreCase(message, getNick ()+":") || StringUtils.startsWithIgnoreCase(message, getNick ()+","))
+		//if (StringUtils.startsWithIgnoreCase(message, getNick ()+":") || StringUtils.startsWithIgnoreCase(message, getNick ()+","))
+		if (message.matches (sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE + ".*$"))
 		{
-			isSayingToMe = true;
-			message = message.substring (getNick ().length() + 1);	// : 后面的内容
-			message = StringUtils.stripToEmpty (message);
+logger.finer ("消息是对某人说的");
+			Matcher mat = PATTERN_NICK_NAME_AT_BEGIN_OF_LINE.matcher (message);
+			boolean bMatched = false;
+			StringBuffer sbRestMessage = new StringBuffer ();
+			if (mat.find ())
+			{
+				bMatched = true;
+				sSayTo_andSoReplyTo = mat.group (1);
+logger.finer ("消息是对 [" + sSayTo_andSoReplyTo + "] 说的");
+				mat.appendReplacement (sbRestMessage, "");
+			}
+			mat.appendTail (sbRestMessage);
+			if (bMatched)
+			{
+				if (StringUtils.equalsIgnoreCase (getNick(), sSayTo_andSoReplyTo))
+				{
+logger.finer ("消息是对本 Bot 说的");
+					isSayingToMe = true;
+				}
+
+				boolean isNickSaidToExists = isNickExistsInChannel (channel, sSayTo_andSoReplyTo);
+				if (isNickSaidToExists)
+				{
+					message = StringUtils.stripToEmpty (sbRestMessage.toString ());
+				}
+			}
 		}
 
 		try
@@ -1162,7 +1197,7 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 			if (botCmd == null)
 			{
 				boolean isCustomizedActionCmdShortcut = false;
-				String msgTo = null;
+				String msgTo = sSayTo_andSoReplyTo;
 				String sCustomizedActionCmd = "";
 				String sBotCommandOptions = "";
 				String sBotCommandParameters = "";
@@ -1233,7 +1268,7 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 					botCmd = BOT_PRIMARY_COMMAND_CONSOLE_Action;
 					message =
 						botCmd + sBotCommandOptions +
-						(StringUtils.isEmpty (msgTo) ? "" : " " + msgTo) + " " +
+						(StringUtils.isEmpty (msgTo) ? "" : ".to " + msgTo) + " " +
 						sCustomizedActionCmd + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 /me 命令消息
 System.err.println (message);
 				}
@@ -1244,10 +1279,10 @@ System.err.println (message);
 			{
 				boolean isHTTemplateShortcut = false;
 				//String sHTContentType = "";
-				String msgTo = null;
+				String msgTo = sSayTo_andSoReplyTo;
 				String sHTTemplateName = "";
-				String sCommandOptions = "";
-				String sHTParameters = "";
+				String sBotCommandOptions = "";
+				String sBotCommandParameters = "";
 				String[] args = null;
 				// 查看 ht 命令的模板表，看看名字是否有，如果有的话，就直接执行之
 				Connection conn = null;
@@ -1267,25 +1302,25 @@ System.err.println (message);
 						{
 							int iFirstDotIndex = args[0].indexOf(".");
 							sHTTemplateName = args[0].substring (0, iFirstDotIndex);
-							sCommandOptions = args[0].substring (iFirstDotIndex);
+							sBotCommandOptions = args[0].substring (iFirstDotIndex);
 						}
 						else
 							sHTTemplateName = args[0];
-						if (StringUtils.containsIgnoreCase (sCommandOptions, ".to"))
+						if (StringUtils.containsIgnoreCase (sBotCommandOptions, ".to"))
 						{
 							if (args.length < 2)
 								throw new IllegalArgumentException ("用 .to 选项执行 html/json 模板时，需要先指定用户名");
 
 							msgTo = args[1];
 							if (args.length > 2)	// 如果这个 ht 命令带了其他参数
-								sHTParameters = args[2];
+								sBotCommandParameters = args[2];
 						}
 						else
 						{
 							if (args.length > 1)	// 如果这个 ht 命令带了其他参数
-								sHTParameters = args[1];
+								sBotCommandParameters = args[1];
 							if (args.length > 2)	// 如果这个 ht 命令带了其他参数
-								sHTParameters = sHTParameters + " " + args[2];
+								sBotCommandParameters = sBotCommandParameters + " " + args[2];
 						}
 						SetupDataSource ();
 						conn = botDS.getConnection ();
@@ -1321,15 +1356,15 @@ System.err.println (message);
 					message =
 						botCmd +
 						(
-							StringUtils.containsIgnoreCase(sCommandOptions, ".add")
-								|| StringUtils.containsIgnoreCase(sCommandOptions, ".run") || StringUtils.containsIgnoreCase(sCommandOptions, ".go")
-								|| StringUtils.containsIgnoreCase(sCommandOptions, ".show")
-								|| StringUtils.containsIgnoreCase(sCommandOptions, ".list") || StringUtils.containsIgnoreCase(sCommandOptions, ".search")
-								|| StringUtils.containsIgnoreCase(sCommandOptions, ".stats")
-							? sCommandOptions
-							: ".run" + sCommandOptions
+							StringUtils.containsIgnoreCase(sBotCommandOptions, ".add")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".run") || StringUtils.containsIgnoreCase(sBotCommandOptions, ".go")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".show")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".list") || StringUtils.containsIgnoreCase(sBotCommandOptions, ".search")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".stats")
+							? sBotCommandOptions
+							: ".run" + sBotCommandOptions
 						)
-						+ (StringUtils.isEmpty (msgTo) ? "" : " " + msgTo) + " " + sHTTemplateName + (sHTParameters.isEmpty () ? "" : " " + sHTParameters);	// 重新组合生成 ht 命令
+						+ (StringUtils.isEmpty (msgTo) ? "" : ".to " + msgTo) + " " + sHTTemplateName + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 ht 命令
 System.err.println (message);
 				}
 				else
@@ -1410,13 +1445,13 @@ System.err.println (message);
 					if (env.equalsIgnoreCase("nou"))	// do not output user name 响应时，不输出用户名
 					{
 						opt_output_username = false;
-						logger.finer ("bot “输出用户名”设置为: " + opt_output_username);
+logger.finer ("bot “输出用户名”设置为: " + opt_output_username);
 						continue;
 					}
 					else if (env.equalsIgnoreCase("err") || env.equalsIgnoreCase("stderr"))	// 输出 stderr
 					{
 						opt_output_stderr = true;
-						logger.finer ("cmd 命令“输出 stderr”设置为: " + opt_ansi_escape_to_irc_escape);
+logger.finer ("cmd 命令“输出 stderr”设置为: " + opt_ansi_escape_to_irc_escape);
 						continue;
 					}
 					else if (env.equalsIgnoreCase("esc") || env.equalsIgnoreCase("escape") || env.equalsIgnoreCase("esc2") || env.equalsIgnoreCase("escape2"))	// 转换 ANSI Escape 序列到 IRC Escape 序列
@@ -1424,7 +1459,7 @@ System.err.println (message);
 						opt_ansi_escape_to_irc_escape = true;
 						if (env.equalsIgnoreCase("esc2") || env.equalsIgnoreCase("escape2"))
 							opt_escape_for_cursor_moving = true;
-						logger.finer ("cmd 命令“对输出进行 ANSI 转义序列转换为 IRC 序列”设置为: " + opt_ansi_escape_to_irc_escape);
+logger.finer ("cmd 命令“对输出进行 ANSI 转义序列转换为 IRC 序列”设置为: " + opt_ansi_escape_to_irc_escape);
 						continue;
 					}
 					else if (env.equalsIgnoreCase("to"))
@@ -1453,13 +1488,13 @@ System.err.println (message);
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
-							logger.finer ("“执行超时时长”设置为: " + opt_timeout_length_seconds + " 秒");
+logger.finer ("“执行超时时长”设置为: " + opt_timeout_length_seconds + " 秒");
 							continue;
 						}
 						if (varName.equals("ocs") || varName.equalsIgnoreCase("OutputCharSet") || varName.equalsIgnoreCase("encoding"))
 						{
 							opt_charset = varValue;
-							logger.finer ("cmd 命令“输出字符集”设置为: " + opt_charset);
+logger.finer ("cmd 命令“输出字符集”设置为: " + opt_charset);
 							continue;
 						}
 						if (varName.equals("msl") || varName.equalsIgnoreCase("MaxSplitLines"))
@@ -1471,7 +1506,7 @@ System.err.println (message);
 								&& !isUserInWhiteList(hostname, login, nick, botCmd)	// 不在白名单
 							)
 								opt_max_split_lines = MAX_SPLIT_LINES_LIMIT;
-							logger.finer ("“最大分割行数”设置为: " + opt_max_split_lines + " 行");
+logger.finer ("“最大分割行数”设置为: " + opt_max_split_lines + " 行");
 							continue;
 						}
 						if (varName.equals("mbpl") || varName.equalsIgnoreCase("MaxBytesPerLine"))
@@ -1479,7 +1514,7 @@ System.err.println (message);
 							opt_max_bytes_per_line = Integer.parseInt (varValue);
 							if (opt_max_bytes_per_line > MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT)
 								opt_max_bytes_per_line = MAX_BYTES_LENGTH_OF_IRC_MESSAGE_LIMIT;
-							logger.finer ("“每行最大字节数”设置为: " + opt_max_bytes_per_line + " 字节");
+logger.finer ("“每行最大字节数”设置为: " + opt_max_bytes_per_line + " 字节");
 							continue;
 						}
 
@@ -1493,7 +1528,7 @@ System.err.println (message);
 								nValue = MAX_SCREEN_COLUMNS;
 
 							varValue = String.valueOf (nValue);
-							logger.finer ("“屏幕最大" + (varName.equals("LINES") ? "行" : "列") + "数”设置为: " + varValue);
+logger.finer ("“屏幕最大" + (varName.equals("LINES") ? "行" : "列") + "数”设置为: " + varValue);
 						}
 						mapUserEnv.put (varName, varValue);
 
@@ -1528,7 +1563,7 @@ System.err.println (message);
 						{
 							e.printStackTrace ();
 						}
-						logger.finer ("bot “最大响应行数”设置为: " + opt_max_response_lines);
+logger.finer ("bot “最大响应行数”设置为: " + opt_max_response_lines);
 						continue;
 					}
 
@@ -1544,7 +1579,7 @@ System.err.println (message);
 				args = message.split (" +", 3);	// 重新分割命令输入，分为 3 份
 				if (args.length >= 2)
 					opt_reply_to = args[1];
-				logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
+logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 				if (args.length >= 3)
 					params = args[2];
@@ -2065,30 +2100,33 @@ System.err.println (message);
 		primaryCmd = BOT_PRIMARY_COMMAND_CONSOLE_Action;         if (isThisCommandSpecified (args, primaryCmd))
 		{
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) +
-				"[" + formatBotOption (".操作，默认为run", true) + "[" + formatBotOptionInstance (".0", true) + "|" + formatBotOptionInstance (".1", true) + "]]" +
-				"  [" + formatBotParameter ("动作命令", true) + "(可用汉字)]" +
-				"  [" + formatBotParameter ("动作目标昵称", true) + "]" +
-				"    -- 用快捷命令执行 IRC 动作。快捷命令可用 " + formatBotOptionInstance (".add", true) + " 操作自己添加。" + Colors.BOLD + "可省去 " + formatBotCommandInstance (primaryCmd, true) + Colors.BOLD +
-				formatBotOption (".操作", true) + " 列表： " +
-				formatBotOptionInstance (".run", true) + " - 执行(默认); " +
-				formatBotOptionInstance (".add", true) + " - 添加命令，添加时，需要用 " +
-					formatBotOptionInstance (".0", true) + " 或 " + formatBotOptionInstance (".1", true) + " 指定动作内容是否是互动类型的。" +
-						formatBotOptionInstance (".0", true) + ":自娱自乐，" +
-						formatBotOptionInstance (".1", true) + ":与目标互动类型的的动作内容; " +
-				formatBotOptionInstance (".modify", true) + " - 修改已添加的动作(只有自己[以 @host 作为判断是否是自己的依据]和 VIP 才能修改自己添加的); " +
-				formatBotOptionInstance (".list", true) + " - 列出所有动作命令; " +
+				"    -- 用动作命令执行 IRC 动作。动作命令可用 " + formatBotOptionInstance (".add", true) + " 操作自己添加。" +
+				" 另外，可省去 " + formatBotCommandInstance (primaryCmd, true) +
+				" 前缀，用" + COLOR_COMMAND_PREFIX_INSTANCE + BOT_CUSTOMIZED_ACTION_PREFIX + Colors.NORMAL + formatBotParameter("动作命令", true) + " 快捷执行…" +
 				""
 			);
 
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + formatBotOptionInstance (".add", true) + "[" + formatBotOptionInstance (".0", true) + "|" + formatBotOptionInstance (".1", true) + "] <动作命令> <动作内容> -- 添加自定义的动作。" +
+			//	formatBotOption (".操作", true) + " 列表： " +
+			//	formatBotOptionInstance (".run", true) + " - 执行(默认); " +
+			//	formatBotOptionInstance (".add", true) + " - 添加动作命令; " +
+			//	formatBotOptionInstance (".modify", true) + " - 修改已添加的动作(只有自己[以 @host 作为判断是否是自己的依据]和 VIP 才能修改自己添加的); " +
+			//	formatBotOptionInstance (".list", true) + " - 列出所有动作命令; " +
+
+			SendMessage (ch, u, mapGlobalOptions, "执行: " + formatBotCommandInstance (primaryCmd, true) +
+				"  <" + formatBotParameter ("动作命令", true) + "(可用汉字)>" +
+				"  [" + formatBotParameter ("动作目标", true) + "(昵称)]" +
+				""
+			);
+
+			SendMessage (ch, u, mapGlobalOptions, "添加: " + formatBotCommandInstance (primaryCmd, true) + formatBotOptionInstance (".add", true) + " <动作命令> <动作内容> " +
 				"  动作命令必须是 UTF8 编码的字符串，可以用汉字，但受到 MySQL 的限制，单个 UTF-8 字符的编码长度不能超过 4 字节，所以，不能用太特殊的字符。" +
 				"  动作命令字符串长度：不能小于 4 英文字符、2 汉字 (VIP 可跳过该限制)，不能大于 50。" +
-				"  动作内容，如果针对目标互动的，则需要用 " + formatBotOptionInstance (".1", true) + " 选项来指定。" +
 				"动作内容中包含 ${p} 的，均是与目标互动的动作，${p} 将被替换成执行时的动作目标。 " +
 				"动作内容中的 ${me} 将被替换成自己的昵称。" +
 				"动作内容中的 ${channel} 将被替换成所在的频道名。" +
 				""
 			);
+			SendMessage (ch, u, mapGlobalOptions, "动作内容写作指南： 由于动作执行者实际是本 Bot，而不是用户你，所以，内容中的“我”要替换成 ${me}，互动类型的动作内容中的“我”看具体情况改成 ${me} 或者目标 ${p}");
 		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_URLEncode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
@@ -2320,6 +2358,7 @@ System.err.println (message);
 				String sIRCAction = null;
 				int nActionNumber = 0;
 				int nFetchedTimes = 0;
+				int nMax = 0, nCount = 0;
 
 				if (arrayParams.length > 0)
 					sActionCmd = arrayParams [0];
@@ -2328,7 +2367,7 @@ System.err.println (message);
 
 				if (StringUtils.isEmpty (sActionCmd))
 				{
-					SendMessage (channel, nick, mapGlobalOptions, "/me <命令> [目标昵称]");
+					SendMessage (channel, nick, mapGlobalOptions, "/me <动作命令> [动作目标]...");
 					return;
 				}
 				if (StringUtils.isNotEmpty (sTargetNick) && StringUtils.isNotEmpty (channel))
@@ -2357,7 +2396,6 @@ System.err.println (message);
 						stmt_query_count_and_max.setString (1, sActionCmd);
 						//stmt_query_count_and_max.setInt (2, nActionNumber);
 						rs = stmt_query_count_and_max.executeQuery ();
-						int nMax = 0, nCount = 0;
 						while (rs.next ())
 						{
 							nMax = rs.getInt ("max");
@@ -2400,16 +2438,30 @@ System.err.println (message);
 
 					if (! bFound)
 					{
-						SendMessage (channel, nick, mapGlobalOptions, "未找到类型为 " + Colors.BOLD + (StringUtils.isEmpty(sTargetNick) ? "自娱自乐" : "互动") + Colors.BOLD + "、命令为 " + Colors.BOLD + sActionCmd + "、编号为 " + Colors.BOLD + nActionNumber + Colors.BOLD + " 的动作");
+						SendMessage (channel, nick, mapGlobalOptions,
+							"未找到类型为 " + Colors.BOLD + (StringUtils.isEmpty(sTargetNick) ? "自娱自乐" : "互动") + Colors.BOLD +
+							"、命令为 " + Colors.BOLD + sActionCmd + Colors.BOLD +
+							"、编号为 " + Colors.BOLD + nActionNumber + Colors.BOLD +
+							" 的动作"
+						);
 						return;
 					}
 					if (StringUtils.isNotEmpty (sTargetNick))
 					{
-						sIRCAction = StringUtils.replace (sIRCAction, "${p}", sTargetNick);
+						sIRCAction = StringUtils.replace (sIRCAction, "${p}", Colors.MAGENTA + sTargetNick + Colors.NORMAL);
 					}
-					sIRCAction = StringUtils.replace (sIRCAction, "${me}", nick);
-					sIRCAction = StringUtils.replace (sIRCAction, "${channel}", channel);
-					sendAction (target, (nActionNumber > 1 ? "#" + COLOR_DARK_RED + nActionNumber + Colors.NORMAL + " " : "") + nick + " " + sIRCAction);
+					sIRCAction = StringUtils.replace (sIRCAction, "${me}", Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL);
+					sIRCAction = StringUtils.replace (sIRCAction, "${channel}", COLOR_DARK_CYAN + channel + Colors.NORMAL);
+					sendAction (channel,
+						Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL + " " +
+						sIRCAction +
+						(nActionNumber > 0
+							?
+							" " + Colors.DARK_GREEN + "[" + Colors.NORMAL + sActionCmd + "." + COLOR_DARK_RED + nActionNumber + Colors.NORMAL + (nMax > 0 ? "/" + nMax : "") + Colors.DARK_GREEN + "]" + Colors.NORMAL
+							:
+							""
+						)
+					);
 				}
 				catch (Exception e)
 				{
@@ -2768,6 +2820,7 @@ System.err.println (message);
 
 	static VoteRunner voteMachine = null;
 	long lLastVoteTime = 0;
+	/*
 	Map<String, Boolean> mapChannelOPFlag = new HashMap<String, Boolean> ();
 
 	@Override
@@ -2785,6 +2838,7 @@ System.err.println (message);
 		if (StringUtils.equalsIgnoreCase (recipient, getNick()))
 			mapChannelOPFlag.remove (channel);
 	}
+	*/
 
 	/**
 	 * 对 IRC 频道的投票管理功能。此功能要求本 Bot 具有 OP 权限，否则投票后无法操作
@@ -2829,7 +2883,21 @@ System.err.println (message);
 			SendMessage (channel, nick, mapGlobalOptions, "当前有一个投票正在进行，等当前投票结束后，过一段时间再发起投票……");
 			return;
 		}
-		if (mapChannelOPFlag.get (channel)==null || !mapChannelOPFlag.get (channel))
+
+		boolean amIOperatorNow = false;
+		User[] arrayUsers = getUsers (channel);
+		for (User u : arrayUsers)
+		{
+			if (StringUtils.equalsIgnoreCase (u.getNick (), getNick()))
+			{
+				if (u.isOp ())
+					amIOperatorNow = true;
+
+				break;
+			}
+		}
+		//if (mapChannelOPFlag.get (channel)==null || !mapChannelOPFlag.get (channel))
+		if (! amIOperatorNow)
 		{
 			SendMessage (channel, nick, mapGlobalOptions, "待我变身 OP 后才能发起投票……");
 			return;
@@ -2880,6 +2948,10 @@ System.err.println (message);
 			if (arrayParams.length > 1)
 				sVoteReason = arrayParams[1];
 		}
+		if (StringUtils.isEmpty (sVoteReason))
+			sVoteReason = nick + " " + login + " " + hostname + " 发起投票";
+		else
+			sVoteReason = nick + " " + login + " " + hostname + " 发起投票： " + sVoteReason;
 
 		if (StringUtils.equalsIgnoreCase (sVoteTarget, getNick()))
 		{
@@ -2964,6 +3036,7 @@ System.err.println (message);
 				{
 					for (Object answer : participantAnswers.values ())
 					{
+						// 统计投“同意/是”的数量
 						if (dlg.GetCandidateAnswerValueByValueOrLabel ((String)answer).equals ("1"))
 							nAgreed ++;
 					}
@@ -5366,14 +5439,9 @@ System.out.println (nMatch + ": " + sMatchedString);
 					if (ch != null)	// 仅仅在频道内才检查是不是对某人说
 					{
 						// 对 src 稍做处理：如果消息前面类似  '名字:' 或 '名字,' 则先分离该名字，替换其余的后，在 '名字:' 后面加上 " xxx 的意思是说：" +　替换结果
-						// http://tools.ietf.org/html/rfc2812#section-2.3.1
-						// nickname   =  ( letter / special ) *8( letter / digit / special / "-" )
-						// special    =  %x5B-60 / %x7B-7D                   ; "[", "]", "\", "`", "_", "^", "{", "|", "}"
-						String regexpToNickname = "^([a-zA-Z_\\[\\\\\\]\\^\\{\\|\\}`][\\[\\\\\\]\\^\\{\\|\\}`\\w\\-]*)[,:]\\s*";
-						if (sSrc.matches (regexpToNickname + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
+						if (sSrc.matches (sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
 						{
-							Pattern pat = Pattern.compile (regexpToNickname);
-							Matcher mat = pat.matcher (sSrc);
+							Matcher mat = PATTERN_NICK_NAME_AT_BEGIN_OF_LINE.matcher (sSrc);
 							boolean bMatched = false;
 							StringBuffer sb = new StringBuffer ();
 							if (mat.find ())
