@@ -299,6 +299,11 @@ public class LiuYanBot extends PircBot implements Runnable
 	List<Map<String,Object>> listWhiteListPatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
 
 	/**
+	 * 用来取消 Vote 操作的定时器。
+	 */
+	Timer timerUndoVote = null;
+
+	/**
 	 * 此标志变量仅仅用于在 onDisconnect 事件中，不要再执行重连服务器的操作。
 	 */
 	boolean isQuiting = false;
@@ -336,7 +341,6 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * IRC 对话框
 	 */
 	public List<Dialog> dialogs = new CopyOnWriteArrayList<Dialog> ();
-	//Timer checkTimeoutTimer = null;
 
 	/**
 	 * IRC 游戏
@@ -371,10 +375,13 @@ public class LiuYanBot extends PircBot implements Runnable
 		// 开启控制台输入线程
 		executor.execute (this);
 
-		//
-		//checkTimeoutTimer = new Timer (true);
-		//TimerTask dialogTimeoutCheckTask = new DialogTimeoutCheckTask (dialogs);
-		//checkTimeoutTimer.schedule (dialogTimeoutCheckTask, 7000, 2000);
+		// 从数据库加载 vote 到 cache
+		LoadVotesFromDatabaseToCache ();
+
+		// 开启 undo vote 定时器
+		timerUndoVote = new Timer (true);
+		TimerTask timertaskUndoVote = new UndoVoteTimerTask ();
+		timerUndoVote.schedule (timertaskUndoVote, 5000, 1000);
 	}
 
 	public void setGeoIPDatabaseFileName (String fn)
@@ -1010,6 +1017,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 
 	public void Quit (String reason)
 	{
+		timerUndoVote.cancel ();
 		isQuiting = true;
 		quitServer (StringUtils.stripToEmpty (reason));
 	}
@@ -1544,6 +1552,7 @@ logger.finer ("“屏幕最大" + (varName.equals("LINES") ? "行" : "列") + "�
 								!botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp)	// 2014-06-16 除去 RegExp 命令的响应行数限制，该数值在 RegExp 命令中做匹配次数用途
 								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag)	// 2014-07-09 除去 tag bt 命令的响应行数限制，该数值在 bt 命令中有可能做 “词条定义 ID” 用途
 								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Game)	// 2015-01-13 除去 Game 命令的响应行数限制，该数值在 Game 命令中有可能做 “牌堆数” “数字数” 等用途
+								&& !botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Vote)	// 2016-10-19 除去 /Vote 命令的响应行数限制，该数值在 /Vote 命令中有可能做 “时长” 等用途
 								&& !isFromConsole(channel, nick, login, hostname)	// 不是从控制台输入的
 								&& !isUserInWhiteList(hostname, login, nick, botCmd)	// 不在白名单
 								&& (false
@@ -2089,7 +2098,21 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAC 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC");
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Vote;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].  -- 投票管理功能。动作可以为： kick  ban unBan  op deOP  voice deVoice  quiet unQuiet  invite。 /vote 和动作可以连写在一起，如： /voteKick");
+		{
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".时长", true) + "][" + formatBotOptionInstance (".timeunit=", true) + formatBotOption ("时间单位", true) + "] <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].  -- 投票管理功能。动作可以为： kick  ban unBan  op deOP  voice deVoice  quiet unQuiet  invite。 /vote 和动作可以连写在一起，如： /voteKick");
+			SendMessage (ch, u, mapGlobalOptions, formatBotOption ("时间单位", true) + " 取值： " +
+			formatBotOptionInstance ("s", true) + ":秒second " +
+			formatBotOptionInstance ("m", true) + ":分钟minute " +
+			formatBotOptionInstance ("q", true) + ":一刻钟quarter " +
+			formatBotOptionInstance ("h", true) + ":小时hour " +
+			formatBotOptionInstance ("d", true) + ":天day " +
+			formatBotOptionInstance ("w", true) + ":一周week " +
+			formatBotOptionInstance ("month", true) + ":月month " +
+			formatBotOptionInstance ("season", true) + ":季度season " +
+			formatBotOptionInstance ("hy", true) + ":半年half-year " +
+			formatBotOptionInstance ("y", true) + ":年year " +
+			"。 " + formatBotOption ("时长", true) + " 取值： -1/负数:永久，与时间单位计算后，时长不允许超过 30 分钟，VIP 用户例外。");
+		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
@@ -2419,8 +2442,9 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 						}
 					}
 					stmt = conn.prepareStatement (sSQL, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
-					stmt.setString (1, sActionCmd);
-					stmt.setInt (2, nActionNumber);
+					int nParam = 1;
+					stmt.setString (nParam ++, sActionCmd);
+					stmt.setInt (nParam ++, nActionNumber);
 					rs = stmt.executeQuery ();
 					bFound = false;
 					while (rs.next ())
@@ -2840,6 +2864,364 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 	}
 	*/
 
+	List<Map<String, Object>> listVotes = new ArrayList<Map<String, Object>> ();
+	class UndoVoteTimerTask extends TimerTask
+	{
+		@Override
+		public void run ()
+		{
+//System.out.println ("Checking vote cache ... listVotes.size () = " + listVotes.size ());
+			for (int i=0; i<listVotes.size (); i++)
+			{
+				Map<String, Object> vote = listVotes.get (i);
+//System.out.println (vote);
+
+				if (! amIOperator((String)vote.get ("channel")))	// 若在本频道内不是 OP，则返回
+					continue;
+
+				if (vote.get ("operate_time") == null)
+					continue;
+
+				long lOperateTime = (long)vote.get ("operate_time");	// ((java.sql.Timestamp)vote.get ("operate_time")).getTime ();
+				int nTimeLength = (int)vote.get ("time_length");
+				if (nTimeLength < 0)	// -1/负数，代表永不过期 -- 永久性操作
+					continue;
+
+				String sTimeUnit = (String)vote.get ("time_unit");
+				long lExpireTime = lOperateTime;
+				switch (sTimeUnit.toLowerCase ())
+				{
+					case "s":
+					case "second":
+						lExpireTime += nTimeLength * 1000;
+						break;
+					case "m":
+					case "minute":
+						lExpireTime += nTimeLength * 1000 * 60;
+						break;
+					case "q":
+					case "quarter":
+						lExpireTime += nTimeLength * 1000 * 900;
+						break;
+					case "h":
+					case "hour":
+						lExpireTime += nTimeLength * 1000 * 3600;
+						break;
+					case "d":
+					case "day":
+						lExpireTime += nTimeLength * 1000 * 3600 * 24;
+						break;
+					case "w":
+					case "week":
+						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 7;
+						break;
+					case "mm":
+					case "month":
+						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 30;
+						break;
+					case "ss":
+					case "season":
+						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 91;
+						break;
+					case "hy":
+					case "halfyear":
+						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 182;
+						break;
+					case "y":
+					case "year":
+						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 365;
+						break;
+					default:
+						throw new RuntimeException ("未知时间单位: " + sTimeUnit);
+				}
+
+				if (System.currentTimeMillis () < lExpireTime)	// 未到点，不做处理
+					continue;
+
+				String sAction = ((String) vote.get ("action")).toLowerCase ();
+				String sTarget = (String) vote.get ("target");
+				String sChannel = (String) vote.get ("channel");
+
+System.out.println ("Undoing " + sAction + " " + sTarget + " @ " + sChannel);
+				switch (sAction)
+				{
+					case "quiet":
+					case "gag":
+					case "mute":
+						setMode (sChannel, "-q " + sTarget);
+						break;
+					case "ban":
+					case "kickban":
+						unBan (sChannel, sTarget);
+						break;
+					case "voice":
+						deVoice (sChannel, sTarget);
+						break;
+					case "op":
+						deOp (sChannel, sTarget);
+						break;
+					default:
+						throw new RuntimeException ("未知动作 action: " + sAction);
+				}
+
+				UndoVoteInDatabase
+				(
+					(Integer)vote.get ("vote_id"),
+					sAction,
+					sChannel,
+					sTarget,
+					"Timeout: 过期自动解除",
+					getNick (),
+					getLogin (),
+					"-undo-timer-"
+				);
+			}
+		}
+	}
+
+	Map<String, Object> GetVote (int nVoteID, String sChannel, String sAction, String sTarget)
+	{
+		for (Map<String, Object> vote : listVotes)
+		{
+			if (vote.get ("vote_id") != null)
+			{
+				if (nVoteID == (int)vote.get ("vote_id"))
+				{
+					return vote;
+				}
+			}
+			else if (vote.get ("channel") != null && vote.get ("action") != null && vote.get ("target") != null)
+			{
+				if (StringUtils.equalsIgnoreCase (sChannel, (String)vote.get ("channel"))
+					&& StringUtils.equalsIgnoreCase (sAction, (String)vote.get ("action"))
+					&& StringUtils.equalsIgnoreCase (sTarget, (String)vote.get ("target"))
+				)
+				{
+					return vote;
+				}
+			}
+		}
+		return null;
+	}
+
+	boolean CheckVoteExists (int nVoteID, String sChannel, String sAction, String sTarget)
+	{
+		return GetVote (nVoteID, sChannel, sAction, sTarget) != null;
+	}
+
+	void AddVoteToCache (int nVoteID, String sChannel, String sAction, String sTarget, String sReason, String nick, String user, String host, long lOperateTime, int nTimeLength, String sTimeUnit)
+	{
+		// 只有下列操作才缓存， kick 不用缓存（没有对应的 undo 操作）
+		if (
+			! StringUtils.equalsIgnoreCase (sAction, "ban")
+			&& ! StringUtils.equalsIgnoreCase (sAction, "kickban")
+			&& ! StringUtils.equalsIgnoreCase (sAction, "quiet")
+			&& ! StringUtils.equalsIgnoreCase (sAction, "voice")
+			&& ! StringUtils.equalsIgnoreCase (sAction, "op")
+		)
+			return;
+		// 检查重复
+		if (CheckVoteExists (nVoteID, sChannel, sAction, sTarget))
+			return;
+
+		Map<String, Object> vote = new HashMap<String, Object> ();
+		vote.put ("vote_id", nVoteID);
+		vote.put ("channel", sChannel);
+		vote.put ("action", sAction);
+		vote.put ("target", sTarget);
+		vote.put ("reason", sReason);
+		vote.put ("operator_nick", nick);
+		vote.put ("operator_user", user);
+		vote.put ("operator_host", host);
+		vote.put ("operate_time", lOperateTime);
+		vote.put ("time_length", nTimeLength);
+		vote.put ("time_unit", sTimeUnit);
+
+		listVotes.add (vote);
+	}
+
+	void RemoteVoteFromCache (int nVoteID, String sChannel, String sAction, String sTarget)
+	{
+		Map<String, Object> vote = GetVote (nVoteID, sChannel, sAction, sTarget);
+		if (vote == null)
+			return;
+
+		listVotes.remove (vote);
+	}
+
+	void SaveVoteToDatabase (String sAction, String sTarget, String sReason, String sChannel, String nick, String user, String host, int nTimeLength, String sTimeUnit)
+	{
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		int nVoteID = 0;
+		try
+		{
+			SetupDataSource ();
+
+			conn = botDS.getConnection ();
+			stmt = conn.prepareStatement ("INSERT INTO irc_votes (channel, action, target, reason, operator_nick, operator_user, operator_host, operate_time, time_length, time_unit) VALUES (?,?,?,?,?, ?,?,CURRENT_TIMESTAMP,?,?)", Statement.RETURN_GENERATED_KEYS);
+			int nParam = 1;
+			stmt.setString (nParam ++, sChannel);
+			stmt.setString (nParam ++, sAction);
+			stmt.setString (nParam ++, sTarget);
+			stmt.setString (nParam ++, sReason);
+			stmt.setString (nParam ++, nick);
+			stmt.setString (nParam ++, user);
+			stmt.setString (nParam ++, host);
+			stmt.setInt (nParam ++, nTimeLength);
+			stmt.setString (nParam ++, sTimeUnit);
+			int nRowsAffected = stmt.executeUpdate ();
+
+			if (nRowsAffected == 1)
+			{
+				rs = stmt.getGeneratedKeys ();
+				while (rs.next ())
+				{
+					nVoteID = rs.getInt (1);
+				}
+
+				AddVoteToCache
+				(
+					nVoteID,
+					sChannel,
+					sAction,
+					sTarget,
+					sReason,
+					nick,
+					user,
+					host,
+					System.currentTimeMillis (),
+					nTimeLength,
+					sTimeUnit
+				);
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+		finally
+		{
+			try { if (rs != null) rs.close(); } catch(Exception e) { }
+			try { if (stmt != null) stmt.close(); } catch(Exception e) { }
+			try { if (conn != null) conn.close(); } catch(Exception e) { }
+		}
+	}
+
+	void UndoVoteInDatabase (Integer nVoteID, String sChannel, String sAction, String sTarget, String sReason, String sUndoOperatorNick, String sUndoOperatorUser, String sUndoOperatorHost)
+	{
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		int nRowsAffected = 0;
+		try
+		{
+			SetupDataSource ();
+
+			conn = botDS.getConnection ();
+			if (nVoteID != null && nVoteID != 0)
+			{
+				stmt = conn.prepareStatement ("UPDATE irc_votes SET undo_operator_nick=?, undo_operator_user=?, undo_operator_host=?, undo_reason=?, undo_time=CURRENT_TIMESTAMP WHERE vote_id=?");
+				int nParam = 1;
+				stmt.setString (nParam ++, sUndoOperatorNick);
+				stmt.setString (nParam ++, sUndoOperatorUser);
+				stmt.setString (nParam ++, sUndoOperatorHost);
+				stmt.setString (nParam ++, sReason);
+				stmt.setInt (nParam ++, nVoteID);
+			}
+			else
+			{
+				stmt = conn.prepareStatement ("UPDATE irc_votes SET undo_operator_nick=?, undo_operator_user=?, undo_operator_host=?, undo_reason=?, undo_time=CURRENT_TIMESTAMP WHERE channel=? AND action=? AND target=?");
+				int nParam = 1;
+				stmt.setString (nParam ++, sUndoOperatorNick);
+				stmt.setString (nParam ++, sUndoOperatorUser);
+				stmt.setString (nParam ++, sUndoOperatorHost);
+				stmt.setString (nParam ++, sReason);
+				stmt.setString (nParam ++, sChannel);
+				stmt.setString (nParam ++, sAction);
+				stmt.setString (nParam ++, sTarget);
+			}
+			nRowsAffected = stmt.executeUpdate ();
+
+			RemoteVoteFromCache (nVoteID, sChannel, sAction, sTarget);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+		finally
+		{
+			//try { if (rs != null) rs.close(); } catch(Exception e) { }
+			try { if (stmt != null) stmt.close(); } catch(Exception e) { }
+			try { if (conn != null) conn.close(); } catch(Exception e) { }
+		}
+	}
+
+	void LoadVotesFromDatabaseToCache ()
+	{
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+		try
+		{
+			SetupDataSource ();
+
+			conn = botDS.getConnection ();
+			stmt = conn.prepareStatement ("SELECT * FROM irc_votes WHERE action IN ('ban', 'kickban', 'quiet', 'voice', 'op') AND undo_time IS NULL");
+			rs = stmt.executeQuery ();
+			while (rs.next ())
+			{
+				AddVoteToCache (
+					rs.getInt ("vote_id"),
+					rs.getString ("channel"),
+					rs.getString ("action"),
+					rs.getString ("target"),
+					rs.getString ("reason"),
+					rs.getString ("operator_nick"),
+					rs.getString ("operator_user"),
+					rs.getString ("operator_host"),
+					rs.getTimestamp ("operate_time").getTime (),
+					rs.getInt ("time_length"),
+					rs.getString ("time_unit")
+				);
+			}
+			rs.close ();
+			stmt.close ();
+			conn.close ();
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+		finally
+		{
+			try { if (rs != null) rs.close(); } catch(Exception e) { }
+			try { if (stmt != null) stmt.close(); } catch(Exception e) { }
+			try { if (conn != null) conn.close(); } catch(Exception e) { }
+		}
+	}
+
+	boolean isNickOperator (String sChannel, String sNick)
+	{
+		boolean isNickOperator = false;
+		User[] arrayUsers = getUsers (sChannel);
+		for (User u : arrayUsers)
+		{
+			if (StringUtils.equalsIgnoreCase (u.getNick (), sNick))
+			{
+				if (u.isOp ())
+					isNickOperator = true;
+
+				break;
+			}
+		}
+		return isNickOperator;
+	}
+	boolean amIOperator (String sChannel)
+	{
+		return isNickOperator (sChannel, getNick());
+	}
+
 	/**
 	 * 对 IRC 频道的投票管理功能。此功能要求本 Bot 具有 OP 权限，否则投票后无法操作
 	 * @param channel
@@ -2884,18 +3266,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			return;
 		}
 
-		boolean amIOperatorNow = false;
-		User[] arrayUsers = getUsers (channel);
-		for (User u : arrayUsers)
-		{
-			if (StringUtils.equalsIgnoreCase (u.getNick (), getNick()))
-			{
-				if (u.isOp ())
-					amIOperatorNow = true;
-
-				break;
-			}
-		}
+		boolean amIOperatorNow = amIOperator (channel);
 		//if (mapChannelOPFlag.get (channel)==null || !mapChannelOPFlag.get (channel))
 		if (! amIOperatorNow)
 		{
@@ -2959,6 +3330,91 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			return;
 		}
 
+		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
+		String sTimeUnit = mapUserEnv.get ("timeunit");
+		if (! StringUtils.equalsIgnoreCase (sTimeUnit, "s")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "q")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "m")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "h")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "d")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "w")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "month")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "season")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "halfyear")
+			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "y")
+		)
+		{
+			sTimeUnit = "s";
+			mapUserEnv.put ("timeunit", sTimeUnit);
+		}
+
+		int nTimeLength = (int)mapGlobalOptions.get ("opt_max_response_lines");	// 用 opt_max_response_lines 参数传递时长
+		boolean is_time_length_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
+		if (! is_time_length_specified)
+		{
+			nTimeLength = 0;
+			if (false
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "ban")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "KickBan")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
+				|| StringUtils.equalsIgnoreCase (sVoteAction, "op")
+			)
+			{
+				SendMessage (channel, nick, mapGlobalOptions, Colors.MAGENTA + sVoteAction + Colors.NORMAL + " 操作需要明确用 " + formatBotOption (".时长", true) + " 选项指定时长，默认单位为 s:秒，可用 " + formatBotOptionInstance (".timeunit=", true) + formatBotOption ("时间单位", true) + " 来指定时间单位，时间单位取值：" + formatBotOptionInstance ("s m q h d w month season hy y", true) + "。时间单位取值含义见帮助信息");
+				return;
+			}
+		}
+
+		if (nTimeLength < 0)
+		{
+			nTimeLength = -1;
+			mapGlobalOptions.put ("opt_max_response_lines", nTimeLength);
+			if (! (false
+				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+				|| isUserInWhiteList(hostname, login, nick, botcmd)
+				)
+			)
+			{
+				SendMessage (channel, nick, mapGlobalOptions, "-1/负数 代表永久，非 VIP 用户禁止使用永久时长");
+				return;
+			}
+		}
+		else
+		{
+			int nTimeLengthInSecond = nTimeLength;
+			if (StringUtils.equalsIgnoreCase (sTimeUnit, "m"))
+				nTimeLengthInSecond *= 60;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "q"))
+				nTimeLengthInSecond *= 60*15;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "h"))
+				nTimeLengthInSecond *= 3600;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "d"))
+				nTimeLengthInSecond *= 3600 * 24;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "w"))
+				nTimeLengthInSecond *= 3600 * 24 * 7;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "month"))
+				nTimeLengthInSecond *= 3600 * 24 * 30;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "season"))
+				nTimeLengthInSecond *= 3600 * 24 * 91;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "hy"))
+				nTimeLengthInSecond *= 3600 * 24 * 182;
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "y"))
+				nTimeLengthInSecond *= 3600 * 24 * 365;
+			//else
+			//	nTimeLengthInSecond = nTimeLength;
+			if (! (false
+				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+				|| isUserInWhiteList(hostname, login, nick, botcmd)
+				)
+				&& ((nTimeLengthInSecond < 60) || (nTimeLengthInSecond > 1800))
+			)
+			{
+				SendMessage (channel, nick, mapGlobalOptions, "非 VIP 用户禁止使用少于 1 分钟、或超过 30 分钟的时长");
+				return;
+			}
+		}
+
 		if (StringUtils.equalsIgnoreCase (sVoteAction, "op") || StringUtils.equalsIgnoreCase (sVoteAction, "deop"))
 		{
 			if (! (false
@@ -3016,6 +3472,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			this.voteTarget = sVoteNick;
 			this.voteReason = sVoteReason;
 		}
+
 		@Override
 		public void run ()
 		{
@@ -3023,8 +3480,17 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			System.out.println (voteAction);
 			try
 			{
+				Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
+				String sTimeUnit = mapUserEnv.get ("timeunit");
+				int nTimeLength = (int)mapGlobalOptions.get ("opt_max_response_lines");	// 用 opt_max_response_lines 参数传递时长
+
 				Dialog dlg = new Dialog (this,
-						bot, dialogs, Dialog.Type.是否, nick + " 发起投票： " + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL + (StringUtils.isEmpty (voteReason) ? "" : "； 原因: " + Colors.MAGENTA + voteReason + Colors.NORMAL) + "。请通过 '" + getNick() + ": <答案>' 的方式进行投票，所有已验证身份的用户都可参与投票表决", true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, "*", null,
+						bot, dialogs, Dialog.Type.是否,
+						nick + " 发起投票： " + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL +
+							(StringUtils.isEmpty (voteReason) ? "" : "； 原因: " + Colors.MAGENTA + voteReason + Colors.NORMAL) +
+							"； 时长: " + Colors.MAGENTA + nTimeLength + sTimeUnit + Colors.NORMAL +
+							"。请通过 '" + formatBotOptionInstance (getNick() + ":", true) + " " + formatBotOption ("答案", true) + "' 的方式进行投票，所有已验证身份的用户都可参与投票表决",
+						true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, "*", null,
 						channel, null, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 				dlg.showUsage = false;
 				//dlg.timeout_second = 30;
@@ -3043,7 +3509,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					dRatio = nAgreed / (double)participantAnswers.size ();
 				}
 
-				if (participantAnswers.size () < 3)
+				if (participantAnswers.size () < 1)
 				{
 					bot.SendMessage (channel, nick, mapGlobalOptions, (participantAnswers.size() == 0 ? "无人投票": "只有 " + participantAnswers.size() + " 人投票，投票人数未达到投票最低人数 -- 3 人") + "，不做处理。");
 				}
@@ -3060,6 +3526,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					if (StringUtils.equalsIgnoreCase (voteAction, "ban") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
 					{
 						ban (channel, voteTarget);
+						SaveVoteToDatabase (voteAction, voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
 					}
 
 					if (StringUtils.equalsIgnoreCase (voteAction, "kick") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
@@ -3068,35 +3535,49 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 							kick (channel, voteTarget);
 						else
 							kick (channel, voteTarget, nick + " 提供的原因: " + voteReason);
+
+						if (StringUtils.equalsIgnoreCase (voteAction, "kick"))
+						{
+							SaveVoteToDatabase (voteAction, voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
+						}
 					}
 
 					if (StringUtils.equalsIgnoreCase (voteAction, "unBan"))
 					{
 						unBan (channel, voteTarget);
+						// 唉，不得已，kickban 没有对应的 unKickban，只能在 unBan 里对两个不同的 action 做 undo
+						UndoVoteInDatabase (null, channel, "ban", voteTarget, voteReason, nick, login, host);
+						UndoVoteInDatabase (null, channel, "kickban", voteTarget, voteReason, nick, login, host);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "gag") || StringUtils.equalsIgnoreCase (voteAction, "mute") || StringUtils.equalsIgnoreCase (voteAction, "quiet"))
 					{
 						setMode (channel, "+q " + voteTarget);
+						SaveVoteToDatabase ("quiet", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "unGag") || StringUtils.equalsIgnoreCase (voteAction, "unMute") || StringUtils.equalsIgnoreCase (voteAction, "unQuiet"))
 					{
 						setMode (channel, "-q " + voteTarget);
+						UndoVoteInDatabase (null, channel, "quiet", voteTarget, voteReason, nick, login, host);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "voice"))
 					{
+						SaveVoteToDatabase ("voice", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
 						voice (channel, voteTarget);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "deVoice"))
 					{
 						deVoice (channel, voteTarget);
+						UndoVoteInDatabase (null, channel, "voice", voteTarget, voteReason, nick, login, host);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "op"))
 					{
+						SaveVoteToDatabase ("op", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
 						op (channel, voteTarget);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "deOp"))
 					{
 						deOp (channel, voteTarget);
+						UndoVoteInDatabase (null, channel, "op", voteTarget, voteReason, nick, login, host);
 					}
 					else if (StringUtils.equalsIgnoreCase (voteAction, "invite"))
 					{
@@ -6105,13 +6586,15 @@ System.out.println (params);
 							if (isOperatingAll)
 							{
 								stmt = conn.prepareStatement ("UPDATE dics SET enabled=" + nNowStateToSet + " WHERE q_digest=SHA1(LOWER(?)) AND enabled=" + nOldStateToQuery);
-								stmt.setString (1, params);
+								int nParam = 1;
+								stmt.setString (nParam ++, params);
 							}
 							else
 							{
 								stmt = conn.prepareStatement ("UPDATE dics SET enabled=" + nNowStateToSet + " WHERE q_digest=SHA1(LOWER(?)) AND q_number=? AND enabled=" + nOldStateToQuery);
-								stmt.setString (1, params);
-								stmt.setInt (2, opt_max_response_lines);
+								int nParam = 1;
+								stmt.setString (nParam ++, params);
+								stmt.setInt (nParam ++, opt_max_response_lines);
 							}
 
 							int iRowsAffected = stmt.executeUpdate ();
@@ -6389,8 +6872,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 						if (bDefinitionEnabled)
 						{
 							stmt = conn.prepareStatement ("UPDATE dics SET fetched_times=fetched_times+1 WHERE q_digest=? AND q_number=?");
-							stmt.setString (1, sQuestionDigest);
-							stmt.setInt (2, q_sn);
+							int nParam = 1;
+							stmt.setString (nParam ++, sQuestionDigest);
+							stmt.setInt (nParam ++, q_sn);
 							int iRowsAffected = stmt.executeUpdate ();
 							assert iRowsAffected == 1;
 							stmt.close ();
@@ -7171,6 +7655,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				// 准备语句
 				stmt_GetSubSelectors = conn.prepareStatement (sSQL_GetSubSelectors);
 				stmt = conn.prepareStatement (sbSQL.toString ());
+				int nParam = 1;
 				// 植入 SQL 参数值
 				if (StringUtils.equalsIgnoreCase (sAction, "list"))
 				{
@@ -7182,9 +7667,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 				else
 				{
 					if (nID != 0)
-						stmt.setLong (1, nID);
+						stmt.setLong (nParam ++, nID);
 					else
-						stmt.setString (1, sName);
+						stmt.setString (nParam ++, sName);
 				}
 
 				// 执行，并取出结果值
@@ -9825,6 +10310,13 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 				ch = "#" + ch;
 			bot.joinChannel (ch);
 		}
+
+
+		// TODO:
+		//	1. 从数据库中加载 vote 信息，然后开启 undo vote Timer 定时器
+		//		undo vote 定时器定时（每秒？）扫描一次当前 vote 列表，如果到了 undo 的时间，就 undo，并入库
+		//	2.1 查看各频道的的 ban / quiet 信息，如果有的话： 跟数据库加载的比较，如果不存在，则自动入库； 如果存在，则不处理（等待 undo vote Timer 处理）……
+		//	2.2 查看各频道用户的 op voice 等信息，如果有的话： 跟数据库加载的比较，如果不存在，则自动入库； 如果存在，则不处理（等待 undo vote Timer 处理）……
 	}
 
 	@Override

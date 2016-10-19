@@ -20,25 +20,41 @@
 
 CREATE TABLE bot_ban
 (
-	ban VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	target VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	channel VARCHAR(20) CHARACTER SET ascii NOT NULL DEFAULT '',
 	cmd VARCHAR(20) NOT NULL DEFAULT '',
 	disabled BOOLEAN NOT NULL DEFAULT false,	/* */
-	ban_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	ban_time DATETIME DEFAULT CURRENT_TIMESTAMP,
 	ban_time_length INT	/* 分钟 */
 );
 
 /*
 记录 irc kick/ban 管理日志
 */
-CREATE TABLE irc_ban
+CREATE TABLE irc_votes
 (
-	action ENUM('', 'kick', 'ban', 'kickban'),
-	ban,
-	time DATETIME COMMENT '操作时刻',
+	vote_id INT UNSIGNED AUTO_INCREMENT,
+	channel VARCHAR(20) CHARACTER SET ascii NOT NULL DEFAULT '',
+	action ENUM('', 'kick', 'ban', 'kickban', 'quiet', 'voice', 'op'),
+	target VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	reason VARCHAR(100) NOT NULL DEFAULT '',
+	operator_nick VARCHAR(20) CHARACTER SET ascii NOT NULL DEFAULT '',
+	operator_user VARCHAR(20) CHARACTER SET ascii NOT NULL DEFAULT '',
+	operator_host VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	operate_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '操作时刻',
 	time_length INT NOT NULL DEFAULT 300 COMMENT '对于 ban 或者 kickban 操作的默认操作生效的秒数。如果是 -1，则表示永久生效',
-	time_unit ENUM('', 's', 'm', 'h', 'd', 'month', 'y') COMMENT '时间单位，默认为空白，空白=s(秒)',
-	enabled BOOLEAN NOT NULL DEFAULT true,
-);
+	time_unit ENUM('', 's', 'm', 'q', 'h', 'd', 'w', 'month', 'season', 'hy', 'y') NOT NULL DEFAULT 's' COMMENT '时间单位，默认为空白，空白=s(秒)',
+	undo_operator_nick VARCHAR(20) CHARACTER SET ascii NOT NULL DEFAULT '',
+	undo_operator_user VARCHAR(20) CHARACTER SET ascii NOT NULL DEFAULT '',
+	undo_operator_host VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	undo_reason VARCHAR(100) NOT NULL DEFAULT '',
+	undo_time DATETIME COMMENT '取消操作时刻',
+
+	PRIMARY KEY PK__irc_votes (vote_id),
+	INDEX IX__irc_votes__channel_action_target (channel, action, target),
+	INDEX IX__irc_votes__operator_host (operator_host),
+	INDEX IX__irc_votes__undo_operator_host (undo_operator_host)
+) ENGINE MyISAM CHARACTER SET UTF8;
 
 /*******************************************************************************
 
@@ -154,40 +170,77 @@ BEGIN
 	DECLARE _q_lowercase VARCHAR(500) CHARACTER SET UTF8MB4;
 	DECLARE _q_lowercase_digest CHAR(40) CHARACTER SET ascii;
 	DECLARE _q_lowercase_digest_binary BINARY(20);
-	DECLARE _count, _max_id INT UNSIGNED;	/* max_id 用来计算最大 ID 的字符串长度，用以对齐输出 */
+	DECLARE _count_ALL, _max_id_ALL, _count_enabled, _max_id_enabled INT UNSIGNED;	/* max_id 用来计算最大 ID 的字符串长度，用以对齐输出 */
 
 	SET _q = TRIM(_q);
 	SET _q_lowercase = LOWER(_q);
 	SET _q_lowercase_digest = SHA1(_q_lowercase);
 	SET _q_lowercase_digest_binary = UNHEX(_q_lowercase_digest);
 	IF _reverse IS NOT NULL AND _reverse THEN
-		SELECT COUNT(*), MAX(q_number) INTO _count, _max_id
+		SELECT
+			COUNT (*),
+			MAX (q_number),
+			COUNT (CASE WHEN enabled=1 THEN 1 ELSE NULL END),
+			MAX (CASE WHEN enabled=1 THEN q_number ELSE 0 END)
+		INTO
+			_count_ALL,
+			_max_id_ALL,
+			_count_enabled,
+			_max_id_enabled
 		FROM v_dics
 		WHERE
 			a_content LIKE CONCAT('%', _q, '%');
 
-		SELECT *, _count AS COUNT, _max_id AS MAX_ID
-		FROM v_dics
+		SELECT
+			*,
+			_count AS COUNT,
+			_max_id AS MAX_ID,
+			_count_enabled AS COUNT_ENABLED,
+			_max_id_enabled AS MAX_ID_ENABLED
+		FROM
+			v_dics
 		WHERE
 			a_content LIKE CONCAT('%', _q, '%')
 		ORDER BY RAND()
 		;
 	ELSE
-		SELECT COUNT(*), MAX(q_number) INTO _count, _max_id
-		FROM v_dics
+		SELECT
+			COUNT (*),
+			MAX (q_number),
+			COUNT (CASE WHEN enabled=1 THEN 1 ELSE NULL END),
+			MAX (CASE WHEN enabled=1 THEN q_number ELSE 0 END)
+		INTO
+			_count_ALL,
+			_max_id_ALL,
+			_count_enabled,
+			_max_id_enabled
+		FROM
+			v_dics
 		WHERE
 			q_digest = _q_lowercase_digest
 		;
 
 		IF _q_number IS NULL OR _q_number = 0 THEN
-			SELECT *, _count AS COUNT, _max_id AS MAX_ID
-			FROM v_dics
+			SELECT
+				*,
+				_count AS COUNT,
+				_max_id AS MAX_ID,
+				_count_enabled AS COUNT_ENABLED,
+				_max_id_enabled AS MAX_ID_ENABLED
+			FROM
+				v_dics
 			WHERE
 				q_digest = _q_lowercase_digest
 			;
 		ELSE
-			SELECT *, _count AS COUNT, _max_id AS MAX_ID
-			FROM v_dics
+			SELECT
+				*,
+				_count AS COUNT,
+				_max_id AS MAX_ID,
+				_count_enabled AS COUNT_ENABLED,
+				_max_id_enabled AS MAX_ID_ENABLED
+			FROM
+				v_dics
 			WHERE
 				q_digest = _q_lowercase_digest
 				AND q_number=_q_number
