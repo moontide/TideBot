@@ -3,6 +3,7 @@ package net.maclife.irc.game;
 import static org.junit.Assert.*;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 import net.maclife.irc.game.DouDiZhu.*;
 
@@ -63,6 +64,37 @@ System.out.println ("牌型测试 结束");
 	public void 牌型检测2 ()
 	{
 		System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("QKA2J")));
+	}
+
+	@Test (expected=IllegalArgumentException.class)
+	public void 排序检测 ()
+	{
+		int i = 0;
+
+		List<String> listCardRanks = new ArrayList<String> ();
+		listCardRanks.add ("A");
+		listCardRanks.add ("3");
+		listCardRanks.add ("★");
+		listCardRanks.add ("☆");
+		listCardRanks.add ("10");
+		Collections.sort (listCardRanks, DouDiZhu.斗地主点值比较器);
+
+		i = 0;
+		assertEquals (listCardRanks.get (i++), "3");
+		assertEquals (listCardRanks.get (i++), "10");
+		assertEquals (listCardRanks.get (i++), "A");
+		assertEquals (listCardRanks.get (i++), "☆");
+		assertEquals (listCardRanks.get (i++), "★");
+
+		Set<String> setCardRanks = new ConcurrentSkipListSet<String> (DouDiZhu.斗地主点值比较器);
+		setCardRanks.add ("A");
+		setCardRanks.add ("3");
+		setCardRanks.add ("★");
+		setCardRanks.add ("☆");
+		setCardRanks.add ("10");
+
+		i = 0;
+		System.out.println (setCardRanks);
 	}
 
 	@Test// (expected=IllegalArgumentException.class)

@@ -941,7 +941,7 @@ public class DouDiZhu extends CardGame
 					throw new IllegalArgumentException ("四张牌不能带 3 张牌");
 				if (nSolo==0 && nPair==2)
 					return Type.四带2对;
-				if (nSolo==2 && nPair==0)
+				if (nSolo==2 || nPair==1)
 					return Type.四带2;
 				if (nSolo==0 && nPair==0)
 					return Type.炸弹;
