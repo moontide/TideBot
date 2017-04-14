@@ -204,7 +204,18 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "2048", },
 		{BOT_PRIMARY_COMMAND_MacManufactory, "oui", "macm", },
-		{BOT_PRIMARY_COMMAND_Vote, "/voteKick", "/voteBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteQuiet", "/voteGag", "/voteMute", "/voteUnQuiet", "/voteUnGag", "/voteUnMute", "/voteInvite", },
+		{BOT_PRIMARY_COMMAND_Vote, "/voteKick", "/voteBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteQuiet", "/voteGag", "/voteMute", "/voteUnQuiet", "/voteUnGag", "/voteUnMute", "/voteInvite",
+			BOT_PRIMARY_COMMAND_CONSOLE_Kick,
+			BOT_PRIMARY_COMMAND_CONSOLE_IRCBan,
+			BOT_PRIMARY_COMMAND_CONSOLE_UnBan,
+			BOT_PRIMARY_COMMAND_CONSOLE_KickBan,
+			BOT_PRIMARY_COMMAND_CONSOLE_OP,
+			BOT_PRIMARY_COMMAND_CONSOLE_DeOP,
+			BOT_PRIMARY_COMMAND_CONSOLE_Voice,
+			BOT_PRIMARY_COMMAND_CONSOLE_DeVoice,
+			BOT_PRIMARY_COMMAND_CONSOLE_Quiet,
+			BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet,
+		},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -815,7 +826,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		list.add (userToAdd);
 
 		msg = "已把 " + wildcardPattern + " 加入到" + sListName + "中。" +
-			(botCmdAliasToBanOrWhite.equals ("*") ? "所有命令" : "命令=" + botCmdAliasToBanOrWhite) +
+			(StringUtils.equalsIgnoreCase (botCmdAliasToBanOrWhite, "*") ? "所有命令" : "命令=" + botCmdAliasToBanOrWhite) +
 			"。" +
 			(StringUtils.isEmpty (reason) ? "无原因" : "原因=" + userToAdd.get ("Reason")) +
 			"";
@@ -2102,8 +2113,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Vote;         if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".时长", true) + "][" + formatBotOptionInstance (".timeunit=", true) + formatBotOption ("时间单位", true) + "] <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].  -- 投票管理功能。动作可以为： kick  ban unBan  op deOP  voice deVoice  quiet unQuiet  invite。 /vote 和动作可以连写在一起，如： /voteKick");
-			SendMessage (ch, u, mapGlobalOptions, formatBotOption ("时间单位", true) + " 取值： " +
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".时长", true) + "] <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].  -- 投票管理功能。动作可以为： kick  ban unBan  op deOP  voice deVoice  quiet unQuiet  invite。 /vote 和动作可以连写在一起，如： /voteKick");
+			SendMessage (ch, u, mapGlobalOptions, formatBotOption ("时长", true) + " 的格式: [数值][时间单位]，比如 '" + formatBotOptionInstance ("1d", true) + "' -- 1 天，如果数值忽略，则默认为 5，如果时间单位忽略，则默认为 m(分钟)，都忽略就是默认 5 分钟。时间单位取值：" +
 			formatBotOptionInstance ("s", true) + ":秒second " +
 			formatBotOptionInstance ("m", true) + ":分钟minute " +
 			formatBotOptionInstance ("q", true) + ":一刻钟quarter " +
@@ -2114,7 +2125,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			formatBotOptionInstance ("season", true) + ":季度season " +
 			formatBotOptionInstance ("hy", true) + ":半年half-year " +
 			formatBotOptionInstance ("y", true) + ":年year " +
-			"。 " + formatBotOption ("时长", true) + " 取值： -1/负数:永久，与时间单位计算后，时长不允许超过 30 分钟，VIP 用户例外。");
+			"。 " + formatBotOption ("数值", true) + "： 0/负数:永久，与时间单位计算后，时长不允许超过 30 分钟，VIP 用户例外。");
 		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
@@ -2887,56 +2898,17 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 				long lOperateTime = (long)vote.get ("operate_time");	// ((java.sql.Timestamp)vote.get ("operate_time")).getTime ();
 				int nTimeLength = (int)vote.get ("time_length");
-				if (nTimeLength < 0)	// -1/负数，代表永不过期 -- 永久性操作
+				if (nTimeLength <= 0)	// 0/负数，代表永不过期 -- 永久性操作
 					continue;
 
 				String sTimeUnit = (String)vote.get ("time_unit");
 				long lExpireTime = lOperateTime;
-				switch (sTimeUnit.toLowerCase ())
-				{
-					case "s":
-					case "second":
-						lExpireTime += nTimeLength * 1000;
-						break;
-					case "m":
-					case "minute":
-						lExpireTime += nTimeLength * 1000 * 60;
-						break;
-					case "q":
-					case "quarter":
-						lExpireTime += nTimeLength * 1000 * 900;
-						break;
-					case "h":
-					case "hour":
-						lExpireTime += nTimeLength * 1000 * 3600;
-						break;
-					case "d":
-					case "day":
-						lExpireTime += nTimeLength * 1000 * 3600 * 24;
-						break;
-					case "w":
-					case "week":
-						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 7;
-						break;
-					case "mm":
-					case "month":
-						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 30;
-						break;
-					case "ss":
-					case "season":
-						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 91;
-						break;
-					case "hy":
-					case "halfyear":
-						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 182;
-						break;
-					case "y":
-					case "year":
-						lExpireTime += nTimeLength * 1000 * 3600 * 24 * 365;
-						break;
-					default:
-						throw new RuntimeException ("未知时间单位: " + sTimeUnit);
-				}
+				Map<String, Object> mapMultiValues = TranslateAndFixTimeLength (nTimeLength, sTimeUnit);
+				nTimeLength = (int)mapMultiValues.get ("TimeLength");
+				int nTimeLengthInSecond = (int)mapMultiValues.get ("TimeLengthInSecond");
+				sTimeUnit = (String)mapMultiValues.get ("TimeUnit");
+				//String sTimeDescription = (String)mapMultiValues.get ("TimeDescription");
+				lExpireTime += nTimeLengthInSecond * 1000;
 
 				if (System.currentTimeMillis () < lExpireTime)	// 未到点，不做处理
 					continue;
@@ -3239,6 +3211,8 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 		|| StringUtils.equalsIgnoreCase (sVoteAction, "op");
 	}
 
+
+	public static final Pattern PATTERN_MatchTimeLengthOption = Pattern.compile ("([+-]*\\d+)*(s|秒|m|分钟|q|刻钟|h|小时|d|天|w|周|星期|month|月|season|季度|halfyear|半年|y|年)*");
 	/**
 	 * 对 IRC 频道的投票管理功能。此功能要求本 Bot 具有 OP 权限，否则投票后无法操作
 	 * @param channel
@@ -3246,7 +3220,7 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 	 * @param login
 	 * @param hostname
 	 * @param botcmd
-	 * @param botCmdAlias /vote 或 /voteKick /voteBan /voteUnBan /voteKickBan /voteOP /voteDeOP /voteVoice /voteDeVoice /voteGag /voiteMute /voteQuiet  或 /voteInvite
+	 * @param botCmdAlias /vote 或 /voteKick /voteBan /voteUnBan /voteKickBan /voteOP /voteDeOP /voteVoice /voteDeVoice /voteGag /voiteMute /voteQuiet  或 /voteInvite 或者不带 vote 的直接操作的（直接操作的需要操作人是频道管理员或者是本 Bot 的白名单用户）
 	 * @param mapGlobalOptions
 	 * @param listCmdEnv
 	 * @param params /vote 命令参数格式： &lt;动作&gt;  &lt;目标&gt;  [原因]...  /voteXXXX 命令格式与 /vote 类似，只不过少了 动作 参数
@@ -3259,6 +3233,7 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 	 */
 	void ProcessCommand_Vote (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
+		boolean isVoteOrExecuteDirectly = StringUtils.startsWithIgnoreCase (botCmdAlias, "/vote");
 		String[] arrayParams = null;
 		if (StringUtils.isNotEmpty (params))
 			arrayParams = params.split (" +", 3);
@@ -3288,6 +3263,16 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 		if (! amIOperatorNow)
 		{
 			SendMessage (channel, nick, mapGlobalOptions, "待我变身 OP 后才能发起投票……");
+			return;
+		}
+
+		if (! (isVoteOrExecuteDirectly
+			|| isNickOperator (channel, nick)
+			|| isUserInWhiteList(hostname, login, nick, botcmd)
+			)
+		)
+		{
+			SendMessage (channel, nick, mapGlobalOptions, "非本 Bot 的 VIP 用户、非频道管理员不能直接执行，必须用投票方式执行。");
 			return;
 		}
 
@@ -3330,16 +3315,19 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 		}
 		else //if (botCmdAlias.matches ("(?i)^/vote(\\w+)"))
 		{
-			sVoteAction = botCmdAlias.substring (5);
+			if (isVoteOrExecuteDirectly)
+				sVoteAction = botCmdAlias.substring (5);
+			else
+				sVoteAction = botCmdAlias.substring (1);
 			arrayParams = params.split (" +", 2);
 			sVoteTarget = arrayParams[0];
 			if (arrayParams.length > 1)
 				sVoteReason = arrayParams[1];
 		}
 		if (StringUtils.isEmpty (sVoteReason))
-			sVoteReason = nick + " " + login + " " + hostname + " 发起投票";
+			sVoteReason = nick + " " + login + " " + hostname + " " + (isVoteOrExecuteDirectly ? "发起投票" : "直接执行");
 		else
-			sVoteReason = nick + " " + login + " " + hostname + " 发起投票： " + sVoteReason;
+			sVoteReason = nick + " " + login + " " + hostname + " " + (isVoteOrExecuteDirectly ? "发起投票" : "直接执行") + "： " + sVoteReason;
 
 		if (StringUtils.equalsIgnoreCase (sVoteTarget, getNick()))
 		{
@@ -3347,95 +3335,88 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 			return;
 		}
 
-		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
-		String sTimeUnit = mapUserEnv.get ("timeunit");
-		if (! StringUtils.equalsIgnoreCase (sTimeUnit, "s")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "q")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "m")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "h")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "d")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "w")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "month")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "season")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "halfyear")
-			&& ! StringUtils.equalsIgnoreCase (sTimeUnit, "y")
+		String sTimeLength = "5";
+		String sTimeUnit = "m";
+		int nTimeLength = Integer.parseInt (sTimeLength);	// (int)mapGlobalOptions.get ("opt_max_response_lines");	// 用 opt_max_response_lines 参数传递时长
+		boolean is_time_length_specified = false;	// (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
+		if (listCmdEnv != null && !listCmdEnv.isEmpty ())
+		{
+			for (String sEnv : listCmdEnv)
+			{
+				Matcher mat = PATTERN_MatchTimeLengthOption.matcher (sEnv);
+System.out.println (mat);
+				if (mat.matches ())
+				{
+					if (StringUtils.isNotEmpty (mat.group (1)))
+						sTimeLength = mat.group (1);
+					if (StringUtils.isNotEmpty (mat.group (2)))
+						sTimeUnit = mat.group (2);
+System.out.println ("时间数值 = " + mat.group(1));
+System.out.println ("时间单位 = " + mat.group(2));
+
+					nTimeLength = Integer.parseInt (sTimeLength);
+					is_time_length_specified = true;
+					break;
+				}
+			}
+		}
+		// 这里要做一下优化处理：单纯用数字来传递时间值，是行不通的，因为公共参数会把纯数字当成行数来处理，并不会把纯数字参数加到 listCmdEnv 中
+		if (!is_time_length_specified && (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified"))
+			nTimeLength = (int)mapGlobalOptions.get ("opt_max_response_lines");
+
+		//if (! is_time_length_specified)
+		//{
+		//	nTimeLength = 0;
+		//	if (isVoteActionThatNeedTimeOption (sVoteAction))
+		//	{
+		//		SendMessage (channel, nick, mapGlobalOptions, Colors.MAGENTA + sVoteAction + Colors.NORMAL + " 操作需要明确用 " + formatBotOption (".时长", true) + " 选项指定时长，默认单位为 s:秒，可用 " + formatBotOptionInstance (".timeunit=", true) + formatBotOption ("时间单位", true) + " 来指定时间单位，时间单位取值：" + formatBotOptionInstance ("s m q h d w month season hy y", true) + "。时间单位取值含义见帮助信息");
+		//		return;
+		//	}
+		//}
+
+		if (nTimeLength <= 0)
+		{
+			if (! (false
+				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+				|| isNickOperator (channel, nick)
+				|| isUserInWhiteList(hostname, login, nick, botcmd)
+				)
+			)
+			{
+				SendMessage (channel, nick, mapGlobalOptions, "0 和 负数 代表永久，非 VIP 用户禁止使用永久时长");
+				return;
+			}
+		}
+
+		Map<String, Object> mapMultiValues = TranslateAndFixTimeLength (nTimeLength, sTimeUnit);
+		nTimeLength = (int)mapMultiValues.get ("TimeLength");
+		int nTimeLengthInSecond = (int)mapMultiValues.get ("TimeLengthInSecond");
+		sTimeUnit = (String)mapMultiValues.get ("TimeUnit");
+		String sTimeDescription = (String)mapMultiValues.get ("TimeDescription");
+
+		if (! (false
+			//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+			|| isNickOperator (channel, nick)
+			|| isUserInWhiteList(hostname, login, nick, botcmd)
+			)
+			&& ((nTimeLengthInSecond < 60) || (nTimeLengthInSecond > 1800))
+			&& isVoteActionThatNeedTimeOption (sVoteAction)
 		)
 		{
-			sTimeUnit = "s";
-			mapUserEnv.put ("timeunit", sTimeUnit);
-		}
-
-		int nTimeLength = (int)mapGlobalOptions.get ("opt_max_response_lines");	// 用 opt_max_response_lines 参数传递时长
-		boolean is_time_length_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
-		if (! is_time_length_specified)
-		{
-			nTimeLength = 0;
-			if (isVoteActionThatNeedTimeOption (sVoteAction))
-			{
-				SendMessage (channel, nick, mapGlobalOptions, Colors.MAGENTA + sVoteAction + Colors.NORMAL + " 操作需要明确用 " + formatBotOption (".时长", true) + " 选项指定时长，默认单位为 s:秒，可用 " + formatBotOptionInstance (".timeunit=", true) + formatBotOption ("时间单位", true) + " 来指定时间单位，时间单位取值：" + formatBotOptionInstance ("s m q h d w month season hy y", true) + "。时间单位取值含义见帮助信息");
-				return;
-			}
-		}
-
-		if (nTimeLength < 0)
-		{
-			nTimeLength = -1;
-			mapGlobalOptions.put ("opt_max_response_lines", nTimeLength);
-			if (! (false
-				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
-				|| isUserInWhiteList(hostname, login, nick, botcmd)
-				)
-			)
-			{
-				SendMessage (channel, nick, mapGlobalOptions, "-1/负数 代表永久，非 VIP 用户禁止使用永久时长");
-				return;
-			}
-		}
-		else
-		{
-			int nTimeLengthInSecond = nTimeLength;
-			if (StringUtils.equalsIgnoreCase (sTimeUnit, "m"))
-				nTimeLengthInSecond *= 60;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "q"))
-				nTimeLengthInSecond *= 60*15;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "h"))
-				nTimeLengthInSecond *= 3600;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "d"))
-				nTimeLengthInSecond *= 3600 * 24;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "w"))
-				nTimeLengthInSecond *= 3600 * 24 * 7;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "month"))
-				nTimeLengthInSecond *= 3600 * 24 * 30;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "season"))
-				nTimeLengthInSecond *= 3600 * 24 * 91;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "hy"))
-				nTimeLengthInSecond *= 3600 * 24 * 182;
-			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "y"))
-				nTimeLengthInSecond *= 3600 * 24 * 365;
-			//else
-			//	nTimeLengthInSecond = nTimeLength;
-			if (! (false
-				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
-				|| isUserInWhiteList(hostname, login, nick, botcmd)
-				)
-				&& ((nTimeLengthInSecond < 60) || (nTimeLengthInSecond > 1800))
-				&& isVoteActionThatNeedTimeOption (sVoteAction)
-			)
-			{
-				SendMessage (channel, nick, mapGlobalOptions, "非 VIP 用户禁止使用少于 1 分钟、或超过 30 分钟的时长");
-				return;
-			}
+			SendMessage (channel, nick, mapGlobalOptions, "非 VIP 用户、非频道管理员禁止使用少于 1 分钟、或超过 30 分钟的时长");
+			return;
 		}
 
 		if (StringUtils.equalsIgnoreCase (sVoteAction, "op") || StringUtils.equalsIgnoreCase (sVoteAction, "deop"))
 		{
 			if (! (false
 				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
+				|| isNickOperator (channel, nick)
 				|| isUserInWhiteList(hostname, login, nick, botcmd)
 				)
 			)
 			{
-				String msg = "禁止执行 /voteOp /voteDeOp: 不在白名单内";
+				String msg = "非 VIP 用户、非频道管理员禁止执行 Op、DeOp 操作";
 				System.err.println (msg);
 				if (StringUtils.isNotEmpty (nick))
 					SendMessage (channel, nick, mapGlobalOptions, msg);
@@ -3443,36 +3424,92 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 			}
 		}
 
-		voteMachine = new VoteRunner (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params, sVoteAction, sVoteTarget, sVoteReason);
+		// 把时间参数通过 mapGlobalOptions 传递到 VoteMachine 线程去
+		mapGlobalOptions.put ("TimeLength", nTimeLength);
+		mapGlobalOptions.put ("TimeLengthInSecond", nTimeLengthInSecond);
+		mapGlobalOptions.put ("TimeUnit", sTimeUnit);
+		mapGlobalOptions.put ("TimeDescription", sTimeDescription);
+
+		voteMachine = new VoteRunner (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params, sVoteAction, sVoteTarget, sVoteReason, isVoteOrExecuteDirectly);
 		executor.execute (voteMachine);
 	}
 
-	String TranslateVoteTimeLength (int nTimeLength, String sTimeUnit)
+	Map<String, Object> TranslateAndFixTimeLength (int nTimeLength, String sTimeUnit)
 	{
-		if (nTimeLength < 0)
+		Map<String, Object> mapMultiValue = new HashMap<String, Object> ();
+		if (nTimeLength <= 0)
 		{
-			return "永久";
+			mapMultiValue.put ("TimeLength", 0);
+			mapMultiValue.put ("TimeLengthInSecond", 0);
+			mapMultiValue.put ("TimeUnit", "s");
+			mapMultiValue.put ("TimeDescription", "永久");
 		}
-		if (StringUtils.equalsIgnoreCase (sTimeUnit, "m") || StringUtils.equalsIgnoreCase (sTimeUnit, "minute"))
-			return nTimeLength + " 分钟";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "q") || StringUtils.equalsIgnoreCase (sTimeUnit, "quarter"))
-			return nTimeLength + " 刻钟";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "h") || StringUtils.equalsIgnoreCase (sTimeUnit, "hour"))
-			return nTimeLength + " 小时";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "d") || StringUtils.equalsIgnoreCase (sTimeUnit, "day"))
-			return nTimeLength + " 天";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "w") || StringUtils.equalsIgnoreCase (sTimeUnit, "week"))
-			return nTimeLength + " 周/星期";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "month"))
-			return nTimeLength + " 个月(30天)";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "season") || StringUtils.equalsIgnoreCase (sTimeUnit, "ss"))
-			return nTimeLength + " 季度(91天)";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "hy") || StringUtils.equalsIgnoreCase (sTimeUnit, "halfyear"))
-			return nTimeLength + " 半年(182天)";
-		else if (StringUtils.equalsIgnoreCase (sTimeUnit, "y") || StringUtils.equalsIgnoreCase (sTimeUnit, "year"))
-			return nTimeLength + " 年(365天)";
 		else
-			return nTimeLength + " 秒";
+		{
+			mapMultiValue.put ("TimeLength", nTimeLength);
+			if (StringUtils.equalsIgnoreCase (sTimeUnit, "m") || StringUtils.equalsIgnoreCase (sTimeUnit, "minute") || StringUtils.equalsIgnoreCase (sTimeUnit, "分") || StringUtils.equalsIgnoreCase (sTimeUnit, "分钟"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 60);
+				mapMultiValue.put ("TimeUnit", "m");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 分钟");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "q") || StringUtils.equalsIgnoreCase (sTimeUnit, "quarter") || StringUtils.equalsIgnoreCase (sTimeUnit, "刻") || StringUtils.equalsIgnoreCase (sTimeUnit, "刻钟"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 15 * 60);
+				mapMultiValue.put ("TimeUnit", "q");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 刻钟");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "h") || StringUtils.equalsIgnoreCase (sTimeUnit, "hour") || StringUtils.equalsIgnoreCase (sTimeUnit, "小时"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 60 * 60);
+				mapMultiValue.put ("TimeUnit", "h");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 小时");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "d") || StringUtils.equalsIgnoreCase (sTimeUnit, "day") || StringUtils.equalsIgnoreCase (sTimeUnit, "天"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 24 * 60 * 60);
+				mapMultiValue.put ("TimeUnit", "d");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 天");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "w") || StringUtils.equalsIgnoreCase (sTimeUnit, "week") || StringUtils.equalsIgnoreCase (sTimeUnit, "周") || StringUtils.equalsIgnoreCase (sTimeUnit, "星期"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 7 * 24 * 60 * 60);
+				mapMultiValue.put ("TimeUnit", "w");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 周/星期");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "month") || StringUtils.equalsIgnoreCase (sTimeUnit, "月"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 30 * 24 * 60 * 60);
+				mapMultiValue.put ("TimeUnit", "month");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 个月(30天)");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "season") || StringUtils.equalsIgnoreCase (sTimeUnit, "ss") || StringUtils.equalsIgnoreCase (sTimeUnit, "季") || StringUtils.equalsIgnoreCase (sTimeUnit, "季度"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 91 * 24 * 60 * 60);
+				mapMultiValue.put ("TimeUnit", "season");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 季度(91天)");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "hy") || StringUtils.equalsIgnoreCase (sTimeUnit, "halfyear") || StringUtils.equalsIgnoreCase (sTimeUnit, "半年"))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 182 * 24 * 60 * 60);
+				mapMultiValue.put ("TimeUnit", "hy");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 半年(182天)");
+			}
+			else if (StringUtils.equalsIgnoreCase (sTimeUnit, "y") || StringUtils.equalsIgnoreCase (sTimeUnit, "year") || StringUtils.equalsIgnoreCase (sTimeUnit, "年"
+					+ ""))
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength * 365 * 24 * 60 * 60);
+				mapMultiValue.put ("TimeUnit", "y");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 年(365天)");
+			}
+			else
+			{
+				mapMultiValue.put ("TimeLengthInSecond", nTimeLength);
+				mapMultiValue.put ("TimeUnit", "s");
+				mapMultiValue.put ("TimeDescription", nTimeLength + " 秒");
+			}
+		}
+		return mapMultiValue;
 	}
 	class VoteRunner implements Runnable, DialogUser
 	{
@@ -3492,8 +3529,9 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 		String voteAction;
 		String voteTarget;
 		String voteReason;
+		boolean isVoteOrExecuteDirectly;
 
-		public VoteRunner (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params, String sVoteAction, String sVoteNick, String sVoteReason)
+		public VoteRunner (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params, String sVoteAction, String sVoteNick, String sVoteReason, boolean isVoteOrExecuteDirectly)
 		{
 			bot = LiuYanBot.this;
 
@@ -3510,6 +3548,7 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 			this.voteAction = sVoteAction;
 			this.voteTarget = sVoteNick;
 			this.voteReason = sVoteReason;
+			this.isVoteOrExecuteDirectly = isVoteOrExecuteDirectly;
 		}
 
 		@Override
@@ -3519,112 +3558,124 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 			System.out.println (voteAction);
 			try
 			{
-				Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
-				String sTimeUnit = mapUserEnv.get ("timeunit");
-				int nTimeLength = (int)mapGlobalOptions.get ("opt_max_response_lines");	// 用 opt_max_response_lines 参数传递时长
+				//Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
+				String sTimeUnit = (String)mapGlobalOptions.get ("TimeUnit");
+				int nTimeLength = (int)mapGlobalOptions.get ("TimeLength");	// (int)mapGlobalOptions.get ("opt_max_response_lines");	// 用 opt_max_response_lines 参数传递时长
 
-				Dialog dlg = new Dialog (this,
-						bot, dialogs, Dialog.Type.是否,
-						nick + " 发起投票： " + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL +
-							(StringUtils.isEmpty (voteReason) ? "" : "； 原因: " + Colors.MAGENTA + voteReason + Colors.NORMAL) +
-							(isVoteActionThatNeedTimeOption (voteAction) ? "； 时长: " + Colors.MAGENTA + TranslateVoteTimeLength (nTimeLength, sTimeUnit) + Colors.NORMAL : "") +
-							"。请通过 '" + formatBotOptionInstance (getNick() + ":", true) + " " + formatBotOption ("答案", true) + "' 的方式进行投票，所有已验证身份的用户都可参与投票表决",
-						true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, "*", null,
-						channel, null, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
-				dlg.showUsage = false;
-				//dlg.timeout_second = 30;
-				dlg.useHostAsAnswersKey = true;
-				Map<String, Object> participantAnswers = executor.submit (dlg).get ();
-				int nAgreed = 0;
-				double dRatio = 0.0;
-				if (participantAnswers.size () > 0)
+				if (isVoteOrExecuteDirectly)
 				{
-					for (Object answer : participantAnswers.values ())
+					Dialog dlg = new Dialog (this,
+							bot, dialogs, Dialog.Type.是否,
+							nick + " 发起投票： " + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL +
+								(StringUtils.isEmpty (voteReason) ? "" : "； 原因: " + Colors.MAGENTA + voteReason + Colors.NORMAL) +
+								(isVoteActionThatNeedTimeOption (voteAction) ? "； 时长: " + Colors.MAGENTA + TranslateAndFixTimeLength (nTimeLength, sTimeUnit).get ("TimeDescription") + Colors.NORMAL : "") +
+								"。请通过 '" + formatBotOptionInstance (getNick() + ":", true) + " " + formatBotOption ("答案", true) + "' 的方式进行投票，所有已验证身份的用户都可参与投票表决",
+							true, Dialog.MESSAGE_TARGET_MASK_CHANNEL, "*", null,
+							channel, null, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+					dlg.showUsage = false;
+					//dlg.timeout_second = 30;
+					dlg.useHostAsAnswersKey = true;
+					Map<String, Object> participantAnswers = executor.submit (dlg).get ();
+					int nAgreed = 0;
+					double dRatio = 0.0;
+					if (participantAnswers.size () > 0)
 					{
-						// 统计投“同意/是”的数量
-						if (dlg.GetCandidateAnswerValueByValueOrLabel ((String)answer).equals ("1"))
-							nAgreed ++;
+						for (Object answer : participantAnswers.values ())
+						{
+							// 统计投“同意/是”的数量
+							if (dlg.GetCandidateAnswerValueByValueOrLabel ((String)answer).equals ("1"))
+								nAgreed ++;
+						}
+						dRatio = nAgreed / (double)participantAnswers.size ();
 					}
-					dRatio = nAgreed / (double)participantAnswers.size ();
-				}
 
-				if (participantAnswers.size () < VOTE__MINIMAL_AMOUNT_TO_PASS)
-				{
-					bot.SendMessage (channel, nick, mapGlobalOptions, (participantAnswers.size() == 0 ? "无人投票": "只有 " + participantAnswers.size() + " 人投票，投票人数未达到投票最低人数 -- " + VOTE__MINIMAL_AMOUNT_TO_PASS + " 人") + "，不做处理。");
-				}
-				else if (dRatio < VOTE__RATIO_TO_PASS)
-				{
-					bot.SendMessage (channel, nick, mapGlobalOptions, (participantAnswers.size() == 0 ? "无人投票": participantAnswers.size() + " 人投票，" + nAgreed + "人投同意票。同意数量未达到投票人数的 " + VOTE__RATIO_TO_PASS_Description) + "，不做处理。");
+					if (participantAnswers.size () < VOTE__MINIMAL_AMOUNT_TO_PASS)
+					{
+						bot.SendMessage (channel, nick, mapGlobalOptions, (participantAnswers.size() == 0 ? "无人投票": "只有 " + participantAnswers.size() + " 人投票，投票人数未达到投票最低人数 -- " + VOTE__MINIMAL_AMOUNT_TO_PASS + " 人") + "，不做处理。");
+						return;
+					}
+					else if (dRatio < VOTE__RATIO_TO_PASS)
+					{
+						bot.SendMessage (channel, nick, mapGlobalOptions, (participantAnswers.size() == 0 ? "无人投票": participantAnswers.size() + " 人投票，" + nAgreed + "人投同意票。同意数量未达到投票人数的 " + VOTE__RATIO_TO_PASS_Description) + "，不做处理。");
+						return;
+					}
+
+					bot.SendMessage (channel, nick, mapGlobalOptions, "共 " + participantAnswers.size() + " 人投票，其中 " + nAgreed + " 人投同意票，同意比=" + String.format ("%.2f%%", dRatio*100) + "。同意数量达到投票人数的 2/3，执行投票结果：" + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL);
+					TimeUnit.SECONDS.sleep (1);	// 延迟一段时间，有的时候， bot 发的操作提示消息还没到，却先收到了操作结果
 				}
 				else
 				{
-					bot.SendMessage (channel, nick, mapGlobalOptions, "共 " + participantAnswers.size() + " 人投票，其中 " + nAgreed + " 人投同意票，同意比=" + String.format ("%.2f%%", dRatio*100) + "。同意数量达到投票人数的 2/3，执行投票结果：" + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL);
-					TimeUnit.SECONDS.sleep (1);	// 延迟一段时间，有的时候， bot 发的操作提示消息还没到，却先收到了操作结果
+					SendMessage (channel, nick, mapGlobalOptions,
+						nick + " 直接执行： " + Colors.MAGENTA + voteAction + " " + voteTarget + Colors.NORMAL +
+						(StringUtils.isEmpty (voteReason) ? "" : "； 原因: " + Colors.MAGENTA + voteReason + Colors.NORMAL) +
+						(isVoteActionThatNeedTimeOption (voteAction) ? "； 时长: " + Colors.MAGENTA + TranslateAndFixTimeLength (nTimeLength, sTimeUnit).get ("TimeDescription") + Colors.NORMAL : "") +
+						"。"
+					);
+				}
 
-					// 如果是 kickban，先 ban，后 kick
-					if (StringUtils.equalsIgnoreCase (voteAction, "ban") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
+				// 如果是 kickban，先 ban，后 kick
+				if (StringUtils.equalsIgnoreCase (voteAction, "ban") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
+				{
+					ban (channel, voteTarget);
+					SaveVoteToDatabase (voteAction, voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
+				}
+
+				if (StringUtils.equalsIgnoreCase (voteAction, "kick") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
+				{
+					if (StringUtils.isEmpty (voteReason))
+						kick (channel, voteTarget);
+					else
+						kick (channel, voteTarget, nick + " 提供的原因: " + voteReason);
+
+					if (StringUtils.equalsIgnoreCase (voteAction, "kick"))
 					{
-						ban (channel, voteTarget);
 						SaveVoteToDatabase (voteAction, voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
 					}
+				}
 
-					if (StringUtils.equalsIgnoreCase (voteAction, "kick") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
-					{
-						if (StringUtils.isEmpty (voteReason))
-							kick (channel, voteTarget);
-						else
-							kick (channel, voteTarget, nick + " 提供的原因: " + voteReason);
-
-						if (StringUtils.equalsIgnoreCase (voteAction, "kick"))
-						{
-							SaveVoteToDatabase (voteAction, voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
-						}
-					}
-
-					if (StringUtils.equalsIgnoreCase (voteAction, "unBan"))
-					{
-						unBan (channel, voteTarget);
-						// 唉，不得已，kickban 没有对应的 unKickban，只能在 unBan 里对两个不同的 action 做 undo
-						UndoVoteInDatabase (null, channel, "ban", voteTarget, voteReason, nick, login, host);
-						UndoVoteInDatabase (null, channel, "kickban", voteTarget, voteReason, nick, login, host);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "gag") || StringUtils.equalsIgnoreCase (voteAction, "mute") || StringUtils.equalsIgnoreCase (voteAction, "quiet"))
-					{
-						setMode (channel, "+q " + voteTarget);
-						SaveVoteToDatabase ("quiet", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "unGag") || StringUtils.equalsIgnoreCase (voteAction, "unMute") || StringUtils.equalsIgnoreCase (voteAction, "unQuiet"))
-					{
-						setMode (channel, "-q " + voteTarget);
-						UndoVoteInDatabase (null, channel, "quiet", voteTarget, voteReason, nick, login, host);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "voice"))
-					{
-						SaveVoteToDatabase ("voice", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
-						voice (channel, voteTarget);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "deVoice"))
-					{
-						deVoice (channel, voteTarget);
-						UndoVoteInDatabase (null, channel, "voice", voteTarget, voteReason, nick, login, host);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "op"))
-					{
-						SaveVoteToDatabase ("op", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
-						op (channel, voteTarget);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "deOp"))
-					{
-						deOp (channel, voteTarget);
-						UndoVoteInDatabase (null, channel, "op", voteTarget, voteReason, nick, login, host);
-					}
-					else if (StringUtils.equalsIgnoreCase (voteAction, "invite"))
-					{
-						sendInvite (voteTarget, channel);
-					}
+				if (StringUtils.equalsIgnoreCase (voteAction, "unBan"))
+				{
+					unBan (channel, voteTarget);
+					// 唉，不得已，kickban 没有对应的 unKickban，只能在 unBan 里对两个不同的 action 做 undo
+					UndoVoteInDatabase (null, channel, "ban", voteTarget, voteReason, nick, login, host);
+					UndoVoteInDatabase (null, channel, "kickban", voteTarget, voteReason, nick, login, host);
+				}
+				else if (StringUtils.equalsIgnoreCase (voteAction, "gag") || StringUtils.equalsIgnoreCase (voteAction, "mute") || StringUtils.equalsIgnoreCase (voteAction, "quiet"))
+				{
+					setMode (channel, "+q " + voteTarget);
+					SaveVoteToDatabase ("quiet", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
+				}
+				else if (StringUtils.equalsIgnoreCase (voteAction, "unGag") || StringUtils.equalsIgnoreCase (voteAction, "unMute") || StringUtils.equalsIgnoreCase (voteAction, "unQuiet"))
+				{
+					setMode (channel, "-q " + voteTarget);
+					UndoVoteInDatabase (null, channel, "quiet", voteTarget, voteReason, nick, login, host);
+				}
+				else if (StringUtils.equalsIgnoreCase (voteAction, "voice"))
+				{
+					SaveVoteToDatabase ("voice", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
+					voice (channel, voteTarget);
+				}
+				else if (StringUtils.equalsIgnoreCase (voteAction, "deVoice"))
+				{
+					deVoice (channel, voteTarget);
+					UndoVoteInDatabase (null, channel, "voice", voteTarget, voteReason, nick, login, host);
+				}
+				else if (StringUtils.equalsIgnoreCase (voteAction, "op"))
+				{
+					SaveVoteToDatabase ("op", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
+					op (channel, voteTarget);
+				}
+				else if (StringUtils.equalsIgnoreCase (voteAction, "deOp"))
+				{
+					deOp (channel, voteTarget);
+					UndoVoteInDatabase (null, channel, "op", voteTarget, voteReason, nick, login, host);
+				}
+				else if (StringUtils.equalsIgnoreCase (voteAction, "invite"))
+				{
+					sendInvite (voteTarget, channel);
 				}
 			}
-			catch (InterruptedException | ExecutionException e)
+			catch (Exception e)
 			{
 				e.printStackTrace();
 			}
