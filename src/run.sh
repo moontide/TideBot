@@ -1,6 +1,7 @@
 botdir=${botdir:-$(dirname $0)}
 libdir=$(readlink -e "$botdir/../lib")
 dbdir=$(readlink -e "$botdir/../db")
+botcmdPrefix=${botcmdPrefix:-}
 
 OS=$(uname -s)
 
@@ -37,9 +38,9 @@ nick=${nick:-CmdBot}
 export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix -Dmessage.delay=100 -Djava.util.logging.config.file=$botdir/logging.properties -DGFWProxy.TrustStore=$dbdir/bot.jks -DGFWProxy.Type=${GFWProxyType} -DGFWProxy.Host=${GFWProxyHost-192.168.2.1} -DGFWProxy.Port=${GFWProxyPort-8087} -Ddatabase.driver=${database_driver-com.mysql.jdbc.Driver} -Ddatabase.username=${database_username-bot} -Ddatabase.userpassword=${database_userpassword} -Ddatabase.url=${database_url-jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;zeroDateTimeBehavior=convertToNull} $_JAVA_OPTIONS"
 
 for lf in commons-lang3-3.4 commons-io-2.5 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.4.2 commons-dbcp2-2.1.1 commons-codec-1.10 \
-    mysql-connector-java-5.1.40-bin  mariadb-java-client-1.5.4 \
-    jackson-core-2.8.5  jackson-databind-2.8.5  jackson-annotations-2.8.5 \
-    maxmind-db-1.2.1  geoip2-2.8.0  \
+    mysql-connector-java-5.1.41-bin  mariadb-java-client-1.5.9 \
+    jackson-core-2.8.8  jackson-databind-2.8.8  jackson-annotations-2.8.8 \
+    maxmind-db-1.2.2  geoip2-2.8.1  \
     google-pagerank-api-2.0 \
     jsoup-1.10.2 \
     bsh-2.0b6 \

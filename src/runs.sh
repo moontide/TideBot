@@ -28,4 +28,3 @@ export GFWProxyHost=192.168.90.201
 export GFWProxyPort=9999
 
 $botdir/run.sh
-
