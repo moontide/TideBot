@@ -694,14 +694,14 @@ public class DouDiZhu extends CardGame
 		Map<String, Object> card = new HashMap<String, Object> ();
 		card.put ("suit", "");	// 花色
 		card.put ("rank", "☆");	// 牌面 🃟☆
-		card.put ("point", Arrays.binarySearch (斗地主牌面索引, card.get ("rank")));	// 点数值大小
+		card.put ("point", RankToPoint ((String)card.get ("rank")));	// 点数值大小
 		card.put ("color", "");
 		deck.add (card);
 
 		card = new HashMap<String, Object> ();
 		card.put ("suit", "");	// 花色
 		card.put ("rank", "★");	// 牌面 🃏★
-		card.put ("point", Arrays.binarySearch (斗地主牌面索引, card.get ("rank")));	// 大小
+		card.put ("point", RankToPoint ((String)card.get ("rank")));	// 大小
 		card.put ("color", Colors.PURPLE);
 		deck.add (card);
 	}
@@ -1012,7 +1012,7 @@ public class DouDiZhu extends CardGame
 		case 1:
 			if (isSerial && nSolo>=5)
 				return Type.顺子;
-			else if (nSolo==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★"))	//大王、小王两站牌的情况做特殊处理：王炸
+			else if (nSolo==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★"))	//大王、小王两张牌一起出的情况做特殊处理：王炸
 				return Type.王炸;
 			else if (nSolo == 1)
 				return Type.单;

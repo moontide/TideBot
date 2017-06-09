@@ -66,8 +66,8 @@ System.out.println ("牌型测试 结束");
 		System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("QKA2J")));
 	}
 
-	@Test (expected=IllegalArgumentException.class)
-	public void 排序检测 ()
+	@Test //(expected=IllegalArgumentException.class)
+	public void 排序检测_String类型 ()
 	{
 		int i = 0;
 
@@ -78,6 +78,7 @@ System.out.println ("牌型测试 结束");
 		listCardRanks.add ("☆");
 		listCardRanks.add ("10");
 		Collections.sort (listCardRanks, DouDiZhu.斗地主点值比较器);
+		System.out.println (listCardRanks);
 
 		i = 0;
 		assertEquals (listCardRanks.get (i++), "3");
@@ -95,6 +96,50 @@ System.out.println ("牌型测试 结束");
 
 		i = 0;
 		System.out.println (setCardRanks);
+	}
+
+	@Test //(expected=IllegalArgumentException.class)
+	public void 排序检测2_Map类型 ()
+	{
+		int i = 0;
+
+		List<Map<String, Object>> listCards = new ArrayList<Map<String, Object>> ();
+		Map<String, Object> mapCard;
+
+		mapCard = new HashMap<String, Object> ();
+		mapCard.put ("rank", "A");
+		mapCard.put ("point", DouDiZhu.RankToPoint ((String)mapCard.get ("rank")));
+		listCards.add (mapCard);
+
+		mapCard = new HashMap<String, Object> ();
+		mapCard.put ("rank", "3");
+		mapCard.put ("point", DouDiZhu.RankToPoint ((String)mapCard.get ("rank")));
+		listCards.add (mapCard);
+
+		mapCard = new HashMap<String, Object> ();
+		mapCard.put ("rank", "★");
+		mapCard.put ("point", DouDiZhu.RankToPoint ((String)mapCard.get ("rank")));
+		listCards.add (mapCard);
+
+		mapCard = new HashMap<String, Object> ();
+		mapCard.put ("rank", "☆");
+		mapCard.put ("point", DouDiZhu.RankToPoint ((String)mapCard.get ("rank")));
+		listCards.add (mapCard);
+
+		mapCard = new HashMap<String, Object> ();
+		mapCard.put ("rank", "10");
+		mapCard.put ("point", DouDiZhu.RankToPoint ((String)mapCard.get ("rank")));
+		listCards.add (mapCard);
+
+		Collections.sort (listCards, DouDiZhu.斗地主点值比较器);
+		System.out.println (listCards);
+
+		i = 0;
+		assertEquals (listCards.get (i++).get ("rank"), "3");
+		assertEquals (listCards.get (i++).get ("rank"), "10");
+		assertEquals (listCards.get (i++).get ("rank"), "A");
+		assertEquals (listCards.get (i++).get ("rank"), "☆");
+		assertEquals (listCards.get (i++).get ("rank"), "★");
 	}
 
 	@Test// (expected=IllegalArgumentException.class)
