@@ -15,6 +15,8 @@ public class DouDiZhuTest
 	public void 牌型检测 ()
 	{
 System.out.println ("牌型测试 开始");
+System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("4467999910QKA2★")));	// 2017-05-25 22:48:13.052 >>>PRIVMSG abc_ :你 打出了 06四带2 [4, 4, 6, 7, 9, 9, 9, 9, 10, Q, K, A, 2, ★], 牌已出光！
+
 		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("2")), Type.单);
 
 		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("22")), Type.对);
@@ -56,7 +58,12 @@ System.out.println ("牌型测试 开始");
 		// 不常见的牌型
 		// 已知 bug
 		//
+
+System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333456890qka")));
+		assertNotEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333456890qka")), Type.四带2);
+
 		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("33344435")), Type.飞机带单);
+
 System.out.println ("牌型测试 结束");
 	}
 

@@ -896,7 +896,7 @@ public class DouDiZhu extends CardGame
 				}
 			}
 			if (! contains)
-				throw new IllegalArgumentException ("所出的第 " + (i+1) + " 张牌 ”" + r + "“ 在手牌里没有");
+				throw new IllegalArgumentException ("所出的第 " + (i+1) + " 张牌 “" + r + "” 在手牌里没有");
 		}
 
 		// 检查是什么牌型、判断出的牌是否有效
@@ -917,7 +917,12 @@ public class DouDiZhu extends CardGame
 	 * 注意：这里并不判断所有的牌是不是在自己手里，调用者需要自己判断。
 	 *
 	 * 注意：此判断牌型方法对极罕见的牌型存在误判/不能判别的问题，例如：
-	 * 飞机带另外几张单牌，但几张单牌其中的一张也在顺子中出现，如：333 444 555 (3)67
+	 * 已知问题 FIXME
+	 * <ul>
+	 * 	<li>飞机带另外几张单牌，但几张单牌其中的一张也在顺子中出现，如：333 444 555 (3)67</li>
+	 * 	<li>长度大于3的飞机带另外3张牌以上的附加牌，但另外的附加牌可能也是 3 张一样牌（甚至是 4 张一样的牌 -- 炸弹）</li>
+	 * 	<li>类似的，大飞机，除了组成大飞机的炸弹顺子（比如说 3333 4444），其他的附加牌也是 4 张牌（比如说 8888 kkkk），不会被当成【大飞机带2对】的牌型，会被判定为未知牌型或者抛出异常</li>
+	 * </ul>
 	 *
 	 * @param listCardRanks 玩家出的牌的列表 (列表不需要排序)
 	 * @return Type 牌型
@@ -932,6 +937,7 @@ public class DouDiZhu extends CardGame
 		int nQuartette = (int)result.get ("nQuartette");
 		int nPrimaryCardType = (int)result.get ("PrimaryCardType");
 		boolean isSerial = (boolean)result.get ("IsSerial");
+		int nCards = listCardRanks.size ();
 		switch (nPrimaryCardType)
 		{
 		case 4:
@@ -939,17 +945,17 @@ public class DouDiZhu extends CardGame
 			{
 				if (nTrio!=0)
 					throw new IllegalArgumentException ("四张牌不能带 3 张牌");
-				if (nSolo==0 && nPair==2)
+				if (nSolo==0 && nPair==2 && nCards==CalculateCardCount(1,0,2,0))
 					return Type.四带2对;
-				if (nSolo==2 || nPair==1)
+				if ( ((nSolo==2 && nPair==0) || (nSolo==0 && nPair==1)) && nCards==CalculateCardCount(1,0,0,2))
 					return Type.四带2;
-				if (nSolo==0 && nPair==0)
+				if (nSolo==0 && nPair==0 && nCards==CalculateCardCount(1,0,0,0))
 					return Type.炸弹;
-				throw new IllegalArgumentException ("四张牌带的附牌数不对: " + nSolo + "张单牌, " + nPair + "双对子");
+				throw new IllegalArgumentException ("四张牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌");
 			}
 			else
 			{
-				// 不当炸弹出，真的没问题？
+				// 不分开当几个炸弹出，真的没问题？
 				// 只有在极少数情况下才这么出牌，比如：
 				// 1.
 				//    - 已知道敌方只有 1 道炸弹牌，
@@ -958,15 +964,18 @@ public class DouDiZhu extends CardGame
 				//    - 且你的手牌单个炸弹的点数比敌方小（或者敌方炸弹点数未知）
 				// 2.
 				//    - 任性！
+
 				if (!isSerial)
 					throw new IllegalArgumentException (nTrio + " 组四张牌不是顺子/飞机");
-				if (nSolo==0 && nPair==0)
+				if (nSolo==0 && nPair==0 && nCards==CalculateCardCount(nQuartette,0,0,0))
 					return Type.大飞机;
-				if (nSolo==0 && nPair==nQuartette*2)
+				if (nSolo==0 && nPair==nQuartette*2 && nCards==CalculateCardCount(nQuartette,0,nQuartette*2,0))
 					return Type.大飞机带2对;
-				if ((nSolo==nQuartette*2 && nPair==0) || (nQuartette*2==nSolo + 2*nPair))
+				if (nCards==(CalculateCardCount(nTrio,nPair,nSolo)*2 + nQuartette*4))	// 对子和三牌，可被当成多张单牌附加牌计算
 					return Type.大飞机带2单;
-				throw new IllegalArgumentException ("四顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
+
+				// FIXME 参见已知问题
+				throw new IllegalArgumentException ("四顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌");
 			}
 			//break;
 		case 3:
@@ -991,6 +1000,8 @@ public class DouDiZhu extends CardGame
 					return Type.飞机带对;
 				if ((nSolo==nTrio && nPair==0) || (nTrio==nSolo + 2*nPair))
 					return Type.飞机带单;
+
+				// FIXME 参见已知问题
 				throw new IllegalArgumentException ("三顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
 			throw new IllegalArgumentException ("无效的三张牌组数 " + nTrio);
@@ -1038,6 +1049,19 @@ public class DouDiZhu extends CardGame
 			listConvert.add ((String)card.get ("rank"));
 		}
 		return GetCardsType (listConvert);
+	}
+
+	public static int CalculateCardCount (int nQuartette, int nTrio, int nPair, int nSolo)
+	{
+		return nQuartette*4 + nTrio*3 + nPair*2 + nSolo*1;
+	}
+	public static int CalculateCardCount (int nTrio, int nPair, int nSolo)
+	{
+		return CalculateCardCount (0, nTrio, nPair, nSolo);
+	}
+	public static int CalculateCardCount (int nPair, int nSolo)
+	{
+		return CalculateCardCount (0, 0, nPair, nSolo);
 	}
 
 	/**
