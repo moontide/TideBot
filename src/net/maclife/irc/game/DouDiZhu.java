@@ -126,8 +126,28 @@ public class DouDiZhu extends CardGame
 						break;
 					}
 					if (连续无人抢地主次数>=3 && sLandlordName==null)
-						// 连续 3 人都没人叫地主，荒局
-						throw new RuntimeException ("都没人抢地主，荒局");
+					{	// 连续 3 人都没人叫地主，荒局
+						// #linuxba gauge 提议：荒局时，把每个人的手牌展示出来
+						StringBuilder sbResult = new StringBuilder ();
+						for (Object p : participants)
+						{
+							String sPlayerName = null;
+							if (p instanceof String)
+								sPlayerName = (String)p;
+							else if (p instanceof DouDiZhuBotPlayer)
+								sPlayerName = ((DouDiZhuBotPlayer)p).getName ();
+
+							sbResult.append (sPlayerName);
+							sbResult.append (" [");
+							sbResult.append (GenerateCardsInfoTo(sPlayerName));
+							sbResult.append ("] ");
+						}
+						sbResult.append ("，底牌 [");
+						GenerateCardsInfoTo (deck, sbResult);
+						sbResult.append ("] ");
+
+						throw new RuntimeException ("都没人抢地主，荒局。玩家手牌情况：" + sbResult);
+					}
 				}
 
 				iTurn = NextTurn (iTurn);
@@ -149,6 +169,8 @@ public class DouDiZhu extends CardGame
 			}
 			if (地主 instanceof String)
 				bot.SendMessage (null, sLandlordName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "" + GenerateCardsInfoTo (player_cards, null));
+			else
+				System.out.println (sLandlordName + " 的手牌 " + GenerateCardsInfoTo (player_cards, null));
 
 			// 开始循环
 			int iRound = participants.indexOf (地主 /*sLandlordName*/);	// 谁的回合
@@ -770,10 +792,12 @@ public class DouDiZhu extends CardGame
 			Collections.sort (player_cards, 斗地主点值比较器);
 			if (p instanceof String)
 				bot.SendMessage (null, sPlayerName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "您摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(sPlayerName));
+			else
+				System.out.println (sPlayerName + " 摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(sPlayerName));
 		}
 		for (int i=0; i<3*17; i++)	// 剔除摸掉的牌
 			deck.remove (0);
-		bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "每人摸了 17 张牌 ");
+		//bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "每人摸了 17 张牌 ");
 	}
 
 	void RemovePlayedCards (String p, List<String> listCardRanks)
