@@ -44,6 +44,7 @@ import net.maclife.seapi.*;
 import net.maclife.ansi.*;
 import net.maclife.irc.dialog.*;
 import net.maclife.irc.game.*;
+import net.maclife.irc.game.sanguosha.*;
 import net.maclife.irc.hcicloud.*;
 
 public class LiuYanBot extends PircBot implements Runnable
@@ -202,7 +203,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "json", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
-		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "2048", },
+		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "SanGuoSha", "三国杀入门", "SanGuoSha_Simple", "三国杀身份", "SanGuoSha_RoleRevealing", "三国杀国战", "SanGuoSha_CountryRevealing", "2048", },
 		{BOT_PRIMARY_COMMAND_MacManufactory, "oui", "macm", },
 		{BOT_PRIMARY_COMMAND_Vote, "/voteKick", "/voteBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteQuiet", "/voteGag", "/voteMute", "/voteUnQuiet", "/voteUnGag", "/voteUnMute", "/voteInvite",
 			BOT_PRIMARY_COMMAND_CONSOLE_Kick,
@@ -213,8 +214,8 @@ public class LiuYanBot extends PircBot implements Runnable
 			BOT_PRIMARY_COMMAND_CONSOLE_DeOP,
 			BOT_PRIMARY_COMMAND_CONSOLE_Voice,
 			BOT_PRIMARY_COMMAND_CONSOLE_DeVoice,
-			BOT_PRIMARY_COMMAND_CONSOLE_Quiet,
-			BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet,
+			BOT_PRIMARY_COMMAND_CONSOLE_Quiet, "/mute", "/gag",
+			BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag",
 		},
 
 		{BOT_PRIMARY_COMMAND_Time, },
@@ -250,16 +251,16 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_CONSOLE_Identify, "/auth", },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Invite, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Kick, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_IRCBan, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_UnBan, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_KickBan, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_OP, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_DeOP, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Voice, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_DeVoice, },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Quiet, "/mute", "/gag",},
-		{BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag", },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_Kick, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_IRCBan, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_UnBan, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_KickBan, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_OP, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_DeOP, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_Voice, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_DeVoice, },
+		// {BOT_PRIMARY_COMMAND_CONSOLE_Quiet, "/mute", "/gag",},
+		// {BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag", },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Mode, },
 
@@ -1722,15 +1723,15 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 	/**
 	 * 从输入的字符串中提取出合法的 bot 首选命令
-	 * @param input
+	 * @param sInput
 	 * @return 如果存在合法的命令，则返回 BOT_COMMAND_NAMES 数组中的第一个元素（即：首选的命令，命令别名不返回）；如果不存在合法的命令，则返回 null
 	 */
-	public static String getBotPrimaryCommand (String input)
+	public static String getBotPrimaryCommandOrAlias (String sInput, boolean returnPrimaryCommandOrAlias)
 	{
 		// [“输入”与“命令”完全相等]，
 		// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
 		// 或者 [“输入”以“命令”开头，且紧接小数点"."字符]，小数点字符用于附加 bot 命令的选项
-		String[] inputs = input.split ("[ \\.]+", 2);
+		String[] inputs = sInput.split ("[ \\.]+", 2);
 		String sInputCmd = inputs[0];
 		for (String[] names : BOT_COMMAND_ALIASES)
 		{
@@ -1741,10 +1742,30 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					   StringUtils.equalsIgnoreCase (sInputCmd, regular_cmd_pattern)
 					|| sInputCmd.matches ("(?i)^" + regular_cmd_pattern + "$")
 					)
-					return names[0];
+					return returnPrimaryCommandOrAlias ? names[0] : sInputCmd;
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * 从输入的字符串中提取出合法的 bot 首选命令
+	 * @param sInput
+	 * @return 如果存在合法的命令，则返回 BOT_COMMAND_NAMES 数组中的第一个元素（即：首选的命令，命令别名不返回）；如果不存在合法的命令，则返回 null
+	 */
+	public static String getBotPrimaryCommand (String sInput)
+	{
+		return getBotPrimaryCommandOrAlias (sInput, true);
+	}
+
+	/**
+	 * 从输入的字符串中提取出输入的 bot 命令别名，命令别名本身也要合法
+	 * @param sInput
+	 * @return 按本 bot 命令行习惯解析出输入的命令，命令别名本身也要合法
+	 */
+	public static String getBotCommandAlias (String sInput)
+	{
+		return getBotPrimaryCommandOrAlias (sInput, false);
 	}
 
 	public static String formatBotCommand (String cmd, boolean colorized)
@@ -3204,7 +3225,7 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 
 	boolean isVoteActionThatNeedTimeOption (String sVoteAction)
 	{
-		return StringUtils.equalsIgnoreCase (sVoteAction, "ban")
+		return StringUtils.equalsIgnoreCase (sVoteAction, "ban")|| StringUtils.equalsIgnoreCase (sVoteAction, "IRCBan")
 		|| StringUtils.equalsIgnoreCase (sVoteAction, "KickBan")
 		|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
 		|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
@@ -3614,7 +3635,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				}
 
 				// 如果是 kickban，先 ban，后 kick
-				if (StringUtils.equalsIgnoreCase (voteAction, "ban") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
+				if (StringUtils.equalsIgnoreCase (voteAction, "ban") || StringUtils.equalsIgnoreCase (voteAction, "ircban") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
 				{
 					ban (channel, voteTarget);
 					SaveVoteToDatabase (voteAction, voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
@@ -7303,7 +7324,7 @@ logger.fine ("params: " + listOrderedParams);
 			}
 			else
 			{
-				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? URLEncoder.encode (listOrderedParams.get (n), UTF8_CHARSET.name ()) : sDefault);
+				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? URLEncoder.encode (listOrderedParams.get (n), UTF8_CHARSET.name ()).replace ("+", "%20") : sDefault);
 			}
 		}
 		matcher.appendTail (sbReplace);
@@ -8836,6 +8857,13 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "21点")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "斗地主")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀入门")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀身份")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀国战")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha_Simple")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha_RoleRevealing")
+			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha_CountryRevealing")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "2048")
 			)
 			sGame = botCmdAlias;
@@ -8960,9 +8988,29 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "三国杀")
 			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
+			|| StringUtils.equalsIgnoreCase (sGame, "三国杀入门")
+			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha_Simple")
+			|| StringUtils.equalsIgnoreCase (sGame, "三国杀身份")
+			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha_RoleRevealing")
+			|| StringUtils.equalsIgnoreCase (sGame, "三国杀国战")
+			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha_CountryRevealing")
 			)
 		{
-			game = new SanGuoSha (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			if (StringUtils.isEmpty (ch))
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "必须在频道内发起三国杀游戏：IRC 服务器会限制消息发送频率，由于三国杀游戏需要输出大量信息，且三国杀游戏玩家比较多，所以通过私信发信息的量又会翻几倍…");
+				return;
+			}
+			if (StringUtils.containsIgnoreCase (sGame, "国战")
+				|| StringUtils.containsIgnoreCase (sGame, "CountryReveal")
+				)
+				game = new SanGuoSha_CountryRevealing (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			else if (StringUtils.containsIgnoreCase (sGame, "身份")
+				|| StringUtils.containsIgnoreCase (sGame, "RoleReveal")
+				)
+				game = new SanGuoSha_RoleRevealing (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			else
+				game = new SanGuoSha_Simple (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
 		else if (StringUtils.equalsIgnoreCase (sGame, "2048"))
 		{
@@ -10583,16 +10631,17 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Identify)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Mode)
 							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Invite)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quiet)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet)
+							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Vote)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quiet)
+							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet)
 						)
 					{
 						params = sTerminalInput.split (" +", 3);

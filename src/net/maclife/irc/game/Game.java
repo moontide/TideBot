@@ -11,6 +11,7 @@ import net.maclife.irc.dialog.*;
 public abstract class Game implements Runnable, DialogUser
 {
 	protected String name;
+	protected int stage;
 
 	public long threadID = 0;
 	public boolean stop_flag = false;	// 是否终止游戏，每个游戏类需要自己根据需要决定是否遵守该 stop_flag
@@ -23,7 +24,7 @@ public abstract class Game implements Runnable, DialogUser
 
 	protected LiuYanBot bot;
 
-	// 对话发起人信息
+	// 游戏发起人信息
 	protected String channel;
 	protected String nick;
 	protected String login;

@@ -21,7 +21,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	public long starttime = 0;
 	public long endtime = 0;
 	public long timeout_second = 60;
-	public int maxAdviseTimes = 0;	// 答案校正次数。 正整数: 指定次数; 0 或者负数: 无限次数
+	//public int maxAdviseTimes = 0;	// 答案校正次数。 正整数: 指定次数; 0 或者负数: 无限次数
 	List<Dialog> dialogs = null;
 
 	//
@@ -276,7 +276,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	 * @param u 哪个帐号
 	 * @param host 哪个主机名
 	 * @param answer 提供的答案
-	 * @return true - 当用户属于对话的参与者。 false - 用户不属于对话的参与者
+	 * @return 1 - 当用户属于对话的参与者（已处理）； 0 - 用户不属于对话的参与者（已处理）； 负数 - 非法输入未处理，其他的命令可以继续处理输入
 	 * @throws RuntimeException
 	 */
 	public boolean onAnswerReceived (String ch, String n, String u, String host, String answer)
@@ -388,6 +388,11 @@ public class Dialog implements Callable<Map<String, Object>>
 
 		if (dlguser == null || showQuestion)
 		{
+			sb.append ("对话框 #");
+			sb.append (Colors.GREEN);
+			sb.append (threadID);
+			sb.append (Colors.NORMAL);
+			sb.append ("  ");
 			if (! isParticipantsQuantityIndefinitely)
 			{
 				// 显示对话框用法

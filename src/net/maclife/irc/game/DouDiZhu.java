@@ -222,7 +222,7 @@ public class DouDiZhu extends CardGame
 								true, sTurnPlayer_回合阶段,
 								channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 						dlg.showUsage = false;
-						dlg.timeout_second = 3 * player_cards.size () + 10;	// 每张牌 3 秒钟的出牌时间，外加 10 秒钟的 IRC 延时时间
+						dlg.timeout_second = 3 * player_cards.size () + 10;	// 每张牌 3 秒钟的出牌时间，外加应对 IRC 延时的 10 秒钟。
 						for (Object p : participants)
 						{
 							if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段))
@@ -589,7 +589,6 @@ public class DouDiZhu extends CardGame
 	public static final int STAGE_抢地主   = 1;
 	public static final int STAGE_回合阶段 = 2;
 	public static final int STAGE_战斗阶段 = 3;
-	int stage;
 	public List<String[]> 抢地主候选答案 = new ArrayList<String[]> ();	// 候选答案
 	{
 		抢地主候选答案.add (new String[]{"1", "1分"});
