@@ -37,12 +37,12 @@ nick=${nick:-CmdBot}
 #-Djavax.net.debug=ssl,handshake,record -Ddeployment.security.TLSv1.2=false
 export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix -Dmessage.delay=100 -Djava.util.logging.config.file=$botdir/logging.properties -DGFWProxy.TrustStore=$dbdir/bot.jks -DGFWProxy.Type=${GFWProxyType} -DGFWProxy.Host=${GFWProxyHost-192.168.2.1} -DGFWProxy.Port=${GFWProxyPort-8087} -Ddatabase.driver=${database_driver-com.mysql.jdbc.Driver} -Ddatabase.username=${database_username-bot} -Ddatabase.userpassword=${database_userpassword} -Ddatabase.url=${database_url-jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;zeroDateTimeBehavior=convertToNull} $_JAVA_OPTIONS"
 
-for lf in commons-lang3-3.4 commons-io-2.5 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.4.2 commons-dbcp2-2.1.1 commons-codec-1.10 \
-    mysql-connector-java-5.1.41-bin  mariadb-java-client-1.5.9 \
-    jackson-core-2.8.8  jackson-databind-2.8.8  jackson-annotations-2.8.8 \
-    maxmind-db-1.2.2  geoip2-2.8.1  \
+for lf in commons-lang3-3.6 commons-io-2.5 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.4.2 commons-dbcp2-2.1.1 commons-codec-1.10 \
+    mysql-connector-java-5.1.42-bin  mariadb-java-client-2.0.2 \
+    jackson-core-2.8.9  jackson-databind-2.8.9  jackson-annotations-2.8.9 \
+    maxmind-db-1.2.2  geoip2-2.9.0  \
     google-pagerank-api-2.0 \
-    jsoup-1.10.2 \
+    jsoup-1.10.3 \
     bsh-2.0b6 \
     hcicloud-5.0.0 \
     QQWry StackExchangeAPI pircbot-mod
