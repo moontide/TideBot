@@ -157,7 +157,7 @@ public class DouDiZhu extends CardGame
 
 			// 底牌明示，归地主所有
 			assert (sLandlordName != null);
-			List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (sLandlordName);
+			List<Object> player_cards = (List<Object>)players_cards.get (sLandlordName);
 			player_cards.addAll (deck);
 				Collections.sort (player_cards, 斗地主点值比较器);
 			GenerateCardsInfoTo (deck, sb);
@@ -193,7 +193,7 @@ public class DouDiZhu extends CardGame
 				{
 					sTurnPlayer_回合阶段 = ((DouDiZhuBotPlayer)turnPlayer_回合阶段).getName ();
 				}
-				player_cards = (List<Map<String, Object>>)players_cards.get (sTurnPlayer_回合阶段);
+				player_cards = (List<Object>)players_cards.get (sTurnPlayer_回合阶段);
 				stage = STAGE_回合阶段;
 				Type 手牌牌型 = Type.__未知牌型__;
 				try
@@ -254,14 +254,14 @@ public class DouDiZhu extends CardGame
 					if (手牌牌型 != Type.__未知牌型__)
 					{
 						StringBuilder sbPlayed = new StringBuilder ();
-						for (Map<String, Object> card : player_cards)
+						for (Object card : player_cards)
 						{
-							sbPlayed.append ((String)card.get ("rank"));
+							sbPlayed.append ((String)((Map<String, Object>)card).get ("rank"));
 						}
 						answer = sbPlayed.toString ();
 					}
 					else
-						answer = (String)player_cards.get (0).get ("rank");
+						answer = (String)((Map<String, Object>)(player_cards.get (0))).get ("rank");
 				}
 				List<String> listCardRanks_TurnPlayer_回合阶段 = AnswerToCardRanksList (answer);
 				RemovePlayedCards (sTurnPlayer_回合阶段, listCardRanks_TurnPlayer_回合阶段);
@@ -318,7 +318,7 @@ public class DouDiZhu extends CardGame
 					{
 						sTurnPlayer_回牌阶段 = ((DouDiZhuBotPlayer)turnPlayer_回牌阶段).getName ();
 					}
-					player_cards = (List<Map<String, Object>>)players_cards.get (sTurnPlayer_回牌阶段);
+					player_cards = (List<Object>)players_cards.get (sTurnPlayer_回牌阶段);
 					stage = STAGE_战斗阶段;
 					if (lastPlayedCardType != Type.单 && player_cards.size ()==1)
 					{	// 如果玩家就剩下一张牌了，而别人出的牌不是单，就自动过牌（肯定打不过），不再问玩家
@@ -453,7 +453,7 @@ public class DouDiZhu extends CardGame
 					sbResult.append (ANSIEscapeTool.COLOR_DARK_RED);
 					sbResult.append (FormatPlayerName (sPlayerName, sLandlordName));
 					sbResult.append (Colors.NORMAL);
-					player_cards = (List<Map<String, Object>>)players_cards.get (sPlayerName);
+					player_cards = (List<Object>)players_cards.get (sPlayerName);
 					sbResult.append (" [");
 					if (player_cards.isEmpty ())
 						sbResult.append ("牌已出完");
@@ -676,7 +676,7 @@ public class DouDiZhu extends CardGame
 			for (int r=1; r<=13; r++)
 			{
 				// '♣', '♦', '♥', '♠'
-				for (int s=0; s<CARD_SUITS.length; s++)
+				for (int s=0; s<Card.CARD_SUITS.length; s++)
 				{
 					AddCardToDeck (r, s);
 				}
@@ -686,7 +686,7 @@ public class DouDiZhu extends CardGame
 		AddJokerCardsToDeck ();
 
 		// 洗牌
-		Collections.shuffle (deck, rand);
+		洗牌 ();
 //System.out.println (deck);
 	}
 
@@ -698,13 +698,13 @@ public class DouDiZhu extends CardGame
 	void AddCardToDeck (int r, int s)
 	{
 		Map<String, Object> card = new HashMap<String, Object> ();
-		card.put ("suit", CARD_SUITS[s]);	// 花色
-		card.put ("rank", CARD_RANKS[r-1]);	// 大小
-		card.put ("point", RankToPoint (CARD_RANKS[r-1]));
+		card.put ("suit", Card.CARD_SUITS[s]);	// 花色
+		card.put ("rank", Card.CARD_RANKS[r-1]);	// 大小
+		card.put ("point", RankToPoint (Card.CARD_RANKS[r-1]));
 
-		if (CARD_SUITS[s]=='♣' || CARD_SUITS[s]=='♠')
+		if (Card.CARD_SUITS[s]=='♣' || Card.CARD_SUITS[s]=='♠')
 			card.put ("color", "");
-		else if (CARD_SUITS[s]=='♦' || CARD_SUITS[s]=='♥')
+		else if (Card.CARD_SUITS[s]=='♦' || Card.CARD_SUITS[s]=='♥')
 			card.put ("color", Colors.RED);
 
 		deck.add (card);
@@ -786,7 +786,7 @@ public class DouDiZhu extends CardGame
 			}
 			for (int i=0; i<17; i++)
 			{
-				player_cards.add (deck.get (i*3 + ip));
+				player_cards.add ((Map<String, Object>)deck.get (i*3 + ip));
 			}
 			Collections.sort (player_cards, 斗地主点值比较器);
 			if (p instanceof String)
@@ -856,7 +856,7 @@ public class DouDiZhu extends CardGame
 	StringBuilder GenerateCardsInfoTo (String p, StringBuilder sb_in)
 	{
 		StringBuilder sb = sb_in==null ? new StringBuilder () : sb_in;
-		List<Map<String, Object>> player_cards = (List<Map<String, Object>>)players_cards.get (p);
+		List<Object> player_cards = (List<Object>)players_cards.get (p);
 		GenerateCardsInfoTo (player_cards, sb);
 		return sb;
 	}
@@ -864,12 +864,12 @@ public class DouDiZhu extends CardGame
 	{
 		return GenerateCardsInfoTo (p, null);
 	}
-	StringBuilder GenerateCardsInfoTo (List<Map<String, Object>> cards, StringBuilder sb_in)
+	StringBuilder GenerateCardsInfoTo (List<Object> cards, StringBuilder sb_in)
 	{
 		StringBuilder sb = sb_in==null ? new StringBuilder () : sb_in;
 		for (int i=0; i<cards.size (); i++)
 		{
-			Map<String, Object> card = cards.get (i);
+			Map<String, Object> card = (Map<String, Object>)cards.get (i);
 			sb.append (card.get ("rank"));	// card.get ("color") + card.get ("suit") + card.get ("rank") + Colors.NORMAL
 			sb.append (" ");
 		}
@@ -1064,12 +1064,12 @@ public class DouDiZhu extends CardGame
 	 * @return Type 牌型
 	 * @throws IllegalArgumentException 如果牌型不正确，则通常会抛出 IllegalArgumentException 异常
 	 */
-	public static Type GetPlayerCardsType (List<Map<String, Object>> player_cards)
+	public static Type GetPlayerCardsType (List<Object> player_cards)
 	{
 		List<String> listConvert = new ArrayList<String> ();
-		for (Map<String, Object> card : player_cards)
+		for (Object card : player_cards)
 		{
-			listConvert.add ((String)card.get ("rank"));
+			listConvert.add ((String)((Map<String, Object>)card).get ("rank"));
 		}
 		return GetCardsType (listConvert);
 	}

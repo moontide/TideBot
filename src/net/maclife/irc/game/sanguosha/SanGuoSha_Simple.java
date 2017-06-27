@@ -9,6 +9,7 @@ import net.maclife.ansi.*;
 import net.maclife.irc.*;
 import net.maclife.irc.game.*;
 import net.maclife.irc.game.sanguosha.SanGuoSha.*;
+import net.maclife.irc.game.sanguosha.card.*;
 
 /**
  * 三国杀入门局：只有杀、闪、桃，角色会濒死。
@@ -17,6 +18,21 @@ import net.maclife.irc.game.sanguosha.SanGuoSha.*;
  */
 public class SanGuoSha_Simple extends SanGuoSha
 {
+	public static SanGuoShaCard[] 基本牌;
+	static
+	{
+		SanGuoShaCard[] arrayTemp = new SanGuoShaCard[三国杀标准包游戏牌.length];
+		int i基本牌 = 0;
+		for (int i=0; i<三国杀标准包游戏牌.length; i++)
+		{
+			if (三国杀标准包游戏牌[i] instanceof 基本牌)
+			{
+				arrayTemp [i基本牌 ++] = 三国杀标准包游戏牌[i];
+			}
+		}
+
+		基本牌 = Arrays.copyOf (arrayTemp, i基本牌);
+	}
 
 	public SanGuoSha_Simple (LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants, String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -33,19 +49,39 @@ public class SanGuoSha_Simple extends SanGuoSha
 	public void 分配与挑选武将 ()
 	{
 		// 入门局，无武将，不做处理。
+		for (int i=0; i<participants.size (); i++)
+		{
+			mapPlayerState.put (((SanGuoShaPlayer)participants.get (i)).getName () + ".hp", 4);
+		}
 	}
 
 	@Override
 	public void 初始化牌堆 ()
 	{
-
+		for (int i=0; i<基本牌.length; i++)
+		{
+			deck.add (基本牌[i]);
+		}
 	}
 
 
 	@Override
 	public void 发初始手牌 ()
 	{
+		for (int i=0; i<participants.size (); i++)
+		{
+			SanGuoShaPlayer p = (SanGuoShaPlayer)participants.get (i);
+			List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (p.getName ());
+			if (player_cards == null)
+			{
+				player_cards = new ArrayList<SanGuoShaCard> ();
+				players_cards.put (p.getName (), player_cards);
+			}
 
+			for (int j=0; j<4; j++)
+			{	// 摸 4 张初始手牌，不去触发技能
+				player_cards.add ((SanGuoShaCard) deck.remove (0));
+			}
+		}
 	}
-
 }

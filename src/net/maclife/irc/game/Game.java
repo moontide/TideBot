@@ -36,7 +36,7 @@ public abstract class Game implements Runnable, DialogUser
 	protected String params;
 
 	// 产生随机数
-	Random rand = new SecureRandom ();
+	protected Random rand = new SecureRandom ();
 
 	public Game ()
 	{
@@ -76,5 +76,15 @@ public abstract class Game implements Runnable, DialogUser
 	protected boolean isQuitGameAnswer (String answer)
 	{
 		return StringUtils.equalsIgnoreCase (answer, "不玩了") || StringUtils.equalsIgnoreCase (answer, "掀桌子");	// 囧rz...
+	}
+
+	public void 洗 (List<?> list)
+	{
+		Collections.shuffle (list, rand);
+	}
+
+	public String 游戏信息 (String s)
+	{
+		return getName() + " #" + threadID + " " + s;
 	}
 }

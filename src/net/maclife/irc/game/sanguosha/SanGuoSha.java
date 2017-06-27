@@ -93,7 +93,21 @@ public abstract class SanGuoSha extends CardGame
 	/**
 	 * 弃牌堆
 	 */
-	List<Map<String, Object>> recycle_deck = new ArrayList<Map<String, Object>> ();
+	List<SanGuoShaCard> recycle_deck = new ArrayList<SanGuoShaCard> ();
+
+	/**
+	 * 当前游戏的玩家状态。
+	 * 想来想去，还是不要放到 SanGuoShaPlayer 里，因为状态
+	 *
+	 * key 列表：
+	 * <dl>
+	 * 	<dt>玩家名<code>.hp</code></dt>
+	 * 	<dd>血量。int 类型。</dd>
+	 * 	<dt>玩家名<code>.翻面</code></dt>
+	 * 	<dd>当前是否翻面（是否被暂停一轮。呃，要不要换成 int 类型，可以暂停 n 轮？）。boolean 类型。</dd>
+	 * </dl>
+	 */
+	Map<String, Object> mapPlayerState = new HashMap<String, Object> ();
 
 	public SanGuoSha (LiuYanBot bot, List<Game> listGames, 三国杀玩法 玩法, Set<? extends Object> setParticipants,
 			String ch, String nick, String login, String hostname,
@@ -144,6 +158,8 @@ System.out.println (participants);
 
 			//
 			初始化牌堆 ();
+
+			洗牌 ();
 
 			//
 			发初始手牌 ();
@@ -232,12 +248,12 @@ System.out.println (participants);
 		{
 			SanGuoShaCard card  = cards.get (i);
 			sb.append (Colors.GREEN);
-			sb.append (i);
+			sb.append (i+1);
 			sb.append (Colors.NORMAL);
 			sb.append (':');
 
 			//sb.append (card.get ("rank"));
-			sb.append (card.getColor());
+			sb.append (card.getIRCColor());
 			sb.append (card.getSuit());
 			sb.append (card.getRank());
 			sb.append (card.getName());
@@ -246,6 +262,10 @@ System.out.println (participants);
 			sb.append (" ");
 		}
 		return sb;
+	}
+	StringBuilder GenerateCardsInfoTo (List<SanGuoShaCard> cards)
+	{
+		return GenerateCardsInfoTo (cards, null);
 	}
 
 	public void 开战 ()
@@ -286,21 +306,35 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 	}
 	public void 当玩家进入回合开始阶段 (SanGuoShaPlayer p)
 	{
+		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合开始阶段"));
 	}
 	public void 当玩家进入回合判定阶段 (SanGuoShaPlayer p)
 	{
+		//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合判定阶段"));
 	}
 	public void 当玩家进入回合摸牌阶段 (SanGuoShaPlayer p)
 	{
+		//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合摸牌阶段"));
 		int n摸牌数量 = 2;	// 周瑜或鲁肃其他可能多摸牌的武将
 		让玩家摸牌 (p, n摸牌数量);
 	}
 	public void 让玩家摸牌 (SanGuoShaPlayer p, int n摸牌数量)
 	{
-
+		List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (p.getName ());
+		for (int i=0; i<n摸牌数量; i++)
+		{
+			if (deck.size () == 0)
+			{
+				deck.addAll (recycle_deck);
+				recycle_deck.clear ();
+				洗牌 ();
+			}
+			player_cards.add ((SanGuoShaCard)deck.remove (0));
+		}
 	}
 	public void 当玩家进入回合出牌阶段 (SanGuoShaPlayer p)
 	{
+		//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合出牌阶段"));
 		List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (p.getName ());
 		if (player_cards == null)
 		{
@@ -312,7 +346,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 		{
 			Dialog dlg = new Dialog (this,
 					bot, bot.dialogs,
-					"你的回合出牌, 请出牌. 当前手牌: " + "" + ". 回答 " + Colors.REVERSE + "结束" + Colors.REVERSE + " 或者 " + Colors.REVERSE + "Over" + Colors.REVERSE + " 结束游戏" +
+					"你的回合出牌阶段, 请出牌. 当前手牌: " + GenerateCardsInfoTo (p.getName ()) + ". 回答 " + Colors.REVERSE + "结束" + Colors.REVERSE + " 或者 " + Colors.REVERSE + "Over" + Colors.REVERSE + " 结束出牌" +
 						"",
 					true, p.getName (),
 					channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
@@ -342,7 +376,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 					break;
 				}
 				else if ((StringUtils.equalsIgnoreCase (answer, "掀桌子") || StringUtils.equalsIgnoreCase (answer, "不玩了")))
-					throw new RuntimeException (p.getName () + answer);
+					throw new RuntimeException (Colors.BOLD + p.getName () + Colors.NORMAL + " " + Colors.RED + answer + Colors.NORMAL);
 			}
 			catch (InterruptedException | ExecutionException e)
 			{
@@ -352,6 +386,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 	}
 	public void 当玩家进入回合弃牌阶段 (SanGuoShaPlayer p)
 	{
+		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 的回合弃牌阶段开始，请等他/她弃牌…"));
 		让玩家弃牌 (p);
 	}
 	/**
@@ -362,14 +397,100 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 	 */
 	public void 让玩家弃牌 (SanGuoShaPlayer p, int n需要弃置的牌数量, int n能留的手牌数量)
 	{
+		int n需要弃置的总牌数 = 0;
+		List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (p.getName ());
+		if (n需要弃置的牌数量 == 0)
+		{
+			if (n能留的手牌数量 == 0)
+			{
+				throw new RuntimeException ("让玩家弃牌时，“需要弃置的牌数量”和“能留的手牌数量”不能全是 0");
+			}
+			if (player_cards.size () > n能留的手牌数量)
+				n需要弃置的总牌数 = player_cards.size () - n能留的手牌数量;
+		}
+		else
+			n需要弃置的总牌数 = n需要弃置的牌数量;
 
+		if (n需要弃置的总牌数 == 0)
+			return;
+
+		List<SanGuoShaCard> list要弃置的牌 = new ArrayList<SanGuoShaCard> ();
+		//
+		while (n需要弃置的总牌数 > list要弃置的牌.size ())	// 做成循环，这样，可以跟三国杀官网一样：通过多次弃牌完成弃牌的动作，这对手牌太多时非常有帮助。
+		{
+			Dialog dlg = new Dialog (this,	// TODO: 看看需不需要单独用一个 DialogUser 子类来处理弃牌校验
+					bot, bot.dialogs,
+					"你的回合弃牌阶段, 请弃置 " + (n需要弃置的总牌数 - list要弃置的牌.size ()) + " 张手牌. 当前手牌: " + GenerateCardsInfoTo (p.getName ()) + ". 请回答牌的序号进行弃牌，多张牌用空格隔开，如：回答“4 8 1”将会弃置第 1 张、 第 4 张和第 8 张牌" +
+						"",
+					true, p.getName (),
+					channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			dlg.showUsage = false;
+			dlg.timeout_second = 5 * (n需要弃置的总牌数 - list要弃置的牌.size ()) + 10;	// 时间上，要控制好，防止有人故意拖延时间。
+
+			//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, p.getName () + " 的回合开始，请等他/她出牌…");
+
+			Map<String, Object> participantAnswers = null;
+			try
+			{
+				participantAnswers = bot.executor.submit (dlg).get ();
+				String answer = (String)participantAnswers.get (p.getName ());
+				if (StringUtils.isEmpty (answer))
+				{
+					// TODO
+					// 这里要自动选牌扔出
+					break;
+				}
+				else if ((StringUtils.equalsIgnoreCase (answer, "掀桌子") || StringUtils.equalsIgnoreCase (answer, "不玩了")))
+					throw new RuntimeException (Colors.BOLD + p.getName () + Colors.NORMAL + " " + Colors.RED + answer + Colors.NORMAL);
+
+				Set<SanGuoShaCard> setCardsToDrop = new HashSet<SanGuoShaCard> ();
+				String[] arrayCardNOs = answer.split (" +");
+				for (int i=0; i<arrayCardNOs.length; i++)
+				{
+					String sInputedCardNO = arrayCardNOs[i];
+					try
+					{
+						int nNumber = Integer.parseInt (sInputedCardNO);
+						if (nNumber<1 || nNumber>player_cards.size ())
+						{
+							bot.SendMessage (null, p.getName (), LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("你所出的牌序号 " + sInputedCardNO + " 无效。牌序号必须大于等于 1，且必须小于等于手牌数量。"));
+							continue;
+						}
+						setCardsToDrop.add (player_cards.get (nNumber - 1));
+					}
+					catch (NumberFormatException e)
+					{
+						e.printStackTrace ();
+						bot.SendMessage (null, p.getName (), LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("你输入的 " + sInputedCardNO + " 不是数值。牌序号"));
+						continue;
+					}
+				}
+
+				if (setCardsToDrop.size () == 0)
+				{
+					continue;
+				}
+
+				list要弃置的牌.addAll (setCardsToDrop);	// 不断累积要弃的牌，等到全部弃完，一次性通知出去
+				player_cards.removeAll (setCardsToDrop);	// 从手牌中移除
+			}
+			catch (InterruptedException | ExecutionException e)
+			{
+				e.printStackTrace();
+			}
+		}
+
+		recycle_deck.addAll (list要弃置的牌);	// 放入弃牌堆
+		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 弃置了 " + list要弃置的牌.size () + " 张牌： " + GenerateCardsInfoTo (list要弃置的牌)));
 	}
 	public void 让玩家弃牌 (SanGuoShaPlayer p)
 	{
-		让玩家弃牌 (p, 0, 0);
+		int hp = (int)mapPlayerState.get (p.getName () + ".hp");
+		让玩家弃牌 (p, 0, hp);
 	}
 	public void 当玩家进入回合结束阶段 (SanGuoShaPlayer p)
 	{
+		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合结束"));
 	}
 
 	// 1v1 可能会触发该事件
@@ -478,4 +599,117 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 		}
 		return false;
 	}
+
+
+	// 不含武将牌、身份牌的标准包卡牌
+	public static final SanGuoShaCard[] 三国杀标准包游戏牌 =
+	{
+		//new 万箭齐发 ("♥", "A", 1),	// A
+		//new 桃园结义 ("♥", "A", 1),	// A
+		new 闪       ("♥", "2", 2),
+		new 闪       ("♥", "2", 2),
+		new 桃       ("♥", "3", 3),
+		//new 五谷丰登 ("♥", "3", 3),
+		new 桃       ("♥", "4", 4),
+		//new 五谷丰登 ("♥", "4", 4),
+		//new 麒麟弓   ("♥", "5", 5),	// 攻击范围=5
+		//new 赤兔     ("♥", "5", 5),	// -1 马
+		new 桃       ("♥", "6", 6),
+		//new 乐不思蜀 ("♥", "6", 6),
+		new 桃       ("♥", "7", 7),
+		//new 无中生有 ("♥", "7", 7),
+		new 桃       ("♥", "8", 8),
+		//new 无中生有 ("♥", "8", 8),
+		new 桃       ("♥", "9", 9),
+		//new 无中生有 ("♥", "9", 9),
+		new 杀       ("♥", "10", 10),
+		new 杀       ("♥", "10", 10),
+		new 杀       ("♥", "J", 11),	// J
+		//new 无中生有 ("♥", "J", 11),	// J
+		new 桃       ("♥", "Q", 12),	// Q
+		//new 过河拆桥 ("♥", "Q", 12),	// Q
+		new 闪       ("♥", "K", 13),	// K
+		//new 爪黄飞电 ("♥", "K", 13),	// K, +1 马
+
+		//new 诸葛连弩 ("♦", "A", 1),	// A, 攻击范围=1
+		//new 决斗     ("♦", "A", 1),	// A
+		new 闪       ("♦", "2", 2),
+		new 闪       ("♦", "2", 2),
+		new 闪       ("♦", "3", 3),
+		//new 顺手牵羊 ("♦", "3", 3),
+		new 闪       ("♦", "4", 4),
+		//new 顺手牵羊 ("♦", "4", 4),
+		new 闪       ("♦", "5", 5),
+		//new 贯石斧   ("♦", "5", 5),
+		new 杀       ("♦", "6", 6),
+		new 闪       ("♦", "6", 6),
+		new 杀       ("♦", "7", 7),
+		new 闪       ("♦", "7", 7),
+		new 杀       ("♦", "8", 8),
+		new 闪       ("♦", "8", 8),
+		new 杀       ("♦", "9", 9),
+		new 闪       ("♦", "9", 9),
+		new 杀       ("♦", "10", 10),
+		new 闪       ("♦", "10", 10),
+		new 闪       ("♦", "J", 11),	// J
+		new 闪       ("♦", "J", 11),	// J
+		new 桃       ("♦", "Q", 12),	// Q
+		//new 方天画戟 ("♦", "Q", 12),	// Q, 攻击范围=4
+		new 杀       ("♦", "K", 13),	// K
+		//new 紫骍     ("♦", "K", 13),	// K, -1 马
+
+		//new 闪电     ("♠", "A", 1),
+		//new 决斗     ("♠", "A", 1),
+		//new 八卦阵   ("♠", "2", 2),
+		//new 雌雄双股剑("♠", "2", 2),	// 攻击范围=2
+		//new 过河拆桥 ("♠", "3", 3),
+		//new 顺手牵羊 ("♠", "3", 3),
+		//new 过河拆桥 ("♠", "4", 4),
+		//new 顺手牵羊 ("♠", "4", 4),
+		//new 青龙偃月刀("♠", "5", 5),	// 攻击范围=3
+		//new 绝影     ("♠", "5", 5),	// +1 马
+		//new 乐不思蜀 ("♠", "6", 6),
+		//new 青釭剑   ("♠", "6", 6),	// 攻击范围=2
+		new 杀       ("♠", "7", 7),
+		//new 南蛮入侵 ("♠", "7", 7),
+		new 杀       ("♠", "8", 8),
+		new 杀       ("♠", "8", 8),
+		new 杀       ("♠", "9", 9),
+		new 杀       ("♠", "9", 9),
+		new 杀       ("♠", "10", 10),
+		new 杀       ("♠", "10", 10),
+		//new 无懈可击 ("♠", "J", 11),	// J
+		//new 顺手牵羊 ("♠", "J", 11),	// J
+		//new 丈八蛇矛 ("♠", "Q", 12),	// Q, 攻击范围=3
+		//new 过河拆桥 ("♠", "Q", 12),	// Q
+		//new 大宛     ("♠", "K", 13),	// K, -1 马
+		//new 南蛮入侵 ("♠", "K", 13),	// K
+
+		//new 诸葛连弩 ("♣", "A", 1),	// A
+		//new 决斗     ("♣", "A", 1),	// A
+		new 杀       ("♣", "2", 2),
+		//new 八卦阵   ("♣", "2", 2),
+		new 杀       ("♣", "3", 3),
+		//new 过河拆桥 ("♣", "3", 3),
+		new 杀       ("♣", "4", 4),
+		//new 过河拆桥 ("♣", "4", 4),
+		new 杀       ("♣", "5", 5),
+		//new 的卢     ("♣", "5", 5),	// +1 马
+		new 杀       ("♣", "6", 6),
+		//new 乐不思蜀 ("♣", "6", 6),
+		new 杀       ("♣", "7", 7),
+		//new 南蛮入侵 ("♣", "7", 7),
+		new 杀       ("♣", "8", 8),
+		new 杀       ("♣", "8", 8),
+		new 杀       ("♣", "9", 9),
+		new 杀       ("♣", "9", 9),
+		new 杀       ("♣", "10", 10),
+		new 杀       ("♣", "10", 10),
+		new 杀       ("♣", "J", 11),	// J
+		new 杀       ("♣", "J", 11),	// J
+		//new 借刀杀人 ("♣", "Q", 12),	// Q
+		//new 无懈可击 ("♣", "Q", 12),	// Q
+		//new 借刀杀人 ("♣", "K", 13),	// K
+		//new 无懈可击 ("♣", "K", 13),	// K
+	};
 }

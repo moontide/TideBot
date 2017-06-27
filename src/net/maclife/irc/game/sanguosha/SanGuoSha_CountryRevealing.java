@@ -35,7 +35,7 @@ public class SanGuoSha_CountryRevealing extends SanGuoSha
 	public void 分配座次 ()
 	{
 		// 先随机分配座次
-		Collections.shuffle (participants);
+		洗 (participants);
 
 		通告座次 ();
 	}

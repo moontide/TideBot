@@ -48,7 +48,7 @@ public class SanGuoSha_RoleRevealing extends SanGuoSha
 	public void 分配座次 ()
 	{
 		// 先随机分配座次
-		Collections.shuffle (participants);
+		洗 (participants);
 
 		// 然后，在分配身份后，将“主公”角色玩家的位置定为起始点
 		// 所以，在身份局，真正确定座次的，是在分配完身份后才确定的… 在国战局里，不会存在这种情况
@@ -61,7 +61,7 @@ public class SanGuoSha_RoleRevealing extends SanGuoSha
 System.out.println (this.getClass ().getName ());
 		// 随机分配身份
 		List<三国杀身份> 当前游戏身份 = Arrays.asList (Arrays.copyOf (人数身份, participants.size ()));
-		Collections.shuffle (当前游戏身份);
+		洗 (当前游戏身份);
 		int i主公 = -1;
 		for (int i=0; i<participants.size (); i++)
 		{

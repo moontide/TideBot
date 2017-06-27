@@ -171,13 +171,13 @@ public class BlackJack extends CardGame
 		{
 			for (int r=1; r<=13; r++)
 			{
-				for (int s=0; s<CARD_SUITS.length; s++)
+				for (int s=0; s<Card.CARD_SUITS.length; s++)
 				{
 					AddCardToDeck (r, s);
 				}
 			}
 		}
-		Collections.shuffle (deck);
+		洗牌 ();
 	}
 
 	/**
@@ -185,7 +185,7 @@ public class BlackJack extends CardGame
 	 */
 	void InitAcesTestDeck ()
 	{
-		for (int s=0; s<CARD_SUITS.length; s++)
+		for (int s=0; s<Card.CARD_SUITS.length; s++)
 		{
 			AddCardToDeck (1, s);
 		}
@@ -193,7 +193,7 @@ public class BlackJack extends CardGame
 		{
 			AddCardToDeck (r, 2);
 		}
-		Collections.shuffle (deck);
+		洗牌 ();
 	}
 
 	/**
@@ -204,8 +204,8 @@ public class BlackJack extends CardGame
 	void AddCardToDeck (int r, int s)
 	{
 		Map<String, Object> card = new HashMap<String, Object> ();
-		card.put ("suit", CARD_SUITS[s]);	// 花色
-		card.put ("rank", CARD_RANKS[r-1]);	// 大小
+		card.put ("suit", Card.CARD_SUITS[s]);	// 花色
+		card.put ("rank", Card.CARD_RANKS[r-1]);	// 大小
 		if (r >=11 && r<=13)
 			card.put ("point", 10);	// J Q K 点数值为 10
 		else if (r==1)
@@ -213,12 +213,12 @@ public class BlackJack extends CardGame
 		else
 			card.put ("point", r);	// 2-10 点数值
 
-		if (CARD_SUITS[s]=='♣' || CARD_SUITS[s]=='♠')
+		if (Card.CARD_SUITS[s]=='♣' || Card.CARD_SUITS[s]=='♠')
 		{
 			//card.put ("color", Colors.BLACK);
 			card.put ("color", "");
 		}
-		else if (CARD_SUITS[s]=='♦' || CARD_SUITS[s]=='♥')
+		else if (Card.CARD_SUITS[s]=='♦' || Card.CARD_SUITS[s]=='♥')
 			card.put ("color", Colors.RED);
 
 		deck.add (card);
@@ -263,7 +263,7 @@ public class BlackJack extends CardGame
 			players_cards.put (p, player_cards);
 		}
 
-		Map<String, Object> card = deck.remove (0);
+		Map<String, Object> card = (Map<String, Object>)deck.remove (0);
 		player_cards.add (card);
 		CalculatePoints(p);	// 所有牌的点数值
 		CalculatePoints(p, false);	// 明牌的点数值

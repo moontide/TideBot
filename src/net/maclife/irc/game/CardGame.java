@@ -6,19 +6,7 @@ import net.maclife.irc.*;
 
 public abstract class CardGame extends Game
 {
-	public static final char[] CARD_SUITS =
-	{
-		'♣', '♦', '♥', '♠',
-		//clubs (♣), diamonds (♦), hearts (♥) and spades (♠)
-	};
-	public static final String[] CARD_RANKS =
-	{
-		"A", "2", "3", "4", "5",
-		"6", "7", "8", "9", "10",
-		"J", "Q", "K",
-	};
-
-	protected List<Map<String, Object>> deck = new ArrayList<Map<String, Object>> ();
+	protected List<Object> deck = new ArrayList<Object> ();
 	protected Map<String, Object> players_cards = new HashMap<String, Object> ();
 
 	public CardGame ()
@@ -33,5 +21,10 @@ public abstract class CardGame extends Game
 		super (sGameName, bot, listGames, setParticipants,
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
+	}
+
+	public void 洗牌 ()
+	{
+		洗 (deck);
 	}
 }
