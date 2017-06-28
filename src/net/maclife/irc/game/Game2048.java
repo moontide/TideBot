@@ -63,6 +63,13 @@ public class Game2048 extends Game
 	public static final int MAX_WIDTH = 30;
 	public static final int MAX_HEIGHT = 30;
 	public static final int MAX_POWER = 30;
+
+	public enum RandomMode
+	{
+		TRADITIONAL,	// 只返回 2 或者 4 的随机数。 这种模式对于加快游戏速度来说，是 3 者之中最慢的。
+		MIN,	// 返回 2 到最小值（如果最小值小于 4，则最小值为 4）的随机数。 这种模式对于加快游戏速度来说，是 3 者之中不快不慢的。 默认值。
+		HALF_MAX,	// 返回 2 到最大值的一半（如果最大值小于 8，则最大值为 8）的随机数。 这种模式对于加快游戏速度来说，是 3 者之中最快的 -- 当然，“加速游戏”并不是指“加速赢得游戏”，因为这个模式，出来的新随机数不一定是想要的 -- 可能会加速失败。
+	}
 	/**
 	 * 格子的横向数量。因为在 IRC 玩的关系（速度慢），将默认高度减小为 3
 	 */
@@ -81,6 +88,7 @@ public class Game2048 extends Game
 	public int winNumber = 0;	// 合并到该数值就算赢。= 2^power
 	public int winNumberDecimalDigitsLength = 0;	// 赢值的十进制数字个数，如 2048 = 4; 512 = 3; 64 = 4; 此数值用来输出时进行排版
 	public int tiles = 0;	// 方格数量。= 宽 * 高
+	public RandomMode randomMode = RandomMode.MIN;	//
 	/**
 	 得分。得分计数参考 http://www.nouse.co.uk/2014/03/18/game-review-2048/
 	 */
@@ -214,11 +222,24 @@ public class Game2048 extends Game
 			sbNote.append ("2 的幂指数 只能小于格子数量" + tiles + "(宽"+width+"*高"+height+")，已将 2 的幂指数 纠正为 " + power + "; ");
 		}
 		if (width==3 && height==3 && power==8)
-			sbNote.append (Colors.YELLOW + "因为在 IRC 玩的关系，2048 游戏的默认格子大小改为 3x3, 玩到 256(2^8) 就赢(实际上，比 4x4->2048 难), 一般 10 分钟可玩 1 局; 可在 bot 命令后添加 .w=4.h=4.p=11 来玩普通的 2048 游戏" + Colors.NORMAL);
+			sbNote.append (Colors.YELLOW + "因为在 IRC 玩的关系，2048 游戏的默认格子大小改为 3x3, 玩到 256(2^8) 就赢(实际上，比 4x4->2048 难), 一般 10 分钟左右可玩 1 局; 可在 bot 命令后添加 .w=4.h=4.p=11 来玩普通的 2048 游戏" + Colors.NORMAL);
 		if (! (sbNote.length () == 0))
 			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,  sbNote.toString ());
 		winNumber = (int)Math.pow (2, power);
 		winNumberDecimalDigitsLength = String.valueOf (winNumber).length ();
+
+		if (listCmdEnv != null)
+		{
+			for (String s : listCmdEnv)
+			{
+				if (StringUtils.equalsIgnoreCase (s, "rand1"))
+					randomMode = RandomMode.TRADITIONAL;
+				else if (StringUtils.equalsIgnoreCase (s, "rand2"))
+					randomMode = RandomMode.MIN;
+				else if (StringUtils.equalsIgnoreCase (s, "rand3"))
+					randomMode = RandomMode.HALF_MAX;
+			}
+		}
 	}
 
 	void InitDigitsBoard ()
@@ -226,8 +247,8 @@ public class Game2048 extends Game
 		arrayDigitsBoard = new int[height][width];
 
 		// 开始时，自动生成两个数字
-		GenerateRandomNumber ();
-		DisplayDigitsBoard ( GenerateRandomNumber () );
+		GenerateRandomNumberAndFill ();
+		DisplayDigitsBoard ( GenerateRandomNumberAndFill () );
 	}
 
 	void InitTestBoard ()
@@ -277,15 +298,43 @@ public class Game2048 extends Game
 	}
 
 	/**
-	 * 生成一个随机数 (其实就只是 2 或 4，然后将其放到一个随机的空位置上)
 	 *
-	 * @return 这个随机数所在的索引号。索引号 = 行索引*宽度 + 列索引
+	 * @param nValue 只能是数值为 【2 的 n 次方的正整数】，不允许负数和 0
+	 * @return 0 到 31 之间的一个整数
 	 */
-	int GenerateRandomNumber ()
+	public static int 求底数为2的幂指数 (int nValue)
 	{
-		int nRandomNumber = 2;
-		if (rand.nextInt (2) == 1)
-			nRandomNumber = 4;
+		//nValue &= 0x7FFFFFFF;	// 去掉最高位的 1 -- 即：去掉负数
+		if (nValue <= 0)
+			throw new IllegalArgumentException ("都说了只能传正整数参数进来…");
+		int n = 0;
+		for (n=1; ; n++)
+		{
+			if ((nValue >> n) == 0)
+				break;
+		}
+		return n-1;
+	}
+
+	/**
+	 * 生成一个随机数。
+	 * @param nReferenceNumber 一个正整数，建议该数值为 2 的 n 次方。
+	 * @return 一个随机数，该随机数是 2 的 n 次方，且其数值不会大于 nNumber，也不会小于 2。
+	 */
+	public int GenerateRandomNumber (int nReferenceNumber)
+	{
+		int nExp = 求底数为2的幂指数 (nReferenceNumber);
+		if (nExp <= 0)
+			nExp = 1;
+		int nRandomExponent = rand.nextInt (nExp) + 1;
+		int nRandomNumber = (int) Math.pow (2, nRandomExponent);
+		return nRandomNumber;
+	}
+
+	int GenerateRandomNumberAndFill (int nReferenceNumber)
+	{
+		int nRandomNumber = GenerateRandomNumber (nReferenceNumber);
+
 //System.err.println ();
 		int w,h,nEmptyCells=0;
 		for (w=0; w<width; w++)
@@ -313,6 +362,81 @@ public class Game2048 extends Game
 				}
 			}
 		return -1;
+	}
+
+	/**
+	 * 生成一个随机数（随机数的生成模式由 randomMode 决定），然后将其填充到一个随机的空位置上
+	 *
+	 * @return 这个随机数所在的索引号。索引号 = 行索引*宽度 + 列索引
+	 */
+	int GenerateRandomNumberAndFill ()
+	{
+		int nRandomNumber = 0;
+		switch (randomMode)
+		{
+			case MIN:
+				return GenerateRandomNumberAndFill2 ();
+			case HALF_MAX:
+				return GenerateRandomNumberAndFill3 ();
+			case TRADITIONAL:
+			default:
+				nRandomNumber = GenerateRandomNumber (4);
+				return GenerateRandomNumberAndFill (nRandomNumber);
+		}
+	}
+
+	/**
+	 * 生成一个随机数（方法2），然后填充：先找出数字盘上的最小数值（如果还没有任何数字在盘上，则认为是 2），
+	 * - 如果该数值小于等于 8，则按以前的规则生成随机数（即：生成 2 或者 4）
+	 * - 如果该数值大于 8，则：生成 2 到 (该数值/2) 之间的一个 【2的阶乘】/【2的n次幂】的随机数 ---- 这是为了加快游戏速度而设置的，
+	 *
+	 * @return 这个随机数所在的索引号。索引号 = 行索引*宽度 + 列索引
+	 */
+	int GenerateRandomNumberAndFill2 ()
+	{
+		// 找出数字盘上最小的数值，如果最小的数值小于 4，则最小值取 4
+		int nMin = Integer.MAX_VALUE;
+		int w,h;
+		for (w=0; w<width; w++)
+			for (h=0; h<height; h++)
+			{
+				if (isEmpty(arrayDigitsBoard[h][w]))
+					continue;
+				if (nMin > arrayDigitsBoard[h][w])
+					nMin = arrayDigitsBoard[h][w];
+			}
+		if (nMin < 4 || nMin == Integer.MAX_VALUE)
+			nMin = 4;
+		//else
+		//	nMin = nMin / 2;
+		return GenerateRandomNumberAndFill (nMin);
+	}
+
+	/**
+	 * 生成一个随机数（方法3），然后填充：先找出数字盘上的最大数值（如果还没有任何数字在盘上，则认为是 2），
+	 * - 如果该数值小于等于 8，则按以前的规则生成随机数（即：生成 2 或者 4）
+	 * - 如果该数值大于 8，则：生成 2 到 (该数值/2) 之间的一个 【2的阶乘】/【2的n次幂】的随机数 ---- 这是为了加快游戏速度而设置的，
+	 *
+	 * @return 这个随机数所在的索引号。索引号 = 行索引*宽度 + 列索引
+	 */
+	int GenerateRandomNumberAndFill3 ()
+	{
+		// 找出数字盘上最小的数值，如果最小的数值小于 4，则最小值取 4
+		int nMax = 0;
+		int w,h;
+		for (w=0; w<width; w++)
+			for (h=0; h<height; h++)
+			{
+				if (isEmpty(arrayDigitsBoard[h][w]))
+					continue;
+				if (nMax < arrayDigitsBoard[h][w])
+					nMax = arrayDigitsBoard[h][w];
+			}
+		if (nMax < 4)
+			nMax = 4;
+		else
+			nMax = nMax / 2;
+		return GenerateRandomNumberAndFill (nMax);
 	}
 
 	public static boolean isEmpty (int v)
@@ -615,7 +739,7 @@ public class Game2048 extends Game
 		if (nMergedTiles > 0  ||  nMovedTiles > 0)	// 只有合并过、移动过方格后，才来产生新的随机数方格
 		{
 			validMoveCount ++;
-			DisplayDigitsBoard (GenerateRandomNumber ());
+			DisplayDigitsBoard (GenerateRandomNumberAndFill ());
 		}
 		else
 			bot.SendMessage (null, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "貌似，向 " + cMove + " 移动没有任何变动，你应该考虑向其他方向移动了…");

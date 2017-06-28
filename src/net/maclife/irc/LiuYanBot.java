@@ -2124,8 +2124,13 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			SendMessage (ch, u, mapGlobalOptions,
 				"." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字" +
 				". " + formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报出牌后的剩牌数. 在用 /p 添加玩家时，可用 @不出牌[其他附加名] 添加不出牌的机器人，用 @谁都打[其他附加名] 或 @能出牌就出牌[其他附加名] 或 @不出牌不舒服斯基[其他附加名] 来添加谁都打的机器人玩家，用 @智能[其他附加名] 或 @有点智能[其他附加名] 或 @Smart[其他附加名] 添加稍微有点小智能的机器人。" +
-				" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主 " + formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (".w=格子宽度", true) + formatBotOption (".h=格子高度", true) + formatBotOption (".p=2的幂指数", true) +
-				" 来改变方格的大小、赢数的大小。限制： p的大小必须小于 w*h，比如：宽3x高3，则p最高只能取值为8。 p=11 就是默认的达到 2048 就赢。 一般在 IRC 中玩，建议 .w=3.h=3.p=8或者7 (因为速度的原因)" +
+				" http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主 " +
+				formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (".w=格子宽度", true) + formatBotOption (".h=格子高度", true) + formatBotOption (".p=2的幂指数", true) +
+				" 来改变方格的大小、赢数的大小。限制： p的大小必须小于 w*h，比如：宽3x高3，则p最高只能取值为8。 p=11 就是默认的达到 2048 就赢。 一般在 IRC 中玩，建议 .w=3.h=3.p=8或者7 (因为速度的原因)。可用 " +
+				formatBotOptionInstance (".rand1", true) + " 或 " + formatBotOptionInstance (".rand2", true) + " 或 " + formatBotOptionInstance (".rand3", true) + " 调整生成随机数的模式，" +
+				formatBotOptionInstance (".rand1", true) + ": 生成2-4其中的一个数值；" +
+				formatBotOptionInstance (".rand2", true) + "(默认模式): 生成2到数字盘最小值的一个数值；" +
+				formatBotOptionInstance (".rand3", true) + ": 生成2到数字盘最大值/2的一个数值；" +
 				""
 			);
 		}
