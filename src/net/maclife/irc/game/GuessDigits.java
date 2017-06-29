@@ -70,7 +70,7 @@ public class GuessDigits extends Game
 	}
 
 	@Override
-	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer, Object... args)
 	{
 		if (isQuitGameAnswer(answer))
 			return true;

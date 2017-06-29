@@ -225,7 +225,7 @@ public class BlackJack extends CardGame
 	}
 
 	@Override
-	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer, Object... args)
 	{
 		return true;
 	}

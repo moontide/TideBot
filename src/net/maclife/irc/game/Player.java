@@ -2,7 +2,7 @@ package net.maclife.irc.game;
 
 public abstract class Player
 {
-	public String playerName = "";
+	String playerName = "";
 
 	public Player (String name)
 	{

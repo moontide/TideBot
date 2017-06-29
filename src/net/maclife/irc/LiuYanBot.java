@@ -3712,7 +3712,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 		}
 
 		@Override
-		public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+		public boolean ValidateAnswer (String ch, String n, String u, String host, String answer, Object... args)
 		{
 			if (! StringUtils.equalsIgnoreCase (ch, channel))
 			{
@@ -6739,7 +6739,7 @@ System.out.println (params);
 					}
 
 					@Override
-					public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+					public boolean ValidateAnswer (String ch, String n, String u, String host, String answer, Object... args)
 					{
 						return true;
 					}

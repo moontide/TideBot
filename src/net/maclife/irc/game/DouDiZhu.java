@@ -877,7 +877,7 @@ public class DouDiZhu extends CardGame
 	}
 
 	@Override
-	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer, Object... args)
 	{
 		if (stage == STAGE_抢地主)
 			return true;

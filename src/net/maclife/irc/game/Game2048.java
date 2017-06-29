@@ -802,7 +802,7 @@ System.err.println (sbBoardInANSIString);
 	}
 
 	@Override
-	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer)
+	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer, Object... args)
 	{
 		if (isQuitGameAnswer(answer))
 			return true;

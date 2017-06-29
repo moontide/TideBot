@@ -49,6 +49,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	Map<String, Object> mapGlobalOptions;
 	List<String> listCmdEnv;
 	String params;
+	Object[] arrayDialogUserArguments = null;
 	int msgTargetMask = MESSAGE_TARGET_MASK_PM;
 
 	public Lock lock;
@@ -80,7 +81,7 @@ public class Dialog implements Callable<Map<String, Object>>
 
 	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean isShowQuestion, int messageTargetMask, Object participants, List<String[]> listCandidateAnswers,
 			String ch, String nick, String login, String hostname,
-			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params, Object... arrayDialogUserArguments)
 	{
 		this.dlguser = dlgUser;
 		this.bot = bot;
@@ -125,6 +126,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		this.mapGlobalOptions = mapGlobalOptions;
 		this.listCmdEnv = listCmdEnv;
 		this.params = params;
+		this.arrayDialogUserArguments = arrayDialogUserArguments;
 
 		//String participant = nick;
 		//boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get("opt_reply_to_option_on");
@@ -145,11 +147,12 @@ public class Dialog implements Callable<Map<String, Object>>
 	}
 	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean isShowQuestion, Object participants, List<String[]> listCandidateAnswers,
 			String ch, String nick, String login, String hostname,
-			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params, Object... arrayDialogUserArguments)
 	{
 		this (dlgUser, bot, listDialogs, qt, q, isShowQuestion, MESSAGE_TARGET_MASK_PM, participants, listCandidateAnswers,
 			ch, nick, login, hostname,
-			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
+			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params,
+			arrayDialogUserArguments
 			);
 	}
 	/**
@@ -172,11 +175,12 @@ public class Dialog implements Callable<Map<String, Object>>
 	 */
 	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, String q, boolean isShowQuestion, Object participants,
 			String ch, String nick, String login, String hostname,
-			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params, Object... arrayDialogUserArguments)
 	{
 		this (dlgUser, bot, listDialogs, Type.开放, q, isShowQuestion, participants, null,
 			ch, nick, login, hostname,
-			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
+			botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params,
+			arrayDialogUserArguments
 			);
 	}
 
@@ -292,7 +296,7 @@ public class Dialog implements Callable<Map<String, Object>>
 		// 使用者先检查答案有效性
 		if (dlguser != null)
 		{
-			if (! dlguser.ValidateAnswer (ch, n, u, host, answer))
+			if (! dlguser.ValidateAnswer (ch, n, u, host, answer, arrayDialogUserArguments))
 				return false;
 		}
 
