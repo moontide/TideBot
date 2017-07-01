@@ -1204,11 +1204,43 @@ logger.finer ("消息是对本 Bot 说的");
 		{
 			if (isSayingToMe || StringUtils.isEmpty (channel))	// 如果是在频道里指名道姓的对我说，或者通过私信说，则先判断用户是不是对话框的参加者，如果是--并且处理成功的话，就返回
 			{
+				int nDialogCountForThisUser = 0;
+				Dialog dlg = null;
 				for (Dialog d : dialogs)
 				{
 					if (! d.isParticipant (nick))
 						continue;
-					if (d.onAnswerReceived (channel, nick, login, hostname, message))
+
+					nDialogCountForThisUser ++;
+					dlg = d;
+				}
+				if (nDialogCountForThisUser > 1)
+				{	// 用户在多个对话框中
+					// 判断用户有没有用指定对话框回答问题
+					if (! message.matches ("#\\d+ .*"))
+					{	// 未指定对话框
+						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "你当前在 " + nDialogCountForThisUser + " 个对话框中，请在消息前面加上 '#对话框号码 ' 的方式来回答特定的问题。如：'#16 34567'" );
+						return;
+					}
+					// 指定对话框了
+					// 那么，取出对话框 ID （其实是线程 ID）
+					String[] arrayMessageParts = message.split (" +", 2);
+					String sDialogThreadIDExpression = arrayMessageParts[0];
+					message = arrayMessageParts[1];
+					sDialogThreadIDExpression = StringUtils.substring (sDialogThreadIDExpression, 1);	// 去掉前面的字符 ('#' 字符)
+					long nDialogThreadID = Long.parseLong (sDialogThreadIDExpression);
+					dlg = FindDialog (nDialogThreadID);
+					if (dlg == null)
+					{
+						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "找不到 ID 为 #" + nDialogThreadID + " 的对话框" );
+						return;
+					}
+				}
+
+				//else if (nDialogCountForThisUser == 1)
+				if (dlg != null)
+				{
+					if (dlg.onAnswerReceived (channel, nick, login, hostname, message))
 						return;
 				}
 			}
@@ -8605,6 +8637,23 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 	{
 		ValidateNickNames (ch, collectionParticipants, null);
 	}
+
+	public static Dialog FindDialog (Collection<Dialog> dialogs, long nDialogThreadID)
+	{
+		for (Dialog d : dialogs)
+		{
+			if (d.threadID == nDialogThreadID)
+			{
+				return d;
+			}
+		}
+		return null;
+	}
+	public Dialog FindDialog (long nDialogThreadID)
+	{
+		return FindDialog (dialogs, nDialogThreadID);
+	}
+
 	/**
 	 * 检查昵称的有效性
 	 * @param ch 频道名

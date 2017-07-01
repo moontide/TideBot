@@ -2,8 +2,12 @@ package net.maclife.irc.game.sanguosha;
 
 import java.util.*;
 
+import org.jibble.pircbot.*;
+
+import net.maclife.ansi.*;
 import net.maclife.irc.game.*;
 import net.maclife.irc.game.sanguosha.SanGuoSha.*;
+import net.maclife.irc.game.sanguosha.card.*;
 import net.maclife.irc.game.sanguosha.character.*;
 
 public class SanGuoShaPlayer extends IRCPlayer
@@ -31,14 +35,63 @@ public class SanGuoShaPlayer extends IRCPlayer
 	Map<String, Object> mapLogicalMarksForOtherPlayers;
 
 	SanGuoSha_RoleRevealing.三国杀身份 身份 = null;
-	SanGuoSha_CountryRevealing.国家势力 国家势力 = null;
+	SanGuoSha.国家势力 国家势力 = null;
+
+	@Override
+	public String toString ()
+	{
+		if (身份==null && 国家势力==null)
+			return getName();
+
+		StringBuilder sb = new StringBuilder ();
+		if (身份 != null)
+		{
+			switch (身份)
+			{
+				case 主公:
+					break;
+				case 内奸:
+					break;
+				case 忠臣:
+					break;
+				case 反贼:
+					break;
+			}
+		}
+		if (国家势力 != null)
+		{
+			switch (国家势力)
+			{
+				case 魏:
+					//sIRCColor = Colors.BLUE;
+					//sANSIColor="\u001B[34;1m";
+					break;
+				case 蜀:
+					//sIRCColor = ANSIEscapeTool.COLOR_DARK_RED;
+					//sANSIColor="\u001B[31m";
+					//sIRCColor = ANSIEscapeTool.COLOR_ORANGE;
+					//sANSIColor="\u001B[33m";
+					break;
+				case 吴:
+					//sIRCColor = Colors.DARK_GREEN;
+					//sANSIColor="\u001B[32m";
+					break;
+				case 群:
+					//sIRCColor = Colors.WHITE;
+					//sANSIColor="\u001B[1m";
+					break;
+			}
+		}
+		sb.append (getName());
+		return sb.toString ();
+	}
 
 	public void 设置身份 (SanGuoSha_RoleRevealing.三国杀身份 新身份)
 	{
 		身份 = 新身份;
 	}
 
-	public void 设置国家 (SanGuoSha_CountryRevealing.国家势力 新国家势力)
+	public void 设置国家 (SanGuoSha.国家势力 新国家势力)
 	{
 		国家势力 = 新国家势力;
 	}

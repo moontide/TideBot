@@ -51,7 +51,10 @@ public class SanGuoSha_Simple extends SanGuoSha
 		// 入门局，无武将，不做处理。
 		for (int i=0; i<participants.size (); i++)
 		{
-			mapPlayerState.put (((SanGuoShaPlayer)participants.get (i)).getName () + ".hp", 4);
+			SanGuoShaPlayer p = (SanGuoShaPlayer)participants.get (i);
+			设置玩家存活状态 (p, true);
+			设置玩家生命值 (p, 4);
+			设置玩家生命值上限 (p, 4);
 		}
 	}
 
@@ -82,6 +85,8 @@ public class SanGuoSha_Simple extends SanGuoSha
 			{	// 摸 4 张初始手牌，不去触发技能
 				player_cards.add ((SanGuoShaCard) deck.remove (0));
 			}
+			bot.SendMessage (null, p.getName (), LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("系统发给你起始手牌: " + player_cards));
 		}
+		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("发给了每人 4 张起始手牌"));
 	}
 }
