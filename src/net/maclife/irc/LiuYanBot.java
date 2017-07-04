@@ -3672,13 +3672,15 @@ System.out.println ("时间单位 = " + mat.group(2));
 				}
 
 				// 如果是 kickban，先 ban，后 kick
-				if (StringUtils.equalsIgnoreCase (voteAction, "ban") || StringUtils.equalsIgnoreCase (voteAction, "ircban") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
+				if (StringUtils.equalsAnyIgnoreCase (voteAction, "ban", "ircban", "kickban"))
 				{
+					if (StringUtils.equalsIgnoreCase (voteAction, "ircban"))
+						voteAction = "ban";
 					ban (channel, voteTarget);
 					SaveVoteToDatabase (voteAction, voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
 				}
 
-				if (StringUtils.equalsIgnoreCase (voteAction, "kick") || StringUtils.equalsIgnoreCase (voteAction, "kickban"))
+				if (StringUtils.equalsAnyIgnoreCase (voteAction, "kick", "kickban"))
 				{
 					if (StringUtils.isEmpty (voteReason))
 						kick (channel, voteTarget);
@@ -3698,12 +3700,12 @@ System.out.println ("时间单位 = " + mat.group(2));
 					UndoVoteInDatabase (null, channel, "ban", voteTarget, voteReason, nick, login, host);
 					UndoVoteInDatabase (null, channel, "kickban", voteTarget, voteReason, nick, login, host);
 				}
-				else if (StringUtils.equalsIgnoreCase (voteAction, "gag") || StringUtils.equalsIgnoreCase (voteAction, "mute") || StringUtils.equalsIgnoreCase (voteAction, "quiet"))
+				else if (StringUtils.equalsAnyIgnoreCase (voteAction, "gag", "mute", "quiet"))
 				{
 					setMode (channel, "+q " + voteTarget);
 					SaveVoteToDatabase ("quiet", voteTarget, voteReason, channel, nick, login, host, nTimeLength, sTimeUnit);
 				}
-				else if (StringUtils.equalsIgnoreCase (voteAction, "unGag") || StringUtils.equalsIgnoreCase (voteAction, "unMute") || StringUtils.equalsIgnoreCase (voteAction, "unQuiet"))
+				else if (StringUtils.equalsAnyIgnoreCase (voteAction, "unGag", "unMute", "unQuiet"))
 				{
 					setMode (channel, "-q " + voteTarget);
 					UndoVoteInDatabase (null, channel, "quiet", voteTarget, voteReason, nick, login, host);
@@ -10525,6 +10527,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 				try
 				{
 					String cmd = getBotPrimaryCommand (sTerminalInput);
+					String cmdAlias = getBotCommandAlias (sTerminalInput);
 					if (cmd == null)
 					{
 						System.err.println ("无法识别该命令: [" + cmd + "]");
@@ -10699,7 +10702,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						)
 					{
 						params = sTerminalInput.split (" +", 3);
-						if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Identify))
+						if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Identify))
 						{
 							if (params.length < 2)
 							{
@@ -10709,7 +10712,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 							identify (params[1]);
 							continue;
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Mode))
+						else if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Mode))
 						{
 							if (params.length < 2 || (StringUtils.isEmpty (currentChannel) && params.length < 3))
 							{
@@ -10722,7 +10725,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 								setMode (currentChannel, params[2]);
 							continue;
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick) || cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+						else if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Kick, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
 						{
 							if (StringUtils.isEmpty (currentChannel))
 								params = sTerminalInput.split (" +", 4);
@@ -10735,7 +10738,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 							}
 							if (StringUtils.isEmpty (currentChannel))
 							{
-								if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+								if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
 								{
 									ban (params[2], params[1]);
 								}
@@ -10746,7 +10749,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 							}
 							else
 							{
-								if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+								if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
 								{
 									ban (currentChannel, params[1]);
 								}
@@ -10782,42 +10785,42 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 							System.err.println (" -- 邀请用户进入频道");
 							sendInvite (sTarget, sChannel);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_IRCBan))
 						{
 							System.err.println (" -- 封锁指定用户进入频道 (+b)");
 							ban (sChannel, sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_UnBan))
 						{
 							System.err.println (" -- 取消对指定用户进入频道的封锁 (-b)");
 							unBan (sChannel, sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_OP))
 						{
 							System.err.println (" -- 将用户设置为 OP (+o)");
 							op (sChannel, sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_DeOP))
 						{
 							System.err.println (" -- 收回用户的 OP 权限 (-o)");
 							deOp (sChannel, sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_Voice))
 						{
 							System.err.println (" -- 将用户设置为 Voice 模式 (+v)");
 							voice (sChannel, sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_DeVoice))
 						{
 							System.err.println (" -- 取消用户的 Voice 模式 (-v)");
 							deVoice (sChannel, sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quiet))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_Quiet))
 						{
 							System.err.println (" -- 禁止用户发言 (+q)");
 							setMode (sChannel, "+q " + sTarget);
 						}
-						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet))
+						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet))
 						{
 							System.err.println (" -- 解除对用户发言的禁止 (-q)");
 							setMode (sChannel, "-q " + sTarget);
