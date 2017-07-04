@@ -32,6 +32,10 @@ public class DouDiZhu extends CardGame
 					// 不对机器人发消息
 				}
 			}
+
+			//
+			Collections.shuffle (participants, rand);
+			//
 			InitDeck ();
 
 			// 每人 17 张牌
