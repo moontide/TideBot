@@ -11,6 +11,7 @@ import net.maclife.irc.*;
 import net.maclife.irc.dialog.*;
 import net.maclife.irc.game.*;
 import net.maclife.irc.game.sanguosha.card.*;
+import net.maclife.irc.game.sanguosha.character.*;
 
 /**
 三国杀引擎。
@@ -103,16 +104,13 @@ public abstract class SanGuoSha extends CardGame
 	{
 		受到伤害,
 		濒临死亡,
-		角色阵亡,
+		卡牌人物阵亡,
 
 		装备武器,
 		装备防具,
 		装备防御马,
 		装备进攻马,
 	}
-
-	Object lastPlayedPlayer = null;
-	String sLastPlayedPlayer = null;
 
 	/**
 	 * 弃牌堆
@@ -121,7 +119,7 @@ public abstract class SanGuoSha extends CardGame
 
 	/**
 	 * 当前游戏的玩家状态。
-	 * 想来想去，还是不要放到 SanGuoShaPlayer 里，因为状态
+	 * 想来想去，还是不要放到 SanGuoShaPlayer 里，因为：“玩家”应该只处理与玩家（真人）相关的事情（比如：是否断线），在游戏中的数据只应该放到“游戏”中
 	 *
 	 * key 列表：
 	 * <dl>
@@ -141,7 +139,7 @@ public abstract class SanGuoSha extends CardGame
 			ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params
 			);
 System.out.println (participants);
-		// 将 participants 类型改为 SanGuoShaPlayer
+		// 在 IRC 里玩，participants 里每个元素的数据类型为 String，这里将其改为 SanGuoShaPlayer 类型
 		for (int i=0; i<participants.size (); i++)
 		{
 			String sPlayerName = (String) participants.get (i);
@@ -283,38 +281,81 @@ System.out.println (participants);
 	{
 		stage = GAME_STAGE_战斗中;
 		int iTurn = 0;
-		while (true)
+		SanGuoShaPlayer p = null;
+		try
 		{
-			SanGuoShaPlayer p = (SanGuoShaPlayer) participants.get (iTurn);
-System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
-			for (PLAY_TURN_STAGE_玩家回合阶段 回合阶段 : PLAY_TURN_STAGE_玩家回合阶段.values ())
+			while (true)
 			{
-				//if (p.拥有此阶段技能吗 (阶段))
-				switch (回合阶段)
+				p = (SanGuoShaPlayer) participants.get (iTurn);
+System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
+				for (PLAY_TURN_STAGE_玩家回合阶段 回合阶段 : PLAY_TURN_STAGE_玩家回合阶段.values ())
 				{
-					case 开始:
-						当玩家进入回合开始阶段 (p);
-						break;
-					case 判定:
-						当玩家进入回合判定阶段 (p);
-						break;
-					case 摸牌:
-						当玩家进入回合摸牌阶段 (p);
-						break;
-					case 出牌:
-						当玩家进入回合出牌阶段 (p);
-						break;
-					case 弃牌:
-						当玩家进入回合弃牌阶段 (p);
-						break;
-					case 结束:
-						当玩家进入回合结束阶段 (p);
-						break;
+					//if (p.拥有此阶段技能吗 (阶段))
+					switch (回合阶段)
+					{
+						case 开始:
+							当玩家进入回合开始阶段 (p);
+							break;
+						case 判定:
+							当玩家进入回合判定阶段 (p);
+							break;
+						case 摸牌:
+							当玩家进入回合摸牌阶段 (p);
+							break;
+						case 出牌:
+							当玩家进入回合出牌阶段 (p);
+							break;
+						case 弃牌:
+							当玩家进入回合弃牌阶段 (p);
+							break;
+						case 结束:
+							当玩家进入回合结束阶段 (p);
+							break;
+					}
 				}
-			}
 
-			iTurn = NextTurn (iTurn);
+				iTurn = NextTurn (iTurn);
+			}
 		}
+		catch (GameEndException e)
+		{
+			通告游戏结束状态 (p);
+		}
+		//catch (ExecutionException e)
+		//{
+		//	e.printStackTrace();
+		//	if (e.getCause () instanceof GameEndException)
+		//	{
+		//		通告游戏结束状态 (p);
+		//	}
+		//}
+	}
+
+	void 通告游戏结束状态 (SanGuoShaPlayer p)
+	{
+		StringBuilder sb = new StringBuilder ();
+		sb.append ("游戏结果: ");
+		for (int i=0; i<participants.size (); i++)
+		{
+			SanGuoShaPlayer p2 = (SanGuoShaPlayer)participants.get (i);
+			sb.append (i+1);
+			sb.append (':');
+			sb.append (p2);
+			sb.append ('(');
+			if (获取玩家存活状态(p2))
+			{
+				sb.append (Colors.GREEN);
+				sb.append ("存活");
+			}
+			else
+			{
+				sb.append (ANSIEscapeTool.COLOR_DARK_RED);
+				sb.append ("阵亡");
+			}
+			sb.append (Colors.NORMAL);
+			sb.append (") ");
+		}
+		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sb.toString ()));
 	}
 
 	void 设置玩家存活状态 (SanGuoShaPlayer p, boolean bAlive)
@@ -325,7 +366,9 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 	boolean 获取玩家存活状态 (SanGuoShaPlayer p)
 	{
 		if (mapPlayerState.get (p.getName () + ".alive") == null)
-			return true;
+		{
+			设置玩家存活状态 (p, true);
+		}
 		return (boolean) mapPlayerState.get (p.getName () + ".alive");
 	}
 
@@ -412,31 +455,34 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 		}
 		return bRecovered;
 	}
-	boolean 减少玩家1点生命值 (SanGuoShaPlayer p, boolean b是否触发受到伤害事件)
+	boolean 减少玩家1点生命值 (SanGuoShaPlayer p, boolean b是否触发受到伤害事件) throws GameEndException
 	{
 		if (更改玩家生命值 (p, -1))
 		{
 			while (获取玩家生命值 (p) <= 0)
 			{
-				boolean 没人救 = true;
+				//boolean 没人救 = true;
+				Object responses = null;
 				try
 				{
-					SanGuoShaPlayRound round = new SanGuoShaPlayRound (响应类型.响应求桃, p);
+					SanGuoShaPlayRound round = new SanGuoShaPlayRound (响应类型.响应求桃, p, 1);
 					Future<?> future = bot.executor.submit (round);	// 之所以不用 Dialog 而用单独 SanGuoShaPlayRound 来询问目标玩家的响应，是因为：目标玩家的个数可能不是一个，用 SanGuoShaPlayRound 有可能做到并行询问…
-					Object responses = future.get ();
+					responses = future.get ();
 				}
 				catch (InterruptedException | ExecutionException e)
 				{
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}	// 等待
-				if (没人救)
+
+				if (responses != null && ((int)responses) < 1)
 				{
+					设置玩家存活状态 (p, false);
 					当玩家阵亡时 (p);
 					break;
 				}
 			}
-			if (b是否触发受到伤害事件 && 获取玩家存活状态(p))
+
+			if (获取玩家存活状态(p) && b是否触发受到伤害事件)
 			{
 				当玩家受到伤害时 (p, 1);
 			}
@@ -445,7 +491,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 		else
 			return false;
 	}
-	boolean 减少玩家生命值1 (SanGuoShaPlayer p)
+	boolean 减少玩家1点生命值 (SanGuoShaPlayer p) throws GameEndException
 	{
 		return 减少玩家1点生命值 (p, true);
 	}
@@ -462,15 +508,15 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 		bot.SendMessage (null, p.getName (), LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("你恢复了 " + nRecovery + " 点体力。" + 获取玩家生命值信息 (p)));
 	}
 
-	void 当玩家进入回合开始阶段 (SanGuoShaPlayer p)
+	void 当玩家进入回合开始阶段 (SanGuoShaPlayer p) throws GameEndException
 	{
 		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合开始"));
 	}
-	void 当玩家进入回合判定阶段 (SanGuoShaPlayer p)
+	void 当玩家进入回合判定阶段 (SanGuoShaPlayer p) throws GameEndException
 	{
 		//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合判定阶段"));
 	}
-	void 当玩家进入回合摸牌阶段 (SanGuoShaPlayer p)
+	void 当玩家进入回合摸牌阶段 (SanGuoShaPlayer p) throws GameEndException
 	{
 		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合摸牌阶段"));
 		int n摸牌数量 = 2;	// 周瑜或鲁肃其他可能多摸牌的武将
@@ -490,7 +536,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 			player_cards.add ((SanGuoShaCard)deck.remove (0));
 		}
 	}
-	void 当玩家进入回合出牌阶段 (SanGuoShaPlayer p)
+	void 当玩家进入回合出牌阶段 (SanGuoShaPlayer p) throws GameEndException
 	{
 		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合出牌阶段，请等他/她出牌…"));
 		List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (p.getName ());
@@ -511,14 +557,9 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 					channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params, PLAY_TURN_STAGE_玩家回合阶段.出牌);
 			dlg.showUsage = false;
 			dlg.timeout_second = 5 * player_cards.size () + 10;	// 每张牌 5 秒钟的出牌时间，外加应对 IRC 延时的 10 秒钟。
-			//for (Object o : participants)	// 通告其他人
-			//{
-			//	SanGuoShaPlayer p2 = (SanGuoShaPlayer)o;
-			//	if (p != p2)
-			//		bot.SendMessage (null, p2.getName (), LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, p2.getName () + " 的回合开始，请等他/她出牌…");
-			//}
+
 			// 三国杀玩家人数可能很多，在 IRC 里以私信方式通知是问题：服务器一般限制连续发送消息的次数和频率。所以，改发到频道里…
-			//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, p.getName () + " 的回合开始，请等他/她出牌…");
+			//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 的回合开始，请等他/她出牌…"));
 
 			Map<String, Object> participantAnswers = null;
 			try
@@ -558,6 +599,8 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 						continue;
 					}
 					n出牌阶段出杀次数 ++;
+					//牌生效前 ();
+					//牌生效后 ();
 					SanGuoShaPlayRound round = new SanGuoShaPlayRound (响应类型.响应攻击牌, p, c, listTargets);
 					Future<?> future = bot.executor.submit (round);	// 之所以不用 Dialog 而用单独 SanGuoShaPlayRound 来询问目标玩家的响应，是因为：目标玩家的个数可能不是一个，用 SanGuoShaPlayRound 有可能做到并行询问…
 					Object responses = future.get ();	// 等待
@@ -581,11 +624,27 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 					continue;
 				}
 			}
-			catch (InterruptedException | ExecutionException e)
+			catch (InterruptedException e)
 			{
 				e.printStackTrace();
 			}
+			catch (ExecutionException e)
+			{
+				e.printStackTrace();
+				if (e.getCause () instanceof GameEndException)
+					throw (GameEndException)e.getCause ();
+			}
 		}
+	}
+
+	int 计算攻击距离 (SanGuoShaPlayer pSrc, SanGuoShaPlayer pTarget)
+	{
+		return 1;
+	}
+
+	int 计算顺手牵羊距离 (SanGuoShaPlayer pSrc, SanGuoShaPlayer pTarget)
+	{
+		return 1;
 	}
 
 	/**
@@ -602,7 +661,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 			this.args = args;
 		}
 		@Override
-		public Object call ()
+		public Object call () throws GameEndException
 		{
 			int c = 0;
 			响应类型 responseType = (响应类型) args[c++];
@@ -634,8 +693,6 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 							dlg.showUsage = false;
 							dlg.timeout_second = 5 * player_cards.size() + 10;	// 时间上，要控制好，防止有人故意拖延时间。
 
-							//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, p.getName () + " 的回合开始，请等他/她出牌…");
-
 							Map<String, Object> participantAnswers = null;
 							try
 							{
@@ -644,7 +701,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 								if (StringUtils.isEmpty (answer) || StringUtils.equalsAnyIgnoreCase (answer, "过", "p", "n", "g", "over"))
 								{
 									// 无抵消牌可出，结算扣血（除非有武将技能、装备技能）
-									减少玩家生命值1 (responder);
+									减少玩家1点生命值 (responder);
 								}
 								else if ((StringUtils.equalsAnyIgnoreCase (answer, "掀桌子", "不玩了")))
 									throw new RuntimeException (Colors.BOLD + sPlayerName + Colors.NORMAL + " " + Colors.RED + answer + Colors.NORMAL);
@@ -669,64 +726,89 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 					}
 					break;
 				case 响应求桃:
-						int iPlayer = participants.indexOf (initiator);	// 濒死的玩家，是起始玩家，这一轮，从濒死玩家开始…
-						assert (iPlayer >= 0);
+					int iPlayer = participants.indexOf (initiator);	// 濒死的玩家，是起始玩家，这一轮，从濒死玩家开始…
+					assert (iPlayer >= 0);
+					final int n所需的桃子数量 = (int)args[c++];
+					int n求得的桃子数量 = 0;
 
-						bot.SendMessage (null, initiator.getName (), LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("你濒临死亡，开始求桃子…"));
-						bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (initiator.getName () + " 濒临死亡，开始求桃子…"));
-						int nRound = 0;
-						for (int iTurn=iPlayer; ; iTurn = NextTurn(iTurn))
+					bot.SendMessage (null, initiator.getName (), LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("你濒临死亡，开始求桃子…"));
+					bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (initiator.getName () + " 濒临死亡，开始求桃子…"));
+					int nRound = 0;
+				__一圈求桃:
+					for (int iTurn=iPlayer; ; iTurn = NextTurn(iTurn))	// TODO: 尽量做成并行问答的，不要一个一个问，浪费时间（虽然依次询问是最稳妥的游戏逻辑）。当然，对于武将技能能够导致牌堆变化的（郭嘉受伤）、导致别人玩家手牌发生变化的（比如郭嘉受伤给华佗红牌、小乔弹华佗），则将本轮询问的武将人物分组处理 -- 改变牌堆手牌的武将单独询问
+					{
+System.out.println (nRound + " 轮求桃 iTurn = " + iTurn);
+						if (iTurn == iPlayer)
 						{
-							if (iTurn == iPlayer)
+							nRound ++;
+System.out.println (nRound + " 轮求桃");
+							if (nRound >= 2)
+								break;
+						}
+						SanGuoShaPlayer responder = (SanGuoShaPlayer)participants.get (iTurn);
+						String sResponderPlayerName = responder.getName ();
+						List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (sResponderPlayerName);
+						// 挨个询问是否出闪
+						Dialog dlg = new Dialog (this,
+								bot, bot.dialogs,
+								initiator.getName () + " 向你求桃。当前手牌: " + GenerateCardsInfoTo (responder.getName ()) + "。若出桃，请回答牌的序号出牌，出多张桃则用空格分开。" +
+									"若不出桃，回答 '过' 或 'p' 或 'n' 或 'g' 或 'over' " +
+									"",
+								true, sResponderPlayerName,
+								channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params, 响应类型.响应求桃, initiator);
+						dlg.showUsage = false;
+						dlg.timeout_second = 5 * player_cards.size() + 10;	// 时间上，要控制好，防止有人故意拖延时间。
+
+						Map<String, Object> participantAnswers = null;
+						try
+						{
+							participantAnswers = bot.executor.submit (dlg).get ();
+							String answer = (String)participantAnswers.get (sResponderPlayerName);
+							if (StringUtils.isEmpty (answer) || StringUtils.equalsAnyIgnoreCase (answer, "过", "p", "n", "g", "over"))
 							{
-								nRound ++;
-								if (nRound >= 2)
-									break;
+								// 不出桃，继续问下一个人
+								continue;
 							}
-							SanGuoShaPlayer responder = (SanGuoShaPlayer)participants.get (iTurn);
-							String sPlayerName = responder.getName ();
-							List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (sPlayerName);
-							// 挨个询问是否出闪
-							Dialog dlg = new Dialog (this,
-									bot, bot.dialogs,
-									initiator.getName () + " 向你求桃，若出桃子，请回答牌的序号出牌，出多张桃则用空格分开。" +
-										"若不出桃，回答 '过' 或 'p' 或 'n' 或 'g' 或 'over' " +
-										"",
-									true, sPlayerName,
-									channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params, 响应类型.响应求桃, initiator);
-							dlg.showUsage = false;
-							dlg.timeout_second = 5 * player_cards.size() + 10;	// 时间上，要控制好，防止有人故意拖延时间。
-
-							//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, p.getName () + " 的回合开始，请等他/她出牌…");
-
-							Map<String, Object> participantAnswers = null;
-							try
+							else if ((StringUtils.equalsAnyIgnoreCase (answer, "掀桌子", "不玩了")))
 							{
-								participantAnswers = bot.executor.submit (dlg).get ();
-								String answer = (String)participantAnswers.get (sPlayerName);
-								if (StringUtils.isEmpty (answer) || StringUtils.equalsAnyIgnoreCase (answer, "过", "p", "n", "g", "over"))
-								{
-									//// 无抵消牌可出，结算扣血（除非有武将技能、装备技能）
-								}
-								else if ((StringUtils.equalsAnyIgnoreCase (answer, "掀桌子", "不玩了")))
-								{
-									//throw new RuntimeException (Colors.BOLD + sPlayerName + Colors.NORMAL + " " + Colors.RED + answer + Colors.NORMAL);
-								}
-								else
-								{
-									Map<String, Object> mapResponse;
-									mapResponse = ParseUserInput (responder.getName (), answer);
-									//SanGuoShaCard respondedCard = (SanGuoShaCard) mapResponse.get ("Card");
-									//当玩家打出牌时 (responder, respondedCard, true);
-								}
-
+								throw new RuntimeException (Colors.BOLD + sResponderPlayerName + Colors.NORMAL + " " + Colors.RED + answer + Colors.NORMAL);
 							}
-							catch (InterruptedException | ExecutionException e)
+							else
 							{
-								e.printStackTrace();
+System.out.println (nRound + " 轮求桃 玩家 " + sResponderPlayerName + " 回答 " + answer);
+								Set<SanGuoShaCard> set打出的牌 = new LinkedHashSet<SanGuoShaCard> ();
+								String[] arrayCardNOs = answer.split (" +");
+								for (int i=0; i<arrayCardNOs.length; i++)
+								{	// 这里不检查出的牌是否是“桃”了，因为 ValidateAnswer 里已经检查过了
+									String sInputedCardNO = arrayCardNOs[i];
+									int nNumber = Integer.parseInt (sInputedCardNO);
+									SanGuoShaCard respondedCard = player_cards.get (nNumber - 1);
+System.out.println (nRound + " 轮求桃 玩家 " + sResponderPlayerName + " 打出 " + respondedCard);
+									int n该玩家已出桃的数量 = set打出的牌.size ();
+									set打出的牌.add (respondedCard);	// 目前的这个 Set 数据，并没什么大的作用（目前只是为了对输入的数据进行去重）。为了以后改成“并行询问”时可能会用到
+
+									if (n该玩家已出桃的数量 < set打出的牌.size ())	// 去重处理
+									{
+										当玩家打出牌时 (responder, respondedCard, true);
+										增加玩家1点生命值 (initiator);
+
+										n求得的桃子数量 ++;
+										if (n求得的桃子数量 >= n所需的桃子数量)
+										{
+											//break __一圈求桃;
+											return n求得的桃子数量;
+										}
+									}
+								}
 							}
 						}
-					break;
+						catch (InterruptedException | ExecutionException e)
+						{
+							e.printStackTrace();
+						}
+					}
+					return n求得的桃子数量;
+					//break;
 			}
 			return null;
 		}
@@ -740,20 +822,21 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 			}
 
 			响应类型 responseType = (响应类型) args[0];
-			SanGuoShaCard initialtorCard = (SanGuoShaCard)args[1];
-			Map<String, Object> mapResponse;
-			mapResponse = ParseUserInput (n, answer);
-			boolean bParseResult = (boolean)mapResponse.get ("ParseResult");
-			if (! bParseResult)
-			{
-				String sMsg = (String)mapResponse.get ("Message");
-				bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sMsg));
-				return false;
-			}
-			SanGuoShaCard respondedCard = (SanGuoShaCard) mapResponse.get ("Card");
 			switch (responseType)
 			{
 				case 响应攻击牌:
+					SanGuoShaCard initialtorCard = (SanGuoShaCard)args[1];
+					Map<String, Object> mapResponse;
+					mapResponse = ParseUserInput (n, answer);
+					boolean bParseResult = (boolean)mapResponse.get ("ParseResult");
+					if (! bParseResult)
+					{
+						String sMsg = (String)mapResponse.get ("Message");
+						bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sMsg));
+						return false;
+					}
+					SanGuoShaCard respondedCard = (SanGuoShaCard) mapResponse.get ("Card");
+
 					I攻击牌 攻击牌 = (I攻击牌) initialtorCard;
 					for (Class<? extends SanGuoShaCard> 攻击牌所需的抵御牌的牌类型 : 攻击牌.获取抵御牌类型 ())
 					{
@@ -763,12 +846,37 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 					bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("所出的牌 " + respondedCard + " 无效，不能抵御攻击牌，重新出牌…"));
 					break;
 				case 响应求桃:
-					if (! (respondedCard instanceof 桃))
+					List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (n);
+					//Set<SanGuoShaCard> set打出的牌 = new LinkedHashSet<SanGuoShaCard> ();
+					String[] arrayCardNOs = answer.split (" +");
+					for (int i=0; i<arrayCardNOs.length; i++)
 					{
-						bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("求“桃”求“桃”，你出的是 " + respondedCard));
-						return false;
+						String sInputedCardNO = arrayCardNOs[i];
+						try
+						{
+							int nNumber = Integer.parseInt (sInputedCardNO);
+							if (nNumber<1 || nNumber>player_cards.size ())
+							{
+								bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("你所出的牌序号 " + sInputedCardNO + " 无效。牌序号必须大于等于 1，且必须小于等于手牌数量。"));
+								return false;
+							}
+
+							respondedCard = player_cards.get (nNumber - 1);
+							if (! (respondedCard instanceof 桃))
+							{
+								bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("求“桃”求“桃”，你出的是 " + respondedCard));
+								return false;
+							}
+						}
+						catch (NumberFormatException e)
+						{
+							e.printStackTrace ();
+							bot.SendMessage (null, n, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("你输入的 " + sInputedCardNO + " 不是数值。"));
+							return false;
+						}
 					}
-					break;
+					return true;
+					//break;
 				default:
 					return false;
 			}
@@ -778,7 +886,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 
 	Stack<SanGuoShaPlayRound> stackRounds = new Stack<SanGuoShaPlayRound> ();
 
-	void 当玩家进入回合弃牌阶段 (SanGuoShaPlayer p)
+	void 当玩家进入回合弃牌阶段 (SanGuoShaPlayer p) throws GameEndException
 	{
 		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 的回合弃牌阶段开始，请等他/她弃牌…"));
 		让玩家弃牌 (p);
@@ -828,8 +936,6 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 			dlg.showUsage = false;
 			dlg.timeout_second = 5 * (n需要弃置的总牌数 - list要弃置的牌.size ()) + 10;	// 时间上，要控制好，防止有人故意拖延时间。
 
-			//bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, p.getName () + " 的回合开始，请等他/她出牌…");
-
 			Map<String, Object> participantAnswers = null;
 			try
 			{
@@ -843,7 +949,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 				else if ((StringUtils.equalsIgnoreCase (answer, "掀桌子") || StringUtils.equalsIgnoreCase (answer, "不玩了")))
 					throw new RuntimeException (Colors.BOLD + p.getName () + Colors.NORMAL + " " + Colors.RED + answer + Colors.NORMAL);
 
-				Set<SanGuoShaCard> setCardsToDrop = new HashSet<SanGuoShaCard> ();
+				Set<SanGuoShaCard> setCardsToDrop = new LinkedHashSet<SanGuoShaCard> ();
 				String[] arrayCardNOs = answer.split (" +");
 				for (int i=0; i<arrayCardNOs.length; i++)
 				{
@@ -904,15 +1010,38 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 		int hp = 获取玩家生命值 (p);
 		让玩家弃牌 (p, 0, hp);
 	}
-	void 当玩家进入回合结束阶段 (SanGuoShaPlayer p)
+	void 当玩家进入回合结束阶段 (SanGuoShaPlayer p) throws GameEndException
 	{
 		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + " 回合结束"));
 	}
 
-	void 当玩家阵亡时 (SanGuoShaPlayer p)
+	void 当武将阵亡时 (SanGuoShaPlayer p, PlayerCharacter pc)
+	{	// 1v1 时，一个武将阵亡不会导致玩家阵亡，会换武将重上
+	}
+
+	void 当玩家阵亡时 (SanGuoShaPlayer p) throws GameEndException
 	{
-		设置玩家存活状态 (p, false);
-		// 牌进入弃牌堆
+		bot.SendMessage (channel, null, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (p.getName () + ANSIEscapeTool.COLOR_DARK_RED + " 阵亡" + Colors.NORMAL));
+		if (检查游戏结束状态())
+		{
+			throw GameEndException.GAME_END;
+		}
+	}
+
+	/**
+	 * 默认的检查游戏结束状态的方法：不超过 1 人存活时（呃，难道会出现负数个玩家存活？预防一下游戏 bug 吧，尤其在开发阶段…），就结束游戏。
+	 * @return
+	 */
+	public boolean 检查游戏结束状态 ()
+	{
+		int nAlive = 0;
+		for (int i=0; i<participants.size (); i++)
+		{
+			SanGuoShaPlayer p = (SanGuoShaPlayer)participants.get (i);
+			if (获取玩家存活状态 (p))
+				nAlive ++;
+		}
+		return nAlive <= 1;
 	}
 
 	// 1v1 可能会触发该事件
@@ -1068,7 +1197,7 @@ System.out.println ("进入 " + p.getName () + " 的回合； my turn!");
 		}
 
 		List<SanGuoShaCard> player_cards = (List<SanGuoShaCard>)players_cards.get (n);
-		Set<SanGuoShaCard> setCardsResponded = new HashSet<SanGuoShaCard> ();
+		Set<SanGuoShaCard> setCardsResponded = new LinkedHashSet<SanGuoShaCard> ();
 		for (int j=0; j<arrayCardsIndexes.length; j++)
 		{
 			String sInputedCardNO = arrayCardsIndexes[j];
