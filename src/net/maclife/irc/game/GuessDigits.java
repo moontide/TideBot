@@ -92,14 +92,15 @@ public class GuessDigits extends Game
 	@Override
 	public void run ()
 	{
+		SetThreadID ();
 		try
 		{
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始… 请回答/猜一个 " + nDigits + " 位无重复数字的数字… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("开始… 请回答/猜一个 " + nDigits + " 位无重复数字的数字… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。"));
 			InitDigits ();
 
 			boolean isParticipantWannaQuit = false;
-			int previousA=0, previousB=0;
-			int a=0, b=0;
+			int nPreviousA=0, nPreviousB=0;
+			int nA=0, nB=0;
 			for (int t=MAX_GUESS_TIMES; t>=1; t--)
 			{
 				if (stop_flag)
@@ -113,7 +114,7 @@ public class GuessDigits extends Game
 				int nNoAnswerCount = 0;
 				String answer = null;
 				StringBuilder sb = new StringBuilder ();
-				a = b = 0;
+				nA = nB = 0;
 				String sDeltaInfo = null;
 				for (int i=0; i<participants.size (); i++)
 				{
@@ -150,13 +151,13 @@ public class GuessDigits extends Game
 					for (int j=0; j<arrayDigitsToGuess.length; j++)
 					{
 						if (arrayDigitsToGuess[j] == answer.charAt (j))
-							a++;
+							nA++;
 						else
 						{
 							for (int k=0; k<arrayDigitsToGuess.length; k++)
 								if (arrayDigitsToGuess[k] == answer.charAt (j))
 								{
-									b++;
+									nB++;
 									break;
 								}
 						}
@@ -164,38 +165,38 @@ public class GuessDigits extends Game
 					sb.append (p);
 					sb.append (": ");
 					sb.append ("#" + (MAX_GUESS_TIMES - t + 1) + ": ");
-					sb.append (a);
+					sb.append (nA);
 					sb.append ("A");
-					sb.append (b);
+					sb.append (nB);
 					sb.append ("B");
 					continue;
 				}
 
-				if (t==1 || a==arrayDigitsToGuess.length || isParticipantWannaQuit)
+				if (t==1 || nA==arrayDigitsToGuess.length || isParticipantWannaQuit)
 				{
 					if (isParticipantWannaQuit)
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: 有人" + answer);
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: 有人" + answer));
 					else
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 结束: " + sb + ". 答案: " + Arrays.toString (arrayDigitsToGuess));
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: " + (nA==arrayDigitsToGuess.length ? Colors.GREEN + sb + Colors.NORMAL : sb) + ". 答案: " + Arrays.toString (arrayDigitsToGuess)));
 
 					break;
 				}
 				else
 				{
-					if (a<previousA || (a==previousA && b<previousB))
+					if (nA<nPreviousA || (nA==nPreviousA && nB<nPreviousB))
 						sDeltaInfo = ANSIEscapeTool.COLOR_DARK_RED + "啊哦" + Colors.NORMAL;
-					else if (a>previousA || (a==previousA && b>previousB))
+					else if (nA>nPreviousA || (nA==nPreviousA && nB>nPreviousB))
 						sDeltaInfo = Colors.GREEN + "加油" + Colors.NORMAL;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sb + (sDeltaInfo==null ? "" : " " + sDeltaInfo) + ". 还剩下 " + (t-1) + " 次, 继续猜…");
-					previousA = a;
-					previousB = b;
+					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sb + (sDeltaInfo==null ? "" : " " + sDeltaInfo) + ". 还剩下 " + (t-1) + " 次, 继续猜…"));
+					nPreviousA = nA;
+					nPreviousB = nB;
 				}
 			}
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏异常: " + e);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("游戏异常: " + ANSIEscapeTool.COLOR_DARK_RED + e + Colors.NORMAL));
 		}
 		finally
 		{

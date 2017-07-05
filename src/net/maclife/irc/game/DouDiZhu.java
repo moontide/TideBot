@@ -16,6 +16,7 @@ public class DouDiZhu extends CardGame
 	@Override
 	public void run ()
 	{
+		SetThreadID ();
 		try
 		{
 			StringBuilder sb = new StringBuilder ();
@@ -23,9 +24,9 @@ public class DouDiZhu extends CardGame
 			{
 				if (p instanceof String)
 				{
-					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "--------------------------------------------------------------------------------");
-					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 开始…");
-					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "出牌时，大王★可用dw或d代替, 小王☆可用xw或x代替, 10可用0或1代替。 在回牌时，可输入 " + Colors.REVERSE + "pass" + Colors.REVERSE + " / " + Colors.REVERSE + "p" + Colors.REVERSE + " / " + Colors.REVERSE + "过" + Colors.REVERSE + " / " + Colors.REVERSE + "g" + Colors.REVERSE + " / " + Colors.REVERSE + "n" + Colors.REVERSE + " 过牌");
+					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("--------------------------------------------------------------------------------"));
+					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("开始…"));
+					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("出牌时，大王★可用dw或d代替, 小王☆可用xw或x代替, 10可用0或1代替。 在回牌时，可输入 " + Colors.REVERSE + "pass" + Colors.REVERSE + " / " + Colors.REVERSE + "p" + Colors.REVERSE + " / " + Colors.REVERSE + "过" + Colors.REVERSE + " / " + Colors.REVERSE + "g" + Colors.REVERSE + " / " + Colors.REVERSE + "n" + Colors.REVERSE + " 过牌"));
 				}
 				else if (p instanceof DouDiZhuBotPlayer)
 				{
@@ -72,7 +73,7 @@ public class DouDiZhu extends CardGame
 					{
 						if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_抢地主))
 						{	// 通告其他人类玩家：请等 某某某 抢地主
-							bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + sTurnPlayer_抢地主 + " 抢地主…");
+							bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("请等 " + sTurnPlayer_抢地主 + " 抢地主…"));
 						}
 					}
 					Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
@@ -93,7 +94,7 @@ public class DouDiZhu extends CardGame
 				for (Object p : participants)
 				{
 					if (p instanceof String)
-						bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
+						bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (msg));
 				}
 				if (StringUtils.equalsIgnoreCase (value, "3"))
 				{	// 有人叫到了 3 分，抢地主立刻结束，此人称为地主
@@ -157,7 +158,7 @@ public class DouDiZhu extends CardGame
 				iTurn = NextTurn (iTurn);
 			}
 			// 频道内公示抢地主结果 （主要目的是为了对游戏功能进行“广告”的目的）
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏 #" + Thread.currentThread ().getId () + " 地主是 " + FormatPlayerName (sLandlordName, sLandlordName));
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("地主是 " + FormatPlayerName (sLandlordName, sLandlordName)));
 
 			// 底牌明示，归地主所有
 			assert (sLandlordName != null);
@@ -169,12 +170,12 @@ public class DouDiZhu extends CardGame
 			for (Object p : participants)
 			{
 				if (p instanceof String)
-					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
+					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (msg));
 			}
 			if (地主 instanceof String)
-				bot.SendMessage (null, sLandlordName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "" + GenerateCardsInfoTo (player_cards, null));
+				bot.SendMessage (null, sLandlordName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (GenerateCardsInfoTo (player_cards, null).toString ()));
 			else
-				System.out.println (sLandlordName + " 的手牌 " + GenerateCardsInfoTo (player_cards, null));
+				System.out.println (游戏信息 (sLandlordName + " 的手牌 " + GenerateCardsInfoTo (player_cards, null)));
 
 			// 开始循环
 			int iRound = participants.indexOf (地主 /*sLandlordName*/);	// 谁的回合
@@ -230,7 +231,7 @@ public class DouDiZhu extends CardGame
 						for (Object p : participants)
 						{
 							if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段))
-								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName) + " 的回合开始，请等他/她出牌…");
+								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName) + " 的回合开始，请等他/她出牌…"));
 						}
 						Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
 							answer = (String)participantAnswers.get (sTurnPlayer_回合阶段);
@@ -240,10 +241,10 @@ public class DouDiZhu extends CardGame
 						//for (Object p : participants)
 						//{
 						//	if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段))
-						//		bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName) + " 的回合开始，请等他/她出牌…");
+						//		bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName) + " 的回合开始，请等他/她出牌…"));
 						//}
-						System.out.println (sTurnPlayer_回合阶段 + " 的手牌");
-						System.out.println (GenerateCardsInfoTo (sTurnPlayer_回合阶段));
+						System.out.println (游戏信息 (sTurnPlayer_回合阶段 + " 的手牌"));
+						System.out.println (游戏信息 (GenerateCardsInfoTo (sTurnPlayer_回合阶段).toString ()));
 
 						answer = (String)((DouDiZhuBotPlayer)turnPlayer_回合阶段).出牌 (player_cards);
 						//value = answer;
@@ -274,7 +275,7 @@ public class DouDiZhu extends CardGame
 				for (Object p : participants)
 				{
 					if (p instanceof String)
-						bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,
+						bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (
 							(StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段) ? "你" : FormatPlayerName (sTurnPlayer_回合阶段, sLandlordName)) +
 							" 打出了 " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_TurnPlayer_回合阶段 +
 							(StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回合阶段) ?
@@ -286,7 +287,7 @@ public class DouDiZhu extends CardGame
 									)
 								)	// 报牌数
 							)
-						);
+						));
 				}
 				if (player_cards.size () == 0)
 				{	// 出完牌了，则结束
@@ -345,7 +346,7 @@ public class DouDiZhu extends CardGame
 							for (Object p : participants)
 							{
 								if (p instanceof String  &&  ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段))
-									bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " 出牌…");
+									bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("请等 " + FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " 出牌…"));
 							}
 							Map<String, Object> participantAnswers_response = bot.executor.submit (dlg_response).get ();
 								answer = (String)participantAnswers_response.get (sTurnPlayer_回牌阶段);
@@ -355,10 +356,10 @@ public class DouDiZhu extends CardGame
 							//for (Object p : participants)
 							//{
 							//	if (p instanceof String && ! StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段))
-							//		bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "请等 " + FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " 出牌…");
+							//		bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("请等 " + FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " 出牌…"));
 							//}
-							System.out.println (sTurnPlayer_回牌阶段 + " 的手牌");
-							System.out.println (GenerateCardsInfoTo (sTurnPlayer_回牌阶段));
+							System.out.println (游戏信息 (sTurnPlayer_回牌阶段 + " 的手牌"));
+							System.out.println (游戏信息 (GenerateCardsInfoTo (sTurnPlayer_回牌阶段).toString ()));
 
 							answer = (String)((DouDiZhuBotPlayer)turnPlayer_回牌阶段).回牌 (listLastPlayedCardRanks, mapLastPlayedCardsInfo, lastPlayedCardType, player_cards);
 							//value = answer;
@@ -380,9 +381,9 @@ public class DouDiZhu extends CardGame
 						for (Object p : participants)
 						{
 							if (p instanceof String)
-								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, (StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段) ? "你" : FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName)) + " " + msg);
+								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ((StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段) ? "你" : FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName)) + " " + msg));
 							else
-								System.out.println (FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " " + msg);
+								System.out.println (游戏信息 (FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName) + " " + msg));
 						}
 						nPassed ++;
 					}
@@ -396,7 +397,7 @@ public class DouDiZhu extends CardGame
 						for (Object p : participants)
 						{
 							if (p instanceof String)
-								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1,
+								bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (
 									(StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段) ? "你" : FormatPlayerName (sTurnPlayer_回牌阶段, sLandlordName)) +
 									" 打出了: " + Colors.PURPLE + lastPlayedCardType + Colors.NORMAL + " " + listCardRanks_TurnPlayer_回牌阶段 +
 									(StringUtils.equalsIgnoreCase ((String)p, sTurnPlayer_回牌阶段) ?
@@ -408,7 +409,7 @@ public class DouDiZhu extends CardGame
 											)
 										)	// 报牌数
 									)
-								);
+								));
 						}
 						if (player_cards.size () == 0)
 						{	// 如果回应的人也出完牌了，则也结束
@@ -494,18 +495,18 @@ public class DouDiZhu extends CardGame
 				sbResult.append ("]");
 			}
 			msg = sbResult.toString ();
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);	// 在频道里显示结果
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (msg));	// 在频道里显示结果
 			participants.add (地主);	// 再把地主加回来，通过私信告知每个人游戏结果
 			for (Object p : participants)
 			{
 				if (p instanceof String)
-					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, msg);
+					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (msg));
 			}
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + " 游戏异常: " + e);
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("游戏异常: " + ANSIEscapeTool.COLOR_DARK_RED + e + Colors.NORMAL));
 		}
 		finally
 		{
@@ -794,13 +795,13 @@ public class DouDiZhu extends CardGame
 			}
 			Collections.sort (player_cards, 斗地主点值比较器);
 			if (p instanceof String)
-				bot.SendMessage (null, sPlayerName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "您摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(sPlayerName));
+				bot.SendMessage (null, sPlayerName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("您摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(sPlayerName)));
 			else
-				System.out.println (sPlayerName + " 摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(sPlayerName));
+				System.out.println (游戏信息 (sPlayerName + " 摸了 " + player_cards.size () + " 张牌: " + GenerateCardsInfoTo(sPlayerName)));
 		}
 		for (int i=0; i<3*17; i++)	// 剔除摸掉的牌
 			deck.remove (0);
-		//bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "每人摸了 17 张牌 ");
+		//bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("每人摸了 17 张牌 "));
 	}
 
 	void RemovePlayedCards (String p, List<String> listCardRanks)

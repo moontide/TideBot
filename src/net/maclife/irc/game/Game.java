@@ -4,7 +4,9 @@ import java.security.*;
 import java.util.*;
 
 import org.apache.commons.lang3.*;
+import org.jibble.pircbot.*;
 
+import net.maclife.ansi.*;
 import net.maclife.irc.*;
 import net.maclife.irc.dialog.*;
 
@@ -63,6 +65,11 @@ public abstract class Game implements Runnable, DialogUser
 		this.params = params;
 	}
 
+	void SetThreadID ()
+	{
+		threadID = Thread.currentThread ().getId ();
+	}
+
 	public String getName ()
 	{
 		return name;
@@ -85,6 +92,6 @@ public abstract class Game implements Runnable, DialogUser
 
 	public String 游戏信息 (String s)
 	{
-		return getName() + " #" + threadID + " " + s;
+		return getName() + " #" + ANSIEscapeTool.COLOR_DARK_CYAN + threadID + Colors.NORMAL + " " + s;
 	}
 }

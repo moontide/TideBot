@@ -742,7 +742,7 @@ public class Game2048 extends Game
 			DisplayDigitsBoard (GenerateRandomNumberAndFill ());
 		}
 		else
-			bot.SendMessage (null, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "貌似，向 " + cMove + " 移动没有任何变动，你应该考虑向其他方向移动了…");
+			bot.SendMessage (null, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (Colors.YELLOW + "貌似，向 " + cMove + " 移动没有任何变动，你应该考虑向其他方向移动了…" + Colors.NORMAL));
 
 		return isWinInThisMove;
 	}
@@ -792,10 +792,10 @@ public class Game2048 extends Game
 			sbBoardInANSIString.append ("\n");
 			if (iNewGeneratedTileIndex==-1 && y<4)	// 默认在频道输出时，只输出 4 行（2048 原作者的默认棋盘高度）
 			{
-				bot.SendMessage (channel, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sLine);
+				bot.SendMessage (channel, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sLine));
 			}
 			else
-				bot.SendMessage (null, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, sLine);
+				bot.SendMessage (null, nick, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sLine));
 //System.err.println (sLine);
 		}
 System.err.println (sbBoardInANSIString);
@@ -817,9 +817,10 @@ System.err.println (sbBoardInANSIString);
 	@Override
 	public void run ()
 	{
+		SetThreadID ();
 		try
 		{
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 开始… ");
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("开始… "));
 			InitDigitsBoard ();
 			//InitTestBoard ();
 
@@ -833,7 +834,7 @@ System.err.println (sbBoardInANSIString);
 
 				Dialog dlg = new Dialog (this,
 						bot, bot.dialogs,
-						"请回答 " + Colors.BOLD + "e s d f" + Colors.BOLD + "(↑ ← ↓ →) 来移动方块。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束",
+						游戏信息 ("请回答 " + Colors.BOLD + "e s d f" + Colors.BOLD + "(↑ ← ↓ →) 来移动方块。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束"),
 						Dialog.SHOW_MESSAGE, participants,
 						channel, nick, login, host, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 				Map<String, Object> participantAnswers = bot.executor.submit (dlg).get ();
@@ -891,11 +892,11 @@ System.err.println (sbBoardInANSIString);
 				if (isWin || isLose || isParticipantWannaQuit)
 				{
 					if (isParticipantWannaQuit)
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 结束: " + sQuitGamePlayer + " " + answer + GetStatistics());
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: " + sQuitGamePlayer + " " + answer + GetStatistics()));
 					else if (isWin)
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 结束: " + Colors.GREEN + "赢了" + (isLose ? ANSIEscapeTool.COLOR_DARK_RED + "然后又输了" : "") + Colors.NORMAL + GetStatistics());
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: " + Colors.GREEN + "赢了" + (isLose ? ANSIEscapeTool.COLOR_DARK_RED + "然后又输了" : "") + Colors.NORMAL + GetStatistics()));
 					else if (isLose)
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏 #" + Thread.currentThread ().getId () + " 结束: " + ANSIEscapeTool.COLOR_DARK_RED + "输了" + Colors.NORMAL + GetStatistics());
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: " + ANSIEscapeTool.COLOR_DARK_RED + "输了" + Colors.NORMAL + GetStatistics()));
 
 					break;
 				}
@@ -905,7 +906,7 @@ System.err.println (sbBoardInANSIString);
 		catch (Exception e)
 		{
 			e.printStackTrace ();
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, name + "游戏异常: " + e + GetStatistics());
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("游戏异常: " + ANSIEscapeTool.COLOR_DARK_RED + e + Colors.NORMAL + GetStatistics()));
 			DisplayDigitsBoard (-1);
 		}
 		finally
