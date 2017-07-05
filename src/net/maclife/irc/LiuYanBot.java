@@ -1192,8 +1192,8 @@ logger.finer ("消息是对本 Bot 说的");
 					isSayingToMe = true;
 				}
 
-				boolean isNickSaidToExists = isNickExistsInChannel (channel, sSayTo_andSoReplyTo);
-				if (isNickSaidToExists)
+				boolean isNickSaidToMeExists = StringUtils.isEmpty (channel) ? true : isNickExistsInChannel (channel, sSayTo_andSoReplyTo);
+				if (isNickSaidToMeExists)
 				{
 					message = StringUtils.stripToEmpty (sbRestMessage.toString ());
 				}
@@ -9054,9 +9054,19 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		{
 			if (StringUtils.isEmpty (ch))
 			{
-				SendMessage (ch, nick, mapGlobalOptions, "必须在频道内发起三国杀游戏：IRC 服务器会限制消息发送频率，由于三国杀游戏需要输出大量信息，且三国杀游戏玩家比较多，所以通过私信发信息的量又会翻几倍…");
+				SendMessage (ch, nick, mapGlobalOptions, "必须在频道内发起三国杀游戏：因为 IRC 服务器会限制消息发送频率，而三国杀游戏需要输出大量信息，且三国杀游戏玩家比较多，所以通过私信发信息的量又会翻几倍 -- 要么 bot 会被踢掉，要么延时成倍增加…");
 				return;
 			}
+			else
+			{
+				String sAllowedChannelsToPlaySanGuoSha = System.getProperty ("game.sanguosha.allowed-channels");
+				if (! StringUtils.containsIgnoreCase (sAllowedChannelsToPlaySanGuoSha, ch))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "由于三国杀游戏需要在频道内输出大量信息，因此限制只能在特定频道玩三国杀游戏。可以玩三国杀游戏的频道： " + sAllowedChannelsToPlaySanGuoSha);
+					return;
+				}
+			}
+
 			if (StringUtils.containsIgnoreCase (sGame, "国战")
 				|| StringUtils.containsIgnoreCase (sGame, "CountryReveal")
 				)
