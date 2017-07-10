@@ -113,6 +113,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	public static String BOT_CUSTOMIZED_ACTION_PREFIX = ".";	// 自定义动作命令的“动作命令”前缀
+	public static String BOT_HT_TEMPLATE_SHORTCUT_PREFIX = "$";	// ht 模板快捷命令的前缀
 	public static final String BOT_PRIMARY_COMMAND_Help             = "/Help";
 	public static final String BOT_PRIMARY_COMMAND_Alias            = "/Alias";
 	public static final String BOT_PRIMARY_COMMAND_Cmd              = "Cmd";
@@ -1346,12 +1347,12 @@ System.err.println (message);
 				try
 				{
 					if (
-						StringUtils.isNotEmpty (BOT_COMMAND_PREFIX) && StringUtils.startsWithIgnoreCase (message, BOT_COMMAND_PREFIX)
-						||  StringUtils.isEmpty (BOT_COMMAND_PREFIX)
+						StringUtils.isNotEmpty (BOT_HT_TEMPLATE_SHORTCUT_PREFIX) && StringUtils.startsWithIgnoreCase (message, BOT_HT_TEMPLATE_SHORTCUT_PREFIX)
+						||  StringUtils.isEmpty (BOT_HT_TEMPLATE_SHORTCUT_PREFIX)
 					)
 					{
-						if (StringUtils.isNotEmpty (BOT_COMMAND_PREFIX))
-							message = message.substring (BOT_COMMAND_PREFIX.length ());
+						if (StringUtils.isNotEmpty (BOT_HT_TEMPLATE_SHORTCUT_PREFIX))
+							message = message.substring (BOT_HT_TEMPLATE_SHORTCUT_PREFIX.length ());
 						args = message.split (" +", 3);
 						if (args[0].contains ("."))
 						{
