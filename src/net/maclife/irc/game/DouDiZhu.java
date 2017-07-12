@@ -438,7 +438,7 @@ public class DouDiZhu extends CardGame
 
 			// 游戏结束，显示结果
 			StringBuilder sbResult = new StringBuilder ();
-			sbResult.append (name + " 游戏 #" + Thread.currentThread ().getId () + " 结束。");
+			sbResult.append ("结束。");
 			participants.remove (地主);
 			if (sWinner.equalsIgnoreCase ("地主"))
 			{
@@ -646,6 +646,17 @@ public class DouDiZhu extends CardGame
 		带对,
 	}
 
+	public static 附带牌类型 根据牌型获取附加牌类型 (Type type)
+	{
+		附带牌类型 attachmentType = 附带牌类型.不带牌;
+		if (type == Type.三带1 || type == Type.四带2 || type == Type.飞机带单 || type == Type.大飞机带2单)
+			attachmentType = 附带牌类型.带单;
+		else if (type == Type.三带1对 || type == Type.四带2对 || type == Type.飞机带对 || type == Type.大飞机带2对)
+			attachmentType = 附带牌类型.带对;
+
+		return attachmentType;
+	}
+
 	public DouDiZhu ()
 	{
 
@@ -822,6 +833,7 @@ public class DouDiZhu extends CardGame
 			}
 		}
 	}
+
 	/**
 	 * 单张牌点值比较器，用于对手牌排序
 	 * @author liuyan
@@ -851,6 +863,47 @@ public class DouDiZhu extends CardGame
 		}
 	}
 	public static final Comparator<Object> 斗地主点值比较器 = new DDZPointComparator ();
+
+
+	/**
+	 * 不同牌型排序比较器，用于对手牌的几道牌排序。
+	 * 排序规则：
+	 * <ul>
+	 * <li>单牌在最前面，都是单牌的，点数小的在最前。</li>
+	 * <li></li>
+	 * <li></li>
+	 * <li></li>
+	 * <li></li>
+	 * <li></li>
+	 * <li></li>
+	 * <li></li>
+	 * </ul>
+	 * @author liuyan
+	 *
+	 */
+	static class DDZGroupComparator implements Comparator<List<String>>
+	{
+		@Override
+		public int compare (List<String> o1, List<String> o2)
+		{
+			int v1 = 0;
+			int v2 = 0;
+			if (o1 instanceof Map)	// Map<String, Object> 牌的 Map 对象
+			{
+				Map<String, Object> card1 = (Map<String, Object>)o1;
+				Map<String, Object> card2 = (Map<String, Object>)o2;
+				v1 = (int)card1.get ("point");
+				v2 = (int)card2.get ("point");
+			}
+			//else if (o1 instanceof String)	// 只有牌的 rank
+			//{
+			//	v1 = RankToPoint ((String)o1);
+			//	v2 = RankToPoint ((String)o2);
+			//}
+			//System.out.println (o1 + " - " + o2 + " = " + v1 + " - " + v2 + " = " + (v1-v2));
+			return v1-v2;
+		}
+	}
 
 	/**
 	 * 	生成单个玩家的牌的信息

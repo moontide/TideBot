@@ -396,7 +396,7 @@ public class Dialog implements Callable<Map<String, Object>>
 			sb.append (Colors.GREEN);
 			sb.append (threadID);
 			sb.append (Colors.NORMAL);
-			sb.append ("  ");
+			sb.append (" ");
 			if (! isParticipantsQuantityIndefinitely)
 			{
 				// 显示对话框用法

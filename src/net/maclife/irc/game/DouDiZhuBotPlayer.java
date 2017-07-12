@@ -10,7 +10,7 @@ public abstract class DouDiZhuBotPlayer extends TurnBasedBotPlayer
 	{
 		super (name);
 	}
-	public abstract Object 抢地主 (Object... params);
+	public abstract Object 抢地主 (Object... args);
 
 	public abstract String 找出点数值大于N的单 (List<Map<String, Object>> player_cards, int nMaxPoint);
 	public abstract String 找出点数值大于N的顺子 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=5 */);

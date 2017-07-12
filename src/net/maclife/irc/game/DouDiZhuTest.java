@@ -167,7 +167,7 @@ System.out.println ("牌型测试 结束");
 		listCardRanks.add ("K");
 		listCardRanks.add ("A");
 
-		//mapResult = DouDiZhuBotPlayer_有点小智能的机器人.EvaluateCards (listCardRanks);
-		//assertEquals (mapResult.get ("MinTimes"), 1);
+		mapResult = DouDiZhuBotPlayer_有点小智能的机器人.EvaluateCards (listCardRanks);
+		assertEquals (1, mapResult.get ("MinSteps"));
 	}
 }

@@ -6,13 +6,50 @@ import java.util.logging.*;
 import net.maclife.ansi.*;
 
 /**
- * 根据作者自己的出牌习惯制作的 Bot，可将其理解为作者的一部分
+ * 根据作者自己的出牌习惯制作的略带智能的机器人玩家。
+ * <br/>
+ * 暂时只实现：
+ * <ul>
+ * 	<li>解出手牌最佳出牌方案</li>
+ * 	<li>会拆牌打对方（自己备注：最佳出牌方案里，可能没有打对方时所需的牌型，在非最佳方案里可能会有该牌型）</li>
+ * </ul>
+ *
+ *
+ * 将来考虑实现：
+ * <ul>
+ * 	<li>考虑配合：
+ * 		<ul>
+ * 			<li>如果是农民时，先确定自己的手牌是适合走的，还是适合辅助队友的。
+				<ul>
+					<li>如果牌是适合走的，则根据最优方案出牌，不拆牌；</li>
+					<li>如果牌是适合辅助队友的，则
+						<ul>
+							<li>如果在队友上家，如果地主出牌比较大，要打地主的牌（能拆就拆，只要能打住），然后送小牌给队友？如果地主出牌小，则过牌？（万一出的牌型队友不吃呢？）</li>
+							<li>如果在队友下家，要不要抬高牌挡地主？队友出牌点数已经比较高了（比如 10 或者以上），还要不要再顶牌？</li>
+						</ul>
+					</li>
+				</ul>
+			</li>
+			<li>如果是地主，呃… 先按最优方案出牌。 是否拆牌打对方，仅仅在对方剩牌比较少时……
+				另外，如果拆牌，要计算怎么拆：比如，拆牌后，出牌次数 N 变的（增大）太多（比如一个顺子拆了后变成了几张单牌…），则放弃
+			</li>
+		</ul>
+	</li>
+ * 	<li>记牌？ 根据出的牌，猜测排除掉敌方可能的牌型？ -- 感觉太复杂</li>
+ * 	<li></li>
+ * 	<li></li>
+ * 	<li></li>
+ * 	<li></li>
+ * </ul>
  * @author liuyan
  *
  */
 @SuppressWarnings ({"unchecked", "unused"})
 public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPlayer
 {
+	public static int MASK_不拆牌 = 1;
+	public static int MASK_拆牌   = 2;
+
 	//static Logger logger = Logger.getLogger (DouDiZhuBotPlayer_有点小智能的机器人.class.getName ());
 	public DouDiZhuBotPlayer_有点小智能的机器人 (String name)
 	{
@@ -23,8 +60,9 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 	 * 评估牌的情况。
 	 * 计算出
 	 * <ul>
-	 * <li>打玩这些牌所需要的最小的次数 N（且是最优的）</li>
-	 * <li>上面得到最小的次数 N 的 N 道牌</li>
+	 * <li>打完这些牌所需要的最小的出牌次数 N</li>
+	 * <li>上面得到最小的次数 N 的 Ng 道牌</li>
+	 * <li>若多种方案的出牌次数都是 N，且找出最优方案</li>
 	 * </ul>
 	 * @param player_cards
 	 * @return Map
@@ -43,6 +81,18 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 			<dt>递归深度</dt>
 			<dd></dd>
 
+			<dt>MinSteps</dt>
+			<dd>int 类型。最小出牌次数。</dd>
+
+			<dt>MinStepsSolutions</dt>
+			<dd>List&lt;List&lt;String&gt;&gt; 类型。最小出牌次数的所有可能的出牌方案</dd>
+
+			<dt>MinTypes</dt>
+			<dd>int 类型。最少出牌类型数量。</dd>
+
+			<dt>MinTypesSolutions</dt>
+			<dd>List&lt;List&lt;String&gt;&gt; 类型。最少出牌类型的所有可能的出牌方案。一般来说，从这些方案里找会好一些，因为，同一个牌型 有可能有回收牌，就容易控制局势。</dd>
+
 		</dl>
 	 */
 	public static Map<String, Object> EvaluatePlayerCards (List<Map<String, Object>> player_cards)
@@ -50,22 +100,72 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		List<String> listCards = DouDiZhu.PlayerCardsToCardRanks (player_cards);
 		return EvaluateCards (listCards);
 	}
-	public static Map<String, Object> EvaluateCards (List<String> listCards)
+	public static Map<String, Object> EvaluateCards (List<String> listCards, DouDiZhu.Type expectedCardType, int nExpectedSerialLength, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
 	{
 		//logger.setLevel (Level.ALL);
 		//logger.entering (DouDiZhuBotPlayer_有点小智能的机器人.class.getName (), "EvaluateCards");
 		Map<String, Object> mapResult = new LinkedHashMap<String, Object> ();
 
-		mapResult.put ("MinTimes", 14);	// 最多只需要出 14 道牌：3-A,2,王牌(1张或两张)
+		mapResult.put ("MinSteps", 14);	// 最多只需要出 14 道牌：3-A,2,王牌(1张或两张)
 		mapResult.put ("递归深度", 0);
 
-		EvaluateCards_Recursive ("开始", listCards, mapResult);
+		EvaluateCards_Recursive ("开始", listCards, mapResult, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 		//logger.exiting (DouDiZhuBotPlayer_有点小智能的机器人.class.getName (), "EvaluateCards");
 		return mapResult;
 	}
+	public static Map<String, Object> EvaluateCards (List<String> listCards, DouDiZhu.Type expectedCardType, int nExpectedSerialLength, int 大于此点值, int 拆牌)
+	{
+		return EvaluateCards (listCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType, nExpectedSerialLength);
+	}
+	public static Map<String, Object> EvaluateCards (List<String> listCards)
+	{
+		return EvaluateCards (listCards, null, 0, 0, MASK_拆牌 | MASK_不拆牌, null, 0);
+	}
 
-	// 不同牌型、按照不同顺序依次查找，其中顺子（含连对、飞机、大飞机的情况）还要考虑各个顺子长度、牌组数的情况
-	public static void EvaluateCards_Recursive (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult)
+	public static boolean 不限牌型 (DouDiZhu.Type 牌型)
+	{
+		return (牌型 == null) || (牌型 == DouDiZhu.Type.__未知牌型__);
+	}
+
+	public static boolean 不限序列长度 (int nSerialLength)
+	{
+		return (nSerialLength == 0) || (nSerialLength > 12);
+	}
+
+	public static boolean 不限主牌数 (int nCopy)
+	{
+		return (nCopy == 0) || (nCopy > 4);
+	}
+
+	//public static boolean 不限附带牌类型 (DouDiZhu.附带牌类型 expectedAttachmentType)
+	//{
+	//	return (expectedAttachmentType == null);
+	//}
+
+	/**
+	 * 递归解牌：不同牌型、按照不同顺序依次查找，其中顺子（含连对、飞机、大飞机的情况）还要考虑各个顺子长度、牌组数的情况。
+	 * @param sCurrentOperation
+	 * @param listCards
+	 * @param mapResult
+	 * @param expectedCardType 如果为 null，则解答所有牌型。否则，只解给出的牌型（很有可能解不出该牌型）
+	 * @param nExpectedSerialLength
+	 * 	<ul>
+	 * 		<li>如果牌型为顺子、连对、飞机、飞机带单、飞机带对、大飞机、大飞机带2单、大飞机带2对，则指定
+	 * 			<ul>
+	 * 				<li>“顺子”的长度</li>
+	 * 				<li>对于连对，就是连对牌数量的 1/2（也是说几对数）、</li>
+	 * 				<li>对于飞机，就是 1/3、</li>
+	 * 				<li>大飞机的 1/4）。</li>
+	 * 			</ul>
+	 * 		</li>
+	 * 		<li>对于其他牌型，此数值无意义。</li>
+	 * 	</ul>
+	 * @param 大于此点值 只寻找大于此点值的牌
+	 * @param 拆牌 是否拆牌。0或者3：不关心拆不拆；1：不拆；2：拆。
+	 * @param expectedCardType_Recursive
+	 * @param nExpectedSerialLength_Recursive
+	 */
+	public static void EvaluateCards_Recursive (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type expectedCardType, int nExpectedSerialLength, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
 	{
 		//logger.entering (DouDiZhuBotPlayer_有点小智能的机器人.class.getName (), "EvaluateCards_Recursive");
 		if (listCards.isEmpty ())
@@ -78,141 +178,239 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		Log (mapResult, "--------------------------------------------------------------------------------");
 
 		// 先把王炸找出来：王炸不能跟其他牌组合来出，有的话，必定是单独的 1 道牌
-		if (listCards.size () >=2)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.王炸)
+			&& listCards.size () >=2)
 		{
 			sCurrentOperation = "找王炸";
-			EvaluateCards_王炸 (sCurrentOperation, listCards, mapResult);
+			EvaluateCards_王炸 (sCurrentOperation, listCards, mapResult, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
 
+		int nSerialLength = 0;
+		int nMaxSerialLength = 0;
 		// 不同长度的顺子
-		if (listCards.size () >=5)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.顺子)
+			&& listCards.size () >=5)
 		{
-			int nMax = listCards.size () > 12 ? 12 : listCards.size ();
-			for (int nSerialLength=5; nSerialLength<=nMax; nSerialLength++)
+			nSerialLength = 5;
+			nMaxSerialLength = listCards.size () > 12 ? 12 : listCards.size ();
+			if (! 不限序列长度(nExpectedSerialLength))
+			{
+				nSerialLength = nMaxSerialLength = nExpectedSerialLength;
+			}
+
+			for (; nSerialLength<=nMaxSerialLength; nSerialLength++)
 			{
 				sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的顺子";
-				EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 1);
+				EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.顺子,        nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 				递归深度减少 (sCurrentOperation, mapResult, listCards);
 			}
 		}
 		// 不同长度的连对
-		if (listCards.size () >=6)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.连对)
+			&& listCards.size () >=6)
 		{
-			for (int nSerialLength=3; nSerialLength<=listCards.size () / 2; nSerialLength++)
+			nSerialLength = 3;
+			nMaxSerialLength = listCards.size () / 2;
+			if (! 不限序列长度(nExpectedSerialLength))
+			{
+				nSerialLength = nMaxSerialLength = nExpectedSerialLength;
+			}
+
+			for (; nSerialLength<=nMaxSerialLength; nSerialLength++)
 			{
 				sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的连对";
-				EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 2);
+				EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.连对,        nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 				递归深度减少 (sCurrentOperation, mapResult, listCards);
 			}
 		}
 		// 不同长度的大飞机
-		if (listCards.size () >=8)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.大飞机 || expectedCardType==DouDiZhu.Type.大飞机带2单 || expectedCardType==DouDiZhu.Type.大飞机带2对)
+			//&& (不限主牌数(nExpectedCopy) || nExpectedCopy==4)
+			&& listCards.size () >=8)
 		{
-			for (int nSerialLength=2; nSerialLength<=listCards.size () / 4; nSerialLength++)
+			nSerialLength = 2;
+			nMaxSerialLength = listCards.size () / 4;
+			if (! 不限序列长度(nExpectedSerialLength))
 			{
-				sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的大飞机";
-				EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 4);
-				递归深度减少 (sCurrentOperation, mapResult, listCards);
-				if (nSerialLength * (4 + 2) <= listCards.size ())
+				nSerialLength = nMaxSerialLength = nExpectedSerialLength;
+			}
+
+			if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.大飞机))
+			{
+				for (; nSerialLength<=nMaxSerialLength; nSerialLength++)
+				{
+					sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的大飞机";
+					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.大飞机,      nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+					递归深度减少 (sCurrentOperation, mapResult, listCards);
+				}
+			}
+			if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.大飞机带2单) && nSerialLength * (4 + 2) <= listCards.size ())
+			{
+				for (; nSerialLength<=nMaxSerialLength; nSerialLength++)
 				{
 					sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的大飞机带2单";
-					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 4, DouDiZhu.附带牌类型.带单);
+					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.大飞机带2单, nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					递归深度减少 (sCurrentOperation, mapResult, listCards);	// 大飞机带单（2单）
 				}
-				if (nSerialLength * (4 + 4) <= listCards.size ())
+			}
+			if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.大飞机带2对) && nSerialLength * (4 + 4) <= listCards.size ())
+			{
+				for (; nSerialLength<=nMaxSerialLength; nSerialLength++)
 				{
 					sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的大飞机带2对";
-					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 4, DouDiZhu.附带牌类型.带对);
+					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.大飞机带2对, nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					递归深度减少 (sCurrentOperation, mapResult, listCards);	// 大飞机带对（2对）
 				}
 			}
 		}
 		// 不同长度的飞机
-		if (listCards.size () >=6)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.飞机 || expectedCardType==DouDiZhu.Type.飞机带单 || expectedCardType==DouDiZhu.Type.飞机带对)
+			&& listCards.size () >=6)
 		{
-			for (int nSerialLength=2; nSerialLength<=listCards.size () / 3; nSerialLength++)
+			nSerialLength = 2;
+			nMaxSerialLength = listCards.size () / 3;
+			if (! 不限序列长度(nExpectedSerialLength))
 			{
-				sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的飞机";
-				EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 3);
-				递归深度减少 (sCurrentOperation, mapResult, listCards);
-				if (nSerialLength * (3 + 1) <= listCards.size ())
+				nSerialLength = nMaxSerialLength = nExpectedSerialLength;
+			}
+
+			for (; nSerialLength<=nMaxSerialLength; nSerialLength++)
+			{
+				if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.飞机))
+				{
+					sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的飞机";
+					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.飞机,        nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+					递归深度减少 (sCurrentOperation, mapResult, listCards);
+				}
+				if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.飞机带单) && nSerialLength * (3 + 1) <= listCards.size ())
 				{
 					sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的飞机带单";
-					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 3, DouDiZhu.附带牌类型.带单);
+					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.飞机带单,    nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					递归深度减少 (sCurrentOperation, mapResult, listCards);	// 飞机带单
 				}
-				if (nSerialLength * (3 + 2) <= listCards.size ())
+				if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.飞机带对) && nSerialLength * (3 + 2) <= listCards.size ())
 				{
 					sCurrentOperation = "找顺子：长度 = " + nSerialLength + " 的飞机带对";
-					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 3, DouDiZhu.附带牌类型.带对);
+					EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.飞机带对,    nSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					递归深度减少 (sCurrentOperation, mapResult, listCards);	// 飞机带对
 				}
 			}
 		}
 
 		//
-		if (listCards.size () >=6)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.四带2)
+			&& listCards.size () >=6)
 		{
 			sCurrentOperation = "找单组：四带2";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 4, DouDiZhu.附带牌类型.带单);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.四带2,   大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
-		if (listCards.size () >=8)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.四带2对)
+			&& listCards.size () >=8)
 		{
 			sCurrentOperation = "找单组：四带2对";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 4, DouDiZhu.附带牌类型.带对);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.四带2对, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
-		if (listCards.size () >=4)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.炸弹)
+			&& listCards.size () >=4)
 		{
 			sCurrentOperation = "找单组：炸弹";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 4);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.炸弹,    大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
-		if (listCards.size () >=4)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.三带1)
+			&& listCards.size () >=4)
 		{
 			sCurrentOperation = "找单组：三带1";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 3, DouDiZhu.附带牌类型.带单);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.三带1,   大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
-		if (listCards.size () >=5)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.三带1对)
+			&& listCards.size () >=5)
 		{
 			sCurrentOperation = "找单组：三带1对";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 3, DouDiZhu.附带牌类型.带对);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.三带1对, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
-		if (listCards.size () >=3)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.三)
+			&& listCards.size () >=3)
 		{
 			sCurrentOperation = "找单组：三";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 3);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.三,      大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
-		if (listCards.size () >=1)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.单)
+			&& listCards.size () >=1)
 		{
 			sCurrentOperation = "找单组：单牌";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 1);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.单,      大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
-		if (listCards.size () >=2)
+		if ((不限牌型(expectedCardType) || expectedCardType==DouDiZhu.Type.对)
+			&& listCards.size () >=2)
 		{
 			sCurrentOperation = "找单组：对子";
-			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 2);
+			EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, DouDiZhu.Type.对,      大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			递归深度减少 (sCurrentOperation, mapResult, listCards);
 		}
 		//logger.exiting (DouDiZhuBotPlayer_有点小智能的机器人.class.getName (), "EvaluateCards_Recursive");
 	}
 
-	// 先处理最复杂的顺子（含连对、飞机、大飞机、以及飞机附带散牌的情况）
-	public static void EvaluateCards_Serials (String sCurrentOperation, final List<String> listCards, Map<String, Object> mapResult, int nSerialLength, int nCopy, DouDiZhu.附带牌类型 attachmentType /* 0:无附带的牌 1:单牌 2:对牌 */)
+	/**
+	 * 先处理最复杂的顺子（含连对、飞机、大飞机、以及飞机附带散牌的情况）
+	 * @param sCurrentOperation
+	 * @param listCards
+	 * @param mapResult
+	 * @param expectedCardType 牌型。必须明确指定，不能为 null，不能为 .__未知牌型__，不能为王炸，不能为单组牌
+	 * @param nExpectedSerialLength 序列长度
+	 * @param nExpectedCopy 序列数量：顺子取值为 1、连对取值为 2、飞机/飞机带单/飞机带对取值为 3、大飞机/大飞机带2单/大飞机带两对取值为 4
+	 * @param 大于此点值
+	 * @param 拆牌
+	 * @param expectedCardType_Recursive
+	 * @param nExpectedSerialLength_Recursive
+	 * @param nExpectedCopy_Recursive
+	 */
+	public static void EvaluateCards_Serials (String sCurrentOperation, final List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type expectedCardType, int nExpectedSerialLength, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
 	{
 		递归深度增加 (sCurrentOperation, mapResult, listCards);
+
 		if (listCards.isEmpty ())
 			return;
-		Map<String, Object> mapCardsInfo = DouDiZhu.CalculateCards (listCards);
-		if (listCards.size() < nSerialLength * (nCopy + attachmentType.ordinal ()) )
+
+		if (expectedCardType!=DouDiZhu.Type.顺子
+			&& expectedCardType!=DouDiZhu.Type.连对
+			&& expectedCardType!=DouDiZhu.Type.飞机 && expectedCardType!=DouDiZhu.Type.飞机带单 && expectedCardType!=DouDiZhu.Type.飞机带对
+			&& expectedCardType!=DouDiZhu.Type.大飞机 && expectedCardType!=DouDiZhu.Type.大飞机带2单 && expectedCardType!=DouDiZhu.Type.大飞机带2对
+		)
 			return;
 
+		int nExpectedCopy = 0;
+		switch (expectedCardType)
+		{
+			case 顺子:
+				nExpectedCopy = 1;
+				break;
+			case 连对:
+				nExpectedCopy = 2;
+				break;
+			case 飞机:
+			case 飞机带单:
+			case 飞机带对:
+				nExpectedCopy = 3;
+				break;
+			case 大飞机:
+			case 大飞机带2单:
+			case 大飞机带2对:
+				nExpectedCopy = 4;
+				break;
+		}
+		DouDiZhu.附带牌类型 expectedAttachmentType = DouDiZhu.根据牌型获取附加牌类型 (expectedCardType); /* 0:无附带的牌 1:单牌 2:对牌 */
+		if (listCards.size() < nExpectedSerialLength * (nExpectedCopy + expectedAttachmentType.ordinal ()) )
+			return;
+
+		Map<String, Object> mapCardsInfo = DouDiZhu.CalculateCards (listCards);
 		String s解出的一道牌 = null;
 		List<String> listUniqueCards = (List<String>) mapCardsInfo.get ("UniqueCards");
 		List<String> listSoloCards = (List<String>) mapCardsInfo.get ("SoloCards"), listRemainingSoloCards;
@@ -242,12 +440,19 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		}
 		*/
 
-		switch (nCopy)
+		int n待打的牌的最小点 = 大于此点值 - nExpectedSerialLength + 1;
+		//switch (nExpectedCopy)
+		switch (expectedCardType)
 		{
-		case 4:
-			for (int i=0; i<=listUniqueCards.size () - nSerialLength; i++)
+		//case 4:
+		case 大飞机:
+		case 大飞机带2单:
+		case 大飞机带2对:
+			for (int i=0; i<=listUniqueCards.size () - nExpectedSerialLength; i++)
 			{
-				listSubList = listUniqueCards.subList (i, i + nSerialLength);
+				if(DouDiZhu.RankToPoint (listUniqueCards.get (i)) <= n待打的牌的最小点)	// 假设顺子的最小点打不过待打的牌的最小点，则继续找
+					continue;
+				listSubList = listUniqueCards.subList (i, i + nExpectedSerialLength);
 				mapSubCardsInfo = DouDiZhu.CalculateCards (listSubList);
 				if (! (boolean)mapSubCardsInfo.get ("IsSerial"))
 					continue;
@@ -255,7 +460,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				boolean 每张牌够张数 = true;
 				for (int j=0; j<listSubList.size (); j++)
 				{
-					if ((int)mapCardsInfo.get (listSubList.get (j)) < nCopy)
+					if ((int)mapCardsInfo.get (listSubList.get (j)) < nExpectedCopy)
 					{	// 只要有一张牌不够死张，本顺子就是无效的连对
 						每张牌够张数 = false;
 						break;
@@ -265,16 +470,16 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 					continue;
 
 				Log (mapResult, "########################################");
-				s解出的一道牌 = SerialToString (listSubList, nCopy);
+				s解出的一道牌 = SerialToString (listSubList);
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
-				for (int j=0; j<nCopy; j++)
+				for (int j=0; j<nExpectedCopy; j++)
 					for (String rank : listSubList)
 						listRemainingCards.remove (rank);
 
-				if (attachmentType == DouDiZhu.附带牌类型.不带牌)
+				if (expectedAttachmentType == DouDiZhu.附带牌类型.不带牌)
 				{
-					设置解出的一道牌 (listCards, mapResult, "大飞机", DouDiZhu.Type.大飞机, s解出的一道牌, listRemainingCards);
+					设置解出的一道牌 (listCards, mapResult, "大飞机", DouDiZhu.Type.大飞机, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					return;
 				}
 
@@ -284,21 +489,21 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				listRemainingTrioCards = (List<String>) mapCardsInfo.get ("TrioCards");
 				listRemainingQuartetteCards = (List<String>) mapCardsInfo.get ("QuartetteCards");
 
-				switch (attachmentType)
+				switch (expectedAttachmentType)
 				{
 					case 带单:
-						if (listRemainingSoloCards.size () >= nSerialLength * 2)
+						if (listRemainingSoloCards.size () >= nExpectedSerialLength * 2)
 						{
-							for (int j=0; j<nSerialLength * 2; j++)
+							for (int j=0; j<nExpectedSerialLength * 2; j++)
 							{	// 单牌数量足够，可以直接从单牌里带走
 								s解出的一道牌 = s解出的一道牌 + listRemainingSoloCards.get (j);
 								listRemainingCards.remove (listRemainingSoloCards.get (j));
 							}
-							设置解出的一道牌 (listCards, mapResult, "大飞机带2单", DouDiZhu.Type.大飞机带2单, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "大飞机带2单", DouDiZhu.Type.大飞机带2单, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
-							int 还差单牌数 = nSerialLength - listRemainingSoloCards.size ();
+							int 还差单牌数 = nExpectedSerialLength - listRemainingSoloCards.size ();
 							// 怎么拆，需要根据拆后的牌的情况，多考虑
 							// 简便起见（不做的太智能，不考虑太多），只从 对子、三牌组 中取第一张
 							if (listRemainingPairCards.size () * 2 >= 还差单牌数)
@@ -308,7 +513,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 									s解出的一道牌 = s解出的一道牌 + listRemainingPairCards.get (j/2);
 									listRemainingCards.remove (listRemainingPairCards.get (j/2));
 								}
-								设置解出的一道牌 (listCards, mapResult, "大飞机带2单(拆了对牌)", DouDiZhu.Type.大飞机带2单, s解出的一道牌, listRemainingCards);
+								设置解出的一道牌 (listCards, mapResult, "大飞机带2单(拆了对牌)", DouDiZhu.Type.大飞机带2单, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 							}
 							else
 							{
@@ -324,25 +529,25 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 									s解出的一道牌 = s解出的一道牌 + listRemainingTrioCards.get (j/3);
 									listRemainingCards.remove (listRemainingTrioCards.get (j/3));
 								}
-								设置解出的一道牌 (listCards, mapResult, "大飞机带2单(拆了对牌和三牌组)", DouDiZhu.Type.大飞机带2单, s解出的一道牌, listRemainingCards);
+								设置解出的一道牌 (listCards, mapResult, "大飞机带2单(拆了对牌和三牌组)", DouDiZhu.Type.大飞机带2单, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 							}
 						}
 						break;
 					case 带对:
-						if (listRemainingPairCards.size () >= nSerialLength * 2)
+						if (listRemainingPairCards.size () >= nExpectedSerialLength * 2)
 						{
-							for (int j=0; j<nSerialLength * 2; j++)
+							for (int j=0; j<nExpectedSerialLength * 2; j++)
 							{	// 对牌数量足够，可以直接从对牌里带走
 								s解出的一道牌 = s解出的一道牌 + listRemainingPairCards.get (j) + listRemainingPairCards.get (j);
 								listRemainingCards.remove (listRemainingPairCards.get (j));
 								listRemainingCards.remove (listRemainingPairCards.get (j));
 							}
 
-							设置解出的一道牌 (listCards, mapResult, "大飞机带2对", DouDiZhu.Type.大飞机带2对, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "大飞机带2对", DouDiZhu.Type.大飞机带2对, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
-							int 还差对牌数 = nSerialLength * 2 - listRemainingPairCards.size ();
+							int 还差对牌数 = nExpectedSerialLength * 2 - listRemainingPairCards.size ();
 							// 简便起见（不做的太智能，不考虑太多），只从 对子、三牌组 中取第一张
 							if (listRemainingTrioCards.size () >= 还差对牌数)
 							{	//
@@ -352,17 +557,22 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 									listRemainingCards.remove (listRemainingTrioCards.get (j));
 									listRemainingCards.remove (listRemainingTrioCards.get (j));
 								}
-								设置解出的一道牌 (listCards, mapResult, "大飞机带2对(拆了三牌组)", DouDiZhu.Type.大飞机带2对, s解出的一道牌, listRemainingCards);
+								设置解出的一道牌 (listCards, mapResult, "大飞机带2对(拆了三牌组)", DouDiZhu.Type.大飞机带2对, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 							}
 						}
 						break;
 				}
 			}
 			break;
-		case 3:
-			for (int i=0; i<=listUniqueCards.size () - nSerialLength; i++)
+		//case 3:
+		case 飞机:
+		case 飞机带单:
+		case 飞机带对:
+			for (int i=0; i<=listUniqueCards.size () - nExpectedSerialLength; i++)
 			{
-				listSubList = listUniqueCards.subList (i, i + nSerialLength);
+				if(DouDiZhu.RankToPoint (listUniqueCards.get (i)) <= n待打的牌的最小点)	// 假设顺子的最小点打不过待打的牌的最小点，则继续找
+					continue;
+				listSubList = listUniqueCards.subList (i, i + nExpectedSerialLength);
 				mapSubCardsInfo = DouDiZhu.CalculateCards (listSubList);
 				if (! (boolean)mapSubCardsInfo.get ("IsSerial"))
 					continue;
@@ -373,7 +583,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 					String sRank = listSubList.get (j);
 					try
 					{
-						if ((int)mapCardsInfo.get (sRank) < nCopy)
+						if ((int)mapCardsInfo.get (sRank) < nExpectedCopy)
 						{	// 只要有一张牌不够三张，本顺子就是无效的飞机
 							每张牌够张数 = false;
 							break;
@@ -388,16 +598,16 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 					continue;
 
 				Log (mapResult, "########################################");
-				s解出的一道牌 = SerialToString (listSubList, nCopy);
+				s解出的一道牌 = SerialToString (listSubList);
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
-				for (int j=0; j<nCopy; j++)
+				for (int j=0; j<nExpectedCopy; j++)
 					for (String rank : listSubList)
 						listRemainingCards.remove (rank);
 
-				if (attachmentType == DouDiZhu.附带牌类型.不带牌)
+				if (expectedAttachmentType == DouDiZhu.附带牌类型.不带牌)
 				{
-					设置解出的一道牌 (listCards, mapResult, "飞机", DouDiZhu.Type.飞机, s解出的一道牌, listRemainingCards);
+					设置解出的一道牌 (listCards, mapResult, "飞机", DouDiZhu.Type.飞机, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					return;
 				}
 
@@ -407,21 +617,21 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				listRemainingTrioCards = (List<String>) mapCardsInfo.get ("TrioCards");
 				listRemainingQuartetteCards = (List<String>) mapCardsInfo.get ("QuartetteCards");
 
-				switch (attachmentType)
+				switch (expectedAttachmentType)
 				{
 					case 带单:
-						if (listRemainingSoloCards.size () >= nSerialLength * 1)
+						if (listRemainingSoloCards.size () >= nExpectedSerialLength * 1)
 						{
-							for (int j=0; j<nSerialLength * 1; j++)
+							for (int j=0; j<nExpectedSerialLength * 1; j++)
 							{	// 单牌数量足够，可以直接从单牌里带走
 								s解出的一道牌 = s解出的一道牌 + listRemainingSoloCards.get (j);
 								listRemainingCards.remove (listRemainingSoloCards.get (j));
 							}
-							设置解出的一道牌 (listCards, mapResult, "飞机带单", DouDiZhu.Type.飞机带单, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "飞机带单", DouDiZhu.Type.飞机带单, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
-							int 还差单牌数 = nSerialLength - listRemainingSoloCards.size ();
+							int 还差单牌数 = nExpectedSerialLength - listRemainingSoloCards.size ();
 							// 怎么拆，需要根据拆后的牌的情况，多考虑
 							// 简便起见（不做的太智能，不考虑太多），只从 对子、三牌组 中取第一张
 							if (listRemainingPairCards.size () * 2 >= 还差单牌数)
@@ -431,7 +641,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 									s解出的一道牌 = s解出的一道牌 + listRemainingPairCards.get (j/2);
 									listRemainingCards.remove (listRemainingPairCards.get (j/2));
 								}
-								设置解出的一道牌 (listCards, mapResult, "飞机带单(拆了对牌)", DouDiZhu.Type.飞机带单, s解出的一道牌, listRemainingCards);
+								设置解出的一道牌 (listCards, mapResult, "飞机带单(拆了对牌)", DouDiZhu.Type.飞机带单, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 							}
 							else
 							{
@@ -447,24 +657,24 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 									s解出的一道牌 = s解出的一道牌 + listRemainingTrioCards.get (j/3);
 									listRemainingCards.remove (listRemainingTrioCards.get (j/3));
 								}
-								设置解出的一道牌 (listCards, mapResult, "飞机带单(拆了对牌和三牌组)", DouDiZhu.Type.飞机带单, s解出的一道牌, listRemainingCards);
+								设置解出的一道牌 (listCards, mapResult, "飞机带单(拆了对牌和三牌组)", DouDiZhu.Type.飞机带单, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 							}
 						}
 						break;
 					case 带对:
-						if (listRemainingPairCards.size () >= nSerialLength)
+						if (listRemainingPairCards.size () >= nExpectedSerialLength)
 						{
-							for (int j=0; j<nSerialLength; j++)
+							for (int j=0; j<nExpectedSerialLength; j++)
 							{	// 对牌数量足够，可以直接从对牌里带走
 								s解出的一道牌 = s解出的一道牌 + listRemainingPairCards.get (j) + listRemainingPairCards.get (j);
 								listRemainingCards.remove (listRemainingPairCards.get (j));
 								listRemainingCards.remove (listRemainingPairCards.get (j));
 							}
-							设置解出的一道牌 (listCards, mapResult, "飞机带对", DouDiZhu.Type.飞机带对, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "飞机带对", DouDiZhu.Type.飞机带对, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
-							int 还差对牌数 = nSerialLength - listRemainingPairCards.size ();
+							int 还差对牌数 = nExpectedSerialLength - listRemainingPairCards.size ();
 							// 简便起见（不做的太智能，不考虑太多），只从 对子、三牌组 中取第一张
 							if (listRemainingTrioCards.size () >= 还差对牌数)
 							{	//
@@ -474,17 +684,20 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 									listRemainingCards.remove (listRemainingTrioCards.get (j));
 									listRemainingCards.remove (listRemainingTrioCards.get (j));
 								}
-								设置解出的一道牌 (listCards, mapResult, "飞机带对(拆了三牌组)", DouDiZhu.Type.飞机带对, s解出的一道牌, listRemainingCards);
+								设置解出的一道牌 (listCards, mapResult, "飞机带对(拆了三牌组)", DouDiZhu.Type.飞机带对, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 							}
 						}
 						break;
 				}
 			}
 			break;
-		case 2:
-			for (int i=0; i<=listUniqueCards.size () - nSerialLength; i++)
+		//case 2:
+		case 连对:
+			for (int i=0; i<=listUniqueCards.size () - nExpectedSerialLength; i++)
 			{
-				listSubList = listUniqueCards.subList (i, i + nSerialLength);	// 从不同的偏移量抽出 nSerialLength 张牌
+				if(DouDiZhu.RankToPoint (listUniqueCards.get (i)) <= n待打的牌的最小点)	// 假设顺子的最小点打不过待打的牌的最小点，则继续找
+					continue;
+				listSubList = listUniqueCards.subList (i, i + nExpectedSerialLength);	// 从不同的偏移量抽出 nSerialLength 张牌
 				mapSubCardsInfo = DouDiZhu.CalculateCards (listSubList);
 				if (! (boolean)mapSubCardsInfo.get ("IsSerial"))
 					continue;
@@ -492,7 +705,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				boolean 每张牌够张数 = true;
 				for (int j=0; j<listSubList.size (); j++)
 				{
-					if ((int)mapCardsInfo.get (listSubList.get (j)) < nCopy)
+					if ((int)mapCardsInfo.get (listSubList.get (j)) < nExpectedCopy)
 					{	// 只要有一张牌不够两张，本顺子就是无效的连对
 						每张牌够张数 = false;
 						break;
@@ -502,20 +715,23 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 					continue;
 
 				Log (mapResult, "########################################");
-				s解出的一道牌 = SerialToString (listSubList, nCopy);
+				s解出的一道牌 = SerialToString (listSubList);
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
-				for (int j=0; j<nCopy; j++)
+				for (int j=0; j<nExpectedCopy; j++)
 					for (String rank : listSubList)
 						listRemainingCards.remove (rank);
 
-				设置解出的一道牌 (listCards, mapResult, "连对", DouDiZhu.Type.连对, s解出的一道牌, listRemainingCards);
+				设置解出的一道牌 (listCards, mapResult, "连对", DouDiZhu.Type.连对, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			}
 			break;
-		case 1:
-			for (int i=0; i<=listUniqueCards.size () - nSerialLength; i++)	// 从不同的偏移量抽出 nSerialLength 张牌
+		//case 1:
+		case 顺子:
+			for (int i=0; i<=listUniqueCards.size () - nExpectedSerialLength; i++)	// 从不同的偏移量抽出 nSerialLength 张牌
 			{
-				listSubList = listUniqueCards.subList (i, i + nSerialLength);
+				if(DouDiZhu.RankToPoint (listUniqueCards.get (i)) <= n待打的牌的最小点)	// 假设顺子的最小点打不过待打的牌的最小点，则继续找
+					continue;
+				listSubList = listUniqueCards.subList (i, i + nExpectedSerialLength);
 				mapSubCardsInfo = DouDiZhu.CalculateCards (listSubList);
 				if (! (boolean)mapSubCardsInfo.get ("IsSerial"))
 					continue;
@@ -525,23 +741,23 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				//listSubCards.removeAll (listSubList);
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
-				for (int j=0; j<nCopy; j++)
+				for (int j=0; j<nExpectedCopy; j++)
 					for (String rank : listSubList)
 						listRemainingCards.remove (rank);
 				//Log (mapResult, "✓ 从不重复牌列表 " + listUniqueCards + " 偏移量 " + i + " 中找到了长度=" + nSerialLength + "的顺子 " + FormatCardPack (s解出的一道牌));
-				设置解出的一道牌 (listCards, mapResult, "顺子", DouDiZhu.Type.顺子, s解出的一道牌, listRemainingCards);
+				设置解出的一道牌 (listCards, mapResult, "顺子", DouDiZhu.Type.顺子, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 			}
 			break;
 		}
 	}
-	public static void EvaluateCards_Serials (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, int nSerialLength, int nCopy)
-	{
-		EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, nCopy, DouDiZhu.附带牌类型.不带牌);
-	}
-	public static void EvaluateCards_Serials (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, int nSerialLength)
-	{
-		EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, nSerialLength, 1, DouDiZhu.附带牌类型.不带牌);
-	}
+	//public static void EvaluateCards_Serials (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type 牌型, int nSerialLength, int nCopy, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
+	//{
+	//	EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, 牌型, nSerialLength, nCopy, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+	//}
+	//public static void EvaluateCards_Serials (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type 牌型, int nSerialLength, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
+	//{
+	//	EvaluateCards_Serials (sCurrentOperation, listCards, mapResult, 牌型, nSerialLength, 1, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+	//}
 	public static String SerialToString (List<String> listCards, int nCopy)
 	{
 		StringBuilder sb = new StringBuilder ();
@@ -557,18 +773,60 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		return SerialToString (listCards, 1);
 	}
 
-
-	// 再处理相对简单的单组牌（含单、对、三牌组、三牌组附带散牌的情况）
-	public static void EvaluateCards_Singles (String sCurrentOperation, final List<String> listCards, Map<String, Object> mapResult, int nCopy, DouDiZhu.附带牌类型 attachmentType /* 0:无附带的牌 1:单牌 2:对牌 */)
+	/**
+	 * 再处理相对简单的单组牌（含单、对、三牌组、三牌组附带散牌的情况）。
+	 * 注意，这里只根据相同牌型比较大小，不处理炸弹能打其他牌型的情况，需要由调用者自己判断。
+	 * @param sCurrentOperation
+	 * @param listCards
+	 * @param mapResult
+	 * @param expectedCardType 牌型。必须明确指定，不能为 null，不能为 .__未知牌型__，不能为序列牌型，不能为王炸
+	 * @param nExpectedCopy 主牌数量：单牌取值为 1、对子取值为 2、三牌取值为 3、普通炸弹取值为 4
+	 * @param 大于此点值
+	 * @param 拆牌
+	 * @param expectedCardType_Recursive
+	 * @param nExpectedSerialLength_Recursive
+	 * @param nExpectedCopy_Recursive
+	 */
+	public static void EvaluateCards_Singles (String sCurrentOperation, final List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type expectedCardType, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
 	{
 		//logger.entering (DouDiZhuBotPlayer_有点小智能的机器人.class.getName (), "EvaluateCards_Singles");
 		递归深度增加 (sCurrentOperation, mapResult, listCards);
+
 		if (listCards.isEmpty ())
 			return;
-		Map<String, Object> mapCardsInfo = DouDiZhu.CalculateCards (listCards);
-		if (listCards.size() < (nCopy + attachmentType.ordinal ()) )
+
+		if (expectedCardType!=DouDiZhu.Type.单
+			&& expectedCardType!=DouDiZhu.Type.对
+			&& expectedCardType!=DouDiZhu.Type.三 && expectedCardType!=DouDiZhu.Type.三带1 && expectedCardType!=DouDiZhu.Type.三带1对
+			&& expectedCardType!=DouDiZhu.Type.炸弹 && expectedCardType!=DouDiZhu.Type.四带2 && expectedCardType!=DouDiZhu.Type.四带2对
+		)
 			return;
 
+		DouDiZhu.附带牌类型 expectedAttachmentType = DouDiZhu.根据牌型获取附加牌类型 (expectedCardType); /* 0:无附带的牌 1:单牌 2:对牌 */
+		int nExpectedCopy = 0;
+		switch (expectedCardType)
+		{
+			case 单:
+				nExpectedCopy = 1;
+				break;
+			case 对:
+				nExpectedCopy = 2;
+				break;
+			case 三:
+			case 三带1:
+			case 三带1对:
+				nExpectedCopy = 3;
+				break;
+			case 炸弹:
+			case 四带2:
+			case 四带2对:
+				nExpectedCopy = 4;
+				break;
+		}
+		if (listCards.size() < (nExpectedCopy + expectedAttachmentType.ordinal ()) )
+			return;
+
+		Map<String, Object> mapCardsInfo = DouDiZhu.CalculateCards (listCards);
 		String s解出的一道牌 = null;
 		List<String> listRemainingCards = new ArrayList<String> ();
 		List<String> listSoloCards = (List<String>) mapCardsInfo.get ("SoloCards"), listRemainingSoloCards;
@@ -576,14 +834,20 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		List<String> listTrioCards = (List<String>) mapCardsInfo.get ("TrioCards"), listRemainingTrioCards;
 		List<String> listQuartetteCards = (List<String>) mapCardsInfo.get ("QuartetteCards"), listRemainingQuartetteCards;
 
-		switch (nCopy)
+		//switch (nExpectedCopy)
+		switch (expectedCardType)
 		{
-		case 4:
+		//case 4:
+		case 炸弹:
+		case 四带2:
+		case 四带2对:
 			if (listQuartetteCards.isEmpty ())
 				return;
 			for (String rank : listQuartetteCards)
 			{
 				Log (mapResult, "########################################");
+				if (DouDiZhu.RankToPoint (rank) <= 大于此点值)	// 假设牌的点值打不过待打的牌的，则继续找
+					continue;
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
 				listRemainingCards.remove (rank);
@@ -592,9 +856,9 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				listRemainingCards.remove (rank);
 				s解出的一道牌 = rank + rank + rank+ rank;
 
-				if (attachmentType == DouDiZhu.附带牌类型.不带牌)
+				if (expectedAttachmentType == DouDiZhu.附带牌类型.不带牌)
 				{
-					设置解出的一道牌 (listCards, mapResult, "炸弹（四牌组）", DouDiZhu.Type.炸弹, s解出的一道牌, listRemainingCards);
+					设置解出的一道牌 (listCards, mapResult, "炸弹（四牌组）", DouDiZhu.Type.炸弹, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					return;
 				}
 
@@ -604,7 +868,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				listRemainingTrioCards = (List<String>) mapCardsInfo.get ("TrioCards");
 				listRemainingQuartetteCards = (List<String>) mapCardsInfo.get ("QuartetteCards");
 
-				if (attachmentType == DouDiZhu.附带牌类型.带单)
+				if (expectedAttachmentType == DouDiZhu.附带牌类型.带单)
 				{	// 带两张单牌
 					if (listRemainingSoloCards.size () >= 2)
 					{
@@ -612,7 +876,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 						listRemainingCards.remove (listRemainingSoloCards.get (0));
 						listRemainingCards.remove (listRemainingSoloCards.get (1));
 						s解出的一道牌 = s解出的一道牌 + listRemainingSoloCards.get (0) + listRemainingSoloCards.get (1);
-						设置解出的一道牌 (listCards, mapResult, "四带2", DouDiZhu.Type.四带2, s解出的一道牌, listRemainingCards);
+						设置解出的一道牌 (listCards, mapResult, "四带2", DouDiZhu.Type.四带2, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					}
 					else if (listRemainingSoloCards.size () == 1)
 					{
@@ -634,7 +898,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 								s解出的一道牌 = s解出的一道牌 + listRemainingSoloCards.get (0) + listRemainingTrioCards.get (0);
 								Log (mapResult, "✓ 找到了四带2(拆三牌组) " + FormatCardPack (s解出的一道牌));
 							}
-							设置解出的一道牌 (listCards, mapResult, "四带2（拆了其他牌组中的1张）", DouDiZhu.Type.四带2, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "四带2（拆了其他牌组中的1张）", DouDiZhu.Type.四带2, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
@@ -662,7 +926,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 								s解出的一道牌 = s解出的一道牌 + listRemainingTrioCards.get (0) + listRemainingTrioCards.get (0);
 								Log (mapResult, "✓ 找到了四带2 " + FormatCardPack (s解出的一道牌));
 							}
-							设置解出的一道牌 (listCards, mapResult, "四带2（拆了其他牌组中的2张）", DouDiZhu.Type.四带2, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "四带2（拆了其他牌组中的2张）", DouDiZhu.Type.四带2, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
@@ -670,7 +934,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 						}
 					}
 				}
-				else if (attachmentType == DouDiZhu.附带牌类型.带对)
+				else if (expectedAttachmentType == DouDiZhu.附带牌类型.带对)
 				{	// 带两组对牌
 					if (listRemainingPairCards.size () >= 2)
 					{
@@ -680,7 +944,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 						listRemainingCards.remove (listRemainingPairCards.get (1));
 						listRemainingCards.remove (listRemainingPairCards.get (1));
 						s解出的一道牌 = s解出的一道牌 + listRemainingPairCards.get (0) + listRemainingPairCards.get (0) + listRemainingPairCards.get (1) + listRemainingPairCards.get (1);
-						设置解出的一道牌 (listCards, mapResult, "四带2对", DouDiZhu.Type.四带2对, s解出的一道牌, listRemainingCards);
+						设置解出的一道牌 (listCards, mapResult, "四带2对", DouDiZhu.Type.四带2对, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					}
 					else if (listRemainingPairCards.size () >= 1)
 					{
@@ -693,7 +957,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 							listRemainingCards.remove (listRemainingTrioCards.get (0));
 							listRemainingCards.remove (listRemainingTrioCards.get (0));
 							s解出的一道牌 = s解出的一道牌 + listRemainingPairCards.get (0) + listRemainingPairCards.get (0) + listRemainingTrioCards.get (0) + listRemainingTrioCards.get (0);
-							设置解出的一道牌 (listCards, mapResult, "四带2（拆了其他三牌组）", DouDiZhu.Type.四带2对, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "四带2（拆了其他三牌组）", DouDiZhu.Type.四带2对, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
@@ -712,7 +976,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 							listRemainingCards.remove (listRemainingQuartetteCards.get (0));
 							listRemainingCards.remove (listRemainingQuartetteCards.get (0));
 							s解出的一道牌 = s解出的一道牌 + listRemainingQuartetteCards.get (0) + listRemainingQuartetteCards.get (0) + listRemainingQuartetteCards.get (0) + listRemainingQuartetteCards.get (0);
-							设置解出的一道牌 (listCards, mapResult, "四带2对（两个炸弹组成 = =）", DouDiZhu.Type.四带2对, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "四带2对（两个炸弹组成 = =）", DouDiZhu.Type.四带2对, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
@@ -722,12 +986,17 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				}
 			}
 			break;
-		case 3:
+		//case 3:
+		case 三:
+		case 三带1:
+		case 三带1对:
 			if (listTrioCards.isEmpty ())
 				return;	// 这里也不从炸弹里面拆牌了，拆开后，出牌次数会更多
 			for (String rank : listTrioCards)
 			{
 				Log (mapResult, "########################################");
+				if (DouDiZhu.RankToPoint (rank) <= 大于此点值)	// 假设牌的点值打不过待打的牌的，则继续找
+					continue;
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
 				listRemainingCards.remove (rank);
@@ -735,9 +1004,9 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				listRemainingCards.remove (rank);
 				s解出的一道牌 =  rank + rank + rank;
 
-				if (attachmentType == DouDiZhu.附带牌类型.不带牌)
+				if (expectedAttachmentType == DouDiZhu.附带牌类型.不带牌)
 				{
-					设置解出的一道牌 (listCards, mapResult, "三牌组", DouDiZhu.Type.三, s解出的一道牌, listRemainingCards);
+					设置解出的一道牌 (listCards, mapResult, "三牌组", DouDiZhu.Type.三, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					return;
 				}
 
@@ -747,14 +1016,14 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				listRemainingTrioCards = (List<String>) mapCardsInfo.get ("TrioCards");
 				listRemainingQuartetteCards = (List<String>) mapCardsInfo.get ("QuartetteCards");
 
-				if (attachmentType == DouDiZhu.附带牌类型.带单)
+				if (expectedAttachmentType == DouDiZhu.附带牌类型.带单)
 				{	// 带 1 张单牌
 					if (listRemainingSoloCards.size () >= 1)
 					{
 						//Log (mapResult, "三带1 找到了 1 张单牌");
 						listRemainingCards.remove (listRemainingSoloCards.get (0));
 						s解出的一道牌 = s解出的一道牌 + listRemainingSoloCards.get (0);
-						设置解出的一道牌 (listCards, mapResult, "三带1", DouDiZhu.Type.三带1, s解出的一道牌, listRemainingCards);
+						设置解出的一道牌 (listCards, mapResult, "三带1", DouDiZhu.Type.三带1, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					}
 					else if (listRemainingSoloCards.isEmpty ())
 					{	// 根本没单牌，拿一个对子当单牌
@@ -775,7 +1044,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 								s解出的一道牌 = s解出的一道牌 + listRemainingTrioCards.get (0);
 								Log (mapResult, "找到了三带1(拆三) " + FormatCardPack (s解出的一道牌));
 							}
-							设置解出的一道牌 (listCards, mapResult, "三带1（拆了其他牌组的1张）", DouDiZhu.Type.三带1, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "三带1（拆了其他牌组的1张）", DouDiZhu.Type.三带1, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
@@ -783,7 +1052,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 						}
 					}
 				}
-				else if (attachmentType == DouDiZhu.附带牌类型.带对)
+				else if (expectedAttachmentType == DouDiZhu.附带牌类型.带对)
 				{	// 带 1 对牌
 					if (listRemainingPairCards.size () >= 1)
 					{
@@ -791,7 +1060,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 						listRemainingCards.remove (listRemainingPairCards.get (0));
 						listRemainingCards.remove (listRemainingPairCards.get (0));
 						s解出的一道牌 = s解出的一道牌 + listRemainingPairCards.get (0) + listRemainingPairCards.get (0);
-						设置解出的一道牌 (listCards, mapResult, "三带1对", DouDiZhu.Type.三带1对, s解出的一道牌, listRemainingCards);
+						设置解出的一道牌 (listCards, mapResult, "三带1对", DouDiZhu.Type.三带1对, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					}
 					else if (listRemainingPairCards.isEmpty ())
 					{	// 根本没1组对牌，拆其他 3 牌
@@ -802,7 +1071,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 							listRemainingCards.remove (listRemainingTrioCards.get (0));
 							listRemainingCards.remove (listRemainingTrioCards.get (0));
 							s解出的一道牌 = s解出的一道牌 + listRemainingTrioCards.get (0) + listRemainingTrioCards.get (0);
-							设置解出的一道牌 (listCards, mapResult, "三带1对（拆了其他三牌组的两张）", DouDiZhu.Type.三带1对, s解出的一道牌, listRemainingCards);
+							设置解出的一道牌 (listCards, mapResult, "三带1对（拆了其他三牌组的两张）", DouDiZhu.Type.三带1对, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 						}
 						else
 						{
@@ -812,50 +1081,58 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 				}
 			}
 			break;
-		case 2:
+		//case 2:
+		case 对:
 			if (listPairCards.isEmpty ())
 				return;	// 这里也不从三牌组、炸弹里面拆牌了，拆开后，出牌次数会更多
-			//for (String rank : listPairCards)
+			for (String rank : listPairCards)
 			{
-				String rank = listPairCards.get (0);	// 这里也不
+				//String rank = listPairCards.get (0);	// 这里也不
+				if (DouDiZhu.RankToPoint (rank) <= 大于此点值)	// 假设牌的点值打不过待打的牌的，则继续找
+					continue;
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
 				listRemainingCards.remove (rank);
 				listRemainingCards.remove (rank);
 				s解出的一道牌 = rank + rank;
 				//ResetCurrentCase (mapResult, listCopyOfCurrentCase);	// 对于不【循环尝试不同位置】的对子，就不需要复位当前出牌道
-				设置解出的一道牌 (listCards, mapResult, "对牌", DouDiZhu.Type.对, s解出的一道牌, listRemainingCards);
+				设置解出的一道牌 (listCards, mapResult, "对牌", DouDiZhu.Type.对, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+				break;
 			}
 			break;
-		case 1:
+		//case 1:
+		case 单:
 			if (listSoloCards.isEmpty ())
 				return;	// 这里也不从对子、三牌组、炸弹里面拆牌了，拆开后，出牌次数会更多
-			//for (String rank : listSoloCards)
+			for (String rank : listSoloCards)
 			{
-				String rank = listSoloCards.get (0);
+				//String rank = listSoloCards.get (0);
+				if (DouDiZhu.RankToPoint (rank) <= 大于此点值)	// 假设牌的点值打不过待打的牌的，则继续找
+					continue;
 				listRemainingCards.clear ();
 				listRemainingCards.addAll (listCards);
 				listRemainingCards.remove (rank);
 				s解出的一道牌 = rank;
 				//ResetCurrentCase (mapResult, listCopyOfCurrentCase);
-				设置解出的一道牌 (listCards, mapResult, "单牌", DouDiZhu.Type.单, s解出的一道牌, listRemainingCards);
+				设置解出的一道牌 (listCards, mapResult, "单牌", DouDiZhu.Type.单, s解出的一道牌, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+				break;
 			}
 			break;
 		}
 		//logger.exiting (DouDiZhuBotPlayer_有点小智能的机器人.class.getName (), "EvaluateCards_Singles");
 	}
-	public static void EvaluateCards_Singles (final String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, int nCopy)
-	{
-		EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, nCopy, DouDiZhu.附带牌类型.不带牌);
-	}
-	public static void EvaluateCards_Single (final String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult)
-	{
-		EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, 1, DouDiZhu.附带牌类型.不带牌);
-	}
+	//public static void EvaluateCards_Singles (final String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type expectedCardType, int nExpectedSerialLength, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
+	//{
+	//	EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+	//}
+	//public static void EvaluateCards_Single (final String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type expectedCardType, int 大于此点值, int 拆牌, DouDiZhu.Type expectedCardType_Recursive, int nExpectedSerialLength_Recursive)
+	//{
+	//	EvaluateCards_Singles (sCurrentOperation, listCards, mapResult, expectedCardType, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
+	//}
 
 
 	// 王炸单独处理
-	public static void EvaluateCards_王炸 (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult)
+	public static void EvaluateCards_王炸 (String sCurrentOperation, List<String> listCards, Map<String, Object> mapResult, DouDiZhu.Type expectedCardType, int nExpectedSerialLength, int 大于此点值, int 拆牌, DouDiZhu.Type cardType_Recursive, int nExpectedSerialLength_Recursive)
 	{
 		递归深度增加 (sCurrentOperation, mapResult, listCards);
 		if (listCards.isEmpty ())
@@ -874,7 +1151,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 			listRemainingCards.remove ("★");
 
 			s解出的一道牌 = "☆★";
-			设置解出的一道牌 (listCards, mapResult, "王炸", DouDiZhu.Type.王炸, s解出的一道牌, listRemainingCards);
+			设置解出的一道牌 (listCards, mapResult, "王炸", DouDiZhu.Type.王炸, s解出的一道牌, listRemainingCards, expectedCardType, nExpectedSerialLength, 大于此点值, 拆牌, cardType_Recursive, nExpectedSerialLength_Recursive);
 		}
 	}
 
@@ -958,11 +1235,23 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		}
 	}
 
-	static void 设置解出的一道牌 (List<String> listCards, Map<String, Object> mapResult, String sCardsDescription, DouDiZhu.Type type, String s解出的一道牌, List<String> listRemainingCards)
+	static void 设置解出的一道牌 (List<String> listCards, Map<String, Object> mapResult, String sCardsDescription, DouDiZhu.Type 解出的牌型, String s解出的一道牌, List<String> listRemainingCards, DouDiZhu.Type expectedCardType, int nExpectedSerialLength, int 大于此点值, int 拆牌, DouDiZhu.Type cardType_Recursive, int nExpectedSerialLength_Recursive)
 	{
+		//Set<String> set防止重复牌型 = (Set<String>)mapResult.get ("防止重复出牌方案");
+		//if (set防止重复牌型 == null)
+		//{
+		//	set防止重复牌型 = new HashSet<String> ();
+		//	mapResult.put ("防止重复出牌方案", set防止重复牌型);
+		//}
+		//if (set防止重复牌型.contains (s解出的一道牌))
+		//{	// 备注：因为目前没有对 对子拆牌，
+		//	return;
+		//}
+		//set防止重复牌型.add (s解出的一道牌);
+
 		int nDepth = (int)mapResult.get ("递归深度");
 		mapResult.put ("解出的一道牌_L" + nDepth, s解出的一道牌);
-		mapResult.put ("解出的一道牌的牌型_L" + nDepth, type);
+		mapResult.put ("解出的一道牌的牌型_L" + nDepth, 解出的牌型);
 		List<List<String>> listAlmostAllCases = (List<List<String>> )mapResult.get ("AlmostAllCases");
 		if (listAlmostAllCases == null)
 		{
@@ -991,13 +1280,29 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 
 		Log (mapResult, "✓ 找到了" + sCardsDescription + " " + FormatCardPack (s解出的一道牌));
 		Log (mapResult, "第 " + listAlmostAllCases.size () + " 分支=" + listCurrentCase);
-		if (listRemainingCards.isEmpty ())
+		if (不限牌型(expectedCardType) && listRemainingCards.isEmpty () || (解出的牌型 == expectedCardType))
 		{
 			设置最后一道牌标志 (mapResult);
 			mapResult.remove ("CurrentCase");
+
+			int n最少出牌次数 = mapResult.get ("MinSteps")==null ? 14 : (int)mapResult.get ("MinSteps");
+			if (listCurrentCase.size () <= n最少出牌次数)
+			{
+				mapResult.put ("MinSteps", listCurrentCase.size ());
+				List<List<String>> listMinStepsSolutions = (List<List<String>>) mapResult.get ("MinStepsSolutions");
+				if (listMinStepsSolutions == null)
+				{
+					listMinStepsSolutions = new ArrayList<List<String>> ();
+					mapResult.put ("MinStepsSolutions", listMinStepsSolutions);
+				}
+				if (listCurrentCase.size () < n最少出牌次数)	// 有更少出牌次数的方案，则清理掉原来的方案列表，从头开始
+					listMinStepsSolutions.clear ();
+
+				listMinStepsSolutions.add (listCurrentCase);
+			}
 		}
 		else //if (! listRemainingCards.isEmpty ())
-			EvaluateCards_Recursive ("找到 " + sCardsDescription + " " + s解出的一道牌 + " 后，递归处理剩下的牌", listRemainingCards, mapResult);
+			EvaluateCards_Recursive ("找到 " + sCardsDescription + " " + s解出的一道牌 + " 后，递归处理剩下的牌", listRemainingCards, mapResult, cardType_Recursive, nExpectedSerialLength_Recursive, 大于此点值, 拆牌, cardType_Recursive, nExpectedSerialLength_Recursive);
 	}
 	static void 设置最后一道牌标志 (Map<String, Object> mapResult)
 	{
@@ -1050,18 +1355,10 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		List<String> listCurrentCase = (List<String>)mapResult.get ("CurrentCase");
 		List<List<String>> listAlmostAllCases = (List<List<String>> )mapResult.get ("AlmostAllCases");
 		Log (mapResult, FormatCardPack("第 " + listAlmostAllCases.size () + " 分支已到尽头，出牌次数 = " + listCurrentCase.size () + "，出牌=" + listCurrentCase, ANSIEscapeTool.CSI + "41;1m"));
-		if (listAlmostAllCases.size () == 6)
-		{
-System.out.println ("测试 3334445 时，到了第 7 分支发现有问题：少了前面解出的一道牌 333，只有 444,5 了。所以，从第 6 分支看起，看看什么问题");
-		}
-		if (listAlmostAllCases.size () == 7)
-		{
-System.out.println ("测试 3334445 时，到了第 7 分支发现有问题：少了前面解出的一道牌 333，只有 444,5 了，看看什么问题");
-		}
 	}
 
 	@Override
-	public Object 抢地主 (Object... params)
+	public Object 抢地主 (Object... args)
 	{
 		// 评估手牌情况，决定抢不抢地主
 		// 底牌，有可能增强手牌，也完全有可能多出 3 张废牌、多出 3 道单牌！
@@ -1166,13 +1463,13 @@ System.out.println ("测试 3334445 时，到了第 7 分支发现有问题：�
 	}
 
 	@Override
-	public Object 出牌 (Object... params)
+	public Object 出牌 (Object... args)
 	{
 		return null;
 	}
 
 	@Override
-	public Object 回牌 (Object... params)
+	public Object 回牌 (Object... args)
 	{
 		return null;
 	}
@@ -1181,13 +1478,57 @@ System.out.println ("测试 3334445 时，到了第 7 分支发现有问题：�
 	{
 		if (args.length == 0)
 		{
-			System.err.println ("用法： java " + DouDiZhuBotPlayer_有点小智能的机器人.class.getCanonicalName () + " [斗地主牌组（只需要牌面，不需要花色）]..." );
+			System.err.println ("用法： java " + DouDiZhuBotPlayer_有点小智能的机器人.class.getCanonicalName () + " <斗地主牌组（只需要牌面，不需要花色）> [寻找的牌型名 <序列长度> <大于此点值>]" );
 		}
 
-		for (String arg : args)
+		String sCardRanks =args[0];
+		String sCardType = null;
+		DouDiZhu.Type cardType = null;
+		String sSerialLength = null;
+		int nSerialLength = 0;
+		//String sCopy = null;
+		//int nCopy = 0;
+		String sBiggerThanThis = null;
+		int nBiggerThanThis = 0;
+		if (args.length > 1)
 		{
-			List<String> listCards = DouDiZhu.AnswerToCardRanksList (arg);
-			EvaluateCards (listCards);
+			sCardType = args[1];
+			cardType = DouDiZhu.Type.valueOf (sCardType);
+		}
+		if (args.length > 2)
+		{
+			sSerialLength = args[2];
+			nSerialLength = Integer.parseInt (sSerialLength);
+		}
+		//if (args.length > 3)
+		//{
+		//	sCopy = args[3];
+		//	nCopy = Integer.parseInt (sCopy);
+		//}
+		if (args.length > 3)
+		{
+			sBiggerThanThis = args[3];
+			nBiggerThanThis = Integer.parseInt (sBiggerThanThis);
+		}
+
+		//for (String arg : args)
+		{
+			List<String> listCards = DouDiZhu.AnswerToCardRanksList (sCardRanks);
+			Map<String, Object> mapResult = EvaluateCards (listCards, cardType, nSerialLength, nBiggerThanThis, 0);
+
+System.out.print (sCardRanks + " 寻找牌型为" + cardType + "(序列长度:" + nSerialLength + ", 大于此点值:" + nBiggerThanThis + ") 最少出牌次数：" + mapResult.get ("MinSteps") + "，");
+			List<List<String>> listSolutions = (List<List<String>>)mapResult.get ("MinStepsSolutions");
+			if (listSolutions == null)
+				System.out.println ("未找到任何方案");
+			else
+			{
+	System.out.println ("最少出牌次数的所有方案有 " + listSolutions.size () + " 个：");
+				for (int i=0; i<listSolutions.size (); i++)
+				{
+System.out.println ((i+1) + ": " + listSolutions.get (i));
+				}
+			}
+//System.out.println (arg + " 的所有单道牌：" + mapResult.get ("防止重复出牌方案"));
 		}
 	}
 }

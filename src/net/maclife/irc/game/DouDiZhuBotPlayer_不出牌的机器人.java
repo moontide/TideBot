@@ -15,7 +15,7 @@ public class DouDiZhuBotPlayer_不出牌的机器人 extends DouDiZhuBotPlayer
 	}
 
 	@Override
-	public Object 抢地主 (Object... params)
+	public Object 抢地主 (Object... args)
 	{
 		return "n";
 	}

@@ -5,15 +5,15 @@ import java.util.*;
 import org.apache.commons.lang3.*;
 
 /**
- * 比不出牌的机器人稍微复杂一点的机器人：能出牌就出牌的机器人 / 见谁都打的的机器人！！！
- * 1. 如果抢地主，一定要 3 分
- * 2. 如果自己回合出牌，
+ * 比不出牌的机器人稍微复杂一点的机器人：能出牌就出牌的机器人 / 见谁都打的的机器人！！！<br/>
+ * 1. 如果抢地主，一定要 3 分<br/>
+ * 2. 如果自己回合出牌，<br/>
  *    <s>只出一个最小的单牌（其实是不出牌，依赖于本 IRCBot 对斗地主游戏的实现）</s>
- *    只从单牌、对牌、三牌组、四牌组中 顺序，简单的出 1 组牌 -- 不出三带1、三带2、四带2、四带2对之类的组合牌
- * 3. 如果是回其他人的牌，则能打就打，不管是不是自己的队友（农民角色时）
- *    但是，不计算最优出牌方式、不拆牌，只按牌型找，找到一个能打的，就出牌
- *
- * 所以，这个也是一个傻机器人。
+ *    只从单牌、对牌、三牌组、四牌组中 顺序，简单的出 1 组牌 -- 不出三带1、三带2、四带2、四带2对之类的组合牌<br/>
+ * 3. 如果是回其他人的牌，则能打就打，不管是不是自己的队友（农民角色时）<br/>
+ *    但是，不计算最优出牌方式、不拆牌，只按牌型找（炸弹、王炸只打炸弹牌，不打其他牌型…），找到一个能打的，就出牌<br/>
+ *<br/>
+ * 所以，这个也是一个傻机器人。<br/>
  * 因为谁都打，所以，建议让本机器人当地主。
  * @author liuyan
  *
@@ -27,18 +27,18 @@ public class DouDiZhuBotPlayer_能出牌就出牌的机器人 extends DouDiZhuBo
 	}
 
 	@Override
-	public Object 抢地主 (Object... params)
+	public Object 抢地主 (Object... args)
 	{
 		return "3";
 	}
 
 	@Override
-	public Object 出牌 (Object... params)
+	public Object 出牌 (Object... args)
 	{
-		if (params.length < 1)
+		if (args.length < 1)
 			throw new IllegalArgumentException ("斗地主的游戏机器人，出牌 函数至少需要 1 个参数： 1.自己剩余的手牌");
 
-		List<Map<String, Object>> player_cards = (List<Map<String, Object>>) params[0];
+		List<Map<String, Object>> player_cards = (List<Map<String, Object>>) args[0];
 		Map<String, Object> mapCardsInfo = DouDiZhu.CalculatePlayerCards (player_cards);
 		List<String> listSoloCards = (List<String>) mapCardsInfo.get ("SoloCards");
 		List<String> listPairCards = (List<String>) mapCardsInfo.get ("PairCards");
