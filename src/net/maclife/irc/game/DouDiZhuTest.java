@@ -170,4 +170,107 @@ System.out.println ("牌型测试 结束");
 		mapResult = DouDiZhuBotPlayer_有点小智能的机器人.EvaluateCards (listCardRanks);
 		assertEquals (1, mapResult.get ("MinSteps"));
 	}
+
+	@Test
+	public void 测试Set包含重复条目的情况_MutableElements ()
+	{
+Set<List<Map<String, Object>>> setSolutions = new LinkedHashSet<List<Map<String, Object>>> ();
+Map<String, Object> card11 = new HashMap<String, Object> ();
+	card11.put ("牌型", DouDiZhu.Type.三);
+	card11.put ("牌", "999");
+	card11.put ("SerialLength", 0);
+	card11.put ("MaxPoint", 9);
+Map<String, Object> card12 = new HashMap<String, Object> ();
+	card12.put ("牌型", DouDiZhu.Type.顺子);
+	card12.put ("牌", "567890jq");
+	card12.put ("SerialLength", 8);
+	card12.put ("MaxPoint", 12);
+Map<String, Object> card21 = new HashMap<String, Object> ();
+	card21.put ("牌型", DouDiZhu.Type.顺子);
+	card21.put ("牌", "567890jq");
+	card21.put ("SerialLength", 8);
+	card21.put ("MaxPoint", 12);
+Map<String, Object> card22 = new HashMap<String, Object> ();
+	card22.put ("牌型", DouDiZhu.Type.三);
+	card22.put ("牌", "999");
+	card22.put ("SerialLength", 0);
+	card22.put ("MaxPoint", 9);
+
+System.out.println ("card11 == card22 ? " + card11.equals (card22));
+System.out.println ("card12 == card21 ? " + card12.equals (card21));
+System.out.println ("card11 == card12 ? " + card11.equals (card12));
+
+List<Map<String, Object>> solution1 = new ArrayList<Map<String, Object>> ();
+List<Map<String, Object>> solution2 = new ArrayList<Map<String, Object>> ();
+System.out.println ("empty solution1 == empty solution2 ? " + solution1.equals (solution2));
+solution1.add (card11);
+solution1.add (card12);
+
+solution2.add (card21);
+solution2.add (card22);
+
+System.out.println ("solution1 == solution2 (before sort) ? " + solution1.equals (solution2));
+
+
+setSolutions.add (solution1);
+setSolutions.add (solution2);
+System.out.println (setSolutions);
+
+Collections.sort (solution1, DouDiZhu.斗地主不同牌型比较器);
+Collections.sort (solution2, DouDiZhu.斗地主不同牌型比较器);
+System.out.println ("solution1 == solution2 (after sort) ? " + solution1.equals (solution2));
+System.out.println (setSolutions);
+
+Set<List<Map<String, Object>>> setSolutions_NoDuplicatedEntry = new LinkedHashSet<List<Map<String, Object>>> ();
+setSolutions_NoDuplicatedEntry.add (solution1);
+setSolutions_NoDuplicatedEntry.add (solution2);
+System.out.println ("setSolutions_NoDuplicatedEntry:");
+System.out.println (setSolutions_NoDuplicatedEntry);
+	}
+
+	@Test
+	public void 测试Set包含重复条目的情况_MutableElements_2 ()
+	{
+Set<List<String>> setSolutions = new LinkedHashSet<List<String>> ();
+
+List<String> solution1 = new ArrayList<String> ();
+List<String> solution2 = new ArrayList<String> ();
+List<String> solution3 = new ArrayList<String> ();
+System.out.println ("empty solution1 == empty solution2 ? " + solution1.equals (solution2));
+solution1.add ("999");
+solution1.add ("567890jq");
+
+solution2.add ("567890jq");
+solution2.add ("999");
+
+System.out.println ("solution1 == solution2 (before sort) ? " + solution1.equals (solution2));
+
+
+setSolutions.add (solution1);
+setSolutions.add (solution2);
+System.out.println ("solutions");
+System.out.println (setSolutions);
+
+Collections.sort (solution1);
+Collections.sort (solution2);
+System.out.println ("solution1 == solution2 (after sort) ? " + solution1.equals (solution2));
+System.out.println (setSolutions);
+
+
+solution3.add ("2222");
+solution3.add ("dwxw");
+solution3.add ("3334");
+solution3.add ("55667788");
+solution3.add ("999101010jq");
+setSolutions.add (solution3);
+setSolutions.add (solution2);
+System.out.println ("solutions - after add solution3 and then solution2 (again)");
+System.out.println (setSolutions);
+
+
+Set<List<String>> setSolutions_NoDuplicatedEntry = new LinkedHashSet<List<String>> ();
+setSolutions_NoDuplicatedEntry.addAll (setSolutions);
+System.out.println ("setSolutions_NoDuplicatedEntry:");
+System.out.println (setSolutions_NoDuplicatedEntry);
+	}
 }
