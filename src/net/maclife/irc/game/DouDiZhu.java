@@ -869,41 +869,27 @@ public class DouDiZhu extends CardGame
 	 * 不同牌型排序比较器，用于对手牌的几道牌排序。
 	 * 排序规则：
 	 * <ul>
-	 * <li>单牌在最前面，都是单牌的，点数小的在最前。</li>
+	 * <li>相同牌型的，点数小的在前面</li>
 	 * <li></li>
-	 * <li></li>
-	 * <li></li>
-	 * <li></li>
-	 * <li></li>
-	 * <li></li>
-	 * <li></li>
+	 * <li>单牌在最前面</li>
+	 * <li>单组牌：“对”在“三”前面、“三带1”/“三带1对”/“三”在“四带2”/“四带2对”前面。注意：“三带1”在“三带1对”前、“三带1对”在“三”前面？</li>
+	 * <li>序列牌：长度短的在前面，相同牌型的序列牌，点数小的在前面</li>
+	 * <li>单牌组和序列牌：…… TODO ……</li>
+	 * <li>炸弹在王炸前面，都是炸弹的按大小排列</li>
+	 * <li>王炸在最后</li>
 	 * </ul>
 	 * @author liuyan
 	 *
 	 */
-	static class DDZGroupComparator implements Comparator<List<String>>
+	static class DDZCardGroupComparator implements Comparator<Map<String, Object>>
 	{
 		@Override
-		public int compare (List<String> o1, List<String> o2)
+		public int compare (Map<String, Object> o1, Map<String, Object> o2)
 		{
-			int v1 = 0;
-			int v2 = 0;
-			if (o1 instanceof Map)	// Map<String, Object> 牌的 Map 对象
-			{
-				Map<String, Object> card1 = (Map<String, Object>)o1;
-				Map<String, Object> card2 = (Map<String, Object>)o2;
-				v1 = (int)card1.get ("point");
-				v2 = (int)card2.get ("point");
-			}
-			//else if (o1 instanceof String)	// 只有牌的 rank
-			//{
-			//	v1 = RankToPoint ((String)o1);
-			//	v2 = RankToPoint ((String)o2);
-			//}
-			//System.out.println (o1 + " - " + o2 + " = " + v1 + " - " + v2 + " = " + (v1-v2));
-			return v1-v2;
+			return CompareCardsForDiffernetType (o1, o2);
 		}
 	}
+	public static final Comparator<Map<String, Object>> 斗地主不同牌型比较器 = new DDZCardGroupComparator ();
 
 	/**
 	 * 	生成单个玩家的牌的信息
@@ -1009,28 +995,28 @@ public class DouDiZhu extends CardGame
 	 * @return Type 牌型
 	 * @throws IllegalArgumentException 如果牌型不正确，则通常会抛出 IllegalArgumentException 异常
 	 */
-	public static Type GetCardsType (List<String> listCardRanks)
+	public static Type GetCardsType (Map<String, Object> mapCalculateResult, Type asThisType)
 	{
-		Map<String, Object> result = CalculateCards (listCardRanks);
-		int nSolo = (int)result.get ("nSolo");
-		int nPair = (int)result.get ("nPair");
-		int nTrio = (int)result.get ("nTrio");
-		int nQuartette = (int)result.get ("nQuartette");
-		int nPrimaryCardType = (int)result.get ("PrimaryCardType");
-		boolean isSerial = (boolean)result.get ("IsSerial");
-		int nCards = listCardRanks.size ();
-		switch (nPrimaryCardType)
+		int nSolo = (int)mapCalculateResult.get ("nSolo");
+		int nPair = (int)mapCalculateResult.get ("nPair");
+		int nTrio = (int)mapCalculateResult.get ("nTrio");
+		int nQuartette = (int)mapCalculateResult.get ("nQuartette");
+		int nPrimaryCardCount = (int)mapCalculateResult.get ("PrimaryCardCount");
+		boolean isSerial = (boolean)mapCalculateResult.get ("IsSerial");
+		boolean isBomb = (boolean)mapCalculateResult.get ("IsBomb");
+		int nLength = (int)mapCalculateResult.get ("Length");	// listCardRanks.size ();
+		switch (nPrimaryCardCount)
 		{
 		case 4:
 			if (nQuartette == 1)
 			{
 				if (nTrio!=0)
 					throw new IllegalArgumentException ("四张牌不能带 3 张牌");
-				if (nSolo==0 && nPair==2 && nCards==CalculateCardCount(1,0,2,0))
+				if (nSolo==0 && nPair==2 && nLength==CalculateCardCount(1,0,2,0))
 					return Type.四带2对;
-				if ( ((nSolo==2 && nPair==0) || (nSolo==0 && nPair==1)) && nCards==CalculateCardCount(1,0,0,2))
+				if ( ((nSolo==2 && nPair==0) || (nSolo==0 && nPair==1)) && nLength==CalculateCardCount(1,0,0,2))
 					return Type.四带2;
-				if (nSolo==0 && nPair==0 && nCards==CalculateCardCount(1,0,0,0))
+				if (nSolo==0 && nPair==0 && nLength==CalculateCardCount(1,0,0,0))
 					return Type.炸弹;
 				throw new IllegalArgumentException ("四张牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌");
 			}
@@ -1048,11 +1034,11 @@ public class DouDiZhu extends CardGame
 
 				if (!isSerial)
 					throw new IllegalArgumentException (nTrio + " 组四张牌不是顺子/飞机");
-				if (nSolo==0 && nPair==0 && nCards==CalculateCardCount(nQuartette,0,0,0))
+				if (nSolo==0 && nPair==0 && nLength==CalculateCardCount(nQuartette,0,0,0))
 					return Type.大飞机;
-				if (nSolo==0 && nPair==nQuartette*2 && nCards==CalculateCardCount(nQuartette,0,nQuartette*2,0))
+				if (nSolo==0 && nPair==nQuartette*2 && nLength==CalculateCardCount(nQuartette,0,nQuartette*2,0))
 					return Type.大飞机带2对;
-				if (nCards==(CalculateCardCount(nTrio,nPair,nSolo)*2 + nQuartette*4))	// 对子和三牌，可被当成多张单牌附加牌计算
+				if (nLength==(CalculateCardCount(nTrio,nPair,nSolo)*2 + nQuartette*4))	// 对子和三牌，可被当成多张单牌附加牌计算
 					return Type.大飞机带2单;
 
 				// FIXME 参见已知问题
@@ -1104,7 +1090,7 @@ public class DouDiZhu extends CardGame
 		case 1:
 			if (isSerial && nSolo>=5)
 				return Type.顺子;
-			else if (nSolo==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★"))	//大王、小王两张牌一起出的情况做特殊处理：王炸
+			else if (nSolo==2 && isBomb)	//大王、小王两张牌一起出的情况做特殊处理：王炸
 				return Type.王炸;
 			else if (nSolo == 1)
 				return Type.单;
@@ -1113,6 +1099,29 @@ public class DouDiZhu extends CardGame
 			//break;
 		}
 		return Type.__未知牌型__;
+	}
+	public static Type GetCardsType (List<String> listCardRanks, Map<String, Object> mapCalculateResult, Type asThisType)
+	{
+		if (mapCalculateResult==null)
+			mapCalculateResult = CalculateCards (listCardRanks);
+
+		return GetCardsType (mapCalculateResult, asThisType);
+	}
+	public static Type GetCardsType (Map<String, Object> mapCalculateResult)
+	{
+		return GetCardsType (mapCalculateResult, null);
+	}
+	public static Type GetCardsType (List<String> listCardRanks, Map<String, Object> mapCalculateResult)
+	{
+		return GetCardsType (listCardRanks, mapCalculateResult, null);
+	}
+	public static Type GetCardsType (List<String> listCardRanks, Type asThisType)
+	{
+		return GetCardsType (listCardRanks, null, asThisType);
+	}
+	public static Type GetCardsType (List<String> listCardRanks)
+	{
+		return GetCardsType (listCardRanks, null, null);
 	}
 
 	/**
@@ -1150,7 +1159,7 @@ public class DouDiZhu extends CardGame
 	 * @param listCardRanks
 	 * @return 如果 listCardRanks 是空的或者等于 null，则返回空 Map 对象； 否则返回一个有内容的 Map 对象，其中包含的 key 有
 	 * <dl>
-	 * 	<dt>PrimaryCardType<dt>
+	 * 	<dt>PrimaryCardCount<dt>
 	 * 	<dd>主牌牌型。整数类型。这个牌型仅仅是主牌是 1张牌 2张牌 3张牌 4张牌 的意思</dd>
 	 * 	<dt>PrimaryCards<dt>
 	 * 	<dd>主牌列表。List&lt;String&gt; 类型。这个列表，并非 333444 这样有重复牌的列表，只是 key 的列表，如： 34。</dd>
@@ -1208,12 +1217,12 @@ public class DouDiZhu extends CardGame
 		int nPair = 0;
 		int nTrio = 0;
 		int nQuartette = 0;
-		int nPrimaryCardType = 0;
+		int nPrimaryCardCount = 0;
 		for (Object o : result.values ())
 		{
 			int n = (int)o;
-			if (nPrimaryCardType < n)
-				nPrimaryCardType = n;
+			if (nPrimaryCardCount < n)
+				nPrimaryCardCount = n;
 			switch (n)
 			{
 			case 1:
@@ -1255,7 +1264,7 @@ public class DouDiZhu extends CardGame
 				listQuartetteCards.add (k);
 				break;
 			}
-			if ((int)result.get (k) == nPrimaryCardType)
+			if ((int)result.get (k) == nPrimaryCardCount)
 				listPrimaryCards.add (k);
 		}
 		Collections.sort (listSoloCards, 斗地主点值比较器);
@@ -1266,13 +1275,20 @@ public class DouDiZhu extends CardGame
 		listUniqueCards.addAll (setCardRanks);
 		int nMinPoint = RankToPoint (listPrimaryCards.get (0));	// 主牌排序后的第一张牌做最小点数
 		int nMaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
-		boolean IsSerial = IsSerial (listPrimaryCards);
+		boolean bIsSerial = IsSerial (listPrimaryCards);
+		int nSerialLength = 0;
+		if (bIsSerial)
+		{
+			nSerialLength = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1)) - RankToPoint (listPrimaryCards.get (0)) + 1;
+		}
 
 		// 保存结果
+		result.put ("Length", listCardRanks.size ());
+
 		result.put ("CardRanksSet", setCardRanks);
 		result.put ("UniqueCards", listUniqueCards);
 
-		result.put ("PrimaryCardType", nPrimaryCardType);
+		result.put ("PrimaryCardCount", nPrimaryCardCount);
 		result.put ("PrimaryCards", listPrimaryCards);
 		result.put ("MinPoint", nMinPoint);
 		result.put ("MaxPoint", nMaxPoint);
@@ -1282,8 +1298,9 @@ public class DouDiZhu extends CardGame
 		result.put ("TrioCards", listTrioCards);
 		result.put ("QuartetteCards", listQuartetteCards);
 
-		result.put ("IsBomb", (nPrimaryCardType>=4 && nTrio==0 && nPair==0 && nSolo==0) || (listCardRanks.size ()==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★")));
-		result.put ("IsSerial", IsSerial);
+		result.put ("IsBomb", (nPrimaryCardCount>=4 && nTrio==0 && nPair==0 && nSolo==0) || (listCardRanks.size ()==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★")));
+		result.put ("IsSerial", bIsSerial);
+		result.put ("SerialLength", nSerialLength);
 		result.put ("nSolo", nSolo);
 		result.put ("nPair", nPair);
 		result.put ("nTrio", nTrio);
@@ -1345,23 +1362,25 @@ public class DouDiZhu extends CardGame
 		assert mapCardsInfo1 != null;
 		assert mapCardsInfo2 != null;
 
-		int nPrimaryCardType1 = (int)mapCardsInfo1.get ("PrimaryCardType");
+		Type cardType1 = GetCardsType (mapCardsInfo1);
+		//int nPrimaryCardCount1 = (int)mapCardsInfo1.get ("PrimaryCardCount");
 		int nMaxPoint1 = (int)mapCardsInfo1.get ("MaxPoint");
-		int nSolo1 = (int)mapCardsInfo1.get ("nSolo");
-		int nPair1 = (int)mapCardsInfo1.get ("nPair");
-		int nTrio1 = (int)mapCardsInfo1.get ("nTrio");
-		int nQuartette1 = (int)mapCardsInfo1.get ("nQuartette");
+		//int nSolo1 = (int)mapCardsInfo1.get ("nSolo");
+		//int nPair1 = (int)mapCardsInfo1.get ("nPair");
+		//int nTrio1 = (int)mapCardsInfo1.get ("nTrio");
+		//int nQuartette1 = (int)mapCardsInfo1.get ("nQuartette");
 		boolean isBomb1 = (boolean)mapCardsInfo1.get ("IsBomb");
-		//boolean isSerial1 = (boolean)cards1.get ("IsSerial");
+		//boolean isSerial1 = (boolean)mapCardsInfo1.get ("IsSerial");
 
-		int nPrimaryCardType2 = (int)mapCardsInfo2.get ("PrimaryCardType");
+		Type cardType2 = GetCardsType (mapCardsInfo2);
+		//int nPrimaryCardCount2 = (int)mapCardsInfo2.get ("PrimaryCardCount");
 		int nMaxPoint2 = (int)mapCardsInfo2.get ("MaxPoint");
-		int nSolo2 = (int)mapCardsInfo2.get ("nSolo");
-		int nPair2 = (int)mapCardsInfo2.get ("nPair");
-		int nTrio2 = (int)mapCardsInfo2.get ("nTrio");
-		int nQuartette2 = (int)mapCardsInfo2.get ("nQuartette");
+		//int nSolo2 = (int)mapCardsInfo2.get ("nSolo");
+		//int nPair2 = (int)mapCardsInfo2.get ("nPair");
+		//int nTrio2 = (int)mapCardsInfo2.get ("nTrio");
+		//int nQuartette2 = (int)mapCardsInfo2.get ("nQuartette");
 		boolean isBomb2 = (boolean)mapCardsInfo2.get ("IsBomb");
-		//boolean isSerial2 = (boolean)cards2.get ("IsSerial");
+		//boolean isSerial2 = (boolean)mapCardsInfo2.get ("IsSerial");
 
 		if (isBomb1)
 		{
@@ -1381,15 +1400,531 @@ public class DouDiZhu extends CardGame
 			}
 			else
 			{	// 普通牌 vs 普通牌
-				if (nPrimaryCardType1==nPrimaryCardType2
-					&& nSolo1==nSolo2
-					&& nPair1==nPair2
-					&& nTrio1==nTrio2
-					&& nQuartette1==nQuartette2
+				if (//nPrimaryCardCount1==nPrimaryCardCount2
+					//&& nSolo1==nSolo2
+					//&& nPair1==nPair2
+					//&& nTrio1==nTrio2
+					//&& nQuartette1==nQuartette2
+					// 上面可能存在问题：比如，4带2，有可能带一对（当做两张单牌）
+						cardType1 == cardType2
 					)
 					return nMaxPoint1 - nMaxPoint2;
 				else
 					throw new IllegalArgumentException ("牌型不一致，无法比较");
+			}
+		}
+	}
+
+	public static int CompareCardsForDiffernetType (Map<String, Object> card1, Map<String, Object> card2)
+	{
+		assert card1 != null;
+		assert card2 != null;
+
+		String sCards1 = (String) card1.get ("牌");
+		String sCards2 = (String) card2.get ("牌");
+		//int v1 = 0;
+		//int v2 = 0;
+		List<String> list1 = AnswerToCardRanksList (sCards1);
+		List<String> list2 = AnswerToCardRanksList (sCards2);
+		//v1 = (int)mapCardsInfo1.get ("point");
+		//v2 = (int)mapCardsInfo2.get ("point");
+		//return v1-v2;
+
+		Map<String, Object> mapCardsInfo1 = DouDiZhu.CalculateCards (list1);
+		Map<String, Object> mapCardsInfo2 = DouDiZhu.CalculateCards (list2);
+
+		Type cardType1 = GetCardsType (list1, mapCardsInfo1);
+		int nLength1 = (int)mapCardsInfo1.get ("Length");
+		//int nPrimaryCardCount1 = (int)mapCardsInfo1.get ("PrimaryCardCount");
+		int nMaxPoint1 = (int)mapCardsInfo1.get ("MaxPoint");
+		//int nSolo1 = (int)mapCardsInfo1.get ("nSolo");
+		//int nPair1 = (int)mapCardsInfo1.get ("nPair");
+		//int nTrio1 = (int)mapCardsInfo1.get ("nTrio");
+		//int nQuartette1 = (int)mapCardsInfo1.get ("nQuartette");
+		boolean isBomb1 = (boolean)mapCardsInfo1.get ("IsBomb");
+		//boolean isSerial1 = (boolean)mapCardsInfo1.get ("IsSerial");
+		//int inSerialLength1 = (int)mapCardsInfo1.get ("SerialLength");
+
+		Type cardType2 = GetCardsType (list2, mapCardsInfo2);
+		int nLength2 = (int)mapCardsInfo2.get ("Length");
+		//int nPrimaryCardCount2 = (int)mapCardsInfo2.get ("PrimaryCardCount");
+		int nMaxPoint2 = (int)mapCardsInfo2.get ("MaxPoint");
+		//int nSolo2 = (int)mapCardsInfo2.get ("nSolo");
+		//int nPair2 = (int)mapCardsInfo2.get ("nPair");
+		//int nTrio2 = (int)mapCardsInfo2.get ("nTrio");
+		//int nQuartette2 = (int)mapCardsInfo2.get ("nQuartette");
+		boolean isBomb2 = (boolean)mapCardsInfo2.get ("IsBomb");
+		//boolean isSerial2 = (boolean)mapCardsInfo2.get ("IsSerial");
+		//int inSerialLength2 = (int)mapCardsInfo2.get ("SerialLength");
+
+		if (isBomb1)
+		{
+			if (isBomb2)
+			{	// 炸弹 vs 炸弹，简单：比较点数值即可 （现在只有一副牌，如果有多副牌，炸弹牌的张数也要考虑进去）
+				return nMaxPoint1 - nMaxPoint2;
+			}
+			else
+				// 炸弹 vs 普通牌，简单：打的过
+				return 1;
+		}
+		else
+		{
+			if (isBomb2)
+			{	// 非炸弹 vs 炸弹，简单：打不过
+				return -1;	// throw new IllegalArgumentException ("打不过炸弹");
+			}
+			else
+			{	// 普通牌 vs 普通牌
+				if (//nPrimaryCardCount1==nPrimaryCardCount2
+					//&& nSolo1==nSolo2
+					//&& nPair1==nPair2
+					//&& nTrio1==nTrio2
+					//&& nQuartette1==nQuartette2
+					// 上面可能存在问题：比如，4带2，有可能带一对（当做两张单牌）
+						cardType1 == cardType2
+						&& nLength1 == nLength2	// 序列牌的长度可能不同 -- 不能比较，所以也要确保长度相同。
+					)
+					return nMaxPoint1 - nMaxPoint2;
+
+	/**
+	 * 不同牌型排序比较器，用于对手牌的几道牌排序。
+	 * 排序规则：
+	 * <ul>
+	 * <li>相同牌型的，点数小的在前面</li>
+	 * <li></li>
+	 * <li>单牌在最前面</li>
+	 * <li>单组牌：“对”在“三”前面、“三带1”/“三带1对”/“三”在“四带2”/“四带2对”前面。注意：“三带1”在“三带1对”前、“三带1对”在“三”前面？</li>
+	 * <li>序列牌：长度短的在前面，但如果，短的点数很大时（尤其是最大值为 A -- 必须用炸弹才能打的过），怎么处理？</li>
+	 * <li>单牌组和序列牌：…… TODO ……</li>
+	 * <li>炸弹在王炸前面，都是炸弹的按大小排列</li>
+	 * <li>王炸在最后</li>
+	 * </ul>
+	 * @author liuyan
+	 *
+	 */
+				switch (cardType1)
+				{
+					case 单:
+						return -1;	// 单牌排在前面
+					case 对:
+						switch (cardType2)
+						{
+							case 单:
+								return 1;
+							//case 对:
+							//	return nMaxPoint1 - nMaxPoint2;
+							case 三:
+								return -1;
+							case 三带1:
+								return 0;	// 呃
+							case 三带1对:
+								return -1;
+							case 四带2:
+								return -1;
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+								return -1;
+							case 连对:
+								return -1;
+							case 飞机:
+								return -1;
+							case 飞机带单:
+								return -1;
+							case 飞机带对:
+								return -1;
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 三:
+						switch (cardType2)
+						{
+							case 单:
+								return 1;
+							case 对:
+								return 1;
+							//case 三:
+							//	return nMaxPoint1 - nMaxPoint2;
+							case 三带1:
+							case 三带1对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);	// 呃
+							case 四带2:
+								return -1;
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+							case 连对:
+							case 飞机:
+							case 飞机带单:
+							case 飞机带对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 三带1:
+						switch (cardType2)
+						{
+							case 单:
+								return 1;
+							case 对:
+								return 1;
+							case 三:
+							//	return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							//case 三带1:
+							//	return nMaxPoint1 - nMaxPoint2;
+							case 三带1对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 四带2:
+								return -1;
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+							case 连对:
+							case 飞机:
+							case 飞机带单:
+							case 飞机带对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 三带1对:
+						switch (cardType2)
+						{
+							case 单:
+								return 1;
+							case 对:
+								return 1;
+							case 三:
+							case 三带1:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							//case 三带1对:
+							//	return nMaxPoint1 - nMaxPoint2;
+							case 四带2:
+								return -1;
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+							case 连对:
+							case 飞机:
+							case 飞机带单:
+							case 飞机带对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 四带2:
+						switch (cardType2)
+						{
+							case 单:
+								return 1;
+							case 对:
+								return 1;
+							case 三:
+								return 1;
+							case 三带1:
+								return 1;
+							case 三带1对:
+								return 1;
+							//case 四带2:
+							//	return nMaxPoint1 - nMaxPoint2;
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+								return 1;
+							case 连对:
+								return 1;
+							case 飞机:
+								return 1;
+							case 飞机带单:
+								return 1;
+							case 飞机带对:
+								return 1;
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 四带2对:
+						switch (cardType2)
+						{
+							case 单:
+								return 1;
+							case 对:
+								return 1;
+							case 三:
+								return 1;
+							case 三带1:
+								return 1;
+							case 三带1对:
+								return 1;
+							case 四带2:
+								return 1;
+							//case 四带2对:
+							//	return nMaxPoint1 - nMaxPoint2;
+
+							case 顺子:
+								return 1;
+							case 连对:
+								return 1;
+							case 飞机:
+								return 1;
+							case 飞机带单:
+								return 1;
+							case 飞机带对:
+								return 1;
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+
+					case 顺子:
+						switch (cardType2)
+						{
+							case 单:
+							case 对:
+								return 1;
+							case 三:
+							case 三带1:
+							case 三带1对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 四带2:
+							case 四带2对:
+								return -1;
+
+							case 顺子:	// 牌型都是顺子，但可能长度不同
+							case 连对:
+							case 飞机:
+							case 飞机带单:
+							case 飞机带对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+							case 大飞机带2单:
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 连对:
+						switch (cardType2)
+						{
+							case 单:
+							case 对:
+								return 1;
+							case 三:
+							case 三带1:
+							case 三带1对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 四带2:
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+							case 连对:	// 牌型都是连对，但可能长度不同
+							case 飞机:
+							case 飞机带单:
+							case 飞机带对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+							case 大飞机带2单:
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 飞机:
+						switch (cardType2)
+						{
+							case 单:
+							case 对:
+								return 1;
+							case 三:
+							case 三带1:
+							case 三带1对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 四带2:
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+							case 连对:
+							case 飞机:	// 牌型都是飞机，但可能长度不同
+							case 飞机带单:
+							case 飞机带对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+							case 大飞机带2单:
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 飞机带单:
+						switch (cardType2)
+						{
+							case 单:
+							case 对:
+								return 1;
+							case 三:
+							case 三带1:
+							case 三带1对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 四带2:
+								return -1;
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+							case 连对:
+							case 飞机:
+							case 飞机带单:	// 牌型都是飞机带单，但可能长度不同
+							case 飞机带对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 飞机带对:
+						switch (cardType2)
+						{
+							case 单:
+								return 1;
+							case 对:
+								return 1;
+							case 三:
+							case 三带1:
+							case 三带1对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 四带2:
+								return -1;
+							case 四带2对:
+								return -1;
+
+							case 顺子:
+							case 连对:
+							case 飞机:
+							case 飞机带单:
+							case 飞机带对:	// 牌型都是飞机带对，但可能长度不同
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 大飞机:
+								return -1;
+							case 大飞机带2单:
+								return -1;
+							case 大飞机带2对:
+								return -1;
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 大飞机:
+					case 大飞机带2单:
+					case 大飞机带2对:
+						switch (cardType2)
+						{
+							case 单:
+							case 对:
+							case 三:
+							case 三带1:
+							case 三带1对:
+							case 四带2:
+							case 四带2对:
+
+							case 顺子:
+							case 连对:
+							case 飞机:
+							case 飞机带单:
+							case 飞机带对:
+								return 1;
+							case 大飞机:
+							case 大飞机带2单:
+							case 大飞机带2对:
+								return (nLength1 + nMaxPoint1) - (nLength2 + nMaxPoint2);
+							case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+							case 王炸:
+							case __未知牌型__:
+							default:
+								throw new RuntimeException ("不可能走到这一步");
+						}
+					case 炸弹:	// 炸弹已经处理过了，不会走到这一步
+					case 王炸:
+					case __未知牌型__:
+					default:
+						throw new RuntimeException ("不可能走到这一步");
+				}
 			}
 		}
 	}
