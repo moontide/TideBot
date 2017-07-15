@@ -1001,11 +1001,12 @@ public class DouDiZhu extends CardGame
 		int nPair = (int)mapCalculateResult.get ("nPair");
 		int nTrio = (int)mapCalculateResult.get ("nTrio");
 		int nQuartette = (int)mapCalculateResult.get ("nQuartette");
-		int nPrimaryCardCount = (int)mapCalculateResult.get ("PrimaryCardCount");
+		int nAttachmentCardsForTrioOrQuartette = (int)mapCalculateResult.get ("nAttachmentCardsForTrioOrQuartette");
+		int nPrimaryCardRawType = (int)mapCalculateResult.get ("PrimaryCardRawType");
 		boolean isSerial = (boolean)mapCalculateResult.get ("IsSerial");
 		boolean isBomb = (boolean)mapCalculateResult.get ("IsBomb");
 		int nLength = (int)mapCalculateResult.get ("Length");	// listCardRanks.size ();
-		switch (nPrimaryCardCount)
+		switch (nPrimaryCardRawType)
 		{
 		case 4:
 			if (nQuartette == 1)
@@ -1033,49 +1034,56 @@ public class DouDiZhu extends CardGame
 				//    - 任性！
 
 				if (!isSerial)
-					throw new IllegalArgumentException (nTrio + " 组四张牌不是顺子/飞机");
-				if (nSolo==0 && nPair==0 && nLength==CalculateCardCount(nQuartette,0,0,0))
+				{
+					if (nQuartette==2 && nSolo==0 && nPair==0 && nTrio==0)
+					{
+						return Type.四带2对;
+					}
+					throw new IllegalArgumentException (nQuartette + " 组四张牌不是顺子/大飞机");
+				}
+				if (nSolo==0 && nPair==0 && nTrio==0 && nAttachmentCardsForTrioOrQuartette==0 && nLength==CalculateCardCount(nQuartette,0,0,0))
 					return Type.大飞机;
-				if (nSolo==0 && nPair==nQuartette*2 && nLength==CalculateCardCount(nQuartette,0,nQuartette*2,0))
+				if (nSolo==0 && (nPair + nAttachmentCardsForTrioOrQuartette*2)==nQuartette*2 && nTrio==0 && nLength==CalculateCardCount(nQuartette,0,nQuartette*2,0))
 					return Type.大飞机带2对;
-				if (nLength==(CalculateCardCount(nTrio,nPair,nSolo)*2 + nQuartette*4))	// 对子和三牌，可被当成多张单牌附加牌计算
+				if (nQuartette*2==CalculateCardCount(nAttachmentCardsForTrioOrQuartette,nTrio,nPair,nSolo) && nLength==(CalculateCardCount(nAttachmentCardsForTrioOrQuartette,nTrio,nPair,nSolo) + nQuartette*4))	// 对子和三牌，可被当成多张单牌附加牌计算
 					return Type.大飞机带2单;
 
 				// FIXME 参见已知问题
-				throw new IllegalArgumentException ("四顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌");
+				throw new IllegalArgumentException ("四牌顺子（大飞机）带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌，" + nAttachmentCardsForTrioOrQuartette + " 个四牌");
 			}
 			//break;
 		case 3:
 			if (nTrio == 1)
 			{
-				if (nSolo==0 && nPair==0)
+				if (nSolo==0 && nPair==0 && nAttachmentCardsForTrioOrQuartette==0 && nQuartette==0)
 					return Type.三;
-				if (nSolo==1 && nPair==0)
+				if (nSolo==1 && nPair==0 && nAttachmentCardsForTrioOrQuartette==0 && nQuartette==0)
 					return Type.三带1;
-				if (nSolo==0 && nPair==1)
+				if (nSolo==0 && nPair==1 && nAttachmentCardsForTrioOrQuartette==0 && nQuartette==0)
 					return Type.三带1对;
-				throw new IllegalArgumentException ("三张牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
+				throw new IllegalArgumentException ("三牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
 			else if (nTrio > 1)
 			{
 				// 检查是不是顺子
 				if (!isSerial)
-					throw new IllegalArgumentException (nTrio + " 组三张牌不是顺子/飞机");
-				if (nSolo==0 && nPair==0)
+					throw new IllegalArgumentException (nTrio + " 组三牌不是飞机");
+				if (nSolo==0 && nPair==0 && nAttachmentCardsForTrioOrQuartette==0 && nQuartette==0)
 					return Type.飞机;
-				if (nSolo==0 && nPair==nTrio)
+				if (nSolo==0 && nAttachmentCardsForTrioOrQuartette==0 && nTrio==(nPair + nQuartette*2))	// 考虑 四牌炸弹 被当成附牌的情况…
 					return Type.飞机带对;
-				if ((nSolo==nTrio && nPair==0) || (nTrio==nSolo + 2*nPair))
+				//if ((nSolo==nTrio && nPair==0) || (nTrio==nSolo + 2*nPair))
+				if (nTrio == CalculateCardCount(nQuartette, nAttachmentCardsForTrioOrQuartette, nPair, nSolo))
 					return Type.飞机带单;
 
 				// FIXME 参见已知问题
 				throw new IllegalArgumentException ("三顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
-			throw new IllegalArgumentException ("无效的三张牌组数 " + nTrio);
+			throw new IllegalArgumentException ("无效的三牌组数 " + nTrio);
 			//break;rio
 		case 2:
-			if (nSolo != 0)
-				throw new IllegalArgumentException ("对子不能带单牌");
+			if (nSolo != 0 && nTrio !=0 && nQuartette!=0 && nAttachmentCardsForTrioOrQuartette!=0)
+				throw new IllegalArgumentException ("对子不能附带牌");
 			if (nPair == 1)
 				return Type.对;
 			if (nPair >= 3)
@@ -1159,8 +1167,8 @@ public class DouDiZhu extends CardGame
 	 * @param listCardRanks
 	 * @return 如果 listCardRanks 是空的或者等于 null，则返回空 Map 对象； 否则返回一个有内容的 Map 对象，其中包含的 key 有
 	 * <dl>
-	 * 	<dt>PrimaryCardCount<dt>
-	 * 	<dd>主牌牌型。整数类型。这个牌型仅仅是主牌是 1张牌 2张牌 3张牌 4张牌 的意思</dd>
+	 * 	<dt>PrimaryCardRawType<dt>
+	 * 	<dd>主牌原始牌型。整数类型。这个原始牌型是指：主牌是 1张牌 2张牌 3张牌 4张牌 的意思</dd>
 	 * 	<dt>PrimaryCards<dt>
 	 * 	<dd>主牌列表。List&lt;String&gt; 类型。这个列表，并非 333444 这样有重复牌的列表，只是 key 的列表，如： 34。</dd>
 	 * 	<dt>IsSerial<dt>
@@ -1197,7 +1205,7 @@ public class DouDiZhu extends CardGame
 	{
 		if (listCardRanks==null || listCardRanks.isEmpty ())
 			return Collections.EMPTY_MAP;
-		Map<String, Object> result = new HashMap<String, Object> ();
+		Map<String, Object> mapResult = new HashMap<String, Object> ();
 
 		// 首先，统计相同点数值牌的数量（数量正常情况下肯定取值 [1-4]，即：肯定相同点数值牌最少是 1 张牌 -- 单牌，最多是 4 张牌 -- 炸弹）
 		String sRank;
@@ -1206,10 +1214,10 @@ public class DouDiZhu extends CardGame
 		{
 			sRank = FormalRank (listCardRanks.get (i));
 			setCardRanks.add (sRank);
-			if (result.get (sRank)==null)
-				result.put (sRank, 1);
+			if (mapResult.get (sRank)==null)
+				mapResult.put (sRank, 1);
 			else
-				result.put (sRank, (int)result.get (sRank) + 1);
+				mapResult.put (sRank, (int)mapResult.get (sRank) + 1);
 		}
 
 		// 根据相同点数值牌的数量，确定主牌型
@@ -1217,12 +1225,9 @@ public class DouDiZhu extends CardGame
 		int nPair = 0;
 		int nTrio = 0;
 		int nQuartette = 0;
-		int nPrimaryCardCount = 0;
-		for (Object o : result.values ())
+		for (Object o : mapResult.values ())
 		{
 			int n = (int)o;
-			if (nPrimaryCardCount < n)
-				nPrimaryCardCount = n;
 			switch (n)
 			{
 			case 1:
@@ -1239,17 +1244,18 @@ public class DouDiZhu extends CardGame
 				break;
 			}
 		}
+		int nPrimaryCardRawType = nQuartette > nTrio ? 4 : (nTrio > nPair ? 3 : (nPair > nSolo ? 2 : 1));	// 改用数量计算主牌原始类型
 
-		// 将单、对（两牌组）、三牌组、四牌组、主牌组 的列表排成顺子
 		List<String> listSoloCards = new ArrayList<String> ();
 		List<String> listPairCards = new ArrayList<String> ();
 		List<String> listTrioCards = new ArrayList<String> ();
 		List<String> listQuartetteCards = new ArrayList<String> ();
 		List<String> listPrimaryCards = new ArrayList<String> ();
+		//List<String> listAttachmentCards = new ArrayList<String> ();
 		List<String> listUniqueCards = new ArrayList<String> ();	// 不重复的牌列表
-		for (String k : result.keySet ())
+		for (String k : mapResult.keySet ())
 		{
-			switch ( (int)result.get (k) )
+			switch ( (int)mapResult.get (k) )
 			{
 			case 1:
 				listSoloCards.add (k);
@@ -1264,18 +1270,25 @@ public class DouDiZhu extends CardGame
 				listQuartetteCards.add (k);
 				break;
 			}
-			if ((int)result.get (k) == nPrimaryCardCount)
+			if ((int)mapResult.get (k) == nPrimaryCardRawType)
 				listPrimaryCards.add (k);
 		}
+
+		// 将单、对（两牌）、三牌、四牌、主牌 的列表排成顺子
 		Collections.sort (listSoloCards, 斗地主点值比较器);
 		Collections.sort (listPairCards, 斗地主点值比较器);
 		Collections.sort (listTrioCards, 斗地主点值比较器);
 		Collections.sort (listQuartetteCards, 斗地主点值比较器);
 		Collections.sort (listPrimaryCards, 斗地主点值比较器);
 		listUniqueCards.addAll (setCardRanks);
+		if (nPrimaryCardRawType >= 3)
+		{
+			// 对于飞机、大飞机做特殊处理：因为他们都能带附加牌，而附加牌本身可能也是相同牌型（比如：长度为 3 的飞机带一个三牌当 3 个单，长度为 2 的大飞机带两个对 + 一个四牌）
+			SplitSerialAndAttachmentsFromTrioOrQuartettePrimaryCards (listPrimaryCards, nPrimaryCardRawType, mapResult, listTrioCards, listQuartetteCards);
+		}
 		int nMinPoint = RankToPoint (listPrimaryCards.get (0));	// 主牌排序后的第一张牌做最小点数
 		int nMaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
-		boolean bIsSerial = IsSerial (listPrimaryCards);
+		boolean bIsSerial = IsFullSerial (listPrimaryCards, nPrimaryCardRawType);
 		int nSerialLength = 0;
 		if (bIsSerial)
 		{
@@ -1283,30 +1296,37 @@ public class DouDiZhu extends CardGame
 		}
 
 		// 保存结果
-		result.put ("Length", listCardRanks.size ());
+		mapResult.put ("Length", listCardRanks.size ());
 
-		result.put ("CardRanksSet", setCardRanks);
-		result.put ("UniqueCards", listUniqueCards);
+		mapResult.put ("CardRanksSet", setCardRanks);
+		mapResult.put ("UniqueCards", listUniqueCards);
 
-		result.put ("PrimaryCardCount", nPrimaryCardCount);
-		result.put ("PrimaryCards", listPrimaryCards);
-		result.put ("MinPoint", nMinPoint);
-		result.put ("MaxPoint", nMaxPoint);
+		mapResult.put ("PrimaryCardRawType", nPrimaryCardRawType);
+		mapResult.put ("PrimaryCards", listPrimaryCards);
+		mapResult.put ("MinPoint", nMinPoint);
+		mapResult.put ("MaxPoint", nMaxPoint);
 
-		result.put ("SoloCards", listSoloCards);
-		result.put ("PairCards", listPairCards);
-		result.put ("TrioCards", listTrioCards);
-		result.put ("QuartetteCards", listQuartetteCards);
+		mapResult.put ("SoloCards", listSoloCards);
+		mapResult.put ("PairCards", listPairCards);
+		mapResult.put ("TrioCards", listTrioCards);
+		mapResult.put ("QuartetteCards", listQuartetteCards);
+		//mapResult.put ("AttachmentCardsForTrioOrQuartette", listAttachments);
 
-		result.put ("IsBomb", (nPrimaryCardCount>=4 && nTrio==0 && nPair==0 && nSolo==0) || (listCardRanks.size ()==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★")));
-		result.put ("IsSerial", bIsSerial);
-		result.put ("SerialLength", nSerialLength);
-		result.put ("nSolo", nSolo);
-		result.put ("nPair", nPair);
-		result.put ("nTrio", nTrio);
-		result.put ("nQuartette", nQuartette);
+		mapResult.put ("nSolo", nSolo);
+		mapResult.put ("nPair", nPair);
+		//mapResult.put ("nTrio", nTrio);
+		mapResult.put ("nTrio", listTrioCards.size ());
+		//mapResult.put ("nQuartette", nQuartette);
+		mapResult.put ("nQuartette", listQuartetteCards.size ());
+		if (mapResult.get ("nAttachmentCardsForTrioOrQuartette") == null)
+			mapResult.put ("nAttachmentCardsForTrioOrQuartette", 0);
+		int nAttachmentCardsForTrioOrQuartette = (int)mapResult.get ("nAttachmentCardsForTrioOrQuartette");
 
-		return result;
+		mapResult.put ("IsBomb", (nPrimaryCardRawType>=4 && nQuartette==1 && nTrio==0 && nPair==0 && nSolo==0 && nAttachmentCardsForTrioOrQuartette==0) || (listCardRanks.size ()==2 && listCardRanks.contains ("☆") && listCardRanks.contains ("★")));
+		mapResult.put ("IsSerial", bIsSerial);
+		mapResult.put ("SerialLength", nSerialLength);
+
+		return mapResult;
 	}
 	public static List<String> PlayerCardsToCardRanks (List<Map<String, Object>> player_cards)
 	{
@@ -1323,12 +1343,145 @@ public class DouDiZhu extends CardGame
 	}
 
 	/**
-	 * 判断是不是顺子。并不判断牌的数量（但至少两张）
+	 * 三牌、四牌如果是序列（飞机、大飞机），则尝试将其他不在序列内的、但同样是 三牌、四牌 的分割为附带牌。
+	 * <ul>
+	 * 	<li>三牌 只分割三牌，四牌 只分割四牌</li>
+	 * 	<li>如果 飞机 的附带牌是 四牌（比如 333444555666 附带 8888 -- 飞机带单），则交给 GetCardType 处理。</li>
+	 * 	<li>如果 大飞机 的附带牌是 三牌（比如 33334444 附带 888 5 -- 大飞机带2单），则也交给 GetCardType 处理。</li>
+	 * 	<li>对于两个 四牌 当做 四带2对的情况，也交给 GetCardType 处理 （不是序列）</li>
+	 * </ul>
+	 * @param listPrimaryCards
+	 * @param nPrimaryCardRawType
+	 * @param mapResult 分割结果存放。如果存在同原始牌型但是附带牌的情况，则将附带牌以 List&ltString&gt; 的形式存放到 "AttachmentCardsForTrioOrQuartette" Key 中
+	 * @param listTrioCards
+	 * @param listQuartetteCards
+	 */
+	public static void SplitSerialAndAttachmentsFromTrioOrQuartettePrimaryCards (List<String> listPrimaryCards, int nPrimaryCardRawType, Map<String, Object> mapResult, List<String> listTrioCards, List<String> listQuartetteCards)
+	{
+		int[] arrayIndexes = LocateSerial (listPrimaryCards, nPrimaryCardRawType);
+		if (! IsPartialSerial (arrayIndexes))	// 如果不包含序列牌，则不做任何处理
+			return;
+
+		switch (nPrimaryCardRawType)
+		{
+			case 1:
+			case 2:
+				if (! IsFullSerial (arrayIndexes, listPrimaryCards.size ()-1))
+				{
+					// 顺子和连对不能附带其他牌，所出的牌必须是完整的
+				}
+				break;
+			case 3:
+			case 4:
+				if (! IsFullSerial (arrayIndexes, listPrimaryCards.size ()-1))
+				{
+					List<String> listAttachments = new ArrayList<String> ();
+					List<String> listCards = null;
+					if (nPrimaryCardRawType == 3)
+						listCards = listTrioCards;
+					else if (nPrimaryCardRawType == 4)
+						listCards = listQuartetteCards;
+
+					for (int i=listCards.size () -1; i>arrayIndexes[1]; i--)
+					{
+						listPrimaryCards.remove (i);
+						listAttachments.add (listCards.remove (i));
+					}
+					for (int i=arrayIndexes[0]-1; i>=0; i--)
+					{
+						listPrimaryCards.remove (i);
+						listAttachments.add (listCards.remove (i));
+					}
+
+					mapResult.put ("AttachmentCardsForTrioOrQuartette", listAttachments);
+					mapResult.put ("nAttachmentCardsForTrioOrQuartette", listAttachments.size ());
+				}
+				break;
+		}
+	}
+
+	/**
+	 * 定位一个序列
+	 * @param listPrimaryCards 已经排序好的卡牌列表，若未排序，则结果未知。列表中的每个元素是一张牌的牌面。
+	 * @param nPrimaryCardRawType 主牌原始牌型。这个原始牌型用来决定序列的最小长度：单牌的最低为 5、对子最低为 3、三牌四牌最低为 2。
+	 * @return 长度为 2 的整数数组。如果已经找到了序列，则
+	 * <ul>
+	 * 		<li>整数数组[0] 存放起始索引（listPrimaryCards 的索引号）。如果为 -1 ，则表示没定位到</li>
+	 * 		<li>整数数组[1] 存放截止索引（包含截止。如果为 -1 ，则表示没定位到）</li>
+	 * </ul>
+	 */
+	public static int[] LocateSerial (List<String> listPrimaryCards, int nPrimaryCardRawType)
+	{
+		int[] arrayIndexes = new int[2];
+		arrayIndexes[0] = arrayIndexes[1] = -1;
+		final int nMinLength = (nPrimaryCardRawType >= 3 ? 2 : (nPrimaryCardRawType == 2 ? 3 : 5));
+		if (listPrimaryCards.size() < nMinLength)
+			return arrayIndexes;
+
+		int iPointer = -1;
+		int iEnd = -1;
+		for (int iLeft=0; iLeft<=listPrimaryCards.size () - nMinLength;)
+		{
+			// 1. 从 iSerialLeft 往右边找，
+			// 2. 如果找到末尾或者找到的地方不再是连续，则查看
+			//    2.1. 如果 iEnd - iStart 是否满足最小长度要求，则返回答案
+			//    2.2. 不满足的话，iSerialLeft 重新步进到 iEnd，从第 1 步再继续执行
+			boolean bFound = false;
+			boolean bUnfinished = false;
+			for (iPointer=iLeft; iPointer<=listPrimaryCards.size () - 2; iPointer++)
+			{
+				String sRank = listPrimaryCards.get (iPointer);
+				iEnd = iPointer+1;
+				String sNextRank = listPrimaryCards.get (iEnd);
+				int nPoint = RankToPoint (sRank);
+				int nNextPoint =RankToPoint (sNextRank);
+				if ((nNextPoint - nPoint) != 1)	// 不连续
+				{
+					bUnfinished = true;
+					break;
+				}
+
+				if ((iEnd - iLeft + 1) >= nMinLength)
+					bFound = true;
+			}
+			if (bFound)
+			{
+				arrayIndexes [0] = iLeft;
+				if (bUnfinished)
+					arrayIndexes [1] = iPointer;
+				else
+					arrayIndexes [1] = iEnd;
+				break;
+			}
+			iLeft = iEnd;
+		}
+
+		return arrayIndexes;
+	}
+
+	public static boolean IsFullSerial (int[] arrayIndexes, int iLastIndex)
+	{
+		return arrayIndexes[0]==0 && arrayIndexes[1]==iLastIndex;
+	}
+	/**
+	 * 判断是不是顺子。
+	 * @param listCardRanks 必须是按顺序排列好的，否则结果未知
+	 * @param nPrimaryCardRawType 原始牌型
+	 * @return
+	 */
+	public static boolean IsFullSerial (List<String> listCardRanks, int nPrimaryCardRawType)
+	{
+		int[] arrayIndexes = LocateSerial (listCardRanks, nPrimaryCardRawType);
+		return IsFullSerial (arrayIndexes, listCardRanks.size () - 1);
+	}
+	/**
+	 * 判断是不是顺子。至少两张连续牌才算是顺子。
 	 * @param listCardRanks 必须是按顺序排列好的，否则结果未知
 	 * @return
 	 */
-	public static boolean IsSerial (List<String> listCardRanks)
+	public static boolean IsFullSerial (List<String> listCardRanks)
 	{
+		/*
 		if (listCardRanks.size () < 2)
 			return false;
 		for (int i=0; i<listCardRanks.size (); i++)
@@ -1343,7 +1496,24 @@ public class DouDiZhu extends CardGame
 					return false;
 			}
 		}
-		return true;
+		*/
+		int[] arrayIndexes = LocateSerial (listCardRanks, 3);
+		return IsFullSerial (arrayIndexes, listCardRanks.size () - 1);
+	}
+
+	public static boolean IsPartialSerial (int[] arrayIndexes)
+	{
+		return arrayIndexes[0]!=-1 && arrayIndexes[1]!=-1;
+	}
+	public static boolean IsPartialSerial (List<String> listCardRanks, int nPrimaryCardRawType)
+	{
+		int[] arrayIndexes = LocateSerial (listCardRanks, nPrimaryCardRawType);
+		return IsPartialSerial (arrayIndexes);
+	}
+	public static boolean IsPartialSerial (List<String> listCardRanks)
+	{
+		int[] arrayIndexes = LocateSerial (listCardRanks, 3);
+		return IsPartialSerial (arrayIndexes);
 	}
 
 	/**
@@ -1363,7 +1533,7 @@ public class DouDiZhu extends CardGame
 		assert mapCardsInfo2 != null;
 
 		Type cardType1 = GetCardsType (mapCardsInfo1);
-		//int nPrimaryCardCount1 = (int)mapCardsInfo1.get ("PrimaryCardCount");
+		//int nPrimaryCardRawType1 = (int)mapCardsInfo1.get ("PrimaryCardRawType");
 		int nMaxPoint1 = (int)mapCardsInfo1.get ("MaxPoint");
 		//int nSolo1 = (int)mapCardsInfo1.get ("nSolo");
 		//int nPair1 = (int)mapCardsInfo1.get ("nPair");
@@ -1373,7 +1543,7 @@ public class DouDiZhu extends CardGame
 		//boolean isSerial1 = (boolean)mapCardsInfo1.get ("IsSerial");
 
 		Type cardType2 = GetCardsType (mapCardsInfo2);
-		//int nPrimaryCardCount2 = (int)mapCardsInfo2.get ("PrimaryCardCount");
+		//int nPrimaryCardRawType2 = (int)mapCardsInfo2.get ("PrimaryCardRawType");
 		int nMaxPoint2 = (int)mapCardsInfo2.get ("MaxPoint");
 		//int nSolo2 = (int)mapCardsInfo2.get ("nSolo");
 		//int nPair2 = (int)mapCardsInfo2.get ("nPair");
@@ -1400,7 +1570,7 @@ public class DouDiZhu extends CardGame
 			}
 			else
 			{	// 普通牌 vs 普通牌
-				if (//nPrimaryCardCount1==nPrimaryCardCount2
+				if (//nPrimaryCardRawType1==nPrimaryCardRawType2
 					//&& nSolo1==nSolo2
 					//&& nPair1==nPair2
 					//&& nTrio1==nTrio2
@@ -1435,7 +1605,7 @@ public class DouDiZhu extends CardGame
 
 		Type cardType1 = GetCardsType (list1, mapCardsInfo1);
 		int nLength1 = (int)mapCardsInfo1.get ("Length");
-		//int nPrimaryCardCount1 = (int)mapCardsInfo1.get ("PrimaryCardCount");
+		//int nPrimaryCardRawType1 = (int)mapCardsInfo1.get ("PrimaryCardRawType");
 		int nMaxPoint1 = (int)mapCardsInfo1.get ("MaxPoint");
 		//int nSolo1 = (int)mapCardsInfo1.get ("nSolo");
 		//int nPair1 = (int)mapCardsInfo1.get ("nPair");
@@ -1447,7 +1617,7 @@ public class DouDiZhu extends CardGame
 
 		Type cardType2 = GetCardsType (list2, mapCardsInfo2);
 		int nLength2 = (int)mapCardsInfo2.get ("Length");
-		//int nPrimaryCardCount2 = (int)mapCardsInfo2.get ("PrimaryCardCount");
+		//int nPrimaryCardRawType2 = (int)mapCardsInfo2.get ("PrimaryCardRawType");
 		int nMaxPoint2 = (int)mapCardsInfo2.get ("MaxPoint");
 		//int nSolo2 = (int)mapCardsInfo2.get ("nSolo");
 		//int nPair2 = (int)mapCardsInfo2.get ("nPair");
@@ -1475,15 +1645,15 @@ public class DouDiZhu extends CardGame
 			}
 			else
 			{	// 普通牌 vs 普通牌
-				if (//nPrimaryCardCount1==nPrimaryCardCount2
+				//if (//nPrimaryCardRawType1==nPrimaryCardRawType2
 					//&& nSolo1==nSolo2
 					//&& nPair1==nPair2
 					//&& nTrio1==nTrio2
 					//&& nQuartette1==nQuartette2
 					// 上面可能存在问题：比如，4带2，有可能带一对（当做两张单牌）
-						cardType1 == cardType2
-						&& nLength1 == nLength2	// 序列牌的长度可能不同 -- 不能比较，所以也要确保长度相同。
-					)
+				//		cardType1 == cardType2
+				//		&& nLength1 == nLength2	// 序列牌的长度可能不同 -- 不能比较，所以也要确保长度相同。
+				//	)
 					return nMaxPoint1 - nMaxPoint2;
 
 	/**
@@ -1502,6 +1672,7 @@ public class DouDiZhu extends CardGame
 	 * @author liuyan
 	 *
 	 */
+				/*
 				switch (cardType1)
 				{
 					case 单:
@@ -1925,6 +2096,7 @@ public class DouDiZhu extends CardGame
 					default:
 						throw new RuntimeException ("不可能走到这一步");
 				}
+				//*/
 			}
 		}
 	}
