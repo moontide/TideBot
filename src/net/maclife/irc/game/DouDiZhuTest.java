@@ -53,18 +53,41 @@ System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("4467
 
 		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("★☆")), Type.王炸);
 
+System.out.println ("牌型测试 结束");
+	}
+
+	@Test //(expected=IllegalArgumentException.class)
+	public void 不常见牌型检测 ()
+	{
+System.out.println ("不常见牌型测试 开始");
 
 		//
 		// 不常见的牌型
+		//
+
+		// 两个炸弹，当成一道牌：四带2对（一个炸弹被其他炸弹当成附带牌）
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("33335555")), Type.四带2对);
+
+		// 一个炸弹，被当成大飞机的附带单牌
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("333355556666")), Type.大飞机带2单);
+		// 一个炸弹，被当成大飞机的附带对子
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333555566668899")), Type.大飞机带2对);
+
+		// 一个炸弹被 飞机 当成附带牌的情况
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333555666777888")), Type.飞机带单);
+		// 一个三牌被 飞机 当成附带牌的请
+		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("333666777888")), Type.飞机带单);
+
+//System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333456890qka")));
+//		assertNotEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333456890qka")), Type.四带2);
+
+		//
 		// 已知 bug
 		//
 
-System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333456890qka")));
-		assertNotEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("3333456890qka")), Type.四带2);
-
+		// 一个炸弹被硬生生拆开，三牌拿去组成飞机，另外一张当成附带牌的情况	-- 目前暂时不支持
 		assertEquals (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("33344435")), Type.飞机带单);
-
-System.out.println ("牌型测试 结束");
+System.out.println ("不常见牌型测试 结束");
 	}
 
 	@Test (expected=IllegalArgumentException.class)
