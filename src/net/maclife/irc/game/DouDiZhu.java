@@ -1165,6 +1165,8 @@ public class DouDiZhu extends CardGame
 	/**
 	 * 计算得到牌的一些常用信息
 	 * @param listCardRanks
+	 * @param nPrimaryCardRawType_ForIsSerial 根据此原始牌型判断是否是序列。取值 0 1 2 3 4，如果为 0，则表示按 listCardRanks 计算出来的原始牌型数据进行判断
+	 * @param bSplitTrioQuartetteSerialAndAttachments 是否对飞机*、大飞机* 牌型分离序列和附带牌
 	 * @return 如果 listCardRanks 是空的或者等于 null，则返回空 Map 对象； 否则返回一个有内容的 Map 对象，其中包含的 key 有
 	 * <dl>
 	 * 	<dt>PrimaryCardRawType<dt>
@@ -1197,11 +1199,11 @@ public class DouDiZhu extends CardGame
 	 * 	<dt>nQuartette<dt>
 	 * 	<dd>四牌的数量</dd>
 
-	 * 	<dt>&lt;各张牌的正式牌面（0 → 10， DW → ★）gt;<dt>
+	 * 	<dt>&lt;各张牌的正式牌面（0 → 10， DW → ★）&gt;<dt>
 	 * 	<dd>该牌的数量。如果该牌不存在，则 get(牌) 为 null </dd>
 	 * </dl>
 	 */
-	public static Map<String, Object> CalculateCards (List<String> listCardRanks)
+	public static Map<String, Object> CalculateCards (List<String> listCardRanks, int nPrimaryCardRawType_ForIsSerial, boolean bSplitTrioQuartetteSerialAndAttachments)
 	{
 		if (listCardRanks==null || listCardRanks.isEmpty ())
 			return Collections.EMPTY_MAP;
@@ -1244,7 +1246,7 @@ public class DouDiZhu extends CardGame
 				break;
 			}
 		}
-		int nPrimaryCardRawType = nQuartette > nTrio ? 4 : (nTrio > nPair ? 3 : (nPair > nSolo ? 2 : 1));	// 改用数量计算主牌原始类型
+		int nPrimaryCardRawType = nQuartette>nTrio && nQuartette!=0 ? 4 : (nTrio>=nPair && nTrio!=0 ? 3 : (nPair>=nSolo && nPair!=0 ? 2 : 1));	// 改用数量计算主牌原始类型
 
 		List<String> listSoloCards = new ArrayList<String> ();
 		List<String> listPairCards = new ArrayList<String> ();
@@ -1281,14 +1283,14 @@ public class DouDiZhu extends CardGame
 		Collections.sort (listQuartetteCards, 斗地主点值比较器);
 		Collections.sort (listPrimaryCards, 斗地主点值比较器);
 		listUniqueCards.addAll (setCardRanks);
-		if (nPrimaryCardRawType >= 3)
+		if (nPrimaryCardRawType >= 3 && bSplitTrioQuartetteSerialAndAttachments)
 		{
 			// 对于飞机、大飞机做特殊处理：因为他们都能带附加牌，而附加牌本身可能也是相同牌型（比如：长度为 3 的飞机带一个三牌当 3 个单，长度为 2 的大飞机带两个对 + 一个四牌）
 			SplitSerialAndAttachmentsFromTrioOrQuartettePrimaryCards (listPrimaryCards, nPrimaryCardRawType, mapResult, listTrioCards, listQuartetteCards);
 		}
 		int nMinPoint = RankToPoint (listPrimaryCards.get (0));	// 主牌排序后的第一张牌做最小点数
 		int nMaxPoint = RankToPoint (listPrimaryCards.get (listPrimaryCards.size () - 1));	// 主牌排序后的最后一张牌做最大点数
-		boolean bIsSerial = IsFullSerial (listPrimaryCards, nPrimaryCardRawType);
+		boolean bIsSerial = IsFullSerial (listPrimaryCards, nPrimaryCardRawType_ForIsSerial == 0 ? nPrimaryCardRawType : nPrimaryCardRawType_ForIsSerial);
 		int nSerialLength = 0;
 		if (bIsSerial)
 		{
@@ -1336,6 +1338,30 @@ public class DouDiZhu extends CardGame
 			listCardRanks.add ((String)card.get ("rank"));
 		}
 		return listCardRanks;
+	}
+	public static Map<String, Object> CalculateCards (List<String> listCardRanks, boolean bSplitTrioQuartetteSerialAndAttachments)
+	{
+		return CalculateCards (listCardRanks, 0, bSplitTrioQuartetteSerialAndAttachments);
+	}
+	public static Map<String, Object> CalculateCards (List<String> listCardRanks)
+	{
+		return CalculateCards (listCardRanks, 0, true);
+	}
+	public static Map<String, Object> CalculateCards (List<String> listCardRanks, Type cardType, boolean bSplitTrioQuartetteSerialAndAttachments)
+	{
+		switch (cardType)
+		{
+			case 单:
+				return CalculateCards (listCardRanks, 1, bSplitTrioQuartetteSerialAndAttachments);
+			case 对:
+				return CalculateCards (listCardRanks, 2, bSplitTrioQuartetteSerialAndAttachments);
+			case 三:
+				return CalculateCards (listCardRanks, 3, bSplitTrioQuartetteSerialAndAttachments);
+			case 炸弹:
+				return CalculateCards (listCardRanks, 4, bSplitTrioQuartetteSerialAndAttachments);
+			default:
+				throw new IllegalArgumentException ("根据牌型判断是否是序列时，不能用单、对、三、炸弹 之外的牌型");
+		}
 	}
 	public static Map<String, Object> CalculatePlayerCards (List<Map<String, Object>> player_cards)
 	{
