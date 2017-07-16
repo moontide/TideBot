@@ -30,6 +30,7 @@ public class DouDiZhu extends CardGame
 				}
 				else if (p instanceof DouDiZhuBotPlayer)
 				{
+					((DouDiZhuBotPlayer)p).setGame (this);
 					// 不对机器人发消息
 				}
 			}
@@ -85,7 +86,7 @@ public class DouDiZhu extends CardGame
 				{
 					sTurnPlayer_抢地主 = ((DouDiZhuBotPlayer)turnPlayer_抢地主).getName ();
 
-					answer = (String)((DouDiZhuBotPlayer)turnPlayer_抢地主).抢地主 ();
+					answer = (String)((DouDiZhuBotPlayer)turnPlayer_抢地主).抢地主 (players_cards.get (sTurnPlayer_抢地主), 抢地主候选答案);
 					value = answer;
 					value_and_label = value;
 				}
@@ -171,11 +172,16 @@ public class DouDiZhu extends CardGame
 			{
 				if (p instanceof String)
 					bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (msg));
+				//else if (p instanceof DouDiZhuBotPlayer)
+				//	((DouDiZhuBotPlayer)p).手牌变更 (player_cards, "获得底牌");
 			}
 			if (地主 instanceof String)
 				bot.SendMessage (null, sLandlordName, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (GenerateCardsInfoTo (player_cards, null).toString ()));
-			else
+			else if (地主 instanceof DouDiZhuBotPlayer)
+			{
 				System.out.println (游戏信息 (sLandlordName + " 的手牌 " + GenerateCardsInfoTo (player_cards, null)));
+				((DouDiZhuBotPlayer)地主).手牌变更 (player_cards, "获得底牌");
+			}
 
 			// 开始循环
 			int iRound = participants.indexOf (地主 /*sLandlordName*/);	// 谁的回合
@@ -511,6 +517,24 @@ public class DouDiZhu extends CardGame
 		finally
 		{
 			games.remove (this);
+		}
+	}
+
+	public void BotPlayerSay (DouDiZhuBotPlayer botPlayer, String sMessage)
+	{
+		for (Object p : participants)
+		{
+			if (p instanceof String)
+			{
+				bot.SendMessage (null, (String)p, LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (botPlayer + " 说：" + sMessage));
+			}
+			else if (p instanceof DouDiZhuBotPlayer)
+			{
+				if (p == botPlayer)
+				{
+					//
+				}
+			}
 		}
 	}
 
@@ -997,6 +1021,7 @@ public class DouDiZhu extends CardGame
 	 */
 	public static Type GetCardsType (Map<String, Object> mapCalculateResult, Type asThisType)
 	{
+		List<String> listCardRanks = (List<String>)mapCalculateResult.get ("CardRanks");
 		int nSolo = (int)mapCalculateResult.get ("nSolo");
 		int nPair = (int)mapCalculateResult.get ("nPair");
 		int nTrio = (int)mapCalculateResult.get ("nTrio");
@@ -1019,7 +1044,7 @@ public class DouDiZhu extends CardGame
 					return Type.四带2;
 				if (nSolo==0 && nPair==0 && nLength==CalculateCardCount(1,0,0,0))
 					return Type.炸弹;
-				throw new IllegalArgumentException ("四张牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌");
+				throw new IllegalArgumentException (listCardRanks + ": 四张牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌");
 			}
 			else
 			{
@@ -1049,7 +1074,7 @@ public class DouDiZhu extends CardGame
 					return Type.大飞机带2单;
 
 				// FIXME 参见已知问题
-				throw new IllegalArgumentException ("四牌顺子（大飞机）带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌，" + nAttachmentCardsForTrioOrQuartette + " 个四牌");
+				throw new IllegalArgumentException (listCardRanks + ": 四牌顺子（大飞机）带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子, " + nTrio + " 个三牌，" + nAttachmentCardsForTrioOrQuartette + " 个四牌");
 			}
 			//break;
 		case 3:
@@ -1061,13 +1086,13 @@ public class DouDiZhu extends CardGame
 					return Type.三带1;
 				if (nSolo==0 && nPair==1 && nAttachmentCardsForTrioOrQuartette==0 && nQuartette==0)
 					return Type.三带1对;
-				throw new IllegalArgumentException ("三牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
+				throw new IllegalArgumentException (listCardRanks + ": 三牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
 			else if (nTrio > 1)
 			{
 				// 检查是不是顺子
 				if (!isSerial)
-					throw new IllegalArgumentException (nTrio + " 组三牌不是飞机");
+					throw new IllegalArgumentException (listCardRanks + ": " + nTrio + " 组三牌不是飞机");
 				if (nSolo==0 && nPair==0 && nAttachmentCardsForTrioOrQuartette==0 && nQuartette==0)
 					return Type.飞机;
 				if (nSolo==0 && nAttachmentCardsForTrioOrQuartette==0 && nTrio==(nPair + nQuartette*2))	// 考虑 四牌炸弹 被当成附牌的情况…
@@ -1077,13 +1102,13 @@ public class DouDiZhu extends CardGame
 					return Type.飞机带单;
 
 				// FIXME 参见已知问题
-				throw new IllegalArgumentException ("三顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
+				throw new IllegalArgumentException (listCardRanks + ": 三顺牌带的附牌数不对: " + nSolo + " 张单牌, " + nPair + " 双对子");
 			}
-			throw new IllegalArgumentException ("无效的三牌组数 " + nTrio);
+			throw new IllegalArgumentException (listCardRanks + ": 无效的三牌组数 " + nTrio);
 			//break;rio
 		case 2:
 			if (nSolo != 0 && nTrio !=0 && nQuartette!=0 && nAttachmentCardsForTrioOrQuartette!=0)
-				throw new IllegalArgumentException ("对子不能附带牌");
+				throw new IllegalArgumentException (listCardRanks + ": 对子不能附带牌");
 			if (nPair == 1)
 				return Type.对;
 			if (nPair >= 3)
@@ -1091,9 +1116,9 @@ public class DouDiZhu extends CardGame
 				if (isSerial)
 					return Type.连对;
 				else
-					throw new IllegalArgumentException (nPair + " 双对子不是连对");
+					throw new IllegalArgumentException (listCardRanks + ": " + nPair + " 双对子不是连对");
 			}
-			throw new IllegalArgumentException ("不能出 " + nPair + " 双对子");
+			throw new IllegalArgumentException (listCardRanks + ": 不能出 " + nPair + " 双对子");
 			//break;
 		case 1:
 			if (isSerial && nSolo>=5)
@@ -1103,7 +1128,7 @@ public class DouDiZhu extends CardGame
 			else if (nSolo == 1)
 				return Type.单;
 			else
-				throw new IllegalArgumentException ("不能出 " + nSolo + " 个单牌");
+				throw new IllegalArgumentException (listCardRanks + ": 不能出 " + nSolo + " 个单牌");
 			//break;
 		}
 		return Type.__未知牌型__;
@@ -1298,6 +1323,7 @@ public class DouDiZhu extends CardGame
 		}
 
 		// 保存结果
+		mapResult.put ("CardRanks", listCardRanks);
 		mapResult.put ("Length", listCardRanks.size ());
 
 		mapResult.put ("CardRanksSet", setCardRanks);

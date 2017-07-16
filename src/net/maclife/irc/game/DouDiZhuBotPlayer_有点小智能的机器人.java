@@ -46,7 +46,7 @@ import net.maclife.ansi.*;
  * @author liuyan
  *
  */
-@SuppressWarnings ({"unchecked", "unused"})
+//@SuppressWarnings ({"unchecked", "unused"})
 public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPlayer
 {
 	public static final int MASK_不拆牌 = 1;
@@ -924,7 +924,11 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 					else if ((拆牌 & MASK_拆牌) == MASK_拆牌)
 					{
 						// 先把单牌消耗完毕
-						listRemainingCards.remove (listRemainingSoloCards.get (0));
+						for (int j=0; j<listRemainingSoloCards.size (); j++)
+						{
+							s解出的一道牌 = s解出的一道牌 + listRemainingSoloCards.get (j);
+							listRemainingCards.remove (listRemainingSoloCards.get (j));
+						}
 
 						//
 						int 还差单牌数 = 2 - listRemainingSoloCards.size ();
@@ -1047,7 +1051,14 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 						设置解出的一道牌 (listCards, mapResult, "三带1", DouDiZhu.Type.三带1, s解出的一道牌, 0, nPoint, listRemainingCards, expectedCardType, 0, 大于此点值, 拆牌, expectedCardType_Recursive, nExpectedSerialLength_Recursive);
 					}
 					else if (listRemainingSoloCards.isEmpty ())
-					{	// 根本没单牌，拿一个对子当单牌
+					{
+						//for (int j=0; j<listRemainingSoloCards.size (); j++)
+						//{
+						//	s解出的一道牌 = s解出的一道牌 + listRemainingSoloCards.get (j);
+						//	listRemainingCards.remove (listRemainingSoloCards.get (j));
+						//}
+
+						// 根本没单牌，拿一个对子当单牌
 						//Log (mapResult, "三带1 根本没单牌可以带，准备拆其他的对牌、或者拆三牌组…	");
 						if (! listRemainingPairCards.isEmpty () || ! listRemainingTrioCards.isEmpty ())	// 不考虑拆炸弹牌，不划算
 						{
@@ -1277,7 +1288,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		map解出的一道牌.put ("牌", s解出的一道牌);
 		//map解出的一道牌.put ("长度", s解出的一道牌.length ());
 		map解出的一道牌.put ("序列长度", nSerialLength);
-		map解出的一道牌.put ("最大点", nMaxPoint);
+		map解出的一道牌.put ("最大点值", nMaxPoint);
 
 		mapResult.put ("解出的一道牌_L" + nDepth, map解出的一道牌);
 		Set<List<Map<String, Object>>> setSolutions = (Set<List<Map<String, Object>>> )mapResult.get ("Solutions");
@@ -1384,119 +1395,357 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 		Log (mapResult, FormatCardPack("第 " + (setSolutions.size ()) + " 分支已到尽头，出牌次数 = " + listCurrentSolution.size () + "，出牌 = " + GetCardsOnly (listCurrentSolution), ANSIEscapeTool.CSI + "41;1m"));
 	}
 
+
+
+
+
+	Set<List<Map<String, Object>>> setMySolutions = null;
+	List<Map<String, Object>> mySolution = null;
+
+	void Say (String sMessage)
+	{
+		if (getGame() == null)
+			return;
+		((DouDiZhu)getGame()).BotPlayerSay (this, sMessage);
+	}
+
+	void RegenerateBestSolution (List<String> listCardRanks)
+	{
+		Map<String, Object> mapResult = EvaluateCards (listCardRanks);
+//System.out.println (mapResult);
+
+		Set<List<Map<String, Object>>> setSolutions = null;
+		setSolutions = (Set<List<Map<String, Object>>>)mapResult.get ("BestSolutions");
+		if (setSolutions == null)
+		{	// 没有最佳方案？
+			setSolutions = (Set<List<Map<String, Object>>>)mapResult.get ("MinStepsSolutions");
+		}
+		setMySolutions = setSolutions;
+System.out.println (setMySolutions);
+		for (List<Map<String, Object>> solution : setMySolutions)
+		{
+			mySolution = solution;	// 取第一个方案拉倒。 TODO: 还有可能取其他的？
+			break;
+		}
+System.out.println (mySolution);
+	}
+
 	@Override
 	public Object 抢地主 (Object... args)
 	{
 		// 评估手牌情况，决定抢不抢地主
 		// 底牌，有可能增强手牌，也完全有可能多出 3 张废牌、多出 3 道单牌！
 
+		List<Map<String, Object>> listMyCards = (List<Map<String, Object>>) args[0];
+		List<String[]> list抢地主候选答案 = (List<String[]>) args[1];
+		int n抢地主最小分数 = Integer.parseInt (list抢地主候选答案.get (0)[0]);
+//System.out.println (listMyCards);
+		List<String> listMyCardRanks = DouDiZhu.PlayerCardsToCardRanks (listMyCards);
+System.out.println (listMyCardRanks);
+
+		Say ("要不要抢地主呢？容我三（遍）思（历）…");
+		RegenerateBestSolution (listMyCardRanks);
+
+		if (mySolution == null)
+			return null;
+		//
+		// 根据手牌好坏程度，决定抢不抢地主…
+		//
+
+		if (n抢地主最小分数<=3 && mySolution.size () <= 4)
+		{	// 暂定：出牌次数 <= 4 就认为“自信心爆棚”
+			Say ("手牌不错");
+			return "3";
+		}
+		else if (n抢地主最小分数<=2 && mySolution.size () > 4 && mySolution.size () <= 7)
+		{
+			Say ("手牌一般");
+			return "2";
+		}
+		else if (n抢地主最小分数<=1 && mySolution.size () <= 10)
+		{
+			Say ("手牌 -- 唉…");
+			return "1";
+		}
+
 		return null;
 	}
 
 	@Override
-	public String 找出点数值大于N的单 (List<Map<String, Object>> player_cards, int nMaxPoint)
+	public Object 手牌变更 (Object listMyCurrentCards, String sReason)
 	{
-		return null;
-	}
+//System.out.println (listMyCurrentCards);
+		List<String> listMyCardRanks = DouDiZhu.PlayerCardsToCardRanks ((List<Map<String, Object>>)listMyCurrentCards);
+System.out.println (listMyCardRanks);
 
-	@Override
-	public String 找出点数值大于N的顺子 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的对 (List<Map<String, Object>> player_cards, int nMaxPoint)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的连对 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的三 (List<Map<String, Object>> player_cards, int nMaxPoint)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的三带1 (List<Map<String, Object>> player_cards, int nMaxPoint)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的三带1对 (List<Map<String, Object>> player_cards, int nMaxPoint)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的飞机 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的飞机带单 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的飞机带对 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的四带2 (List<Map<String, Object>> player_cards, int nMaxPoint)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的四带2对 (List<Map<String, Object>> player_cards, int nMaxPoint)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的大飞机 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的大飞机带2单 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的大飞机带2对 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength)
-	{
-		return null;
-	}
-
-	@Override
-	public String 找出点数值大于N的炸弹 (List<Map<String, Object>> player_cards, int nMaxPoint)
-	{
+		Say ("再容我三（遍）思（历）…");
+		RegenerateBestSolution (listMyCardRanks);
 		return null;
 	}
 
 	@Override
 	public Object 出牌 (Object... args)
 	{
-		return null;
+		if (args.length < 1)
+			throw new IllegalArgumentException ("斗地主的游戏机器人，出牌 函数至少需要 1 个参数： 1.自己剩余的手牌");
+
+		if (mySolution == null)
+			return null;
+
+		return mySolution.remove (0).get ("牌");	// 务必删除掉
 	}
 
 	@Override
 	public Object 回牌 (Object... args)
+	{
+		if (args.length < 4)
+			throw new IllegalArgumentException ("斗地主的游戏机器人，回牌 函数至少需要 4 个参数： 1.别的玩家出的牌 2.别的玩家出的牌统计信息 3.别的玩家出的牌型 4.自己剩余的手牌");
+		List<String> listLastPlayedCardRanks = (List<String>) args[0];
+		Map<String, Object> mapLastPlayedCardsInfo = (Map<String, Object>) args[1];
+		DouDiZhu.Type 别的玩家出的牌型 = (DouDiZhu.Type) args[2];
+		List<Map<String, Object>> player_cards = (List<Map<String, Object>>) args[3];
+
+		//int nPrimaryCardRawType = (int)mapLastPlayedCardsInfo.get ("PrimaryCardRawType");
+		int nMaxPoint = (int)mapLastPlayedCardsInfo.get ("MaxPoint");
+		//int nSolo = (int)mapLastPlayedCardsInfo.get ("nSolo");
+		//int nPair = (int)mapLastPlayedCardsInfo.get ("nPair");
+		//int nTrio = (int)mapLastPlayedCardsInfo.get ("nTrio");
+		//int nQuartette = (int)mapLastPlayedCardsInfo.get ("nQuartette");
+		int nSerialLength = (int)mapLastPlayedCardsInfo.get ("SerialLength");;
+		boolean isSerial = (boolean)mapLastPlayedCardsInfo.get ("IsSerial");
+		boolean isBomb = (boolean)mapLastPlayedCardsInfo.get ("IsBomb");
+
+		String cards_to_reply = null;
+		String bombcards = null;
+
+		// 王炸，斗地主中的最大牌，肯定打不过，不再找牌打这道牌，直接过
+		if (别的玩家出的牌型 == DouDiZhu.Type.王炸)
+			return "过";
+		// 然后，处理普通牌型（非炸弹的牌型，非炸弹的牌型都可以用炸弹打）、炸弹牌型
+		if (mySolution == null)
+			return null;
+
+
+		cards_to_reply = 从最佳方案中找牌 (player_cards, 别的玩家出的牌型, nMaxPoint, nSerialLength);
+		if (StringUtils.isNotEmpty (cards_to_reply))
+			return cards_to_reply;
+		if (别的玩家出的牌型 == DouDiZhu.Type.炸弹)
+		{
+			cards_to_reply = 找出王炸 (player_cards);
+			if (StringUtils.isNotEmpty (cards_to_reply))
+				return cards_to_reply;
+			return "过";	// 必须在这里返回“过”牌，因为后面的还有针对【普通牌】找点值最小的【炸弹牌】打的处理
+		}
+		/*
+		switch (别的玩家出的牌型)
+		{
+			case 单:
+				cards_to_reply = 找出点数值大于N的单 (player_cards, nMaxPoint);
+				break;
+			case 顺子:
+				cards_to_reply = 找出点数值大于N的顺子 (player_cards, nMaxPoint, nSerialLength);
+				break;
+
+			case 对:
+				cards_to_reply = 找出点数值大于N的对 (player_cards, nMaxPoint);
+				break;
+			case 连对:
+				cards_to_reply = 找出点数值大于N的连对 (player_cards, nMaxPoint, nSerialLength);
+				break;
+
+			case 三:
+				cards_to_reply = 找出点数值大于N的三 (player_cards, nMaxPoint);
+				break;
+			case 三带1:
+				cards_to_reply = 找出点数值大于N的三带1 (player_cards, nMaxPoint);
+				break;
+			case 三带1对:
+				cards_to_reply = 找出点数值大于N的三带1对 (player_cards, nMaxPoint);
+				break;
+			case 飞机:
+				cards_to_reply = 找出点数值大于N的飞机 (player_cards, nMaxPoint, nSerialLength);
+				break;
+			case 飞机带单:
+				cards_to_reply = 找出点数值大于N的飞机带单 (player_cards, nMaxPoint, nSerialLength);
+				break;
+			case 飞机带对:
+				cards_to_reply = 找出点数值大于N的飞机带对 (player_cards, nMaxPoint, nSerialLength);
+				break;
+
+			//case 四:
+			//	break;
+			case 四带2:
+				cards_to_reply = 找出点数值大于N的四带2 (player_cards, nMaxPoint);
+				break;
+			case 四带2对:
+				cards_to_reply = 找出点数值大于N的四带2对 (player_cards, nMaxPoint);
+				break;
+			case 大飞机:
+				cards_to_reply = 找出点数值大于N的大飞机 (player_cards, nMaxPoint, nSerialLength);
+				break;
+			case 大飞机带2单:
+				cards_to_reply = 找出点数值大于N的大飞机带2单 (player_cards, nMaxPoint, nSerialLength);
+				break;
+			case 大飞机带2对:
+				cards_to_reply = 找出点数值大于N的大飞机带2对 (player_cards, nMaxPoint, nSerialLength);
+				break;
+
+			case 炸弹:
+				cards_to_reply = 找出点数值大于N的炸弹 (player_cards, nMaxPoint);
+				if (StringUtils.isNotEmpty (cards_to_reply))
+					return cards_to_reply;
+				else
+				{
+					cards_to_reply = 找出王炸 (player_cards);
+					if (StringUtils.isNotEmpty (cards_to_reply))
+						return cards_to_reply;
+					return "过";	// 必须在这里返回“过”牌，因为后面的还有针对【普通牌】找【炸弹牌】打的处理
+				}
+			default:
+				return "过";
+		}
+		*/
+
+		// 如果找到同牌型的牌，则出牌
+		if (StringUtils.isNotEmpty (cards_to_reply))
+			return cards_to_reply;
+
+		// 再不行就找炸弹
+		bombcards = 从最佳方案中找牌 (player_cards, DouDiZhu.Type.炸弹, 0, 0);
+		if (StringUtils.isNotEmpty (bombcards))
+			return bombcards;
+
+		// 还不行就找王炸
+		bombcards = 从最佳方案中找牌 (player_cards, DouDiZhu.Type.王炸, 0, 0);
+		if (StringUtils.isNotEmpty (bombcards))
+			return bombcards;
+
+		return "过";
+	}
+
+	public String 从最佳方案中找牌 (List<Map<String, Object>> player_cards, DouDiZhu.Type 别的玩家出的牌型, int nPointOfCardsOtherPlayerPlayed, int nSerialLengthOfCardsOtherPlayerPlayed)
+	{
+		boolean bNeedToCompareSerialLength = false;
+		switch (别的玩家出的牌型)
+		{
+			case 顺子:
+			case 连对:
+			case 飞机:
+			case 飞机带单:
+			case 飞机带对:
+			case 大飞机:
+			case 大飞机带2单:
+			case 大飞机带2对:
+				bNeedToCompareSerialLength = true;
+				break;
+		}
+		for (int i=0; i<mySolution.size (); i++)
+		{
+			Map<String, Object> mapCard = mySolution.get (i);
+			DouDiZhu.Type cardType = (DouDiZhu.Type)mapCard.get ("牌型");
+			int nMaxPoint = (int)mapCard.get ("最大点值");
+			int nSerialLength = (int)mapCard.get ("序列长度");
+			if (cardType == 别的玩家出的牌型 && nMaxPoint > nPointOfCardsOtherPlayerPlayed && (bNeedToCompareSerialLength ? nSerialLength==nSerialLengthOfCardsOtherPlayerPlayed : true))
+			{
+				mySolution.remove (i);	// 务必删除掉
+				return (String)mapCard.get ("牌");
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的单 (List<Map<String, Object>> player_cards, int nPoint)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的顺子 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的对 (List<Map<String, Object>> player_cards, int nPoint)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的连对 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的三 (List<Map<String, Object>> player_cards, int nPoint)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的三带1 (List<Map<String, Object>> player_cards, int nPoint)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的三带1对 (List<Map<String, Object>> player_cards, int nPoint)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的飞机 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的飞机带单 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的飞机带对 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的四带2 (List<Map<String, Object>> player_cards, int nPoint)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的四带2对 (List<Map<String, Object>> player_cards, int nPoint)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的大飞机 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的大飞机带2单 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的大飞机带2对 (List<Map<String, Object>> player_cards, int nPoint, int nSerialLength)
+	{
+		return null;
+	}
+
+	@Override
+	public String 找出点数值大于N的炸弹 (List<Map<String, Object>> player_cards, int nPoint)
 	{
 		return null;
 	}
@@ -1560,7 +1809,7 @@ System.out.println (i + ": " + GetCardsOnly (solution) + (bShowDetailSolution ? 
 		}
 
 		Set<List<Map<String, Object>>> setSolutions = null;	// new HashSet<List<Map<String, Object>>> ();
-		logging = true;
+		//logging = true;
 		//for (String arg : args)
 		{
 			List<String> listCards = DouDiZhu.AnswerToCardRanksList (sCardRanks);

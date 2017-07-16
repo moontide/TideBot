@@ -2,11 +2,22 @@ package net.maclife.irc.game;
 
 public abstract class Player
 {
+	Game game = null;
 	String playerName = "";
 
 	public Player (String name)
 	{
 		setName (name);
+	}
+
+	public Game getGame ()
+	{
+		return game;
+	}
+
+	public void setGame (Game game)
+	{
+		this.game = game;
 	}
 
 	public void setName (String name)

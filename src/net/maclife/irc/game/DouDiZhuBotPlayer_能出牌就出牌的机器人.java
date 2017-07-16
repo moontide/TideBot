@@ -18,7 +18,7 @@ import org.apache.commons.lang3.*;
  * @author liuyan
  *
  */
-@SuppressWarnings ({"unused", "unchecked"})
+//@SuppressWarnings ({"unused", "unchecked"})
 public class DouDiZhuBotPlayer_能出牌就出牌的机器人 extends DouDiZhuBotPlayer
 {
 	public DouDiZhuBotPlayer_能出牌就出牌的机器人 (String name)
@@ -62,16 +62,16 @@ public class DouDiZhuBotPlayer_能出牌就出牌的机器人 extends DouDiZhuBo
 	/**
 	 * 根据别人所出的牌的牌型+张数，从自己的手牌中找出比其牌型大的牌打出
 	 */
-	public Object 回牌 (Object... params)
+	public Object 回牌 (Object... args)
 	{
-		if (params.length < 4)
+		if (args.length < 4)
 			throw new IllegalArgumentException ("斗地主的游戏机器人，回牌 函数至少需要 4 个参数： 1.别的玩家出的牌 2.别的玩家出的牌统计信息 3.别的玩家出的牌型 4.自己剩余的手牌");
-		List<String> listLastPlayedCardRanks = (List<String>) params[0];
-		Map<String, Object> mapLastPlayedCardsInfo = (Map<String, Object>) params[1];
-		DouDiZhu.Type 别的玩家出的牌型 = (DouDiZhu.Type) params[2];
-		List<Map<String, Object>> player_cards = (List<Map<String, Object>>) params[3];
+		List<String> listLastPlayedCardRanks = (List<String>) args[0];
+		Map<String, Object> mapLastPlayedCardsInfo = (Map<String, Object>) args[1];
+		DouDiZhu.Type 别的玩家出的牌型 = (DouDiZhu.Type) args[2];
+		List<Map<String, Object>> player_cards = (List<Map<String, Object>>) args[3];
 
-		int nPrimaryCardType = (int)mapLastPlayedCardsInfo.get ("PrimaryCardType");
+		//int nPrimaryCardRawType = (int)mapLastPlayedCardsInfo.get ("PrimaryCardRawType");
 		int nMaxPoint = (int)mapLastPlayedCardsInfo.get ("MaxPoint");
 		int nSolo = (int)mapLastPlayedCardsInfo.get ("nSolo");
 		int nPair = (int)mapLastPlayedCardsInfo.get ("nPair");
@@ -159,7 +159,7 @@ public class DouDiZhuBotPlayer_能出牌就出牌的机器人 extends DouDiZhuBo
 			return cards_to_reply;
 
 		// 再不行就找炸弹
-		bombcards = 找出最小点数值的炸弹 (player_cards);
+		bombcards = 找出点数值最小的炸弹 (player_cards);
 		if (StringUtils.isNotEmpty (bombcards))
 			return bombcards;
 
@@ -633,11 +633,6 @@ public class DouDiZhuBotPlayer_能出牌就出牌的机器人 extends DouDiZhuBo
 			}
 		}
 		return null;
-	}
-
-	public String 找出最小点数值的炸弹 (List<Map<String, Object>> player_cards)
-	{
-		return 找出点数值大于N的炸弹 (player_cards, 0);
 	}
 
 	/**

@@ -10,7 +10,28 @@ public abstract class DouDiZhuBotPlayer extends TurnBasedBotPlayer
 	{
 		super (name);
 	}
+
+	/**
+	 * 抢地主
+	 * @param args 参数列表：
+	 * <ol>
+	 * 	<li>玩家手牌，数据类型： <code>List&lt;Map&lt;String, Object&gt;&gt;</code> ，其中的 Map 中的 Key 有：
+	 * 		<ul>
+	 * 			<li>"rank" -- 牌面（字符串）、</li>
+	 * 			<li>"point" -- 点值（整数）、</li>
+	 * 			<li>"suit" -- 花色（字符串）、</li>
+	 * 			<li>"color" -- IRC 颜色</li>
+	 *		</ul>
+	 * 	</li>
+	 * 	<li>候选答案，数据类型： <code>List&lt;String[]&gt;</code>，其中的 <code>String[]</code> 遵循 Dialog 类候选答案的格式：<code>[0]</code> 是 value，<code>[1]</code> 是 description </li>
+	 * </ol>
+	 * @return
+	 */
 	public abstract Object 抢地主 (Object... args);
+	public Object 手牌变更 (Object listMyCurrentCards, String sReason)
+	{
+		return null;
+	}
 
 	public abstract String 找出点数值大于N的单 (List<Map<String, Object>> player_cards, int nMaxPoint);
 	public abstract String 找出点数值大于N的顺子 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=5 */);
@@ -32,6 +53,11 @@ public abstract class DouDiZhuBotPlayer extends TurnBasedBotPlayer
 	public abstract String 找出点数值大于N的大飞机带2对 (List<Map<String, Object>> player_cards, int nMaxPoint, int nSerialLength /* >=2 */);
 
 	public abstract String 找出点数值大于N的炸弹 (List<Map<String, Object>> player_cards, int nMaxPoint);
+	public String 找出点数值最小的炸弹 (List<Map<String, Object>> player_cards)
+	{
+		return 找出点数值大于N的炸弹 (player_cards, 0);
+	}
+
 	public String 找出王炸 (List<Map<String, Object>> player_cards)
 	{
 		boolean 有小王 = false;
