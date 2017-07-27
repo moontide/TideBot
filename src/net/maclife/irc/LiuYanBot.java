@@ -111,9 +111,13 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String WORKING_DIRECTORY = System.getProperty ("user.dir");
 	public static final File  WORKING_DIRECTORY_FILE = new File (WORKING_DIRECTORY);
 
+	public static final String BOT_OPTION_SEPARATOR = ".";	// Bot 命令选项的分割符，只能为 1 个字符。如： "cmd.10.WIDTH=80.HEIGHT=24"
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	public static String BOT_CUSTOMIZED_ACTION_PREFIX = ".";	// 自定义动作命令的“动作命令”前缀
+	public static final int BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH = 5;	// 自定义动作命令的“动作名”字符串的最小长度。避免添加过短的“动作名”
 	public static String BOT_HT_TEMPLATE_SHORTCUT_PREFIX = "$";	// ht 模板快捷命令的前缀
+	public static final int BOT_HT_MIN_TEMPLATE_NAME_LENGTH = 5;	// ht 模板名称的最小长度。避免添加过短的模板名
+
 	public static final String BOT_PRIMARY_COMMAND_Help             = "/Help";
 	public static final String BOT_PRIMARY_COMMAND_Alias            = "/Alias";
 	public static final String BOT_PRIMARY_COMMAND_Cmd              = "Cmd";
@@ -164,7 +168,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Quit     = "/Quit";	    // 退出 IRC，退出程序
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Channel  = "/channel";	// 更改当前频道
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Msg      = "/msg";
-	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Action   = "/me";
+	public static final String BOT_PRIMARY_COMMAND_CustomizedAction = "/me";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Nick     = "/nick";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Identify = "/Identify";
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Invite   = "/Invite";
@@ -247,7 +251,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_CONSOLE_Quit, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Channel, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Msg, "/say", },
-		{BOT_PRIMARY_COMMAND_CONSOLE_Action, "/action", },
+		{BOT_PRIMARY_COMMAND_CustomizedAction, "/action", },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Nick, "/name", },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Identify, "/auth", },
 
@@ -268,16 +272,12 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_CONSOLE_Verbose, "/debug"},
 	};
 
-	public static final String COLOR_DARK_RED = Colors.BROWN;
-	public static final String COLOR_ORANGE = Colors.OLIVE;
-	public static final String COLOR_DARK_CYAN = Colors.TEAL;
-
 	public static final String COLOR_BOT_COMMAND = Colors.DARK_GREEN;
 	public static final String COLOR_COMMAND = Colors.DARK_GREEN;
 	public static final String COLOR_COMMAND_INSTANCE = Colors.GREEN;
-	public static final String COLOR_COMMAND_PREFIX = COLOR_DARK_RED;
+	public static final String COLOR_COMMAND_PREFIX = ANSIEscapeTool.COLOR_DARK_RED;
 	public static final String COLOR_COMMAND_PREFIX_INSTANCE = Colors.RED;
-	public static final String COLOR_COMMAND_OPTION = COLOR_DARK_CYAN;
+	public static final String COLOR_COMMAND_OPTION = ANSIEscapeTool.COLOR_DARK_CYAN;
 	public static final String COLOR_COMMAND_OPTION_INSTANCE = Colors.CYAN;	// 指具体选项值
 	public static final String COLOR_COMMAND_OPTION_VALUE = Colors.PURPLE;
 	public static final String COLOR_COMMAND_OPTION_VALUE_INSTANCE = Colors.MAGENTA;
@@ -1272,18 +1272,18 @@ logger.finer ("消息是对本 Bot 说的");
 						if (StringUtils.isNotEmpty (BOT_CUSTOMIZED_ACTION_PREFIX))
 							message = message.substring (BOT_CUSTOMIZED_ACTION_PREFIX.length ());
 						args = message.split (" +", 3);
-						if (args[0].contains ("."))
+						if (args[0].contains (BOT_OPTION_SEPARATOR))
 						{
-							int iFirstDotIndex = args[0].indexOf(".");
-							sCustomizedActionCmd = args[0].substring (0, iFirstDotIndex);
-							sBotCommandOptions = args[0].substring (iFirstDotIndex);
+							int iFirstOptionSeparatorIndex = args[0].indexOf (BOT_OPTION_SEPARATOR);
+							sCustomizedActionCmd = args[0].substring (0, iFirstOptionSeparatorIndex);
+							sBotCommandOptions = args[0].substring (iFirstOptionSeparatorIndex);
 						}
 						else
 							sCustomizedActionCmd = args[0];
-						if (StringUtils.containsIgnoreCase (sBotCommandOptions, ".to"))
+						if (StringUtils.containsIgnoreCase (sBotCommandOptions, BOT_OPTION_SEPARATOR + "to"))
 						{
 							if (args.length < 2)
-								throw new IllegalArgumentException ("用 .to 选项执行 /me 动作命令时，需要先指定用户名");
+								throw new IllegalArgumentException ("用 " + BOT_OPTION_SEPARATOR + "to 选项执行 /me 动作命令时，需要先指定用户名");
 
 							msgTo = args[1];
 							if (args.length > 2)	// 如果这个 /me 命令带了其他参数
@@ -1321,10 +1321,10 @@ logger.finer ("消息是对本 Bot 说的");
 
 				if (isCustomizedActionCmdShortcut)
 				{
-					botCmd = BOT_PRIMARY_COMMAND_CONSOLE_Action;
+					botCmd = BOT_PRIMARY_COMMAND_CustomizedAction;
 					message =
 						botCmd + sBotCommandOptions +
-						(StringUtils.isEmpty (msgTo) ? "" : ".to " + msgTo) + " " +
+						(StringUtils.isEmpty (msgTo) ? "" : BOT_OPTION_SEPARATOR + "to " + msgTo) + " " +
 						sCustomizedActionCmd + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 /me 命令消息
 System.err.println (message);
 				}
@@ -1354,18 +1354,18 @@ System.err.println (message);
 						if (StringUtils.isNotEmpty (BOT_HT_TEMPLATE_SHORTCUT_PREFIX))
 							message = message.substring (BOT_HT_TEMPLATE_SHORTCUT_PREFIX.length ());
 						args = message.split (" +", 3);
-						if (args[0].contains ("."))
+						if (args[0].contains (BOT_OPTION_SEPARATOR))
 						{
-							int iFirstDotIndex = args[0].indexOf(".");
-							sHTTemplateName = args[0].substring (0, iFirstDotIndex);
-							sBotCommandOptions = args[0].substring (iFirstDotIndex);
+							int iFirstOptionSeparatorIndex = args[0].indexOf (BOT_OPTION_SEPARATOR);
+							sHTTemplateName = args[0].substring (0, iFirstOptionSeparatorIndex);
+							sBotCommandOptions = args[0].substring (iFirstOptionSeparatorIndex);
 						}
 						else
 							sHTTemplateName = args[0];
-						if (StringUtils.containsIgnoreCase (sBotCommandOptions, ".to"))
+						if (StringUtils.containsIgnoreCase (sBotCommandOptions, BOT_OPTION_SEPARATOR + "to"))
 						{
 							if (args.length < 2)
-								throw new IllegalArgumentException ("用 .to 选项执行 html/json 模板时，需要先指定用户名");
+								throw new IllegalArgumentException ("用 " + BOT_OPTION_SEPARATOR + "to 选项执行 html/json 模板时，需要先指定用户名");
 
 							msgTo = args[1];
 							if (args.length > 2)	// 如果这个 ht 命令带了其他参数
@@ -1412,15 +1412,15 @@ System.err.println (message);
 					message =
 						botCmd +
 						(
-							StringUtils.containsIgnoreCase(sBotCommandOptions, ".add")
-								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".run") || StringUtils.containsIgnoreCase(sBotCommandOptions, ".go")
-								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".show")
-								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".list") || StringUtils.containsIgnoreCase(sBotCommandOptions, ".search")
-								|| StringUtils.containsIgnoreCase(sBotCommandOptions, ".stats")
+							StringUtils.containsIgnoreCase(sBotCommandOptions, BOT_OPTION_SEPARATOR + "add")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, BOT_OPTION_SEPARATOR + "run") || StringUtils.containsIgnoreCase(sBotCommandOptions, BOT_OPTION_SEPARATOR + "go")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, BOT_OPTION_SEPARATOR + "show")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, BOT_OPTION_SEPARATOR + "list") || StringUtils.containsIgnoreCase(sBotCommandOptions, BOT_OPTION_SEPARATOR + "search")
+								|| StringUtils.containsIgnoreCase(sBotCommandOptions, BOT_OPTION_SEPARATOR + "stats")
 							? sBotCommandOptions
-							: ".run" + sBotCommandOptions
+							: BOT_OPTION_SEPARATOR + "run" + sBotCommandOptions
 						)
-						+ (StringUtils.isEmpty (msgTo) ? "" : ".to " + msgTo) + " " + sHTTemplateName + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 ht 命令
+						+ (StringUtils.isEmpty (msgTo) ? "" : BOT_OPTION_SEPARATOR + "to " + msgTo) + " " + sHTTemplateName + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 ht 命令
 System.err.println (message);
 				}
 				else
@@ -1486,12 +1486,12 @@ System.err.println (message);
 			Map<String, Object> mapGlobalOptions = new HashMap<String, Object> ();
 			Map<String, String> mapUserEnv = new HashMap<String, String> ();	// 用户在 全局参数 里指定的环境变量
 			mapGlobalOptions.put ("env", mapUserEnv);
-			if (args[0].contains("."))
+			if (args[0].contains(BOT_OPTION_SEPARATOR))
 			{
-				int iFirstDotIndex = args[0].indexOf(".");
-				botCmdAlias = args[0].substring (0, iFirstDotIndex);
-				String sEnv = args[0].substring (iFirstDotIndex + 1);
-				String[] arrayEnv = sEnv.split ("\\.");
+				int iFirstOptionSeparatorIndex = args[0].indexOf (BOT_OPTION_SEPARATOR);
+				botCmdAlias = args[0].substring (0, iFirstOptionSeparatorIndex);
+				String sEnv = args[0].substring (iFirstOptionSeparatorIndex + 1);
+				String[] arrayEnv = sEnv.split ("\\" + BOT_OPTION_SEPARATOR);
 				for (String env : arrayEnv)
 				{
 					//if (StringUtils.isEmpty (env))
@@ -1717,7 +1717,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				ProcessCommand_Time (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Action)
 				|| botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Notice)
-				|| botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_CONSOLE_Action)	// /me 在通过 IRC 操作时，与在控制台操作时结果不同： 在 IRC 操作时，会读取数据库中的 actions 表，并根据参数选出相应的 action 操作
+				|| botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_CustomizedAction)	// /me 在通过 IRC 操作时，与在控制台操作时结果不同： 在 IRC 操作时，会读取数据库中的 actions 表，并根据参数选出相应的 action 操作
 				)
 				ProcessCommand_ActionNotice (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 
@@ -1764,7 +1764,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		// [“输入”与“命令”完全相等]，
 		// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
 		// 或者 [“输入”以“命令”开头，且紧接小数点"."字符]，小数点字符用于附加 bot 命令的选项
-		String[] inputs = sInput.split ("[ \\.]+", 2);
+		String[] inputs = sInput.split ("[ \\" + BOT_OPTION_SEPARATOR + "]+", 2);
 		String sInputCmd = inputs[0];
 		for (String[] names : BOT_COMMAND_ALIASES)
 		{
@@ -1921,7 +1921,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		{
 			SendMessage (ch, u, mapGlobalOptions,
 				"本 bot 命令格式: " + "<" + formatBotCommand ("命令", true) + ">[" +
-				formatBotOption (".选项", true) + "]... [" + formatBotParameter ("命令参数", true) + "]...    " +
+				formatBotOption (BOT_OPTION_SEPARATOR + "选项", true) + "]... [" + formatBotParameter ("命令参数", true) + "]...    " +
 				"命令列表:" + COLOR_COMMAND_INSTANCE +
 				" " + BOT_PRIMARY_COMMAND_Game +
 				" " + BOT_PRIMARY_COMMAND_HTMLParser +
@@ -1975,7 +1975,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("命令(不需要加 bot 命令前缀)",true) + "]...    -- 列出 bot 命令的别名, 多数 bot 命令存在别名, 一些别名可能更容易记住. 命令可输入多个.");
 		primaryCmd = BOT_PRIMARY_COMMAND_Cmd;            if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".全局选项", true) + "][" + formatBotOption (".语言", true) + "[" + formatBotOption (".字符集", true) + "]] <" + formatBotParameter ("命令", true) + "> [" + formatBotParameter ("命令参数", true) + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 重定向(><) 之外, shell 中类似变量取值($var) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (BOT_OPTION_SEPARATOR + "全局选项", true) + "][" + formatBotOption (BOT_OPTION_SEPARATOR + "语言", true) + "[" + formatBotOption (BOT_OPTION_SEPARATOR + "字符集", true) + "]] <" + formatBotParameter ("命令", true) + "> [" + formatBotParameter ("命令参数", true) + "]...    -- 执行系统命令. 例: cmd.zh_CN.UTF-8 ls -h 注意: " + Colors.BOLD + Colors.UNDERLINE + Colors.RED + "这不是 shell" + Colors.NORMAL + ", 除了管道(|) 重定向(><) 之外, shell 中类似变量取值($var) 通配符(*?) 内置命令 等" + Colors.RED + "都不支持" + Colors.NORMAL + ". 每个命令有 " + WATCH_DOG_TIMEOUT_LENGTH + " 秒的执行时间, 超时自动杀死");
 
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotCommandInstance (BOT_PRIMARY_COMMAND_Cmd, true) + " 命令特有的全局选项: " +
@@ -1991,10 +1991,10 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		primaryCmd = BOT_PRIMARY_COMMAND_GeoIP;          if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotCommandInstance (primaryCmd, true) +
-					"[" + formatBotOptionInstance(".me", true) + "][" +
-					formatBotOption (".GeoIP语言代码", true) + "] [" +
+					"[" + formatBotOptionInstance(BOT_OPTION_SEPARATOR + "me", true) + "][" +
+					formatBotOption (BOT_OPTION_SEPARATOR + "GeoIP语言代码", true) + "] [" +
 				formatBotParameter ("IP地址/域名", true) + "]...    -- 查询 IP 地址所在地理位置. IP 地址可有多个. " +
-					formatBotOptionInstance(".me", true) + ":查询自己的 IP (穿隐身衣时查不到); " +
+					formatBotOptionInstance(BOT_OPTION_SEPARATOR + "me", true) + ":查询自己的 IP (穿隐身衣时查不到); " +
 					"GeoIP语言代码目前有: de 德, en 英, es 西, fr 法, ja 日, pt-BR 巴西葡萄牙语, ru 俄, zh-CN 中. http://dev.maxmind.com/geoip/geoip2/web-services/#Languages"
 			);
 		primaryCmd = BOT_PRIMARY_COMMAND_IPLocation;          if (isThisCommandSpecified (args, primaryCmd))
@@ -2002,9 +2002,9 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				formatBotCommandInstance (primaryCmd, true) +
 				"|" + formatBotCommandInstance ("iploc", true) +
 				"|" + formatBotCommandInstance ("ipl", true) +
-					"[" + formatBotOptionInstance(".me", true) + "] [" +
+					"[" + formatBotOptionInstance(BOT_OPTION_SEPARATOR + "me", true) + "] [" +
 				formatBotParameter ("IPv4地址/域名", true) + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个. " +
-					formatBotOptionInstance(".me", true) + ":查询自己的 IP (穿隐身衣时查不到);"
+					formatBotOptionInstance(BOT_OPTION_SEPARATOR + "me", true) + ":查询自己的 IP (穿隐身衣时查不到);"
 			);
 		primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("pr", true) + " <" + formatBotParameter ("网址", true) + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
@@ -2033,7 +2033,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("正整数", true) + "] <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 ." + formatBotOption ("正整数", true) + " -- 返回几条搜索结果，默认是 2 条; 因 Google 的 API 返回结果不超过 4 条，所以，该数值超过 4 也不起作用。");
 		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("match", true) + "|" + formatBotCommandInstance ("replace", true) + "|" + formatBotCommandInstance ("substitute", true) + "|" + formatBotCommandInstance ("split", true) + ".[" + formatBotOption ("RegExp选项", true) + "].[" + formatBotOptionInstance ("nocolor", true) + "] <" + formatBotParameter ("参数1", true) + "> [" + formatBotParameter ("参数2", true) + "] [" + formatBotParameter ("参数3", true) + "] [" + formatBotParameter ("参数4", true) + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + formatBotOptionInstance ("i", true) + "-不分大小写, " + formatBotOptionInstance ("m", true) + "-多行模式, " + formatBotOptionInstance ("s", true) + "-.也会匹配换行符; " + formatBotCommandInstance ("regexp", true) + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("match", true) + "|" + formatBotCommandInstance ("replace", true) + "|" + formatBotCommandInstance ("substitute", true) + "|" + formatBotCommandInstance ("split", true) + BOT_OPTION_SEPARATOR + "[" + formatBotOption ("RegExp选项", true) + "].[" + formatBotOptionInstance ("nocolor", true) + "] <" + formatBotParameter ("参数1", true) + "> [" + formatBotParameter ("参数2", true) + "] [" + formatBotParameter ("参数3", true) + "] [" + formatBotParameter ("参数4", true) + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + formatBotOptionInstance ("i", true) + "-不分大小写, " + formatBotOptionInstance ("m", true) + "-多行模式, " + formatBotOptionInstance ("s", true) + "-.也会匹配换行符; " + formatBotCommandInstance ("regexp", true) + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance ("match", true) + ": " + formatBotParameter ("参数1", true) + " 匹配 " + formatBotParameter ("参数2", true) + "; " + formatBotCommandInstance ("replace", true) + "/" + formatBotCommandInstance ("substitute", true) + ": " + formatBotParameter ("参数1", true) + " 中的 " + formatBotParameter ("参数2", true) + " 替换成 " + formatBotParameter ("参数3", true) + "; " + formatBotCommandInstance ("split", true) + ": 用 " + formatBotParameter ("参数2", true) + " 分割 " + formatBotParameter ("参数1", true) + ";");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
@@ -2094,7 +2094,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				"[/start " + formatBotParameter ("偏移量", true) + "]  -- 多功能 HTML、JSON 解析器，用以解析任意网址的 HTML 和 JSON 内容");
 			SendMessage (null, u, mapGlobalOptions, Colors.RED + "== 参数顺序 ==" + Colors.NORMAL + "： 多数参数与顺序无关，除了 /ss /lp /e /a /ff /fw /rp，因为这些是可以传递多个的， /ss 必须在 /lp /e /a /ff /fw /rp 之前。/ss 参数可以忽略，如果没有 /ss 参数（如，只需要外围的 CSS 选择器），则只能添加一组 /lp /e /a /ff /fw /rp 参数");
 			SendMessage (null, u, mapGlobalOptions,
-				formatBotParameter ("模板名", true) + "建议: 以网站名或域名开头. " + Colors.DARK_GREEN + "如果模板名不包含空格和小数点，则可以直接用模板名当做“命令”来执行" + Colors.NORMAL + ". " +
+				formatBotParameter ("模板名", true) + "建议: 以网站名或域名开头. " + Colors.DARK_GREEN + "如果模板名不包含空格和小数点，则可以直接用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_HT_TEMPLATE_SHORTCUT_PREFIX + Colors.NORMAL + "模板名 当做“快捷命令”来执行" + Colors.NORMAL + ". " +
 				formatBotParameter ("网址", true) + ": 可以省去前面的 http:// ; 有的主页网址需要在域名后面加 / 才能正常获取数据; 有的网址则需要指定 User-Agent 字符串 (如 /ua Mozilla) 才能正常获取数据. " +
 				formatBotParameter ("CSS 选择器", true) + "必须是 jsoup 库支持的选择器:" + Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/select/Selector.html http://jsoup.org/cookbook/extracting-data/selector-syntax" + Colors.BOLD + ". " +
 				"");
@@ -2115,11 +2115,11 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					Colors.BOLD + " http://jsoup.org/apidocs/org/jsoup/nodes/Element.html " + Colors.BOLD +
 					""
 				);
-			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("list", true) + ": 列出已保存的模板. 可用 /start <起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配.");
-			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("add", true) + " : 添加模板. 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". " + Colors.RED + "由于模板目前不可修改，在添加模板前，请先测试好." + Colors.NORMAL);
-			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("run", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四...个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ... ${pNNN}" + Colors.NORMAL + " 或无转义的参数 ${u} ${u2} ... ${uNNN}");
-			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("os", true) + " : 在输出 html 的超级链接元素 a 时，把网址中的 http:// https:// 等 scheme 也输出出来，默认不输出（避免与那些未执行命令却自动取网页标题的 bot 产生冲突）.");
-			SendMessage (null, u, mapGlobalOptions, "." + formatBotOptionInstance ("gfw", true) + " : 在访问网址时，使用后台配置的针对 gfw 的代理服务器，适用于访问的网站被 gfw 特别关照时的情况.");
+			SendMessage (null, u, mapGlobalOptions, BOT_OPTION_SEPARATOR + formatBotOptionInstance ("list", true) + ": 列出已保存的模板. 可用 /start <起点> 来更改偏移量; 其他参数被当做查询条件使用, 其中除了 /e /a /m 是精确匹配外, 其他都是模糊匹配.");
+			SendMessage (null, u, mapGlobalOptions, BOT_OPTION_SEPARATOR + formatBotOptionInstance ("add", true) + " : 添加模板. 至少需要指定 " + formatBotParameter ("模板名", true) + "、" + formatBotParameter ("网址", true) + "、" + formatBotParameter ("选择器", true) + ". " + Colors.RED + "由于模板目前不可修改，在添加模板前，请先测试好." + Colors.NORMAL);
+			SendMessage (null, u, mapGlobalOptions, BOT_OPTION_SEPARATOR + formatBotOptionInstance ("show", true) + " 或 ." + formatBotOptionInstance ("run", true) + " 时, 第一个参数必须指定 <" + formatBotParameter ("编号", true) + "(纯数字)> 或者 <" + formatBotParameter ("模板名", true) + ">. 第二三四...个参数可指定 URL 中的参数 " + Colors.RED + "${p} ${p2} ... ${pNNN}" + Colors.NORMAL + " 或无转义的参数 ${u} ${u2} ... ${uNNN}");
+			SendMessage (null, u, mapGlobalOptions, BOT_OPTION_SEPARATOR + formatBotOptionInstance ("os", true) + " : 在输出 html 的超级链接元素 a 时，把网址中的 http:// https:// 等 scheme 也输出出来，默认不输出（避免与那些未执行命令却自动取网页标题的 bot 产生冲突）.");
+			SendMessage (null, u, mapGlobalOptions, BOT_OPTION_SEPARATOR + formatBotOptionInstance ("gfw", true) + " : 在访问网址时，使用后台配置的针对 gfw 的代理服务器，适用于访问的网站被 gfw 特别关照时的情况.");
 			//SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " 设置的模板可以带一个参数，比如设置的模板是针对百度贴吧的…… (未完)。模板建议针对内容会更新的页面而设置，固定页面、固定内容的建议直接执行。 您一定需要了解 JSOUP 支持的 CSS 选择器 http://jsoup.org/apidocs/org/jsoup/select/Selector.html 才能有效的解析。建议只对 html 代码比较规范的网页设置模板…… 个别网页的 html 是由 javascript 动态生成的，则无法获取。");
 			//SendMessage (ch, u, mapGlobalOptions, "");
 		}
@@ -2158,7 +2158,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					"   http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主 http://zh.wikipedia.org/wiki/三国杀"
 			);
 			SendMessage (ch, u, mapGlobalOptions,
-				"." + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字"
+				BOT_OPTION_SEPARATOR + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字"
 			);
 			SendMessage (ch, u, mapGlobalOptions,
 				formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报每次出牌后的剩牌数." +
@@ -2167,12 +2167,12 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				"用 @智能[其他附加名] 或 @有点智能[其他附加名] 或 @Smart[其他附加名] 添加稍微有点小智能的机器人。"
 			);
 			SendMessage (ch, u, mapGlobalOptions,
-				formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (".w=格子宽度", true) + formatBotOption (".h=格子高度", true) + formatBotOption (".p=2的幂指数", true) +
+				formatBotParameterInstance ("2048", true) + " 说明: 可用" + formatBotOption (BOT_OPTION_SEPARATOR + "w=格子宽度", true) + formatBotOption (BOT_OPTION_SEPARATOR + "h=格子高度", true) + formatBotOption (BOT_OPTION_SEPARATOR + "p=2的幂指数", true) +
 				" 来改变方格的大小、赢数的大小。限制： p的大小必须小于 w*h，比如：宽3x高3，则p最高只能取值为8。 p=11 就是默认的达到 2048 就赢。 一般在 IRC 中玩，建议 .w=3.h=3.p=8或者7 (因为速度的原因)。可用 " +
-				formatBotOptionInstance (".rand1", true) + " 或 " + formatBotOptionInstance (".rand2", true) + " 或 " + formatBotOptionInstance (".rand3", true) + " 调整生成随机数的模式，" +
-				formatBotOptionInstance (".rand1", true) + ": 生成2-4其中的一个数值；" +
-				formatBotOptionInstance (".rand2", true) + "(默认模式): 生成2到数字盘最小值的一个数值；" +
-				formatBotOptionInstance (".rand3", true) + ": 生成2到数字盘最大值/2的一个数值；" +
+				formatBotOptionInstance (BOT_OPTION_SEPARATOR + "rand1", true) + " 或 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "rand2", true) + " 或 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "rand3", true) + " 调整生成随机数的模式，" +
+				formatBotOptionInstance (BOT_OPTION_SEPARATOR + "rand1", true) + ": 生成2-4其中的一个数值；" +
+				formatBotOptionInstance (BOT_OPTION_SEPARATOR + "rand2", true) + "(默认模式): 生成2到数字盘最小值的一个数值；" +
+				formatBotOptionInstance (BOT_OPTION_SEPARATOR + "rand3", true) + ": 生成2到数字盘最大值/2的一个数值；" +
 				""
 			);
 			SendMessage (ch, u, mapGlobalOptions, formatBotParameterInstance ("三国杀", true) + " 目前只实现了 " + formatBotParameterInstance ("三国杀入门", true) + " 玩法：只有杀、闪、桃，最多只能 3 人玩（3 人以内不用关心距离）。其他玩法，想想实现起来的工作量就有点头疼…"
@@ -2183,7 +2183,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Vote;         if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".时长", true) + "] <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].  -- 投票管理功能。动作可以为： kick  ban unBan  op deOP  voice deVoice  quiet unQuiet  invite。 /vote 和动作可以连写在一起，如： /voteKick");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (BOT_OPTION_SEPARATOR + "时长", true) + "] <" + formatBotParameter ("动作", true) + "> <" + formatBotParameter ("昵称", true) + "> [" + formatBotParameter ("原因", true) + "].  -- 投票管理功能。动作可以为： kick  ban unBan  op deOP  voice deVoice  quiet unQuiet  invite。 /vote 和动作可以连写在一起，如： /voteKick");
 			SendMessage (ch, u, mapGlobalOptions, formatBotOption ("时长", true) + " 的格式: [数值][时间单位]，比如 '" + formatBotOptionInstance ("1d", true) + "' -- 1 天，如果数值忽略，则默认为 5，如果时间单位忽略，则默认为 m(分钟)，都忽略就是默认 5 分钟。时间单位取值：" +
 			formatBotOptionInstance ("s", true) + ":秒second " +
 			formatBotOptionInstance ("m", true) + ":分钟minute " +
@@ -2199,25 +2199,25 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_Time;           if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (".Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[" + formatBotOption (BOT_OPTION_SEPARATOR + "Java语言区域", true) + "] [" + formatBotParameter ("Java时区(区分大小写)", true) + "] [" + formatBotParameter ("Java时间格式", true) + "]     -- 显示当前时间. 参数取值请参考 Java 的 API 文档: Locale TimeZone SimpleDateFormat.  举例: time.es_ES Asia/Shanghai " + DEFAULT_TIME_FORMAT_STRING + "    // 用西班牙语显示 Asia/Shanghai 区域的时间, 时间格式为后面所指定的格式");
 		primaryCmd = BOT_PRIMARY_COMMAND_Action;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "  [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "  [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送动作消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "to", true) + " 选项时才需要");
 		primaryCmd = BOT_PRIMARY_COMMAND_Notice;         if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "  [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (".to", true) + " 选项时才需要");
-		primaryCmd = BOT_PRIMARY_COMMAND_CONSOLE_Action;         if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "  [" + formatBotParameter ("目标(#频道或昵称)", true) + "] <" + formatBotParameter ("消息", true) + ">    -- 发送通知消息. 注: “目标”参数仅仅在开启 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "to", true) + " 选项时才需要");
+		primaryCmd = BOT_PRIMARY_COMMAND_CustomizedAction;         if (isThisCommandSpecified (args, primaryCmd))
 		{
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) +
-				"    -- 用动作命令执行 IRC 动作。动作命令可用 " + formatBotOptionInstance (".add", true) + " 操作自己添加。" +
+				"    -- 用动作命令执行 IRC 动作。动作命令可用 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " 操作自己添加。" +
 				" 另外，可省去 " + formatBotCommandInstance (primaryCmd, true) +
-				" 前缀，用" + COLOR_COMMAND_PREFIX_INSTANCE + BOT_CUSTOMIZED_ACTION_PREFIX + Colors.NORMAL + formatBotParameter("动作命令", true) + " 快捷执行…" +
+				" 前缀，用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_CUSTOMIZED_ACTION_PREFIX + Colors.NORMAL + formatBotParameter("动作命令", true) + " 快捷执行…" +
 				""
 			);
 
-			//	formatBotOption (".操作", true) + " 列表： " +
-			//	formatBotOptionInstance (".run", true) + " - 执行(默认); " +
-			//	formatBotOptionInstance (".add", true) + " - 添加动作命令; " +
-			//	formatBotOptionInstance (".modify", true) + " - 修改已添加的动作(只有自己[以 @host 作为判断是否是自己的依据]和 VIP 才能修改自己添加的); " +
-			//	formatBotOptionInstance (".list", true) + " - 列出所有动作命令; " +
+			//	formatBotOption (BOT_OPTION_SEPARATOR + "操作", true) + " 列表： " +
+			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "run", true) + " - 执行(默认); " +
+			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " - 添加动作命令; " +
+			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "modify", true) + " - 修改已添加的动作(只有自己[以 @host 作为判断是否是自己的依据]和 VIP 才能修改自己添加的); " +
+			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "list", true) + " - 列出所有动作命令; " +
 
 			SendMessage (ch, u, mapGlobalOptions, "执行: " + formatBotCommandInstance (primaryCmd, true) +
 				"  <" + formatBotParameter ("动作命令", true) + "(可用汉字)>" +
@@ -2225,7 +2225,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				""
 			);
 
-			SendMessage (ch, u, mapGlobalOptions, "添加: " + formatBotCommandInstance (primaryCmd, true) + formatBotOptionInstance (".add", true) + " <动作命令> <动作内容> " +
+			SendMessage (ch, u, mapGlobalOptions, "添加: " + formatBotCommandInstance (primaryCmd, true) + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " <动作命令> <动作内容> " +
 				"  动作命令必须是 UTF8 编码的字符串，可以用汉字，但受到 MySQL 的限制，单个 UTF-8 字符的编码长度不能超过 4 字节，所以，不能用太特殊的字符。" +
 				"  动作命令字符串长度：不能小于 4 英文字符、2 汉字 (VIP 可跳过该限制)，不能大于 50。" +
 				"动作内容中包含 ${p} 的，均是与目标互动的动作，${p} 将被替换成执行时的动作目标。 " +
@@ -2237,7 +2237,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_URLEncode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance (BOT_PRIMARY_COMMAND_URLDecode, true) + "[" + formatBotOption (".字符集", true) + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance (BOT_PRIMARY_COMMAND_URLDecode, true) + "[" + formatBotOption (BOT_OPTION_SEPARATOR + "字符集", true) + "] <要编码|解码的字符串>    -- 将字符串编码为 application/x-www-form-urlencoded 字符串 | 从 application/x-www-form-urlencoded 字符串解码");
 		primaryCmd = BOT_PRIMARY_COMMAND_HTTPHead;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " <" + formatBotParameter ("HTTP 网址", true) + ">    -- 显示指定网址的 HTTP 响应头");
 
@@ -2348,7 +2348,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		{
 			sendAction (target, msg);
 		}
-		else if (StringUtils.equalsIgnoreCase (botcmd, BOT_PRIMARY_COMMAND_CONSOLE_Action))
+		else if (StringUtils.equalsIgnoreCase (botcmd, BOT_PRIMARY_COMMAND_CustomizedAction))
 		{
 			String sBotCmdAction = null;	// .run (默认) 、 .add、 .list 、 .listHot 、
 			if (listCmdEnv!=null && listCmdEnv.size()>0)
@@ -2378,25 +2378,25 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 				if (StringUtils.isEmpty (sActionCmd) || StringUtils.isEmpty (sIRCAction))
 				{
-					SendMessage (channel, nick, mapGlobalOptions, BOT_PRIMARY_COMMAND_CONSOLE_Action + ".add  <命令>  <动作内容>");
+					SendMessage (channel, nick, mapGlobalOptions, BOT_PRIMARY_COMMAND_CustomizedAction + BOT_OPTION_SEPARATOR + "add  <命令>  <动作内容>");
 					return;
 				}
-				/*
-				if (! (
-					isFromConsole(channel, nick, login, host)	// 控制台执行时传的“空”参数
-					|| isUserInWhiteList(host, login, nick, botcmd)
-					)
-					&&
-					(sActionCmd.matches("^\\w+$") && sActionCmd.length ()<3
-						||
-					sActionCmd.matches("") && sActionCmd.length ()<2
-					)
-				)
+				if (StringUtils.containsIgnoreCase (sActionCmd, BOT_OPTION_SEPARATOR))
 				{
-					SendMessage (channel, nick, mapGlobalOptions, "非 VIP 用户不能用过短的动作名，至少要 3 个英文字符、2 个汉字");
+					SendMessage (channel, nick, mapGlobalOptions, "自定义动作的动作名不能包含 Bot 命令选项的分隔符 '" + BOT_OPTION_SEPARATOR + "'.");
 					return;
 				}
-				*/
+				if (StringUtils.length (sActionCmd) < BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH
+					&&
+					! (
+						isFromConsole(channel, nick, login, host)	// 控制台执行时传的“空”参数
+						|| isUserInWhiteList(host, login, nick, botcmd)
+						)
+					)
+				{
+					SendMessage (channel, nick, mapGlobalOptions, "自定义动作的动作名长度不能过短，非 VIP 用户不能添加长度小于 " + BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH + " 的动作名");
+					return;
+				}
 
 				Connection conn = null;
 				PreparedStatement stmt = null;
@@ -2445,9 +2445,9 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 						SendMessage (channel, nick, mapGlobalOptions,
 								Colors.DARK_GREEN + "✓ 保存成功。#" + nActionNumber + Colors.NORMAL + "  " +
 								(bMatched ?
-									"注意：你刚刚添加的是互动类型的动作，所以在使用时，需要加上互动的目标，如： " + BOT_PRIMARY_COMMAND_CONSOLE_Action + " " + sActionCmd + " " + getNick()
+									"注意：你刚刚添加的是互动类型的动作，所以在使用时，需要加上互动的目标，如： " + BOT_PRIMARY_COMMAND_CustomizedAction + " " + sActionCmd + " " + getNick()
 									:
-									"你刚刚添加的是自娱自乐类型的动作，在使用时不能加互动目标，如： "  + BOT_PRIMARY_COMMAND_CONSOLE_Action + " " + sActionCmd
+									"你刚刚添加的是自娱自乐类型的动作，在使用时不能加互动目标，如： "  + BOT_PRIMARY_COMMAND_CustomizedAction + " " + sActionCmd
 								)
 						);
 					}
@@ -2556,16 +2556,16 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					}
 					if (StringUtils.isNotEmpty (sTargetNick))
 					{
-						sIRCAction = StringUtils.replace (sIRCAction, "${p}", Colors.MAGENTA + sTargetNick + Colors.NORMAL);
+						sIRCAction = StringUtils.replaceIgnoreCase (sIRCAction, "${p}", Colors.MAGENTA + sTargetNick + Colors.NORMAL);
 					}
-					sIRCAction = StringUtils.replace (sIRCAction, "${me}", Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL);
-					sIRCAction = StringUtils.replace (sIRCAction, "${channel}", COLOR_DARK_CYAN + channel + Colors.NORMAL);
+					sIRCAction = StringUtils.replaceIgnoreCase (sIRCAction, "${me}", Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL);
+					sIRCAction = StringUtils.replaceIgnoreCase (sIRCAction, "${channel}", ANSIEscapeTool.COLOR_DARK_CYAN + channel + Colors.NORMAL);
 					sendAction (channel,
 						Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL + " " +
 						sIRCAction +
 						(nActionNumber > 0
 							?
-							" " + Colors.DARK_GREEN + "[" + Colors.NORMAL + sActionCmd + "." + COLOR_DARK_RED + nActionNumber + Colors.NORMAL + (nMax > 0 ? "/" + nMax : "") + Colors.DARK_GREEN + "]" + Colors.NORMAL
+							" " + Colors.DARK_GREEN + "[" + Colors.NORMAL + sActionCmd + BOT_CUSTOMIZED_ACTION_PREFIX + ANSIEscapeTool.COLOR_DARK_RED + nActionNumber + Colors.NORMAL + (nMax > 0 ? "/" + nMax : "") + Colors.DARK_GREEN + "]" + Colors.NORMAL
 							:
 							""
 						)
@@ -3439,7 +3439,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 		//	nTimeLength = 0;
 		//	if (isVoteActionThatNeedTimeOption (sVoteAction))
 		//	{
-		//		SendMessage (channel, nick, mapGlobalOptions, Colors.MAGENTA + sVoteAction + Colors.NORMAL + " 操作需要明确用 " + formatBotOption (".时长", true) + " 选项指定时长，默认单位为 s:秒，可用 " + formatBotOptionInstance (".timeunit=", true) + formatBotOption ("时间单位", true) + " 来指定时间单位，时间单位取值：" + formatBotOptionInstance ("s m q h d w month season hy y", true) + "。时间单位取值含义见帮助信息");
+		//		SendMessage (channel, nick, mapGlobalOptions, Colors.MAGENTA + sVoteAction + Colors.NORMAL + " 操作需要明确用 " + formatBotOption (BOT_OPTION_SEPARATOR + "时长", true) + " 选项指定时长，默认单位为 s:秒，可用 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "timeunit=", true) + formatBotOption ("时间单位", true) + " 来指定时间单位，时间单位取值：" + formatBotOptionInstance ("s m q h d w month season hy y", true) + "。时间单位取值含义见帮助信息");
 		//		return;
 		//	}
 		//}
@@ -3841,7 +3841,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 			u,
 			mapGlobalOptions,
 			"[" + Colors.DARK_GREEN + sTime + Colors.NORMAL +
-			"], [" + COLOR_DARK_CYAN + (tz==null  ?
+			"], [" + ANSIEscapeTool.COLOR_DARK_CYAN + (tz==null  ?
 					(l==null ? DEFAULT_TIME_ZONE.getDisplayName() : DEFAULT_TIME_ZONE.getDisplayName(l)) :
 					(l==null ? tz.getDisplayName() : tz.getDisplayName(l))
 					) + Colors.NORMAL +
@@ -4390,7 +4390,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 							break;
 						case 3:
 						case 4:
-							sColor = COLOR_DARK_CYAN;
+							sColor = ANSIEscapeTool.COLOR_DARK_CYAN;
 							break;
 						case 1:
 						case 2:
@@ -4559,7 +4559,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 第几页
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定结果页码数");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定结果页码数");
 						return;
 					}
 					//searchOption_page = args [++i];
@@ -4569,7 +4569,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 每页多少条记录
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定每页记录数");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定每页记录数");
 						return;
 					}
 					//searchOption_pagesize = args [++i];
@@ -4579,7 +4579,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 从哪天开始
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定开始日期" + Colors.NORMAL + "，日期格式必须为 yyyy-MM-dd");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定开始日期" + Colors.NORMAL + "，日期格式必须为 yyyy-MM-dd");
 						return;
 					}
 					String searchOption_fromdate = arrayParams [++i];
@@ -4590,7 +4590,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 从哪天开始
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定结束日期" + Colors.NORMAL + "，日期格式必须为 yyyy-MM-dd");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定结束日期" + Colors.NORMAL + "，日期格式必须为 yyyy-MM-dd");
 						return;
 					}
 					String searchOption_todate = arrayParams [++i];
@@ -4610,7 +4610,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 					// modified: 最后修改日期
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段名" + Colors.NORMAL + "，排序字段有： " + Colors.GREEN + "activity" + Colors.NORMAL + ": 活动时间; " + Colors.GREEN + "creation" + Colors.NORMAL + ": 创建时间; " + Colors.GREEN + "votes" + Colors.NORMAL + ": 得分; " + Colors.BLUE + "relevance" + Colors.NORMAL + ": 相关度;  如果指定了排序字段，则还可以在 /min /max 中指定其取值范围 (" + Colors.BLUE + "relevance" + Colors.NORMAL + " 除外)。");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定排序字段名" + Colors.NORMAL + "，排序字段有： " + Colors.GREEN + "activity" + Colors.NORMAL + ": 活动时间; " + Colors.GREEN + "creation" + Colors.NORMAL + ": 创建时间; " + Colors.GREEN + "votes" + Colors.NORMAL + ": 得分; " + Colors.BLUE + "relevance" + Colors.NORMAL + ": 相关度;  如果指定了排序字段，则还可以在 /min /max 中指定其取值范围 (" + Colors.BLUE + "relevance" + Colors.NORMAL + " 除外)。");
 						return;
 					}
 					//searchOption_sort = args [++i];
@@ -4620,7 +4620,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 顺序还是倒序排列，取值: asc: 顺序; desc: 倒序
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段的排序类型" + Colors.NORMAL + "，排序类型有： " + Colors.GREEN + "asc" + Colors.NORMAL + ": 顺序; " + Colors.GREEN + "desc" + Colors.NORMAL + ": 倒序;");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定排序字段的排序类型" + Colors.NORMAL + "，排序类型有： " + Colors.GREEN + "asc" + Colors.NORMAL + ": 顺序; " + Colors.GREEN + "desc" + Colors.NORMAL + ": 倒序;");
 						return;
 					}
 					//searchOption_order = args [++i];
@@ -4631,7 +4631,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 					if (i == arrayParams.length-1)
 					{
 						System.err.println ();
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段的最小值");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定排序字段的最小值");
 						return;
 					}
 					//searchOption_min = args [++i];
@@ -4641,7 +4641,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 根据排序字段，指定数据范围的最大值
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定排序字段的最大值");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定排序字段的最大值");
 						return;
 					}
 					//searchOption_max = args [++i];
@@ -4659,7 +4659,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题标题 必须包含
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定标题包含的内容");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定标题包含的内容");
 						return;
 					}
 					//searchOption_title = args [++i];
@@ -4669,7 +4669,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题内容 必须包含
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定正文包含的内容");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定正文包含的内容");
 						return;
 					}
 					//searchOption_body = args [++i];
@@ -4680,7 +4680,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题所有者 / 问题属于哪个人
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定用户 ID");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定用户 ID");
 						return;
 					}
 					//searchOption_user = args [++i];
@@ -4690,7 +4690,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题包含某个网址，网址可以包含通配符
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题包含的网址");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题包含的网址");
 						return;
 					}
 					//searchOption_url = args [++i];
@@ -4701,7 +4701,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 返回的问题必须包含**至少有（>=）**多少个答案
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题的答案的最少数量");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题的答案的最少数量");
 						return;
 					}
 					//searchOption_answers = args [++i];
@@ -4711,7 +4711,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 返回的问题必须被查看了**至少（>=）**多少次
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题被查看的最少数量");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题被查看的最少数量");
 						return;
 					}
 					//searchOption_views = args [++i];
@@ -4722,7 +4722,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题包含任意一个标签，多个标签用分号分割，如“java;sql;mysql”
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题的标签" + Colors.NORMAL + "，多个标签用分号 ';' 分割;");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题的标签" + Colors.NORMAL + "，多个标签用分号 ';' 分割;");
 						return;
 					}
 					//searchOption_tagged = args [++i];
@@ -4732,7 +4732,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题不应该包含任何指定的标签，多个标签用分号分割，如“browser;database”
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题不应该包含的标签" + Colors.NORMAL + "，多个标签用分号 ';' 分割;");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题不应该包含的标签" + Colors.NORMAL + "，多个标签用分号 ';' 分割;");
 						return;
 					}
 					//searchOption_notTagged = args [++i];
@@ -4743,7 +4743,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题是否已采用答案，True: 已采用采用答案的问题 | False: 没有采用答案的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否已采用答案" + Colors.NORMAL + "，" + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题是否已采用答案" + Colors.NORMAL + "，" + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_accepted = args [++i];
@@ -4753,7 +4753,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题是否关闭，True: 已关闭的问题 | False: 未关闭的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否已关闭" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题是否已关闭" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_closed = args [++i];
@@ -4763,7 +4763,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题是否从其他网站转过来的，True: 是转移过来的问题 | False: 不是转移过来的问题，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否是从其他网站转移过来的" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题是否是从其他网站转移过来的" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_migrated = args [++i];
@@ -4773,7 +4773,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题是否是被关注的/有奖励的，True: 被关注/有奖励的 | False: 没被关注/没有奖励的，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否是被关注的/有奖励的" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题是否是被关注的/有奖励的" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_notice = args [++i];
@@ -4783,7 +4783,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 				{	// 问题是否是社区维基，True: 是 | False: 不是，不区分大小写，不写的话则省略该条件（即：所有/任意/无所谓）
 					if (i == arrayParams.length-1)
 					{
-						SendMessage (ch, nick, mapGlobalOptions, COLOR_DARK_RED + "需要指定问题是否是社区维基" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
+						SendMessage (ch, nick, mapGlobalOptions, ANSIEscapeTool.COLOR_DARK_RED + "需要指定问题是否是社区维基" + Colors.NORMAL + "， " + Colors.GREEN + "true" + Colors.NORMAL + " | " + Colors.GREEN + "false" + Colors.NORMAL + ";");
 						return;
 					}
 					//searchOption_wiki = args [++i];
@@ -6556,6 +6556,8 @@ System.out.println (params);
 	}
 
 	BasicDataSource botDS = null;
+
+	private String ch;
 	void SetupDataSource ()
 	{
 		if (botDS != null)
@@ -6918,9 +6920,9 @@ logger.fine ("保存词条成功后的词条定义序号=" + q_sn);
 					break;
 				}
 				if (updated_times == 0)
-					SendMessage (channel, nick, mapGlobalOptions, "" + Colors.DARK_GREEN + "✓" + Colors.NORMAL + ", #" + COLOR_DARK_RED + q_sn + Colors.NORMAL);
+					SendMessage (channel, nick, mapGlobalOptions, "" + Colors.DARK_GREEN + "✓" + Colors.NORMAL + ", #" + ANSIEscapeTool.COLOR_DARK_RED + q_sn + Colors.NORMAL);
 				else
-					SendMessage (channel, nick, mapGlobalOptions, (nick.equalsIgnoreCase (sAddedBy) ?  "您已添加过该定义" : "该定义已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过") + ", #" + COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 你将是该定义的最近更新者, 更新次数=" + updated_times);
+					SendMessage (channel, nick, mapGlobalOptions, (nick.equalsIgnoreCase (sAddedBy) ?  "您已添加过该定义" : "该定义已被 " + Colors.BLUE + sAddedBy + Colors.NORMAL + " 添加过") + ", #" + ANSIEscapeTool.COLOR_DARK_RED + q_sn + Colors.NORMAL + ", 添加时间=" + Colors.BLUE + sAddedTime + Colors.NORMAL + ", 你将是该定义的最近更新者, 更新次数=" + updated_times);
 			}
 			// 查词条
 			else
@@ -6975,16 +6977,16 @@ logger.fine (params + " 有 " + nCount + " 条词条定义, 最大 ID=" + nMaxID
 						sLastUpdatedBy = rs.getString ("updated_by");
 						if (isShowDetail)
 							SendMessage (channel, nick, mapGlobalOptions,
-								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
-								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
+								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + ANSIEscapeTool.COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
+								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replaceIgnoreCase (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
 								+ "    出台" + (fetched_times+1) + "次, 添加:"
 								+ (sAddedBy + " " + sAddedTime.substring (0, 19))
 								+ (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19))
 							);
 						else
 							SendMessage (channel, nick, mapGlobalOptions,
-								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
-								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replace (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
+								Colors.DARK_GREEN + sQuestionContent + Colors.NORMAL + "." + ANSIEscapeTool.COLOR_DARK_RED + String.format ("%-" + String.valueOf (nMaxID).length () + "d", q_sn) + Colors.NORMAL
+								+ " --> " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringUtils.replaceIgnoreCase (sAnswerContent, params, Colors.RED + params + Colors.NORMAL) +  Colors.DARK_GREEN + "]" + Colors.NORMAL
 							);
 					}
 					if (! bFound)
@@ -7046,11 +7048,11 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 					if (! bFound)
 						SendMessage (channel, nick, mapGlobalOptions, Colors.DARK_GRAY + "无数据" + Colors.NORMAL);
 					else if (! bDefinitionEnabled)
-						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + Colors.DARK_GRAY + "该条词条定义已被删除（被隐藏）" + Colors.NORMAL);
+						SendMessage (channel, nick, mapGlobalOptions, "#" + ANSIEscapeTool.COLOR_DARK_RED + q_sn + Colors.NORMAL + " " + Colors.DARK_GRAY + "该条词条定义已被删除（被隐藏）" + Colors.NORMAL);
 					else if (isShowDetail)
-						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
+						SendMessage (channel, nick, mapGlobalOptions, "#" + ANSIEscapeTool.COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]" + Colors.NORMAL + "    出台" + (fetched_times+1) + "次, 添加:" + (sAddedBy + " " + sAddedTime.substring (0, 19)) + (StringUtils.isEmpty (sLastUpdatedBy) ? "" : ", 更新:" + sLastUpdatedBy + " " + sLastUpdatedTime.substring (0, 19)));
 					else
-						SendMessage (channel, nick, mapGlobalOptions, "#" + COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]");
+						SendMessage (channel, nick, mapGlobalOptions, "#" + ANSIEscapeTool.COLOR_DARK_RED + q_sn + Colors.NORMAL + "/" + nCount + " " +  Colors.DARK_GREEN + "[" + Colors.NORMAL + sAnswerContent + Colors.NORMAL + Colors.DARK_GREEN + "]");
 				}
 			}
 		}
@@ -7691,6 +7693,22 @@ logger.fine ("url after parameter expansion: " + sURL);
 					SendMessage (ch, nick, mapGlobalOptions, "模板名称 不能是全数字，在执行模板时，全数字会被当做 ID 使用.");
 					return;
 				}
+				if (StringUtils.containsIgnoreCase (sName, BOT_OPTION_SEPARATOR))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "模板名不能包含 Bot 命令选项的分隔符 '" + BOT_OPTION_SEPARATOR + "'.");
+					return;
+				}
+				if (StringUtils.length (sName) < BOT_HT_MIN_TEMPLATE_NAME_LENGTH
+					&&
+					! (
+						isFromConsole(ch, nick, login, hostname)	// 控制台执行时传的“空”参数
+						|| isUserInWhiteList(hostname, login, nick, botcmd)
+						)
+					)
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "模板名长度不能过短，非 VIP 用户不能添加长度小于 " + BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH + " 的模板名");
+					return;
+				}
 
 				for (int i=0; i<listExtracts.size (); i++)
 				{
@@ -7925,7 +7943,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						StringBuilder sbHelp = new StringBuilder ();
 						sbHelp.append (
 							"#" + rs.getLong ("ID") +
-							"  " + formatBotCommandInstance("ht") + ".nou.run." + rs.getShort ("max") +"  '" + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
+							"  " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_HTMLParser) + BOT_OPTION_SEPARATOR + "nou" + BOT_OPTION_SEPARATOR + "run" + BOT_OPTION_SEPARATOR + rs.getShort ("max") +"  '" + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
 							"'  '" + Colors.DARK_GREEN + rs.getString ("url") + Colors.NORMAL +
 							"'  '" + Colors.BLUE + rs.getString ("selector") + Colors.NORMAL +
 							"'"
@@ -10578,14 +10596,14 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 							this.sendMessage (currentChannel, params[1]);
 						}
 					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Action))
+					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CustomizedAction))
 					{
 						if (StringUtils.isEmpty (currentChannel))
 						{
 							params = sTerminalInput.split (" +", 3);
 							if (params.length < 3)
 							{
-								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Action + " -- 发送动作表情。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Action + " <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Action + " <动作>，该动作将发往默认频道");
+								System.err.println (BOT_PRIMARY_COMMAND_CustomizedAction + " -- 发送动作表情。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <动作>，该动作将发往默认频道");
 								continue;
 							}
 							this.sendAction (params[1], params[2]);
