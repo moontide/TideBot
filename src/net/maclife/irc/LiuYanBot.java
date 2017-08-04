@@ -210,7 +210,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "SanGuoSha", "三国杀入门", "SanGuoSha_Simple", "三国杀身份", "SanGuoSha_RoleRevealing", "三国杀国战", "SanGuoSha_CountryRevealing", "2048", },
 		{BOT_PRIMARY_COMMAND_MacManufactory, "oui", "macm", },
-		{BOT_PRIMARY_COMMAND_Vote, "/voteKick", "/voteBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteQuiet", "/voteGag", "/voteMute", "/voteUnQuiet", "/voteUnGag", "/voteUnMute", "/voteInvite",
+		{BOT_PRIMARY_COMMAND_Vote, "/voteKick", "/voteBan", "/voteKickBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteQuiet", "/voteGag", "/voteMute", "/voteUnQuiet", "/voteUnGag", "/voteUnMute", "/voteInvite",
 			BOT_PRIMARY_COMMAND_CONSOLE_Kick,
 			BOT_PRIMARY_COMMAND_CONSOLE_IRCBan,
 			BOT_PRIMARY_COMMAND_CONSOLE_UnBan,
@@ -3362,26 +3362,6 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 			}
 			if (arrayParams.length > 2)
 				sVoteReason = arrayParams[2];
-
-			if (StringUtils.equalsIgnoreCase (sVoteAction, "kick")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "ban")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "unBan")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "KickBan")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "unGag") || StringUtils.equalsIgnoreCase (sVoteAction, "unMute") || StringUtils.equalsIgnoreCase (sVoteAction, "unQuiet")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "deVoice")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "op")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "deOp")
-				|| StringUtils.equalsIgnoreCase (sVoteAction, "invite"))
-			{
-				//
-			}
-			else
-			{
-				SendMessage (channel, nick, mapGlobalOptions, "未知的投票动作: " + sVoteAction);
-				return;
-			}
 		}
 		else //if (botCmdAlias.matches ("(?i)^/vote(\\w+)"))
 		{
@@ -3394,6 +3374,27 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 			if (arrayParams.length > 1)
 				sVoteReason = arrayParams[1];
 		}
+
+		if (StringUtils.equalsIgnoreCase (sVoteAction, "kick")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "ban")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "unBan")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "KickBan")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "unGag") || StringUtils.equalsIgnoreCase (sVoteAction, "unMute") || StringUtils.equalsIgnoreCase (sVoteAction, "unQuiet")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "deVoice")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "op")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "deOp")
+			|| StringUtils.equalsIgnoreCase (sVoteAction, "invite"))
+		{
+			//
+		}
+		else
+		{
+			SendMessage (channel, nick, mapGlobalOptions, "未知的投票动作: " + sVoteAction);
+			return;
+		}
+
 		if (StringUtils.isEmpty (sVoteReason))
 			sVoteReason = nick + " " + login + " " + hostname + " " + (isVoteOrExecuteDirectly ? "发起投票" : "直接执行");
 		else
