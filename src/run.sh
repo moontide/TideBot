@@ -48,12 +48,12 @@ export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix \
 -Dgame.sanguosha.allowed-channels=#LiuYanBot\
 $_JAVA_OPTIONS"
 
-for lf in commons-lang3-3.6 commons-io-2.5 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.4.2 commons-dbcp2-2.1.1 commons-codec-1.10 \
-    mysql-connector-java-5.1.42-bin  mariadb-java-client-2.0.2 \
-    jackson-core-2.8.9  jackson-databind-2.8.9  jackson-annotations-2.8.9 \
+for lf in commons-lang3-3.7 commons-io-2.6 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.4.2 commons-dbcp2-2.1.1 commons-codec-1.11 \
+    mysql-connector-java-5.1.45-bin  mariadb-java-client-2.0.2 \
+    jackson-core-2.9.3  jackson-databind-2.9.3  jackson-annotations-2.9.3 \
     maxmind-db-1.2.2  geoip2-2.9.0  \
     google-pagerank-api-2.0 \
-    jsoup-1.10.3 \
+    jsoup-1.11.2 \
     bsh-2.0b6 \
     hcicloud-5.0.0 \
     QQWry StackExchangeAPI pircbot-mod
