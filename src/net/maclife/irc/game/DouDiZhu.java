@@ -1007,7 +1007,7 @@ public class DouDiZhu extends CardGame
 	 * 判断牌型。
 	 * 注意：这里并不判断所有的牌是不是在自己手里，调用者需要自己判断。
 	 *
-	 * 注意：此判断牌型方法对极罕见的牌型存在误判/不能判别的问题，例如：
+	 * 注意：此判断牌型方法对少见的牌组合存在误判/不能判别的问题，例如：
 	 * 已知问题 FIXME
 	 * <ul>
 	 * 	<li>飞机带另外几张单牌，但几张单牌其中的一张也在顺子中出现，如：333 444 555 (3)67</li>
@@ -1107,7 +1107,7 @@ public class DouDiZhu extends CardGame
 			throw new IllegalArgumentException (listCardRanks + ": 无效的三牌组数 " + nTrio);
 			//break;rio
 		case 2:
-			if (nSolo != 0 && nTrio !=0 && nQuartette!=0 && nAttachmentCardsForTrioOrQuartette!=0)
+			if (nSolo != 0 || nTrio !=0 || nQuartette!=0 || nAttachmentCardsForTrioOrQuartette!=0)
 				throw new IllegalArgumentException (listCardRanks + ": 对子不能附带牌");
 			if (nPair == 1)
 				return Type.对;

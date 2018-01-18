@@ -93,6 +93,7 @@ System.out.println ("不常见牌型测试 结束");
 	@Test (expected=IllegalArgumentException.class)
 	public void 牌型检测2 ()
 	{
+		System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("KKA")));
 		System.out.println (DouDiZhu.GetCardsType (DouDiZhu.AnswerToCardRanksList ("QKA2J")));
 	}
 
