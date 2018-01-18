@@ -309,7 +309,7 @@ DELIMITER ;
 	HTML/JSON 解析器模板
 
 *******************************************************************************/
-CREATE TABLE html_parser_templates
+CREATE TABLE ht_templates
 (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	name VARCHAR(50) NOT NULL DEFAULT '' UNIQUE KEY,
@@ -323,8 +323,8 @@ CREATE TABLE html_parser_templates
 	js_cut_end INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '该参数指定从后面切的字符数，数值需要 >=0，=0 表示不切后面的字符',
 	url_param_usage VARCHAR(100) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
 
-	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的选择器表达式',
-	sub_selector VARBINARY(500) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的 CSS 选择器表达式，此表达式仅用于 content_type 为 html 的情况，对于 json/js，不需要。',
+	sub_selector VARBINARY(1024) NOT NULL DEFAULT '' COMMENT '当 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
 	padding_left VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',	/* 原数据类型:  ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') */
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
@@ -338,25 +338,26 @@ CREATE TABLE html_parser_templates
 
 	max TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT '最多获取/显示多少行。注意: 此数值仍然受 bot 最大响应行数上限的限制',
 
+	source_type ENUM('irc', 'wechat') NOT NULL DEFAULT 'irc' COMMENT '添加模板时的来源类型。目前支持 irc 和 wechat 两种，因为 irc 和微信输出略有区别，所以在不同的机器人处理时，需要特殊处理一下：微信中输出 irc 中添加的模板时，要剔除 padding 中的 irc 转义序列字符串、单行/多行；irc 中输出微信中添加的模板时，utf8mb4 处理？…',
 	added_by VARCHAR(16) NOT NULL DEFAULT '',
-	added_by_user VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
-	added_by_host VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	added_by_user VARCHAR(16)  NOT NULL DEFAULT '',
+	added_by_host VARCHAR(100) NOT NULL DEFAULT '',
 	added_time datetime,
 	updated_by VARCHAR(16) NOT NULL DEFAULT '',
-	updated_by_user VARCHAR(16) CHARACTER SET ascii NOT NULL DEFAULT '',
-	updated_by_host VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '',
+	updated_by_user VARCHAR(16) NOT NULL DEFAULT '',
+	updated_by_host VARCHAR(100) NOT NULL DEFAULT '',
 	updated_time datetime,
 	updated_times INT NOT NULL DEFAULT 0,
 
-	PRIMARY KEY PK__html_parser_templates (id DESC),	/* http://stackoverflow.com/questions/10130230/sql-index-performance-asc-vs-desc DESC indexing is not currently implemented in MySQL... the engine ignores the provided sort and always uses ASC: */
-	UNIQUE KEY UQ__html_parser_templates (name)
+	PRIMARY KEY PK__ht_templates (id DESC),	/* http://stackoverflow.com/questions/10130230/sql-index-performance-asc-vs-desc DESC indexing is not currently implemented in MySQL... the engine ignores the provided sort and always uses ASC: */
+	UNIQUE KEY UQ__ht_templates (name)
 ) ENGINE MyISAM CHARACTER SET UTF8;
 
-CREATE TABLE html_parser_templates_other_sub_selectors
+CREATE TABLE ht_templates_other_sub_selectors
 (
 	template_id INT UNSIGNED NOT NULL DEFAULT 0,
 	sub_selector_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	sub_selector VARBINARY(500) NOT NULL DEFAULT '' COMMENT '用来选择列表内单一 element 的选择器表达式，如果为空，则 element 就是列表中的 element',
+	sub_selector VARBINARY(1024) NOT NULL DEFAULT '' COMMENT '当 ht_template 主表的 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
 	padding_left VARCHAR(20) NOT NULL DEFAULT ' ' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
@@ -364,12 +365,12 @@ CREATE TABLE html_parser_templates_other_sub_selectors
 	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
 	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
-	PRIMARY KEY PK__html_parser_templates_other_sub_selectors (template_id DESC, sub_selector_id)	/* http://stackoverflow.com/questions/10130230/sql-index-performance-asc-vs-desc DESC indexing is not currently implemented in MySQL... the engine ignores the provided sort and always uses ASC: */
-) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '此表是 html_parser_templates 的延伸：允许一个模板有多个 sub_selector，这样可以让多个 sub element 组成成一个完整的信息';
+	PRIMARY KEY PK__ht_templates_other_sub_selectors (template_id DESC, sub_selector_id)	/* http://stackoverflow.com/questions/10130230/sql-index-performance-asc-vs-desc DESC indexing is not currently implemented in MySQL... the engine ignores the provided sort and always uses ASC: */
+) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '此表是 ht_templates 的延伸：允许一个模板有多个 sub_selector，这样可以让多个 sub element 组成成一个完整的信息';
 
 
 DELIMITER $$
-CREATE PROCEDURE p_save_html_parser_template
+CREATE PROCEDURE p_save_ht_template
 (
 	_id INT UNSIGNED,
 	_name VARCHAR(50),
@@ -388,8 +389,8 @@ CREATE PROCEDURE p_save_html_parser_template
 	_max TINYINT,
 
 	_nick VARCHAR(16),
-	_user VARCHAR(16) CHARACTER SET ascii,
-	_host VARCHAR(100) CHARACTER SET ascii
+	_user VARCHAR(16),
+	_host VARCHAR(100)
 )
 BEGIN
 	DECLARE _temp_id INT DEFAULT 0;
@@ -397,18 +398,18 @@ BEGIN
 	/* 检查模板是否在已存在 */
 	SET _temp_id = NULL;
 	IF _id IS NOT NULL AND _id<>0 THEN
-		SELECT id INTO _temp_id FROM html_parser_templates WHERE id=_id;
+		SELECT id INTO _temp_id FROM ht_templates WHERE id=_id;
 	ELSE
-		SELECT id INTO _temp_id FROM html_parser_templates WHERE name=_name;
+		SELECT id INTO _temp_id FROM ht_templates WHERE name=_name;
 	END IF;
 
 	IF _temp_id IS NULL THEN
-		INSERT html_parser_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, method, referer, max, added_by, added_by_user, added_by_host, added_time)
+		INSERT ht_templates (name, url, url_param_usage, selector, sub_selector, extract, attr, ua, method, referer, max, added_by, added_by_user, added_by_host, added_time)
 		VALUES (_name, _url, _url_param_usage, _selector, _sub_selector, _extract, _attr, _ua, _method, _referer, _max, _nick, _user, _host, CURRENT_TIMESTAMP)
 		;
 		SELECT LAST_INSERT_ID();
 	ELSE
-		UPDATE html_parser_templates
+		UPDATE ht_templates
 		SET
 			name = _name,
 			url = _url,

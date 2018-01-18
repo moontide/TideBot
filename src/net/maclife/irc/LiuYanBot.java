@@ -113,7 +113,7 @@ public class LiuYanBot extends PircBot implements Runnable
 
 	public static final String BOT_OPTION_SEPARATOR = ".";	// Bot 命令选项的分割符，只能为 1 个字符。如： "cmd.10.WIDTH=80.HEIGHT=24"
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
-	public static String BOT_CUSTOMIZED_ACTION_PREFIX = ".";	// 自定义动作命令的“动作命令”前缀
+	public static String BOT_CUSTOMIZED_ACTION_PREFIX = ".";	// 自定义动作命令的“动作名”前缀
 	public static final int BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH = 5;	// 自定义动作命令的“动作名”字符串的最小长度。避免添加过短的“动作名”
 	public static String BOT_HT_TEMPLATE_SHORTCUT_PREFIX = "$";	// ht 模板快捷命令的前缀
 	public static final int BOT_HT_MIN_TEMPLATE_NAME_LENGTH = 5;	// ht 模板名称的最小长度。避免添加过短的模板名
@@ -1283,7 +1283,7 @@ logger.finer ("消息是对本 Bot 说的");
 						if (StringUtils.containsIgnoreCase (sBotCommandOptions, BOT_OPTION_SEPARATOR + "to"))
 						{
 							if (args.length < 2)
-								throw new IllegalArgumentException ("用 " + BOT_OPTION_SEPARATOR + "to 选项执行 /me 动作命令时，需要先指定用户名");
+								throw new IllegalArgumentException ("用 " + BOT_OPTION_SEPARATOR + "to 选项执行 /me 自定义动作时，需要先指定用户名");
 
 							msgTo = args[1];
 							if (args.length > 2)	// 如果这个 /me 命令带了其他参数
@@ -1380,7 +1380,7 @@ System.err.println (message);
 						}
 						SetupDataSource ();
 						conn = botDS.getConnection ();
-						stmt = conn.prepareStatement ("SELECT content_type FROM html_parser_templates WHERE name=?");
+						stmt = conn.prepareStatement ("SELECT content_type FROM ht_templates WHERE name=?");
 							stmt.setString (1, sHTTemplateName);
 						rs = stmt.executeQuery ();
 						while (rs.next ())
@@ -2207,33 +2207,33 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		primaryCmd = BOT_PRIMARY_COMMAND_CustomizedAction;         if (isThisCommandSpecified (args, primaryCmd))
 		{
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) +
-				"    -- 用动作命令执行 IRC 动作。动作命令可用 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " 操作自己添加。" +
+				"    -- 使用用户自己添加的动作模板快速执行 IRC 动作。动作名可用 " + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " 操作自己添加。" +
 				" 另外，可省去 " + formatBotCommandInstance (primaryCmd, true) +
-				" 前缀，用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_CUSTOMIZED_ACTION_PREFIX + Colors.NORMAL + formatBotParameter("动作命令", true) + " 快捷执行…" +
+				" 前缀，用 " + COLOR_COMMAND_PREFIX_INSTANCE + BOT_CUSTOMIZED_ACTION_PREFIX + Colors.NORMAL + formatBotParameter("动作名", true) + " 快捷执行…" +
 				""
 			);
 
 			//	formatBotOption (BOT_OPTION_SEPARATOR + "操作", true) + " 列表： " +
 			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "run", true) + " - 执行(默认); " +
-			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " - 添加动作命令; " +
+			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " - 添加动作名; " +
 			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "modify", true) + " - 修改已添加的动作(只有自己[以 @host 作为判断是否是自己的依据]和 VIP 才能修改自己添加的); " +
-			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "list", true) + " - 列出所有动作命令; " +
+			//	formatBotOptionInstance (BOT_OPTION_SEPARATOR + "list", true) + " - 列出所有动作名; " +
 
 			SendMessage (ch, u, mapGlobalOptions, "执行: " + formatBotCommandInstance (primaryCmd, true) +
-				"  <" + formatBotParameter ("动作命令", true) + "(可用汉字)>" +
+				"  <" + formatBotParameter ("动作名", true) + "(可用汉字)>" +
 				"  [" + formatBotParameter ("动作目标", true) + "(昵称)]" +
 				""
 			);
 
-			SendMessage (ch, u, mapGlobalOptions, "添加: " + formatBotCommandInstance (primaryCmd, true) + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " <动作命令> <动作内容> " +
-				"  动作命令必须是 UTF8 编码的字符串，可以用汉字，但受到 MySQL 的限制，单个 UTF-8 字符的编码长度不能超过 4 字节，所以，不能用太特殊的字符。" +
-				"  动作命令字符串长度：不能小于 4 英文字符、2 汉字 (VIP 可跳过该限制)，不能大于 50。" +
+			SendMessage (ch, u, mapGlobalOptions, "添加: " + formatBotCommandInstance (primaryCmd, true) + formatBotOptionInstance (BOT_OPTION_SEPARATOR + "add", true) + " <动作名> <动作内容> " +
+				"  动作名必须是 UTF8 编码的字符串，可以用汉字，但受到 MySQL 的限制，单个 UTF-8 字符的编码长度不能超过 4 字节，所以，不能用太特殊的字符。" +
+				"  动作名字符串长度：不能小于 4 英文字符、2 汉字 (VIP 可跳过该限制)，不能大于 50。" +
 				"动作内容中包含 ${p} 的，均是与目标互动的动作，${p} 将被替换成执行时的动作目标。 " +
 				"动作内容中的 ${me} 将被替换成自己的昵称。" +
 				"动作内容中的 ${channel} 将被替换成所在的频道名。" +
 				""
 			);
-			SendMessage (ch, u, mapGlobalOptions, "动作内容写作指南： 由于动作执行者实际是本 Bot，而不是用户你，所以，内容中的“我”要替换成 ${me}，互动类型的动作内容中的“我”看具体情况改成 ${me} 或者目标 ${p}");
+			SendMessage (ch, u, mapGlobalOptions, "动作名写作指南： 由于动作执行者实际是本 Bot，而不是用户你，所以，内容中的“我”要替换成 ${me}，互动类型的动作内容中的“我”看具体情况改成 ${me} 或者目标 ${p}");
 		}
 
 		primaryCmd = BOT_PRIMARY_COMMAND_URLEncode;        if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, BOT_PRIMARY_COMMAND_URLDecode))
@@ -2378,7 +2378,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 				if (StringUtils.isEmpty (sActionCmd) || StringUtils.isEmpty (sIRCAction))
 				{
-					SendMessage (channel, nick, mapGlobalOptions, BOT_PRIMARY_COMMAND_CustomizedAction + BOT_OPTION_SEPARATOR + "add  <命令>  <动作内容>");
+					SendMessage (channel, nick, mapGlobalOptions, BOT_PRIMARY_COMMAND_CustomizedAction + BOT_OPTION_SEPARATOR + "add  <动作名>  <动作内容>");
 					return;
 				}
 				if (StringUtils.containsIgnoreCase (sActionCmd, BOT_OPTION_SEPARATOR))
@@ -2474,7 +2474,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 				if (StringUtils.isEmpty (sActionCmd))
 				{
-					SendMessage (channel, nick, mapGlobalOptions, "/me <动作命令> [动作目标]...");
+					SendMessage (channel, nick, mapGlobalOptions, "/me <动作名> [动作目标]...");
 					return;
 				}
 				if (StringUtils.isNotEmpty (sTargetNick) && StringUtils.isNotEmpty (channel))
@@ -3274,7 +3274,7 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 
 	boolean isVoteActionThatNeedTimeOption (String sVoteAction)
 	{
-		return StringUtils.equalsIgnoreCase (sVoteAction, "ban")|| StringUtils.equalsIgnoreCase (sVoteAction, "IRCBan")
+		return StringUtils.equalsIgnoreCase (sVoteAction, "ban") || StringUtils.equalsIgnoreCase (sVoteAction, "IRCBan")
 		|| StringUtils.equalsIgnoreCase (sVoteAction, "KickBan")
 		|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
 		|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
@@ -3375,17 +3375,17 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 				sVoteReason = arrayParams[1];
 		}
 
-		if (StringUtils.equalsIgnoreCase (sVoteAction, "kick")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "ban")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "unBan")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "KickBan")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "gag") || StringUtils.equalsIgnoreCase (sVoteAction, "mute") || StringUtils.equalsIgnoreCase (sVoteAction, "quiet")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "unGag") || StringUtils.equalsIgnoreCase (sVoteAction, "unMute") || StringUtils.equalsIgnoreCase (sVoteAction, "unQuiet")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "voice")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "deVoice")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "op")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "deOp")
-			|| StringUtils.equalsIgnoreCase (sVoteAction, "invite"))
+		if (StringUtils.equalsAnyIgnoreCase (sVoteAction, "kick",
+			"ban", "IRCBan",
+			"unBan",
+			"KickBan",
+			"gag", "mute", "quiet",
+			"unGag", "unMute", "unQuiet",
+			"voice",
+			"deVoice",
+			"op",
+			"deOp",
+			"invite"))
 		{
 			//
 		}
@@ -3478,7 +3478,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 			return;
 		}
 
-		if (StringUtils.equalsIgnoreCase (sVoteAction, "op") || StringUtils.equalsIgnoreCase (sVoteAction, "deop"))
+		if (StringUtils.equalsAnyIgnoreCase (sVoteAction, "op", "deop"))
 		{
 			if (! (false
 				//|| isFromConsole(channel, nick, login, hostname)	// 控制台执行时传的“空”参数
@@ -6806,7 +6806,7 @@ System.out.println (params);
 				isShowDetail = true;
 		}
 
-		if (StringUtils.isEmpty (params))
+		if (StringUtils.isEmpty (params) && !isQueryingStatistics)
 		{
 			ProcessCommand_Help (channel, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
 			return;
@@ -7759,13 +7759,13 @@ logger.fine ("url after parameter expansion: " + sURL);
 				conn = botDS.getConnection ();
 
 				sbSQL = new StringBuilder ();
-				sSQL_GetSubSelectors = "SELECT * FROM html_parser_templates_other_sub_selectors WHERE template_id=?";
+				sSQL_GetSubSelectors = "SELECT * FROM ht_templates_other_sub_selectors WHERE template_id=?";
 			}
 
 			if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "run") || StringUtils.equalsIgnoreCase (sAction, "list"))
 			{
 				// 生成 SQL 查询语句
-				sbSQL.append ("SELECT * FROM html_parser_templates WHERE ");
+				sbSQL.append ("SELECT * FROM ht_templates WHERE ");
 				List<String> listSQLParams = new ArrayList<String> ();
 				if (StringUtils.equalsIgnoreCase (sAction, "list"))
 				{
@@ -8086,7 +8086,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
 				conn.setAutoCommit (false);
-				sbSQL.append ("INSERT html_parser_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
+				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
 				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
@@ -8128,7 +8128,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				rs.close ();
 				stmt.close ();
 
-				stmt = conn.prepareStatement ("INSERT html_parser_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)", new String[]{"sub_selector_id"});
+				stmt = conn.prepareStatement ("INSERT ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)", new String[]{"sub_selector_id"});
 				for (int i=1; i<listSubSelectors.size (); i++)
 				{
 					iParam = 1;
