@@ -75,7 +75,7 @@ void 查询HTML_JSON模板_GUI ()
 		sbSQL.append ("SELECT\n");
 		sbSQL.append ("	*\n");
 		sbSQL.append ("FROM\n");
-		sbSQL.append ("	html_parser_templates\n");
+		sbSQL.append ("	ht_templates\n");
 		sbSQL.append ("WHERE 1=1\n");
 
 		if (! sName.isEmpty())
@@ -118,7 +118,7 @@ void 查询HTML_JSON模板_GUI ()
 			try
 			{
 				List listOtherSubSelectors = new ArrayList ();
-				rs2 = dbaa2.Query ("SELECT * FROM html_parser_templates_other_sub_selectors WHERE template_id=" + object.get("id"));
+				rs2 = dbaa2.Query ("SELECT * FROM ht_templates_other_sub_selectors WHERE template_id=" + object.get("id"));
 				ResultSetMetaData rsmd2 = rs2.getMetaData ();
 				while (rs2.next ())
 				{
@@ -379,13 +379,13 @@ void SaveHtmlJsonTemplate ()
 	Object[] params;
 
 	// 保存 HTML_JSON模板 信息
-	String sSQL_Insert = "INSERT INTO html_parser_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, " +
+	String sSQL_Insert = "INSERT INTO ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, " +
 	"ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, " +
 	"padding_left, extract, attr, format_flags, format_width, padding_right, ua, " +
 	"request_method, referer, " +
 	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, '','','',CURRENT_TIMESTAMP)";
-	String sSQL_Update = "UPDATE html_parser_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, format_flags=?, format_width=?, padding_right=?, ua=?, request_method=?, referer=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
-	String sSQL_Insert_OtherSubSelectors = "INSERT INTO html_parser_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)";
+	String sSQL_Update = "UPDATE ht_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, format_flags=?, format_width=?, padding_right=?, ua=?, request_method=?, referer=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
+	String sSQL_Insert_OtherSubSelectors = "INSERT INTO ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)";
 
 	String [] params_OtherSubSelectors =
 	{
@@ -504,7 +504,7 @@ void SaveHtmlJsonTemplate ()
 		dbaa.CloseDatabase();
 
 		// 从数据库中删除该模板的其他的子选择器
-		iRowsDeleted = dbaa.ExecuteUpdate ("DELETE FROM html_parser_templates_other_sub_selectors WHERE template_id=" + sID);
+		iRowsDeleted = dbaa.ExecuteUpdate ("DELETE FROM ht_templates_other_sub_selectors WHERE template_id=" + sID);
 		dbaa.CloseDatabase();
 
 		// 再把模板的其他的子选择器添加到数据库
@@ -586,8 +586,8 @@ void 删除选中的HTML_JSON模板 ()
 	try
 	{
 		dbaa = new DatabaseAccessAgent (g_sDataSourceName, null, null);
-		nRowsAffected = dbaa.ExecuteUpdate ("DELETE FROM html_parser_templates WHERE id=" + sID);
-		iRowsAffected_OtherSubSelectors = dbaa.ExecuteUpdate ("DELETE FROM html_parser_templates_other_sub_selectors WHERE template_id=" + sID);
+		nRowsAffected = dbaa.ExecuteUpdate ("DELETE FROM ht_templates WHERE id=" + sID);
+		iRowsAffected_OtherSubSelectors = dbaa.ExecuteUpdate ("DELETE FROM ht_templates_other_sub_selectors WHERE template_id=" + sID);
 		dbaa.CloseDatabase ();
 
 		ZKUtils.ShowMessage ("删除了 " + nRowsAffected + " 条 HTML_JSON 模板。" + (iRowsAffected_OtherSubSelectors>0 ? "以及 " + iRowsAffected_OtherSubSelectors + " 条其他的 SubSelector" : ""));
