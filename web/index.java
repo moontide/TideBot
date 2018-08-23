@@ -302,7 +302,7 @@ public void RemoveSubSelectorRow (HtmlBasedComponent row)
 	HtmlBasedComponent parent = row.getParent();
 	List rows = parent.getChildren();
 	if (rows!=null) {
-		rows.removeChild (row);
+		rows.remove (row);
 	}
 }
 
