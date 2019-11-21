@@ -7,8 +7,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.*;
 
-import org.jibble.pircbot.*;
-
 /**
  * 用来根据网卡 MAC 地址查找制造商信息的 Java 工具类。
  *

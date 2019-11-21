@@ -2,12 +2,20 @@
 
 source /etc/profile.d/env.sh
 
-archive_file=qqwry.dat.zip
+#archive_file=qqwry.dat.zip
+#files_to_be_extract=qqwry.dat
+#page_url="http://www.newxing.com/Code/tool/QQwry.dat_608.html"
+## 因为 newxing.com 网站的 qqwry.dat 每次在更新后其 url 会变化，所以，需要解析 html，取出最新的 qqwry.dat 的文件网址
+#qqwry_file_url=$(curl "$page_url" | iconv -f gbk | grep -oE '"/.*/qqwry.dat"')
+#qqwry_file_url=http://www.newxing.com${qqwry_file_url//\"/}
+
+archive_file=qqwry.rar
 files_to_be_extract=qqwry.dat
-page_url="http://www.newxing.com/Code/tool/QQwry.dat_608.html"
-# 因为 newxing.com 网站的 qqwry.dat 每次在更新后其 url 会变化，所以，需要解析 html，取出最新的 qqwry.dat 的文件网址
-qqwry_file_url=$(curl "$page_url" | iconv -f gbk | grep -oE '"/.*/qqwry.dat"')
-qqwry_file_url=http://www.newxing.com${qqwry_file_url//\"/}
+#page_url="http://www.newxing.com/Code/tool/QQwry.dat_608.html"
+## 因为 newxing.com 网站的 qqwry.dat 每次在更新后其 url 会变化，所以，需要解析 html，取出最新的 qqwry.dat 的文件网址
+#qqwry_file_url=$(curl "$page_url" | iconv -f gbk | grep -oE '"/.*/qqwry.dat"')
+qqwry_file_url="http://update.cz88.net/ip/qqwry.rar"
+
 echo "$qqwry_file_url"
 
 size_file=/var/tmp/qqwry-size.txt
@@ -32,7 +40,8 @@ else
 
 		# 解压缩
 		#7za.exe e $archive_file ${parent_directory}${files_to_be_extract}
-		unzip -o $archive_file ${files_to_be_extract}
+		#unzip -o $archive_file ${files_to_be_extract}
+		7za e $archive_file ${files_to_be_extract}
 
 		chmod 666 $files_to_be_extract
 	fi

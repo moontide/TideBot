@@ -15,7 +15,7 @@
 		maxWait='10000'
 
 		testWhileIdle='true'
-		validationQuery='/* ping */'
-		validationInterval='28800000'
+		validationQuery='SELECT 1'
+		validationInterval='300000'
 	/>
 </Context>

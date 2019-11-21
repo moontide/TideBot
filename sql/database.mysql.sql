@@ -178,10 +178,10 @@ BEGIN
 	SET _q_lowercase_digest_binary = UNHEX(_q_lowercase_digest);
 	IF _reverse IS NOT NULL AND _reverse THEN
 		SELECT
-			COUNT (*),
-			MAX (q_number),
-			COUNT (CASE WHEN enabled=1 THEN 1 ELSE NULL END),
-			MAX (CASE WHEN enabled=1 THEN q_number ELSE 0 END)
+			COUNT(*),
+			MAX(q_number),
+			COUNT(CASE WHEN enabled=1 THEN 1 ELSE NULL END),
+			MAX(CASE WHEN enabled=1 THEN q_number ELSE 0 END)
 		INTO
 			_count_ALL,
 			_max_id_ALL,
@@ -192,9 +192,10 @@ BEGIN
 			a_content LIKE CONCAT('%', _q, '%');
 
 		SELECT
-			*,
-			_count AS COUNT,
-			_max_id AS MAX_ID,
+			q_digest, a_digest, q_number, fetched_times, added_by, added_time, updated_by, updated_time, updated_times, enabled,
+			q_content_digest, q_content, a_content_digest, a_content,
+			_count_ALL AS COUNT,
+			_max_id_ALL AS MAX_ID,
 			_count_enabled AS COUNT_ENABLED,
 			_max_id_enabled AS MAX_ID_ENABLED
 		FROM
@@ -205,10 +206,10 @@ BEGIN
 		;
 	ELSE
 		SELECT
-			COUNT (*),
-			MAX (q_number),
-			COUNT (CASE WHEN enabled=1 THEN 1 ELSE NULL END),
-			MAX (CASE WHEN enabled=1 THEN q_number ELSE 0 END)
+			COUNT(*),
+			MAX(q_number),
+			COUNT(CASE WHEN enabled=1 THEN 1 ELSE NULL END),
+			MAX(CASE WHEN enabled=1 THEN q_number ELSE 0 END)
 		INTO
 			_count_ALL,
 			_max_id_ALL,
@@ -222,9 +223,10 @@ BEGIN
 
 		IF _q_number IS NULL OR _q_number = 0 THEN
 			SELECT
-				*,
-				_count AS COUNT,
-				_max_id AS MAX_ID,
+				q_digest, a_digest, q_number, fetched_times, added_by, added_time, updated_by, updated_time, updated_times, enabled,
+				q_content_digest, q_content, a_content_digest, a_content,
+				_count_ALL AS COUNT,
+				_max_id_ALL AS MAX_ID,
 				_count_enabled AS COUNT_ENABLED,
 				_max_id_enabled AS MAX_ID_ENABLED
 			FROM
@@ -234,9 +236,10 @@ BEGIN
 			;
 		ELSE
 			SELECT
-				*,
-				_count AS COUNT,
-				_max_id AS MAX_ID,
+				q_digest, a_digest, q_number, fetched_times, added_by, added_time, updated_by, updated_time, updated_times, enabled,
+				q_content_digest, q_content, a_content_digest, a_content,
+				_count_ALL AS COUNT,
+				_max_id_ALL AS MAX_ID,
 				_count_enabled AS COUNT_ENABLED,
 				_max_id_enabled AS MAX_ID_ENABLED
 			FROM

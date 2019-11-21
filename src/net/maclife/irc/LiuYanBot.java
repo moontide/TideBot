@@ -114,9 +114,12 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_OPTION_SEPARATOR = ".";	// Bot 命令选项的分割符，只能为 1 个字符。如： "cmd.10.WIDTH=80.HEIGHT=24"
 	public static String BOT_COMMAND_PREFIX = "";	//例如: ""    " "    "/"    "`"    "!"    "#"    "$"    "~"    "@"    "Deb"
 	public static String BOT_CUSTOMIZED_ACTION_PREFIX = ".";	// 自定义动作命令的“动作名”前缀
-	public static final int BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH = 5;	// 自定义动作命令的“动作名”字符串的最小长度。避免添加过短的“动作名”
+	public static final int BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH_forASCII = 5;	// 自定义动作命令的“动作名”字符串的最小长度。避免添加过短的“动作名”
+	public static final int BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH_forPureCJK = 2;	// 自定义动作命令的“动作名”字符串的最小长度。避免添加过短的“动作名”
+	public static final int BOT_CUSTOMIZED_ACTION_MIN_CMD_BYTE_LENGTH_forPureCJK = 5;	// 自定义动作命令的“动作名”字符串的最小长度。避免添加过短的“动作名”
+	public static final int BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH_forMixASCIIAndCJK = 3;	// 自定义动作命令的“动作名”字符串的最小长度。避免添加过短的“动作名”
 	public static String BOT_HT_TEMPLATE_SHORTCUT_PREFIX = "$";	// ht 模板快捷命令的前缀
-	public static final int BOT_HT_MIN_TEMPLATE_NAME_LENGTH = 5;	// ht 模板名称的最小长度。避免添加过短的模板名
+	public static final int BOT_HT_MIN_TEMPLATE_NAME_LENGTH_forASCII = 5;	// ht 模板名称的最小长度。避免添加过短的模板名
 
 	public static final String BOT_PRIMARY_COMMAND_Help             = "/Help";
 	public static final String BOT_PRIMARY_COMMAND_Alias            = "/Alias";
@@ -199,14 +202,14 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_PageRank, "pr", },
 		{BOT_PRIMARY_COMMAND_StackExchange, "se", },
 		{BOT_PRIMARY_COMMAND_Google, "/goo+gle", },
-		{BOT_PRIMARY_COMMAND_RegExp, "match", "replace", "subst", "substitute", "substitution", "split", },
+		{BOT_PRIMARY_COMMAND_RegExp, "match", "/replace", "subst", "substitute", "substitution", "split", },
 		{BOT_PRIMARY_COMMAND_Ban, "/vip", },
 		{BOT_PRIMARY_COMMAND_JavaScript, "/js", },
 		{BOT_PRIMARY_COMMAND_Java, "beanshell", },
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
 		{BOT_PRIMARY_COMMAND_Tag, "/bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
-		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "json", },
+		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "/json", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "SanGuoSha", "三国杀入门", "SanGuoSha_Simple", "三国杀身份", "SanGuoSha_RoleRevealing", "三国杀国战", "SanGuoSha_CountryRevealing", "2048", },
 		{BOT_PRIMARY_COMMAND_MacManufactory, "oui", "macm", },
@@ -1170,34 +1173,32 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 		boolean isSayingToMe = false;	// 是否是指名道姓的对我说
 		//System.out.println ("ch="+channel +",nick="+nick +",login="+login +",hostname="+hostname);
 		// 如果是指名道姓的直接对 Bot 说话，则把机器人用户名去掉
+		Matcher mat = PATTERN_NICK_NAME_AT_BEGIN_OF_LINE.matcher (message);
 		//if (StringUtils.startsWithIgnoreCase(message, getNick ()+":") || StringUtils.startsWithIgnoreCase(message, getNick ()+","))
-		if (message.matches (sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE + ".*$"))
+		//if (message.matches (sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE + ".*$"))
+		//if (mat.matches ())
+		if (mat.find ())
 		{
 logger.finer ("消息是对某人说的");
-			Matcher mat = PATTERN_NICK_NAME_AT_BEGIN_OF_LINE.matcher (message);
-			boolean bMatched = false;
 			StringBuffer sbRestMessage = new StringBuffer ();
-			if (mat.find ())
+			//if (mat.find ())
 			{
-				bMatched = true;
 				sSayTo_andSoReplyTo = mat.group (1);
 logger.finer ("消息是对 [" + sSayTo_andSoReplyTo + "] 说的");
 				mat.appendReplacement (sbRestMessage, "");
 			}
 			mat.appendTail (sbRestMessage);
-			if (bMatched)
-			{
-				if (StringUtils.equalsIgnoreCase (getNick(), sSayTo_andSoReplyTo))
-				{
-logger.finer ("消息是对本 Bot 说的");
-					isSayingToMe = true;
-				}
 
-				boolean isNickSaidToMeExists = StringUtils.isEmpty (channel) ? true : isNickExistsInChannel (channel, sSayTo_andSoReplyTo);
-				if (isNickSaidToMeExists)
-				{
-					message = StringUtils.stripToEmpty (sbRestMessage.toString ());
-				}
+			if (StringUtils.equalsIgnoreCase (getNick(), sSayTo_andSoReplyTo))
+			{
+logger.finer ("消息是对本 Bot 说的");
+				isSayingToMe = true;
+			}
+
+			boolean isNickSaidToMeExists = StringUtils.isEmpty (channel) ? true : isNickExistsInChannel (channel, sSayTo_andSoReplyTo);
+			if (isNickSaidToMeExists)
+			{	// 如果是对着某人说的，并且，该昵称在频道里存在（有效的昵称），则将原始消息中的这个昵称（及后面的 逗号或冒号，以及再随后的空格）剔除
+				message = StringUtils.stripToEmpty (sbRestMessage.toString ());
 			}
 		}
 
@@ -1326,7 +1327,7 @@ logger.finer ("消息是对本 Bot 说的");
 						botCmd + sBotCommandOptions +
 						(StringUtils.isEmpty (msgTo) ? "" : BOT_OPTION_SEPARATOR + "to " + msgTo) + " " +
 						sCustomizedActionCmd + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 /me 命令消息
-System.err.println (message);
+System.err.println ("[" + message + "]");
 				}
 			}
 
@@ -2033,8 +2034,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("正整数", true) + "] <搜索内容>    -- Google 搜索。“Google” 命令中的 “o” 的个数大于两个都可以被识别为 Google 命令。 ." + formatBotOption ("正整数", true) + " -- 返回几条搜索结果，默认是 2 条; 因 Google 的 API 返回结果不超过 4 条，所以，该数值超过 4 也不起作用。");
 		primaryCmd = BOT_PRIMARY_COMMAND_RegExp;        if (isThisCommandSpecified (args, primaryCmd))
 		{
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("match", true) + "|" + formatBotCommandInstance ("replace", true) + "|" + formatBotCommandInstance ("substitute", true) + "|" + formatBotCommandInstance ("split", true) + BOT_OPTION_SEPARATOR + "[" + formatBotOption ("RegExp选项", true) + "].[" + formatBotOptionInstance ("nocolor", true) + "] <" + formatBotParameter ("参数1", true) + "> [" + formatBotParameter ("参数2", true) + "] [" + formatBotParameter ("参数3", true) + "] [" + formatBotParameter ("参数4", true) + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + formatBotOptionInstance ("i", true) + "-不分大小写, " + formatBotOptionInstance ("m", true) + "-多行模式, " + formatBotOptionInstance ("s", true) + "-.也会匹配换行符; " + formatBotCommandInstance ("regexp", true) + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance ("match", true) + ": " + formatBotParameter ("参数1", true) + " 匹配 " + formatBotParameter ("参数2", true) + "; " + formatBotCommandInstance ("replace", true) + "/" + formatBotCommandInstance ("substitute", true) + ": " + formatBotParameter ("参数1", true) + " 中的 " + formatBotParameter ("参数2", true) + " 替换成 " + formatBotParameter ("参数3", true) + "; " + formatBotCommandInstance ("split", true) + ": 用 " + formatBotParameter ("参数2", true) + " 分割 " + formatBotParameter ("参数1", true) + ";");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("match", true) + "|" + formatBotCommandInstance ("/replace", true) + "|" + formatBotCommandInstance ("substitute", true) + "|" + formatBotCommandInstance ("split", true) + BOT_OPTION_SEPARATOR + "[" + formatBotOption ("RegExp选项", true) + "].[" + formatBotOptionInstance ("nocolor", true) + "] <" + formatBotParameter ("参数1", true) + "> [" + formatBotParameter ("参数2", true) + "] [" + formatBotParameter ("参数3", true) + "] [" + formatBotParameter ("参数4", true) + "]  -- 测试执行 java 的规则表达式。RegExp选项: " + formatBotOptionInstance ("i", true) + "-不分大小写, " + formatBotOptionInstance ("m", true) + "-多行模式, " + formatBotOptionInstance ("s", true) + "-.也会匹配换行符; " + formatBotCommandInstance ("regexp", true) + ": 参数1 将当作子命令, 参数2、参数3、参数4 顺序前移; ");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance ("match", true) + ": " + formatBotParameter ("参数1", true) + " 匹配 " + formatBotParameter ("参数2", true) + "; " + formatBotCommandInstance ("/replace", true) + "/" + formatBotCommandInstance ("substitute", true) + ": " + formatBotParameter ("参数1", true) + " 中的 " + formatBotParameter ("参数2", true) + " 替换成 " + formatBotParameter ("参数3", true) + "; " + formatBotCommandInstance ("split", true) + ": 用 " + formatBotParameter ("参数2", true) + " 分割 " + formatBotParameter ("参数1", true) + ";");	// 当命令为 explain 时，把 参数1 当成 RegExp 并解释它
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("js", true) + " <" + formatBotParameter ("javascript 脚本", true) + ">    -- 执行 JavaScript 脚本。");
@@ -2071,7 +2072,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				formatBotCommandInstance (primaryCmd, true) +
 				"|" + formatBotCommandInstance ("jsoup", true) +
 				"|" + formatBotCommandInstance ("ht", true) +
-				"|" + formatBotCommandInstance ("json", true) +
+				"|" + formatBotCommandInstance ("/json", true) +
 
 				"[." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("run", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "|." + formatBotOptionInstance ("os", true) + "|." + formatBotOptionInstance ("gfw", true) + "] " +	//  + "|." + formatBotOptionInstance ("stats", true)
 				"[<" + formatBotParameter ("网址", true) + "> <" + formatBotParameter ("CSS 选择器", true) + ">] " +
@@ -2386,7 +2387,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					SendMessage (channel, nick, mapGlobalOptions, "自定义动作的动作名不能包含 Bot 命令选项的分隔符 '" + BOT_OPTION_SEPARATOR + "'.");
 					return;
 				}
-				if (StringUtils.length (sActionCmd) < BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH
+				if (StringUtils.length (sActionCmd) < BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH_forASCII
 					&&
 					! (
 						isFromConsole(channel, nick, login, host)	// 控制台执行时传的“空”参数
@@ -2394,7 +2395,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 						)
 					)
 				{
-					SendMessage (channel, nick, mapGlobalOptions, "自定义动作的动作名长度不能过短，非 VIP 用户不能添加长度小于 " + BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH + " 的动作名");
+					SendMessage (channel, nick, mapGlobalOptions, "自定义动作的动作名长度不能过短，非 VIP 用户不能添加长度小于 " + BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH_forASCII + " 的动作名");
 					return;
 				}
 
@@ -2554,6 +2555,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 						);
 						return;
 					}
+					boolean has_me_argument = StringUtils.containsIgnoreCase (sIRCAction, "${me}"); 
 					if (StringUtils.isNotEmpty (sTargetNick))
 					{
 						sIRCAction = StringUtils.replaceIgnoreCase (sIRCAction, "${p}", Colors.MAGENTA + sTargetNick + Colors.NORMAL);
@@ -2561,7 +2563,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					sIRCAction = StringUtils.replaceIgnoreCase (sIRCAction, "${me}", Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL);
 					sIRCAction = StringUtils.replaceIgnoreCase (sIRCAction, "${channel}", ANSIEscapeTool.COLOR_DARK_CYAN + channel + Colors.NORMAL);
 					sendAction (channel,
-						Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL + " " +
+						(has_me_argument ? "" : Colors.PURPLE + (StringUtils.isNotEmpty (opt_reply_to) ? opt_reply_to : nick) + Colors.NORMAL) +
+						Colors.GREEN + "|" + Colors.NORMAL + " " +
 						sIRCAction +
 						(nActionNumber > 0
 							?
@@ -5964,8 +5967,9 @@ System.out.println (nMatch + ": " + sMatchedString);
 		}
 		return false;
 	}
+
 	/**
-	 * 规则表达式
+	 * 字符串规则表达式 命令。
 	 * <li>
 	 * 	<li>匹配 （默认）</li>
 	 * 	<li>替换</li>
@@ -6051,7 +6055,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 						SendMessage (ch, nick, mapGlobalOptions, "未匹配到");
 				}
 			}
-			else if (botCmdAlias.equalsIgnoreCase ("r") || botCmdAlias.equalsIgnoreCase ("s") || botCmdAlias.equalsIgnoreCase ("替换") || botCmdAlias.equalsIgnoreCase ("replace") || botCmdAlias.equalsIgnoreCase ("subst") || botCmdAlias.equalsIgnoreCase ("substitute") || botCmdAlias.equalsIgnoreCase ("substitution"))
+			else if (botCmdAlias.equalsIgnoreCase ("r") || botCmdAlias.equalsIgnoreCase ("s") || botCmdAlias.equalsIgnoreCase ("替换") || botCmdAlias.equalsIgnoreCase ("/replace") || botCmdAlias.equalsIgnoreCase ("subst") || botCmdAlias.equalsIgnoreCase ("substitute") || botCmdAlias.equalsIgnoreCase ("substitution"))
 			{
 				if (listParams.size () < 2)
 				{
@@ -6078,42 +6082,36 @@ System.out.println (nMatch + ": " + sMatchedString);
 					sSrc = sLastMessage;
 					bIsSrcFromLastMessage = true;
 					//bColorized = true;	// 强制打开颜色
-					mapGlobalOptions.put ("opt_output_username", false);	// 强制不输出用户昵称
+					//mapGlobalOptions.put ("opt_output_username", false);	// 强制不输出用户昵称
 
 					if (ch != null)	// 仅仅在频道内才检查是不是对某人说
 					{
 						// 对 src 稍做处理：如果消息前面类似  '名字:' 或 '名字,' 则先分离该名字，替换其余的后，在 '名字:' 后面加上 " xxx 的意思是说：" +　替换结果
-						if (sSrc.matches (sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
+						Matcher mat = PATTERN_NICK_NAME_AT_BEGIN_OF_LINE.matcher (sSrc);
+						//if (sSrc.matches (sREGEXP_NICK_NAME_AT_BEGIN_OF_LINE + ".*$"))	// IRC 昵称可能包含： - [ ] \ 等 regexp 特殊字符
+						if (mat.find ())
 						{
-							Matcher mat = PATTERN_NICK_NAME_AT_BEGIN_OF_LINE.matcher (sSrc);
-							boolean bMatched = false;
 							StringBuffer sb = new StringBuffer ();
-							if (mat.find ())
+							//if (mat.find ())
 							{
-								bMatched = true;
 								sPrefix = mat.group ();
 								sSayTo = mat.group (1);
 								mat.appendReplacement (sb, "");
 							}
 							mat.appendTail (sb);
-							if (bMatched)
+
+							boolean isNickSaidToExists = isNickExistsInChannel (ch, sSayTo);
+							if (isNickSaidToExists)
 							{
-								boolean isNickSaidToExists = isNickExistsInChannel (ch, sSayTo);
-								if (isNickSaidToExists)
-								{
-									sSrc = sb.toString ();
-								}
-								else
-								{
-									sPrefix = "";
-								}
+								sSrc = sb.toString ();
+							}
+							else
+							{
+								sPrefix = "";
 							}
 						}
 					}
-					else
-					{
 
-					}
 					sRegExp = listParams.get (0);
 					sReplacement = listParams.get (1);
 				}
@@ -7627,7 +7625,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 		FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 
 		// 处理用 json 命令别名执行命令时的特别设置： (1).强制改变 Content-Type  (2).强制忽略 http 返回的 Content-Type，否则 jsoup 会报错
-		if (botCmdAlias.equalsIgnoreCase ("json"))
+		if (botCmdAlias.equalsIgnoreCase ("/json"))
 		{
 			sContentType = "json";
 			isIgnoreContentType = true;
@@ -7699,7 +7697,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 					SendMessage (ch, nick, mapGlobalOptions, "模板名不能包含 Bot 命令选项的分隔符 '" + BOT_OPTION_SEPARATOR + "'.");
 					return;
 				}
-				if (StringUtils.length (sName) < BOT_HT_MIN_TEMPLATE_NAME_LENGTH
+				if (StringUtils.length (sName) < BOT_HT_MIN_TEMPLATE_NAME_LENGTH_forASCII
 					&&
 					! (
 						isFromConsole(ch, nick, login, hostname)	// 控制台执行时传的“空”参数
@@ -7707,7 +7705,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						)
 					)
 				{
-					SendMessage (ch, nick, mapGlobalOptions, "模板名长度不能过短，非 VIP 用户不能添加长度小于 " + BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH + " 的模板名");
+					SendMessage (ch, nick, mapGlobalOptions, "模板名长度不能过短，非 VIP 用户不能添加长度小于 " + BOT_CUSTOMIZED_ACTION_MIN_CMD_LENGTH_forASCII + " 的模板名");
 					return;
 				}
 
@@ -8289,6 +8287,7 @@ System.out.println (sHTTPReferer);
 							is = http.getInputStream();
 						//s = new DataInputStream (is).readUTF();
 						sContent = org.apache.commons.io.IOUtils.toString (is, GetContentEncodingFromHTTPHead (http, JVM_CHARSET.toString ()));
+					    System.err.println (sContent);
 					}
 					catch (Exception e)
 					{
@@ -8296,7 +8295,7 @@ System.out.println (sHTTPReferer);
 					    System.err.println (e);
 					}
 
-					throw new RuntimeException ("HTTP 响应不是 2XX: " + sStatusLine + "\n" + sContent);
+					throw new RuntimeException ("HTTP 响应不是 2XX: " + sStatusLine);	// + "\n" + sContent);
 				}
 
 				// JSON 数据对 selector sub-selector extract attribute 做了另外的解释：
@@ -8398,7 +8397,8 @@ fw.close ();
 				//	HttpsURLConnection.setDefaultSSLSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());
 				//	HttpsURLConnection.setDefaultHostnameVerifier (hvAllowAllHostnames);
 				//}
-				jsoup_conn.validateTLSCertificates (isIgnoreHTTPSCertificateValidation);	// jsoup 1.8.2 增加了“是否忽略证书”的设置
+				//jsoup_conn.validateTLSCertificates (isIgnoreHTTPSCertificateValidation);	// jsoup 1.8.2 增加了“是否忽略证书”的设置
+				jsoup_conn.sslSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());	// jsoup 1.12.1 去掉了 validateTLSCertificates 函数，所以，只能再自己手工设置 sslSocketFactory
 				jsoup_conn.ignoreHttpErrors (true)
 						.ignoreContentType (isIgnoreContentType)
 						.timeout (opt_timeout_length_seconds * 1000)
