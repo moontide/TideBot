@@ -15,13 +15,13 @@ public class DouDiZhuBotPlayer_不出牌的机器人 extends DouDiZhuBotPlayer
 	}
 
 	@Override
-	public Object 抢地主 (Object... args)
+	public Object 抢地主 (List<Map<String, Object>> listPlayerCards, List<String[]> listCandidateAnswers)
 	{
 		return "n";
 	}
 
 	@Override
-	public Object 出牌 (Object... params)
+	public String 出牌 (List<Map<String, Object>> listPlayerCards)
 	{
 		return "";
 	}

@@ -25,7 +25,7 @@ public class SanGuoSha_Simple extends SanGuoSha
 		int i基本牌 = 0;
 		for (int i=0; i<三国杀标准包游戏牌.length; i++)
 		{
-			if (三国杀标准包游戏牌[i] instanceof 基本牌)
+			if (三国杀标准包游戏牌[i] instanceof 基本)
 			{
 				arrayTemp [i基本牌 ++] = 三国杀标准包游戏牌[i];
 			}
@@ -37,6 +37,11 @@ public class SanGuoSha_Simple extends SanGuoSha
 	public SanGuoSha_Simple (LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants, String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		super (bot, listGames, 三国杀玩法.三国杀入门, setParticipants, ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+		if (setParticipants.size () > 3)
+		{
+			listGames.remove (this);
+			throw new IllegalArgumentException (getName() + " 游戏人数不能超过 3 人");
+		}
 	}
 
 	@Override

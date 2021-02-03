@@ -1,7 +1,6 @@
 package net.maclife.irc.game;
 
 import java.util.*;
-import java.util.logging.*;
 
 import org.apache.commons.lang3.*;
 
@@ -1412,7 +1411,7 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 	void RegenerateBestSolution (List<String> listCardRanks)
 	{
 		Map<String, Object> mapResult = EvaluateCards (listCardRanks);
-//System.out.println (mapResult);
+System.out.println (mapResult);
 
 		Set<List<Map<String, Object>>> setSolutions = null;
 		setSolutions = (Set<List<Map<String, Object>>>)mapResult.get ("BestSolutions");
@@ -1421,17 +1420,19 @@ public class DouDiZhuBotPlayer_有点小智能的机器人 extends DouDiZhuBotPl
 			setSolutions = (Set<List<Map<String, Object>>>)mapResult.get ("MinStepsSolutions");
 		}
 		setMySolutions = setSolutions;
+System.out.println (game.游戏信息 (getName() + " 的所有“最佳”出牌方案"));
 System.out.println (setMySolutions);
 		for (List<Map<String, Object>> solution : setMySolutions)
 		{
 			mySolution = solution;	// 取第一个方案拉倒。 TODO: 还有可能取其他的？
 			break;
 		}
+System.out.println (game.游戏信息 (getName() + " 的“最佳”出牌方案的第一个方案"));
 System.out.println (mySolution);
 	}
 
 	@Override
-	public Object 抢地主 (Object... args)
+	public Object 抢地主 (List<Map<String, Object>> listPlayerCards, List<String[]> listCandidateAnswers)
 	{
 		// 评估手牌情况，决定抢不抢地主
 		// 底牌，有可能增强手牌，也完全有可能多出 3 张废牌、多出 3 道单牌！
@@ -1809,7 +1810,7 @@ System.out.println (i + ": " + GetCardsOnly (solution) + (bShowDetailSolution ? 
 		}
 
 		Set<List<Map<String, Object>>> setSolutions = null;	// new HashSet<List<Map<String, Object>>> ();
-		//logging = true;
+		logging = true;
 		//for (String arg : args)
 		{
 			List<String> listCards = DouDiZhu.AnswerToCardRanksList (sCardRanks);

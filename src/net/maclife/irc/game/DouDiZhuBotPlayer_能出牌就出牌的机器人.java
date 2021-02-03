@@ -27,19 +27,15 @@ public class DouDiZhuBotPlayer_能出牌就出牌的机器人 extends DouDiZhuBo
 	}
 
 	@Override
-	public Object 抢地主 (Object... args)
+	public Object 抢地主 (List<Map<String, Object>> listPlayerCards, List<String[]> listCandidateAnswers)
 	{
 		return "3";
 	}
 
 	@Override
-	public Object 出牌 (Object... args)
+	public String 出牌 (List<Map<String, Object>> listPlayerCards)
 	{
-		if (args.length < 1)
-			throw new IllegalArgumentException ("斗地主的游戏机器人，出牌 函数至少需要 1 个参数： 1.自己剩余的手牌");
-
-		List<Map<String, Object>> player_cards = (List<Map<String, Object>>) args[0];
-		Map<String, Object> mapCardsInfo = DouDiZhu.CalculatePlayerCards (player_cards);
+		Map<String, Object> mapCardsInfo = DouDiZhu.CalculatePlayerCards (listPlayerCards);
 		List<String> listSoloCards = (List<String>) mapCardsInfo.get ("SoloCards");
 		List<String> listPairCards = (List<String>) mapCardsInfo.get ("PairCards");
 		List<String> listTrioCards = (List<String>) mapCardsInfo.get ("TrioCards");

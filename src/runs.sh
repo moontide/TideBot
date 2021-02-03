@@ -17,14 +17,14 @@ export LANG=zh_CN.UTF-8
 #export database_driver=com.mysql.jdbc.Driver
 export database_username=bot
 #export database_passwrd=
-export database_url="jdbc:mysql://192.168.115.88/bot?autoReconnect=true&amp;zeroDateTimeBehavior=convertToNull"
+export database_url="jdbc:mysql://192.168.115.88/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull&useSSL=false"
 
-#export GFWProxyType=http
+#export GFWProxyType=HTTP
 #export GFWProxyHost=localhost
 #export GFWProxyPort=8087
 
-export GFWProxyType=socks
-export GFWProxyHost=192.168.90.201
-export GFWProxyPort=9999
+export GFWProxyType=SOCKS
+export GFWProxyHost=192.168.181.70
+export GFWProxyPort=9909
 
 $botdir/run.sh

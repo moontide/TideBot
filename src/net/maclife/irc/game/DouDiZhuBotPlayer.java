@@ -11,11 +11,31 @@ public abstract class DouDiZhuBotPlayer extends TurnBasedBotPlayer
 		super (name);
 	}
 
+	@Override
+	public Object 出牌 (Object... args)
+	{
+		if (args.length < 1)
+			throw new IllegalArgumentException ("斗地主的游戏机器人，出牌 函数至少需要 1 个参数： 1.自己剩余的手牌");
+
+		List<Map<String, Object>> listPlayerCards = (List<Map<String, Object>>) args[0];
+		return 出牌 (listPlayerCards);
+	}
+
+	/**
+	 * 玩家回合阶段，发起一轮出牌。
+	 * @param listPlayerCards 玩家当前手牌
+	 * @return 所出的一道牌，String 类型。如果是单张牌，如果是多张牌。返回 null 表示让系统自己出一张牌（出一张点值最小的单牌）
+	 */
+	public abstract String 出牌 (List<Map<String, Object>> listPlayerCards);
+
+	@Override
+	public abstract Object 回牌 (Object... params);
+
 	/**
 	 * 抢地主
 	 * @param args 参数列表：
 	 * <ol>
-	 * 	<li>玩家手牌，数据类型： <code>List&lt;Map&lt;String, Object&gt;&gt;</code> ，其中的 Map 中的 Key 有：
+	 * 	<li>玩家手牌列表，数据类型： <code>List&lt;Map&lt;String, Object&gt;&gt;</code> ，其中的 Map 中的 Key 有：
 	 * 		<ul>
 	 * 			<li>"rank" -- 牌面（字符串）、</li>
 	 * 			<li>"point" -- 点值（整数）、</li>
@@ -25,9 +45,19 @@ public abstract class DouDiZhuBotPlayer extends TurnBasedBotPlayer
 	 * 	</li>
 	 * 	<li>候选答案，数据类型： <code>List&lt;String[]&gt;</code>，其中的 <code>String[]</code> 遵循 Dialog 类候选答案的格式：<code>[0]</code> 是 value，<code>[1]</code> 是 description </li>
 	 * </ol>
-	 * @return
+	 * @return 抢地主的回答，字符串类型。
+	 * <dl>
+	 * 	<dt><code>N</code> 或 <code>不抢</code>  或空字符串(超时未回答时)</dt>
+	 * 	<dd>不抢</dd>
+	 * 	<dt><code>1</code> 或 <code>1分</code></dt>
+	 * 	<dd>1 分，回答 1 后，将继续询问其他玩家有没有回答更高数值的，如果都没有，则结束抢地主阶段，并成为地主。</dd>
+	 * 	<dt><code>2</code> 或 <code>2分</code></dt>
+	 * 	<dd>2 分，回答 2 后，将继续询问其他玩家有没有回答更高数值的，如果都没有，则结束抢地主阶段，并成为地主。</dd>
+	 * 	<dt><code>3</code> 或 <code>3分</code></dt>
+	 * 	<dd>3 分，回答 3 后，则结束抢地主，立刻成为地主。</dd>
+	 * </dl>
 	 */
-	public abstract Object 抢地主 (Object... args);
+	public abstract Object 抢地主 (List<Map<String, Object>> listPlayerCards, List<String[]> listCandidateAnswers);
 	public Object 手牌变更 (Object listMyCurrentCards, String sReason)
 	{
 		return null;

@@ -113,6 +113,11 @@ public abstract class SanGuoSha extends CardGame
 	}
 
 	/**
+	 * 武将牌堆
+	 */
+	List<SanGuoShaCard> character_cards_deck = new ArrayList<SanGuoShaCard> ();
+
+	/**
 	 * 弃牌堆
 	 */
 	List<SanGuoShaCard> recycle_deck = new ArrayList<SanGuoShaCard> ();
@@ -161,6 +166,11 @@ System.out.println (participants);
 			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("开始。"));
 
 			//
+			初始化牌堆 ();
+
+			洗牌 ();
+
+			//
 			分配座次 ();
 
 			//
@@ -168,11 +178,6 @@ System.out.println (participants);
 
 			//
 			分配与挑选武将 ();
-
-			//
-			初始化牌堆 ();
-
-			洗牌 ();
 
 			//
 			发初始手牌 ();
@@ -837,7 +842,7 @@ System.out.println (nRound + " 轮求桃 玩家 " + sResponderPlayerName + " 打
 					}
 					SanGuoShaCard respondedCard = (SanGuoShaCard) mapResponse.get ("Card");
 
-					I攻击牌 攻击牌 = (I攻击牌) initialtorCard;
+					I攻击 攻击牌 = (I攻击) initialtorCard;
 					for (Class<? extends SanGuoShaCard> 攻击牌所需的抵御牌的牌类型 : 攻击牌.获取抵御牌类型 ())
 					{
 						if (攻击牌所需的抵御牌的牌类型.isInstance (respondedCard))
@@ -1304,7 +1309,7 @@ System.out.println (nRound + " 轮求桃 玩家 " + sResponderPlayerName + " 打
 				//if (currentTurnPlayer == player)	// 如果是自己的回合（确切的说，是在出牌的一轮中，因为会遇到“自己出锦囊牌、别人无懈可击、自己要再反无懈可击”的情况），则不能打出被动牌。
 				{
 					//
-					if (! (c instanceof I主动牌))
+					if (! (c instanceof I主动))
 						throw new IllegalArgumentException ("打出牌不是主动牌。发起牌时，打出的牌必须是主动牌");
 				}
 				//else	// if (2==2)	// 如果不是自己的回合

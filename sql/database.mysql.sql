@@ -327,7 +327,7 @@ CREATE TABLE ht_templates
 	url_param_usage VARCHAR(100) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
 
 	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的 CSS 选择器表达式，此表达式仅用于 content_type 为 html 的情况，对于 json/js，不需要。',
-	sub_selector VARBINARY(1024) NOT NULL DEFAULT '' COMMENT '当 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
+	sub_selector TEXT COLLATE utf8_bin NOT NULL COMMENT '当 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
 	padding_left VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',	/* 原数据类型:  ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') */
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
@@ -360,7 +360,7 @@ CREATE TABLE ht_templates_other_sub_selectors
 (
 	template_id INT UNSIGNED NOT NULL DEFAULT 0,
 	sub_selector_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	sub_selector VARBINARY(1024) NOT NULL DEFAULT '' COMMENT '当 ht_template 主表的 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
+	sub_selector TEXT COLLATE utf8_bin NOT NULL COMMENT '当 ht_template 主表的 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
 	padding_left VARCHAR(20) NOT NULL DEFAULT ' ' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
@@ -472,3 +472,32 @@ CREATE TABLE actions
 	PRIMARY KEY PK__actions (type, action, action_number)	/* InnoDB 存储引擎不支持混合主键，只能用 MyISAM 存储引擎。 http://stackoverflow.com/questions/23794624/auto-increment-how-to-auto-increment-a-combined-key-error-1075 */
 	UNIQUE KEY UQ__actions (type, cmd, action)
 ) ENGINE MyISAM CHARACTER SET UTF8 COMMENT '类似 263 跑车的动作表情命令数据库';
+
+
+
+
+
+/*******************************************************************************
+
+自动回复
+
+*******************************************************************************/
+CREATE TABLE auto_reply_patterns
+(
+	message_pattern_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	message_pattern VARCHAR(250) NOT NULL,	/* utf8mb4 字符集，每个字占 4 字节，长度不能超过 250，否则报错： Error 1071: Specified key was too long; max key length is 1000 bytes  */
+
+	PRIMARY KEY (message_pattern_id),
+	UNIQUE KEY UQ__message_pattern (message_pattern)
+) ENGINE MyISAM CHARACTER SET utf8mb4 COMMENT '自动回复 -- 消息匹配样式';
+
+CREATE TABLE auto_reply_replys
+(
+	message_pattern_id INT UNSIGNED NOT NULL,
+	reply_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	reply VARCHAR(100) NOT NULL,
+	mood ENUM('','烦','爱','坏') NOT NULL DEFAULT '',
+
+	PRIMARY KEY (message_pattern_id, reply_id),
+	UNIQUE KEY UQ__reply (reply)
+) ENGINE MyISAM CHARACTER SET utf8mb4 COMMENT '自动回复 -- 要回复消息，每个匹配上的消息，允许有多条回复，系统随机选一条进行自动回复。';

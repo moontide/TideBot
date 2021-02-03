@@ -15,37 +15,35 @@ import java.util.regex.*;
 import javax.net.ssl.*;
 import javax.script.*;
 
-import bsh.*;
-
-import org.apache.commons.io.*;
-import org.apache.commons.io.output.*;
-import org.apache.commons.lang3.*;
 import org.apache.commons.dbcp2.*;
 //import org.apache.commons.io.*;
 import org.apache.commons.exec.*;
+import org.apache.commons.io.*;
+import org.apache.commons.io.output.*;
+import org.apache.commons.lang3.*;
 import org.jibble.pircbot.*;
-
-import com.maxmind.db.*;
-import com.maxmind.geoip2.*;
-import com.maxmind.geoip2.model.*;
-import com.sinovoice.hcicloudsdk.common.nlu.*;
-import com.temesoft.google.pr.*;
-import com.fasterxml.jackson.core.*;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.node.*;
-
 //import org.jsoup.*;
 import org.jsoup.nodes.*;
 import org.jsoup.select.*;
 
-import net.maclife.util.qqwry.*;
-import net.maclife.mac.*;
-import net.maclife.seapi.*;
+import com.fasterxml.jackson.core.*;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.node.*;
+import com.maxmind.db.*;
+import com.maxmind.geoip2.*;
+import com.maxmind.geoip2.model.*;
+import com.sinovoice.hcicloudsdk.common.nlu.*;
+//import com.temesoft.google.pr.*;
+
+import bsh.*;
 import net.maclife.ansi.*;
 import net.maclife.irc.dialog.*;
 import net.maclife.irc.game.*;
 import net.maclife.irc.game.sanguosha.*;
 import net.maclife.irc.hcicloud.*;
+import net.maclife.mac.*;
+import net.maclife.seapi.*;
+import net.maclife.util.qqwry.*;
 
 public class LiuYanBot extends PircBot implements Runnable
 {
@@ -62,7 +60,8 @@ public class LiuYanBot extends PircBot implements Runnable
 	{
 		String[] arrayJavaVersions = System.getProperty("java.specification.version").split("\\.");
 		JAVA_MAJOR_VERSION = Integer.parseInt (arrayJavaVersions[0]);
-		JAVA_MINOR_VERSION = Integer.parseInt (arrayJavaVersions[1]);
+		if (arrayJavaVersions.length > 1)	// Java 11，仅仅返回 11，没有 minor_version
+			JAVA_MINOR_VERSION = Integer.parseInt (arrayJavaVersions[1]);
 	}
 
 	public static final boolean OPT_OUTPUT_USER_NAME         = true;
@@ -127,13 +126,14 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_ParseCmd	        = "ParseCmd";
 	public static final String BOT_PRIMARY_COMMAND_IPLocation	    = "IPLocation";
 	public static final String BOT_PRIMARY_COMMAND_GeoIP            = "GeoIP";
-	public static final String BOT_PRIMARY_COMMAND_PageRank         = "PageRank";
+	//public static final String BOT_PRIMARY_COMMAND_PageRank         = "PageRank";
 	public static final String BOT_PRIMARY_COMMAND_StackExchange    = "StackExchange";
 	public static final String BOT_PRIMARY_COMMAND_Google           = "/Google";
 	public static final String BOT_PRIMARY_COMMAND_RegExp           = "RegExp";
 	public static final String BOT_PRIMARY_COMMAND_Ban              = "/ban";
 	public static final String BOT_PRIMARY_COMMAND_JavaScript       = "/JavaScript";
 	public static final String BOT_PRIMARY_COMMAND_Java             = "/Java";
+	public static final String BOT_PRIMARY_COMMAND_Jython           = "/Jython";
 	public static final String BOT_PRIMARY_COMMAND_TextArt          = "ANSIArt";
 	public static final String BOT_PRIMARY_COMMAND_Tag              = "dic";
 	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "/GitHub";
@@ -142,6 +142,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Game             = "Game";	// 游戏功能
 	public static final String BOT_PRIMARY_COMMAND_MacManufactory   = "/Mac";	// 查询 MAC 地址所属的制造商
 	public static final String BOT_PRIMARY_COMMAND_Vote             = "/Vote";	// 投票
+	public static final String BOT_PRIMARY_COMMAND_AutoReply        = "AutoReply";	// 自动回复。加此功能的最初想法是对那些发“在吗”、“有人吗”之类消息的辱骂性回复
 
 	public static final String BOT_PRIMARY_COMMAND_Time             = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action           = "Action";
@@ -199,13 +200,14 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_ParseCmd, },
 		{BOT_PRIMARY_COMMAND_IPLocation, "iploc", "ipl", },
 		{BOT_PRIMARY_COMMAND_GeoIP, },
-		{BOT_PRIMARY_COMMAND_PageRank, "pr", },
+		//{BOT_PRIMARY_COMMAND_PageRank, "pr", },
 		{BOT_PRIMARY_COMMAND_StackExchange, "se", },
 		{BOT_PRIMARY_COMMAND_Google, "/goo+gle", },
 		{BOT_PRIMARY_COMMAND_RegExp, "match", "/replace", "subst", "substitute", "substitution", "split", },
 		{BOT_PRIMARY_COMMAND_Ban, "/vip", },
 		{BOT_PRIMARY_COMMAND_JavaScript, "/js", },
 		{BOT_PRIMARY_COMMAND_Java, "beanshell", },
+		{BOT_PRIMARY_COMMAND_Jython, "/python", },
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
 		{BOT_PRIMARY_COMMAND_Tag, "/bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
@@ -225,6 +227,7 @@ public class LiuYanBot extends PircBot implements Runnable
 			BOT_PRIMARY_COMMAND_CONSOLE_Quiet, "/mute", "/gag",
 			BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag",
 		},
+		{BOT_PRIMARY_COMMAND_AutoReply, },
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -1164,10 +1167,12 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 	@Override
 	public void onMessage (String channel, String nick, String login, String hostname, String message)
 	{
-		// 当位于 BNC 下时 (如: 多个 bot 实例通过同一个 ZNC 连接到服务器)，则有可能出现自己对自己说话的情况，
+		// 当位于 ZNC 下时 (如: 多个 bot 实例通过同一个 ZNC 连接到服务器)，则有可能出现自己对自己说话的情况，
 		// 所以有可能死循环的情况。这里要禁止自己(一个 bot 实例)对自己(其他的 bot 实例)说话(发命令)
 		if (StringUtils.equalsIgnoreCase (nick, getName ()))
 			return;
+
+		ProcessMessageForAutoReply (channel, nick, login, hostname, message);
 
 		String sSayTo_andSoReplyTo = null;
 		boolean isSayingToMe = false;	// 是否是指名道姓的对我说
@@ -1679,8 +1684,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				ProcessCommand_纯真IP (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_GeoIP))
 				ProcessCommand_GeoIP (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
-			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_PageRank))
-				ProcessCommand_GooglePageRank (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			//else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_PageRank))
+			//	ProcessCommand_GooglePageRank (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_StackExchange))
 				ProcessCommand_StackExchange (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Google))
@@ -1691,6 +1696,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				ProcessCommand_JavaScript (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Java))
 				ProcessCommand_Java (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Jython))
+				ProcessCommand_Jython (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_TextArt))
 				ProcessCommand_TextArt (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag))
@@ -1932,12 +1939,13 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				" " + BOT_PRIMARY_COMMAND_StackExchange +
 				" " + BOT_PRIMARY_COMMAND_GeoIP +
 				" " + BOT_PRIMARY_COMMAND_IPLocation +
-				" " + BOT_PRIMARY_COMMAND_PageRank +
+				//" " + BOT_PRIMARY_COMMAND_PageRank +
 				" " + BOT_PRIMARY_COMMAND_Time +
 				" " + BOT_PRIMARY_COMMAND_Google +
 				" " + BOT_PRIMARY_COMMAND_RegExp +
 				" " + BOT_PRIMARY_COMMAND_JavaScript +
 				" " + BOT_PRIMARY_COMMAND_Java +
+				" " + BOT_PRIMARY_COMMAND_Jython +
 				" " + BOT_PRIMARY_COMMAND_MacManufactory +
 				" " + BOT_PRIMARY_COMMAND_Vote +
 				" " + BOT_PRIMARY_COMMAND_Dialog +
@@ -2007,8 +2015,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				formatBotParameter ("IPv4地址/域名", true) + "]...    -- 查询 IPv4 地址所在地理位置 (纯真 IP 数据库). IP 地址可有多个. " +
 					formatBotOptionInstance(BOT_OPTION_SEPARATOR + "me", true) + ":查询自己的 IP (穿隐身衣时查不到);"
 			);
-		primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("pr", true) + " <" + formatBotParameter ("网址", true) + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
+		//primaryCmd = BOT_PRIMARY_COMMAND_PageRank;      if (isThisCommandSpecified (args, primaryCmd) || isThisCommandSpecified (args, "pr"))
+		//	SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("pr", true) + " <" + formatBotParameter ("网址", true) + ">...    -- 从 Google 获取网页的 PageRank (网页排名等级)。 网址可以有多个");
 		primaryCmd = BOT_PRIMARY_COMMAND_StackExchange;        if (isThisCommandSpecified (args, primaryCmd))
 		{
 			SendMessage (ch, u, mapGlobalOptions,
@@ -2041,6 +2049,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("js", true) + " <" + formatBotParameter ("javascript 脚本", true) + ">    -- 执行 JavaScript 脚本。");
 		primaryCmd = BOT_PRIMARY_COMMAND_Java;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("beanshell", true) + " <" + formatBotParameter ("java 代码", true) + ">    -- 执行 Java 代码。注意： java 代码是用 BeanShell ( http://www.beanshell.org ) 解释执行的，因为 BeanShell 多年已未更新，所以目前不支持类似 Java 泛型之类的语法…… 例如，不能写成下面的样式： " + Colors.DARK_GREEN + "Map<String, Object> map = new HashMap<String, Object>();" + Colors.NORMAL + " <-- 不支持");
+		primaryCmd = BOT_PRIMARY_COMMAND_Jython;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("/python", true) + " <" + formatBotParameter ("jython 代码", true) + ">    -- 执行 Jython 代码。");
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("字符集", true) + "][." + formatBotOptionInstance ("COLUMNS", true) + "=" + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("字符艺术画文件 URL 地址(http:// file://)", true) + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + formatBotOption ("字符集", true) + " 如果不指定，默认为 " + formatBotOptionInstance ("437", true) + " 字符集。 ." + formatBotOptionInstance ("COLUMNS", true) + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
@@ -2555,7 +2565,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 						);
 						return;
 					}
-					boolean has_me_argument = StringUtils.containsIgnoreCase (sIRCAction, "${me}"); 
+					boolean has_me_argument = StringUtils.containsIgnoreCase (sIRCAction, "${me}");
 					if (StringUtils.isNotEmpty (sTargetNick))
 					{
 						sIRCAction = StringUtils.replaceIgnoreCase (sIRCAction, "${p}", Colors.MAGENTA + sTargetNick + Colors.NORMAL);
@@ -4189,7 +4199,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 					//sISPName = StringUtils.stripToEmpty (isp.toString ());
 
 					//SendMessage (ch, u, opt_output_username, opt_max_response_lines, ip + " 洲=" + continent + ", 国家=" + country + ", 省/州=" + province  + ", 城市=" + city + ", 经度=" + longitude + ", 纬度=" + latitude);
-					String addr = formatHostnameAndAddress (host, netaddr);
+					String addr = FormatHostnameAndAddress (host, netaddr);
 					SendMessage (ch, u, mapGlobalOptions, addr + "    " +
 							sContinent + " " +
 							sCountry + " " +
@@ -4215,7 +4225,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 		}
 	}
 
-	public static String formatHostnameAndAddress (String host, Object addr)
+	public static String FormatHostnameAndAddress (String host, Object addr)
 	{
 		String sAddress = "";
 		if (addr instanceof InetAddress)
@@ -4319,7 +4329,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 							break;
 
 						net.maclife.util.qqwry.Location location = qqwry_locations[j];
-						String addr = formatHostnameAndAddress (q, location.getInetAddress ());
+						String addr = FormatHostnameAndAddress (q, location.getInetAddress ());
 						SendMessage (ch, u, mapGlobalOptions,
 								addr + "    " +
 								(location.getInetAddress() instanceof Inet4Address ?
@@ -4349,69 +4359,69 @@ System.out.println ("时间单位 = " + mat.group(2));
 		}
 	}
 
-	public static PageRankService GOOGLE_PAGE_RANK_SERVICE = new PageRankService();
-	void ProcessCommand_GooglePageRank (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
-	{
-		if (StringUtils.isEmpty (params))
-		{
-			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
-			return;
-		}
-		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
-		//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
+	//public static PageRankService GOOGLE_PAGE_RANK_SERVICE = new PageRankService();
+	//void ProcessCommand_GooglePageRank (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	//{
+	//	if (StringUtils.isEmpty (params))
+	//	{
+	//		ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+	//		return;
+	//	}
+	//	int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+	//	//boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
-		String[] arrayPages = params.split (" +");
-		try
-		{
-			for (int i=0; i<arrayPages.length; i++)
-			{
-				if ((i+1) > opt_max_response_lines)
-				{
-					//SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的网址……");
-					break;
-				}
+	//	String[] arrayPages = params.split (" +");
+	//	try
+	//	{
+	//		for (int i=0; i<arrayPages.length; i++)
+	//		{
+	//			if ((i+1) > opt_max_response_lines)
+	//			{
+	//				//SendMessage (ch, nick, mapGlobalOptions, "已达最大响应行数限制，忽略剩余的网址……");
+	//				break;
+	//			}
 
-				String page = arrayPages[i];
-				int nPageRank = GOOGLE_PAGE_RANK_SERVICE.getPR (page);
-				if (nPageRank == -1)
-					SendMessage (ch, nick, mapGlobalOptions, "PageRank 信息不可用，或者出现内部错误。 <-- " + page);
-				else
-				{
-					String sColor = null;
-					switch (nPageRank)
-					{
-						case 9:
-						case 10:
-							sColor = Colors.GREEN;
-							break;
-						case 7:
-						case 8:
-							sColor = Colors.DARK_GREEN;
-							break;
-						case 5:
-						case 6:
-							sColor = Colors.CYAN;
-							break;
-						case 3:
-						case 4:
-							sColor = ANSIEscapeTool.COLOR_DARK_CYAN;
-							break;
-						case 1:
-						case 2:
-						default:
-							sColor = Colors.DARK_BLUE;
-							break;
-					}
-					SendMessage (ch, nick, mapGlobalOptions, sColor + String.format ("%2d", nPageRank) + Colors.NORMAL + " <-- " + page);
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			e.printStackTrace ();
-			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
-		}
-	}
+	//			String page = arrayPages[i];
+	//			int nPageRank = GOOGLE_PAGE_RANK_SERVICE.getPR (page);
+	//			if (nPageRank == -1)
+	//				SendMessage (ch, nick, mapGlobalOptions, "PageRank 信息不可用，或者出现内部错误。 <-- " + page);
+	//			else
+	//			{
+	//				String sColor = null;
+	//				switch (nPageRank)
+	//				{
+	//					case 9:
+	//					case 10:
+	//						sColor = Colors.GREEN;
+	//						break;
+	//					case 7:
+	//					case 8:
+	//						sColor = Colors.DARK_GREEN;
+	//						break;
+	//					case 5:
+	//					case 6:
+	//						sColor = Colors.CYAN;
+	//						break;
+	//					case 3:
+	//					case 4:
+	//						sColor = ANSIEscapeTool.COLOR_DARK_CYAN;
+	//						break;
+	//					case 1:
+	//					case 2:
+	//					default:
+	//						sColor = Colors.DARK_BLUE;
+	//						break;
+	//				}
+	//				SendMessage (ch, nick, mapGlobalOptions, sColor + String.format ("%2d", nPageRank) + Colors.NORMAL + " <-- " + page);
+	//			}
+	//		}
+	//	}
+	//	catch (Exception e)
+	//	{
+	//		e.printStackTrace ();
+	//		SendMessage (ch, nick, mapGlobalOptions, e.toString ());
+	//	}
+	//}
 
 	@SuppressWarnings ("deprecation")
 	void ProcessCommand_URLEncodeDecode (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -4993,29 +5003,29 @@ System.out.println ("时间单位 = " + mat.group(2));
 			else if (action.equalsIgnoreCase("s") || action.equalsIgnoreCase("search") || action.equalsIgnoreCase("搜") || action.equalsIgnoreCase("搜索") || action.equalsIgnoreCase("查") || action.equalsIgnoreCase("查询") || action.equalsIgnoreCase("as") || action.equalsIgnoreCase("advancedSearch") || action.equalsIgnoreCase("advanced-Search") || action.equalsIgnoreCase("advanced_Search"))
 			{
 				node = StackExchangeAPI.advancedSearch (sSiteNameForAPI, mapParams, sbQ.toString ());
-				processStackExchangeQuestionsNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+				ProcessStackExchangeQuestionsNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else if (action.equalsIgnoreCase("q") || action.equalsIgnoreCase("question") || action.equalsIgnoreCase("questions") || action.equalsIgnoreCase("问题"))
 			{
 				node = StackExchangeAPI.questionsInfo (sSiteNameForAPI, mapParams, sbQ.toString ().split (" +"));
-				processStackExchangeQuestionsNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+				ProcessStackExchangeQuestionsNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else if (action.equalsIgnoreCase("a") || action.equalsIgnoreCase("answer") || action.equalsIgnoreCase("answers") || action.equalsIgnoreCase("答案"))
 			{
 				node = StackExchangeAPI.answersInfo (sSiteNameForAPI, mapParams, sbQ.toString ().split (" +"));
-				processStackExchangeAnswersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+				ProcessStackExchangeAnswersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else if (action.equalsIgnoreCase ("u") || action.equalsIgnoreCase ("user") || action.equalsIgnoreCase ("users") || action.equalsIgnoreCase ("用户"))
 			{
 				node = StackExchangeAPI.usersInfo (sSiteNameForAPI, mapParams, sbQ.toString ().split (" +"));
-				processStackExchangeUsersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+				ProcessStackExchangeUsersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else if (action.equalsIgnoreCase ("au") || action.equalsIgnoreCase ("alluser") || action.equalsIgnoreCase ("AllUsers") || action.equalsIgnoreCase ("全站用户"))
 			{
 				if (sbQ.length () > 0)
 					mapParams.put ("inname", sbQ.toString ());
 				node = StackExchangeAPI.allUsersInfo (sSiteNameForAPI, mapParams);
-				processStackExchangeUsersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+				ProcessStackExchangeUsersNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			}
 			else
 			{
@@ -5029,7 +5039,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 		}
 	}
 
-	public void processStackExchangeErrorNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
+	public void ProcessStackExchangeErrorNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
 	{
 		if (node == null)
 		{
@@ -5053,7 +5063,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 	}
 
 	@SuppressWarnings ("unused")
-	public void processStackExchangeQuestionsNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
+	public void ProcessStackExchangeQuestionsNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
 	{
 		if (node == null)
 		{
@@ -5063,7 +5073,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 
 		if (node.get ("error_id")!=null)
 		{
-			processStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+			ProcessStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			return;
 		}
 
@@ -5156,7 +5166,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 	}
 
 	@SuppressWarnings ("unused")
-	public void processStackExchangeAnswersNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
+	public void ProcessStackExchangeAnswersNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
 	{
 		if (node == null)
 		{
@@ -5166,7 +5176,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 
 		if (node.get ("error_id")!=null)
 		{
-			processStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+			ProcessStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			return;
 		}
 
@@ -5217,7 +5227,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 	}
 
 	@SuppressWarnings ("unused")
-	public void processStackExchangeUsersNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
+	public void ProcessStackExchangeUsersNode (String ch, String nick, String botcmd, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, JsonNode node)
 	{
 		if (node == null)
 		{
@@ -5227,7 +5237,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 
 		if (node.get ("error_id")!=null)
 		{
-			processStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
+			ProcessStackExchangeErrorNode (ch, nick, botcmd, mapGlobalOptions, listCmdEnv, node);
 			return;
 		}
 
@@ -6259,7 +6269,7 @@ System.out.println (params);
 		ScriptContext jsContext = public_jsContext;
 		if (jse==null)
 		{
-			SendMessage (ch, nick, mapGlobalOptions, "不能获取 JavaScript 引擎");
+			SendMessage (ch, nick, mapGlobalOptions, "不能获取 JavaScript 脚本引擎");
 			return;
 		}
 
@@ -6436,6 +6446,97 @@ System.out.println (params);
 		{
 			System.setOut (systemOut);
 			System.setErr (systemErr);
+		}
+	}
+
+
+	static ScriptEngine public_jython_engine = scriptEngineManager.getEngineByName("python");
+	static ScriptContext public_jythonContext = (public_jython_engine==null?null:public_jython_engine.getContext ());
+	/**
+	 * 执行 Jython 脚本。
+	 *
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	void ProcessCommand_Jython (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (StringUtils.isEmpty (params))
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+System.out.println ("Jython 脚本：");
+System.out.println (params);
+		ScriptEngine jye = public_jython_engine;
+		ScriptContext jyContext = public_jythonContext;
+		if (jye==null)
+		{
+			SendMessage (ch, nick, mapGlobalOptions, "不能获取 Jython 脚本引擎");
+			return;
+		}
+
+		try
+		{
+			StringWriter stdout = new StringWriter ();
+			StringWriter stderr = new StringWriter ();
+			jyContext.setWriter (stdout);
+			jyContext.setErrorWriter (stderr);
+
+			Object evaluateResult = jye.eval (params);
+System.out.println ("执行结果：");
+System.out.println (evaluateResult);
+			if (evaluateResult!=null)
+			{
+				if (StringUtils.isEmpty (stdout.toString ()) && StringUtils.isEmpty (stderr.toString ()))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, evaluateResult.toString ());
+					return;
+				}
+
+				String sResult = "";
+				if (StringUtils.isEmpty (stderr.toString ()))
+					sResult = evaluateResult.toString () + "    控制台输出: " + stdout;
+				else if (StringUtils.isEmpty (stdout.toString ()))
+					sResult = evaluateResult.toString () + "    控制台输出: " + Colors.RED + stderr;
+				else
+					sResult = evaluateResult.toString () + "    控制台输出: " + stdout + "  " + Colors.RED + stderr;
+
+				SendMessage (ch, nick, mapGlobalOptions, sResult);
+			}
+			else
+			{
+				if (StringUtils.isEmpty (stdout.toString ()) && StringUtils.isEmpty (stderr.toString ()))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, "求值无结果，控制台也没有输出");
+					return;
+				}
+				if (StringUtils.isEmpty (stderr.toString ()))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, stdout.toString ());
+					return;
+				}
+				if (StringUtils.isEmpty (stdout.toString ()))
+				{
+					SendMessage (ch, nick, mapGlobalOptions, Colors.RED + stderr.toString ());
+					return;
+				}
+
+				{
+					SendMessage (ch, nick, mapGlobalOptions, stdout.toString() + "    " + Colors.RED + stderr.toString ());
+					return;
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
 		}
 	}
 
@@ -6928,7 +7029,7 @@ logger.fine ("保存词条成功后的词条定义序号=" + q_sn);
 			{
 				//params = StringUtils.stripToEmpty (params);
 				conn = botDS.getConnection ();
-				stmt_sp = conn.prepareCall ("{CALL p_getdic (?,?,?)}", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+				stmt_sp = conn.prepareCall ("{CALL p_getdic (?,?,?)}", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
 				stmt_sp.setString (iParamIndex++, params);
 				stmt_sp.setObject (iParamIndex++, opt_max_response_lines_specified ? opt_max_response_lines : null);
 				stmt_sp.setBoolean (iParamIndex++, isReverseQuery);
@@ -7067,6 +7168,96 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 			try { if (conn != null) conn.close(); } catch(Exception e) { }
 		}
 		// "SELECT t.*,q.content q,a.content a FROM dics t JOIN dics_hash q ON q.q_id=t.q_id JOIN dics_hash a ON a.q_id= WHERE t.q_id=sha1(?)";
+	}
+
+	void ProcessCommand_AutoReply (String channel, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+	}
+	void ProcessMessageForAutoReply (String channel, String nick, String login, String hostname, String sMessage)
+	{
+		//
+		String sSQL_MatchPattern = "SELECT * FROM auto_reply_patterns WHERE ? RLIKE message_pattern ORDER BY RAND() LIMIT 1";
+		String sSQL_FetchReply = "SELECT * FROM auto_reply_replies WHERE message_pattern_id = ? ORDER BY RAND() LIMIT 1";
+		Connection conn = null;
+		PreparedStatement stmt_MatchPattern = null, stmt_FetchReply = null;
+		ResultSet rs = null;
+		int iParamIndex = 1;
+		try
+		{
+			SetupDataSource ();
+			conn = botDS.getConnection ();
+			stmt_MatchPattern = conn.prepareStatement (sSQL_MatchPattern, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+			stmt_MatchPattern.setString (iParamIndex++, sMessage);
+			boolean isResultSet = stmt_MatchPattern.execute ();
+			assert (isResultSet);
+			rs = stmt_MatchPattern.getResultSet ();
+			String sMessagePatternID = null, sReply = null, sMood = null;
+			while (rs.next ())
+			{
+				sMessagePatternID = rs.getString ("message_pattern_id");
+System.out.print ("AutoReply: matched message_pattern_id = ");
+System.out.print (sMessagePatternID);
+System.out.print (", message pattern = ");
+System.out.println (rs.getString ("message_pattern"));
+				break;
+			}
+			rs.close ();
+			if (StringUtils.isNotEmpty (sMessagePatternID))
+			{
+				iParamIndex = 1;
+				stmt_FetchReply = conn.prepareStatement (sSQL_FetchReply, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+				stmt_FetchReply.setString (iParamIndex++, sMessagePatternID);
+				isResultSet = stmt_FetchReply.execute ();
+				assert (isResultSet);
+				rs = stmt_FetchReply.getResultSet ();
+				while (rs.next ())
+				{
+					sReply = rs.getString ("reply");
+					sMood = rs.getString ("mood");
+System.out.print ("AutoReply: fetched reply_id = ");
+System.out.print (rs.getInt ("reply_id"));
+System.out.print (", reply = ");
+System.out.print (sReply);
+System.out.print (", mood = ");
+System.out.print (sMood);
+System.out.println ();
+					break;
+				}
+				if (StringUtils.isNotEmpty (sReply))
+				{
+					String sIRCColor_Start = "";
+					switch (sMood)
+					{
+						case "烦":
+							sIRCColor_Start = ANSIEscapeTool.COLOR_DARK_RED;
+							break;
+						case "爱":
+							sIRCColor_Start = Colors.YELLOW;
+							break;
+						case "色":
+							sIRCColor_Start = Colors.MAGENTA;
+							break;
+						case "坏":
+							sIRCColor_Start = Colors.MAGENTA;
+							break;
+						default:
+							break;
+					}
+					SendMessage (channel, nick, true, 1, sIRCColor_Start + sReply + (StringUtils.isNotEmpty (sIRCColor_Start) ? Colors.NORMAL : ""));
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+		finally
+		{
+			try { if (rs != null) rs.close(); } catch(Exception e) { }
+			try { if (stmt_MatchPattern != null) stmt_MatchPattern.close(); } catch(Exception e) { }
+			try { if (stmt_FetchReply != null) stmt_FetchReply.close(); } catch(Exception e) { }
+			try { if (conn != null) conn.close(); } catch(Exception e) { }
+		}
 	}
 
 	public static final String GITHUB_TIME_FORMAT_STRING = "yyyy-MM-dd'T'HH:mm:ssX";
@@ -7889,7 +8080,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 					listFormatWidth.clear ();
 					listRightPaddings.clear ();
 
-					listSubSelectors.add (new String(rs.getString ("sub_selector").getBytes ("iso-8859-1")));
+					listSubSelectors.add (rs.getString ("sub_selector"));
 					listLeftPaddings.add (rs.getString ("padding_left"));
 					listExtracts.add (rs.getString ("extract"));
 					listAttributes.add (rs.getString ("attr"));
@@ -7918,7 +8109,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						rs_GetSubSelectors = stmt_GetSubSelectors.executeQuery ();
 						while (rs_GetSubSelectors.next ())
 						{
-							listSubSelectors.add (new String(rs_GetSubSelectors.getString("sub_selector").getBytes ("iso-8859-1")));
+							listSubSelectors.add (rs_GetSubSelectors.getString("sub_selector"));
 							listLeftPaddings.add (rs_GetSubSelectors.getString ("padding_left"));
 							listExtracts.add (rs_GetSubSelectors.getString("extract"));
 							listAttributes.add (rs_GetSubSelectors.getString("attr"));

@@ -45,6 +45,29 @@ public class SanGuoSha_RoleRevealing extends SanGuoSha
 	};
 
 	@Override
+	public void 初始化牌堆 ()
+	{
+		for (int i=0; i<三国杀标准包游戏牌.length; i++)
+		{
+			deck.add (三国杀标准包游戏牌[i]);
+		}
+	}
+
+	@Override
+	public void 洗牌 ()
+	{
+		super.洗牌 ();
+
+		//洗 (deck);
+		洗武将牌 ();
+	}
+
+	public void 洗武将牌 ()
+	{
+
+	}
+
+	@Override
 	public void 分配座次 ()
 	{
 		// 先随机分配座次

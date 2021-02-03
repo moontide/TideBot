@@ -2,7 +2,7 @@ package net.maclife.irc.game.sanguosha.card;
 
 import java.util.*;
 
-public class 杀 extends 基本牌 implements I攻击牌
+public class 杀 extends 基本 implements I攻击
 {
 	static
 	{

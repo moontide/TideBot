@@ -86,7 +86,7 @@ public class DouDiZhu extends CardGame
 				{
 					sTurnPlayer_抢地主 = ((DouDiZhuBotPlayer)turnPlayer_抢地主).getName ();
 
-					answer = (String)((DouDiZhuBotPlayer)turnPlayer_抢地主).抢地主 (players_cards.get (sTurnPlayer_抢地主), 抢地主候选答案);
+					answer = (String)((DouDiZhuBotPlayer)turnPlayer_抢地主).抢地主 ((List<Map<String, Object>>)players_cards.get (sTurnPlayer_抢地主), 抢地主候选答案);
 					value = answer;
 					value_and_label = value;
 				}
@@ -252,7 +252,7 @@ public class DouDiZhu extends CardGame
 						System.out.println (游戏信息 (sTurnPlayer_回合阶段 + " 的手牌"));
 						System.out.println (游戏信息 (GenerateCardsInfoTo (sTurnPlayer_回合阶段).toString ()));
 
-						answer = (String)((DouDiZhuBotPlayer)turnPlayer_回合阶段).出牌 (player_cards);
+						answer = ((DouDiZhuBotPlayer)turnPlayer_回合阶段).出牌 (player_cards);
 						//value = answer;
 						//value_and_label = value;
 					}
@@ -618,7 +618,18 @@ public class DouDiZhu extends CardGame
 	public static final int STAGE_抢地主   = 1;
 	public static final int STAGE_回合阶段 = 2;
 	public static final int STAGE_战斗阶段 = 3;
-	public List<String[]> 抢地主候选答案 = new ArrayList<String[]> ();	// 候选答案
+
+	/**
+	 * 每一局游戏抢地主阶段的候选答案列表，数据类型： List&lt;String[]&gt;。候选答案会在抢地主过程中不断减少：有人选择了 1 分后，选项 1 就会被剔除；有人选择了 2 分后，选项 1 和选项 2 就会被剔除；。
+	 * 抢地主阶段最开始的候选答案有：
+	 * <dl>
+	 * <dt>1</dt><dd>1分</dd>
+	 * <dt>2</dt><dd>2分</dd>
+	 * <dt>3</dt><dd>3分</dd>
+	 * <dt>N</dt><dd>不抢</dd>
+	 * </dl>
+	 */
+	public List<String[]> 抢地主候选答案 = new ArrayList<String[]> ();
 	{
 		抢地主候选答案.add (new String[]{"1", "1分"});
 		抢地主候选答案.add (new String[]{"2", "2分"});
