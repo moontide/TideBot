@@ -1,5 +1,11 @@
 package net.maclife.irc;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.*;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.*;
@@ -12,6 +18,7 @@ import java.util.concurrent.*;
 import java.util.logging.*;
 import java.util.regex.*;
 
+import javax.imageio.*;
 import javax.net.ssl.*;
 import javax.script.*;
 
@@ -135,6 +142,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Java             = "/Java";
 	public static final String BOT_PRIMARY_COMMAND_Jython           = "/Jython";
 	public static final String BOT_PRIMARY_COMMAND_TextArt          = "ANSIArt";
+	public static final String BOT_PRIMARY_COMMAND_PixelFont        = "PixelFont";
 	public static final String BOT_PRIMARY_COMMAND_Tag              = "dic";
 	public static final String BOT_PRIMARY_COMMAND_GithubCommitLogs = "/GitHub";
 	public static final String BOT_PRIMARY_COMMAND_HTMLParser       = "HTMLParser";
@@ -209,6 +217,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Java, "beanshell", },
 		{BOT_PRIMARY_COMMAND_Jython, "/python", },
 		{BOT_PRIMARY_COMMAND_TextArt, "/aa", "ASCIIArt", "TextArt", "/ta", "字符画", "字符艺术", },
+		{BOT_PRIMARY_COMMAND_PixelFont, "/pf", },
 		{BOT_PRIMARY_COMMAND_Tag, "/bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "/json", },
@@ -1700,6 +1709,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				ProcessCommand_Jython (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_TextArt))
 				ProcessCommand_TextArt (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_PixelFont))
+				ProcessCommand_PixelFont (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Tag))
 				ProcessCommand_Tag (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_GithubCommitLogs))
@@ -1935,6 +1946,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				" " + BOT_PRIMARY_COMMAND_HTMLParser +
 				" " + BOT_PRIMARY_COMMAND_GithubCommitLogs +
 				" " + BOT_PRIMARY_COMMAND_TextArt +
+				" " + BOT_PRIMARY_COMMAND_PixelFont +
 				" " + BOT_PRIMARY_COMMAND_Cmd +
 				" " + BOT_PRIMARY_COMMAND_StackExchange +
 				" " + BOT_PRIMARY_COMMAND_GeoIP +
@@ -2053,6 +2065,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("/python", true) + " <" + formatBotParameter ("jython 代码", true) + ">    -- 执行 Jython 代码。");
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("字符集", true) + "][." + formatBotOptionInstance ("COLUMNS", true) + "=" + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("字符艺术画文件 URL 地址(http:// file://)", true) + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + formatBotOption ("字符集", true) + " 如果不指定，默认为 " + formatBotOptionInstance ("437", true) + " 字符集。 ." + formatBotOptionInstance ("COLUMNS", true) + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
+		primaryCmd = BOT_PRIMARY_COMMAND_PixelFont;        if (isThisCommandSpecified (args, primaryCmd))
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOptionInstance ("force", true) + "]" + "[." + formatBotOptionInstance ("vertical", true) + "]  [" + formatBotParameter ("/font 字体名", true) + "]  [" + formatBotParameter ("/size 字体大小", true) + "]  [" + formatBotParameter ("/fc 前景字符", true) + "]  [" + formatBotParameter ("/bc 背景字符", true) + "]  [" + formatBotParameter ("/size 字体大小", true) + "]  <简短文字>    -- 将简短文字转换为字符艺术字体。 ." + formatBotParameter ("字体名", true) + " 若不指定，则默认为 " + formatBotParameterInstance ("文泉驿点阵正黑", true) + "；" + formatBotParameter ("字体大小", true) + " 的单位为：pixel，若不指定，则默认为 " + formatBotParameterInstance ("12", true) + "；" + formatBotParameter ("前景字符", true) + " 默认为 " + formatBotParameterInstance ("*", true) + "；" + formatBotParameter ("背景字符", true) + " 默认为 " + formatBotParameterInstance (" ", true) + "(半角空格)。");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true)
 				+ "[." + formatBotOptionInstance ("reverse", true) + "|" + formatBotOptionInstance ("反查", true)
@@ -6655,6 +6669,258 @@ System.out.println (evaluateResult);
 		}
 	}
 
+
+
+
+	/**
+	 * 将一行简短的文字（文字数量不能太多，详见说明）个点阵字体转换成图形后，用一个字符（通常是：　）代替一个黑点、用一个空白字符（通常是：　）代替透明点，
+	 * <h1>参数说明</h1>
+	 * <dl>
+	 * 	<dt>指定字体名<dt>
+	 * 	<dd><code>/font 字体名</code>，例如：<code>/font "Times New Roman"</code>。<br/>
+	 * 字体可以是点阵字体，也可以矢量字体，但因为 java 对字体的处理不太好，所以尽量还是使用点阵字体。
+	 * </dd>
+	 * 	<dt>指定字体大小（单位：pixel）<dt>
+	 * 	<dd><code>/size 大小</code>，例如：<code>/size 12</code></dd>
+	 * 	<dt>指定前景字符，所谓“前景字符”是指用来代替黑点的字符<dt>
+	 * 	<dd><code>/fc 前景字符</code>，例如：<code>/fc '█'</code>。前景字符，并不一定局限于用一个字符、也不一定用汉字或全角字符，但如果指定该参数后，简短文字的数量需要自己计算并控制一下（比如：如果换成一个英文字符，则简短文字数量可以更多一些，如果换成两个汉字，则简短文字数量要减半）。</dd>
+	 * 	<dt>指定背景字符，所谓“背景字符”是指用来代替白点/透明点的字符<dt>
+	 * 	<dd><code>/bc 背景字符</code>，例如：<code>/bc '　'</code>。背景字符，并不一定局限于用一个字符、也不一定用汉字或全角字符，但如果指定该参数后，简短文字的数量需要自己计算并控制一下（比如：如果换成一个英文字符，则简短文字数量可以更多一些，如果换成两个汉字，则简短文字数量要减半）。</dd>
+	 * </dl>
+	 *
+	 * <h1>字符数量说明</h1>
+	 * 因 IRC 消息长度限制，要输出的文字数量，建议不要超过 6 个汉字（以 12px 点阵来计算，如果）： 6*3(每个汉字的UTF-8字节长度)*12 = 216 字节，如果换成 7 个字符，就变成了 7*3*12 = 252 字节，252 虽然没有不到每行 IRC 消息的字节限制，但如果在回复消息时加上人名、颜色控制的话，一般都会超过。
+	 * @param ch
+	 * @param nick
+	 * @param login
+	 * @param hostname
+	 * @param botcmd
+	 * @param botCmdAlias
+	 * @param mapGlobalOptions
+	 * @param listCmdEnv
+	 * @param params
+	 */
+	@SuppressWarnings ("unchecked")
+	void ProcessCommand_PixelFont (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		if (StringUtils.isEmpty (params))
+		{
+			ProcessCommand_Help (ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, botcmd);
+			return;
+		}
+		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
+		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
+		int COLUMNS = ANSIEscapeTool.DEFAULT_SCREEN_COLUMNS;
+		if (mapUserEnv.get ("COLUMNS") != null)
+		{
+			COLUMNS = Integer.parseInt (mapUserEnv.get ("COLUMNS"));
+		}
+
+
+		String sFontName = "文泉驿点阵正黑";
+		int nFontSize_InPixel = 12;
+		String sForegroundCharacter = "*";
+		String sBackgroundCharacter = " ";
+		boolean bForceOutput = false;
+		boolean bVertical = false;
+		String sWords = null;
+
+		if (listCmdEnv != null)
+		{
+			for (String env : listCmdEnv)
+			{
+				if (env.equalsIgnoreCase ("force"))
+					bForceOutput = true;
+				else if (env.equalsIgnoreCase ("v") || env.equalsIgnoreCase ("vertical"))
+					bVertical = true;
+			}
+		}
+
+		List<String> listParams = splitCommandLine (params);
+		if (listParams != null)
+		{
+			for (int i=0; i<listParams.size (); i++)
+			{
+				String param = listParams.get (i);
+				if (param.startsWith ("/") || param.startsWith ("-"))
+				{
+					if (i == listParams.size () - 1)
+					{
+						SendMessage (ch, nick, mapGlobalOptions, param + " 需要指定参数值");
+						return;
+					}
+
+					param = param.substring (1);
+
+					i++;
+					String value = listParams.get (i);
+					if (param.equalsIgnoreCase ("font") || param.equalsIgnoreCase ("fn"))
+					{
+						sFontName = value;
+					}
+					else if (param.equalsIgnoreCase ("size") || param.equalsIgnoreCase ("font-size"))
+						nFontSize_InPixel = Integer.parseInt (value);
+					else if (param.equalsIgnoreCase ("fc") || param.equalsIgnoreCase ("foreground"))
+						sForegroundCharacter = value;
+					else if (param.equalsIgnoreCase ("bc") || param.equalsIgnoreCase ("background"))
+						sBackgroundCharacter = value;
+				}
+				else
+					sWords = param;
+			}
+		}
+		//if (bVertical)
+		//	sWords = sWords.replaceAll ("(.)", "$1\n");
+System.out.println ("文字: " + sWords);
+System.out.println ("字体名: " + sFontName);
+System.out.println ("字体大小: " + nFontSize_InPixel);
+System.out.println ("前景字符: " + sForegroundCharacter);
+System.out.println ("背景字符: " + sBackgroundCharacter);
+System.out.println ("Force: " + bForceOutput);
+System.out.println ("Vertical: " + bVertical);
+
+		try
+		{
+			String sPixelFontString = GeneratePixelFontString (sWords, sFontName, nFontSize_InPixel, sForegroundCharacter, sBackgroundCharacter, bVertical);
+			String[] arrayLines = sPixelFontString.split ("\\\\n");
+			if (arrayLines.length == 0)
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "无输出");
+				return;
+			}
+			int nLine = 0;
+			for (String line : arrayLines)
+			{
+				SendMessage (ch, nick, mapGlobalOptions, line);
+				nLine ++;
+				if (nLine >= opt_max_response_lines)
+					break;
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+			SendMessage (ch, nick, mapGlobalOptions, e.toString ());
+		}
+	}
+
+	public static String GeneratePixelFontString (String sText, String sFontName, int nFontSize_InPixel, String sForegroundCharacter, String sBackgroundCharacter, boolean bVertical)
+	{
+		StringBuilder sb = new StringBuilder ();
+		BufferedImage image = null, temp_image = null;
+		Graphics2D g2d = null;
+		try
+		{
+			// 先用一个小图片来计算文字转换成图片后所需的图片宽度和高度
+			temp_image = new BufferedImage (1, 1, BufferedImage.TYPE_BYTE_BINARY);
+			g2d = temp_image.createGraphics ();
+			Font font = new Font (sFontName, Font.PLAIN, nFontSize_InPixel);
+System.out.println (font);
+			g2d.setFont (font);
+			FontMetrics fm = g2d.getFontMetrics ();
+System.out.println (fm);
+System.out.println ("font metric Height: " + fm.getHeight ());
+System.out.println ("font metric Ascent: " + fm.getAscent ());
+System.out.println ("font metric Descent: " + fm.getDescent ());
+System.out.println ("font metric Leading: " + fm.getLeading ());
+System.out.println ("font metric MaxAscent: " + fm.getMaxAscent ());
+System.out.println ("font metric MaxDescent: " + fm.getMaxDescent ());
+			int nImageWidth = 0;
+			int nImageHeight = 0;
+			String[] arrayVerticalLines = null;
+			if (! bVertical)
+			{
+				nImageWidth = fm.stringWidth (sText);
+				nImageHeight = nFontSize_InPixel;	// fm.getHeight () - fm.getLeading ();
+			}
+			else
+			{
+				arrayVerticalLines = sText.split ("");
+				for (String sTemp : arrayVerticalLines)
+				{
+					int nSingleCharacterWidth = fm.stringWidth (sTemp);
+					nImageWidth = nSingleCharacterWidth > nImageWidth ? nSingleCharacterWidth : nImageWidth;
+					nImageHeight += nFontSize_InPixel;	// fm.getHeight () - fm.getLeading ();
+				}
+			}
+			g2d.dispose();
+
+			// 文字转换为图片
+			image = new BufferedImage (nImageWidth, nImageHeight, BufferedImage.TYPE_BYTE_BINARY);
+			//ImageIO.write (image, "PNG", new File("/tmp/pixel-font-0.png"));
+			g2d = image.createGraphics ();
+			//g2d.setRenderingHint (RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+			//g2d.setRenderingHint (RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);	// 禁用 AntiAlias
+			//g2d.setRenderingHint (RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+			//g2d.setRenderingHint (RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+			//g2d.setRenderingHint (RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+			//g2d.setRenderingHint (RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			//g2d.setRenderingHint (RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+			//g2d.setRenderingHint (RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+			g2d.setFont (font);
+			g2d.setBackground (Color.WHITE);
+			g2d.clearRect (0, 0, nImageWidth, nImageHeight);
+			//ImageIO.write (image, "PNG", new File("/tmp/pixel-font-1.png"));
+			g2d.setColor (Color.BLACK);
+			//ImageIO.write (image, "PNG", new File("/tmp/pixel-font-2.png"));
+			fm = g2d.getFontMetrics ();
+			if (! bVertical)
+			{
+				//g2d.drawString (sText, 0, fm.getAscent());
+				//g2d.drawString (sText, 0, nFontSize_InPixel - fm.getDescent());
+				g2d.drawString (sText, 0, fm.getAscent() - (fm.getHeight () - nFontSize_InPixel) / 2);
+			}
+			else
+			{
+				int i=0;
+				for (String sTemp : arrayVerticalLines)
+				{
+					//g2d.drawString (sTemp, 0, i*nFontSize_InPixel + fm.getAscent());
+					//g2d.drawString (sTemp, 0, i*nFontSize_InPixel + nFontSize_InPixel - fm.getDescent());
+					g2d.drawString (sTemp, 0, i*nFontSize_InPixel + fm.getAscent() - (fm.getHeight () - nFontSize_InPixel) / 2);
+					i ++;
+				}
+			}
+			//ImageIO.write (image, "PNG", new File("/tmp/pixel-font-3.png"));
+			g2d.dispose();
+			image.flush ();
+			ImageIO.write (image, "PNG", new File("/tmp/pixel-font.png"));
+
+			// 读取每个 pixel，转换为 pixel font String
+			for (int y=0; y<image.getHeight (); y++)
+			{
+				for (int x=0; x<image.getWidth (); x++)
+				{
+					int nRGB = image.getRGB (x, y) & 0xFFFFFF;
+//System.out.print (String.format ("%06X", nRGB));
+//System.out.print (" ");
+					if (nRGB == 0)	// 黑色
+					{
+						sb.append (sForegroundCharacter);
+					}
+					else if (nRGB == 0xFFFFFF)	// 白色
+					{
+						sb.append (sBackgroundCharacter);
+					}
+					else
+					{
+					}
+				}
+//System.out.println ();
+				sb.append ("\n");
+			}
+System.out.println (sb);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+		return sb.toString ();
+	}
+
+
+
+
 	BasicDataSource botDS = null;
 
 	private String ch;
@@ -6671,7 +6937,7 @@ System.out.println (evaluateResult);
 		// 要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则执行存储过程报错
 		// GRANT SELECT ON mysql.proc TO bot@'192.168.2.%'
 		// 参见: http://stackoverflow.com/questions/986628/cant-execute-a-mysql-stored-procedure-from-java
-		botDS.setUrl (System.getProperty ("database.url", "jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"));
+		botDS.setUrl (System.getProperty ("database.url", "jdbc:mysql://192.168.2.1/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull"));
 		// 在 prepareCall 时报错:
 		// User does not have access to metadata required to determine stored procedure parameter types. If rights can not be granted, configure connection with "noAccessToProcedureBodies=true" to have driver generate parameters that represent INOUT strings irregardless of actual parameter types.
 		//botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;noAccessToProcedureBodies=true&amp;useInformationSchema=true"); // 没有作用
