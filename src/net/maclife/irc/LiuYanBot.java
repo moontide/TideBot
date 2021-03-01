@@ -8278,7 +8278,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 						listSQLParams.add ("%" + sHTTPReferer + "%");
 					}
 
-					sbSQL.append ("LIMIT " + iStart + "," + opt_max_response_lines);
+					sbSQL.append (" ORDER BY id DESC\n");
+					//sbSQL.append ("LIMIT " + iStart + "," + opt_max_response_lines);
 				}
 				else
 				{
@@ -8308,6 +8309,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						stmt.setString (nParam ++, sName);
 				}
 
+				StringBuilder sbHelp = new StringBuilder ();
 				// 执行，并取出结果值
 				rs = stmt.executeQuery ();
 				while (rs.next ())
@@ -8317,89 +8319,102 @@ logger.fine ("url after parameter expansion: " + sURL);
 						nID = rs.getLong ("id");
 					//if (StringUtils.isEmpty (sName))
 						sName = rs.getString ("name");
-					if (StringUtils.isEmpty (sURL))
-						sURL = rs.getString ("url");
-					if (! usingGFWProxy)	// 如果默认未指定用 GFW 代理，则从数据库中读取“是否用 GFW 代理”的配置
-						usingGFWProxy = rs.getBoolean ("use_gfw_proxy");
-					sContentType = rs.getString ("content_type");
-					if (StringUtils.equalsIgnoreCase (sContentType, "json") || StringUtils.equalsIgnoreCase (sContentType, "js"))
-						isIgnoreContentType = true;
 
-					nJS_Cut_Start = rs.getInt ("js_cut_start");
-					nJS_Cut_End = rs.getInt ("js_cut_end");
+					if (! StringUtils.equalsIgnoreCase (sAction, "list"))
+					{	// list 命令只需要读取 id 和 name 即可，只有非 list 命令才需要读取详细信息
+						if (StringUtils.isEmpty (sURL))
+							sURL = rs.getString ("url");
+						if (! usingGFWProxy)	// 如果默认未指定用 GFW 代理，则从数据库中读取“是否用 GFW 代理”的配置
+							usingGFWProxy = rs.getBoolean ("use_gfw_proxy");
+						sContentType = rs.getString ("content_type");
+						if (StringUtils.equalsIgnoreCase (sContentType, "json") || StringUtils.equalsIgnoreCase (sContentType, "js"))
+							isIgnoreContentType = true;
 
-					if (StringUtils.isEmpty (sSelector))
-						sSelector = rs.getString ("selector");
+						nJS_Cut_Start = rs.getInt ("js_cut_start");
+						nJS_Cut_End = rs.getInt ("js_cut_end");
+
+						if (StringUtils.isEmpty (sSelector))
+							sSelector = rs.getString ("selector");
 //System.err.println (rs.getString("selector"));
-					//if (StringUtils.isEmpty (sSubSelector))
-					//	sSubSelector = rs.getString ("sub_selector");
-					//if (StringUtils.isEmpty (sExtract))
-					//	sExtract = rs.getString ("extract");
-					//if (StringUtils.isEmpty (sAttr))
-					//	sAttr = rs.getString ("attr");
+						//if (StringUtils.isEmpty (sSubSelector))
+						//	sSubSelector = rs.getString ("sub_selector");
+						//if (StringUtils.isEmpty (sExtract))
+						//	sExtract = rs.getString ("extract");
+						//if (StringUtils.isEmpty (sAttr))
+						//	sAttr = rs.getString ("attr");
 
-					listSubSelectors.clear ();
-					listLeftPaddings.clear ();
-					listExtracts.clear ();
-					listAttributes.clear ();
-					listFormatFlags.clear ();
-					listFormatWidth.clear ();
-					listRightPaddings.clear ();
+						listSubSelectors.clear ();
+						listLeftPaddings.clear ();
+						listExtracts.clear ();
+						listAttributes.clear ();
+						listFormatFlags.clear ();
+						listFormatWidth.clear ();
+						listRightPaddings.clear ();
 
-					listSubSelectors.add (rs.getString ("sub_selector"));
-					listLeftPaddings.add (rs.getString ("padding_left"));
-					listExtracts.add (rs.getString ("extract"));
-					listAttributes.add (rs.getString ("attr"));
-					listFormatFlags.add (rs.getString ("format_flags"));
-					listFormatWidth.add (rs.getString ("format_width"));
-					listRightPaddings.add (rs.getString ("padding_right"));
+						listSubSelectors.add (rs.getString ("sub_selector"));
+						listLeftPaddings.add (rs.getString ("padding_left"));
+						listExtracts.add (rs.getString ("extract"));
+						listAttributes.add (rs.getString ("attr"));
+						listFormatFlags.add (rs.getString ("format_flags"));
+						listFormatWidth.add (rs.getString ("format_width"));
+						listRightPaddings.add (rs.getString ("padding_right"));
 //System.err.println (rs.getString("sub_selector") + "； " + rs.getString("extract") + "； "+ rs.getString("attr"));
 
-					if (! opt_max_response_lines_specified)
-						opt_max_response_lines = rs.getShort ("max");
+						if (! opt_max_response_lines_specified)
+							opt_max_response_lines = rs.getShort ("max");
 
-					isIgnoreHTTPSCertificateValidation = rs.getBoolean ("ignore_https_certificate_validation");
+						isIgnoreHTTPSCertificateValidation = rs.getBoolean ("ignore_https_certificate_validation");
 
-					if (StringUtils.isEmpty (sHTTPUserAgent))
-						sHTTPUserAgent = rs.getString ("ua");
-					if (StringUtils.isEmpty (sHTTPRequestMethod))
-						sHTTPRequestMethod = rs.getString ("request_method");
-					if (StringUtils.isEmpty (sHTTPReferer))
-						sHTTPReferer = rs.getString ("referer");
+						if (StringUtils.isEmpty (sHTTPUserAgent))
+							sHTTPUserAgent = rs.getString ("ua");
+						if (StringUtils.isEmpty (sHTTPRequestMethod))
+							sHTTPRequestMethod = rs.getString ("request_method");
+						if (StringUtils.isEmpty (sHTTPReferer))
+							sHTTPReferer = rs.getString ("referer");
 
-					sURLParamsHelp = rs.getString ("url_param_usage");
+						sURLParamsHelp = rs.getString ("url_param_usage");
 
-					try
-					{
-						stmt_GetSubSelectors.setInt (1, rs.getInt ("id"));
-						rs_GetSubSelectors = stmt_GetSubSelectors.executeQuery ();
-						while (rs_GetSubSelectors.next ())
+						try
 						{
-							listSubSelectors.add (rs_GetSubSelectors.getString("sub_selector"));
-							listLeftPaddings.add (rs_GetSubSelectors.getString ("padding_left"));
-							listExtracts.add (rs_GetSubSelectors.getString("extract"));
-							listAttributes.add (rs_GetSubSelectors.getString("attr"));
-							listFormatFlags.add (rs_GetSubSelectors.getString ("format_flags"));
-							listFormatWidth.add (rs_GetSubSelectors.getString ("format_width"));
-							listRightPaddings.add (rs_GetSubSelectors.getString ("padding_right"));
+							stmt_GetSubSelectors.setInt (1, rs.getInt ("id"));
+							rs_GetSubSelectors = stmt_GetSubSelectors.executeQuery ();
+							while (rs_GetSubSelectors.next ())
+							{
+								listSubSelectors.add (rs_GetSubSelectors.getString("sub_selector"));
+								listLeftPaddings.add (rs_GetSubSelectors.getString ("padding_left"));
+								listExtracts.add (rs_GetSubSelectors.getString("extract"));
+								listAttributes.add (rs_GetSubSelectors.getString("attr"));
+								listFormatFlags.add (rs_GetSubSelectors.getString ("format_flags"));
+								listFormatWidth.add (rs_GetSubSelectors.getString ("format_width"));
+								listRightPaddings.add (rs_GetSubSelectors.getString ("padding_right"));
 //System.err.println (rs_GetSubSelectors.getString("sub_selector") + "； " + rs_GetSubSelectors.getString("extract") + "； "+ rs_GetSubSelectors.getString("attr"));
+							}
+							rs_GetSubSelectors.close ();
 						}
-						rs_GetSubSelectors.close ();
-					}
-					catch (Exception e)
-					{
-						e.printStackTrace ();
+						catch (Exception e)
+						{
+							e.printStackTrace ();
+						}
 					}
 
-					if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "list"))
+					if (StringUtils.equalsIgnoreCase (sAction, "list"))
+					{	// list 命令，先把所有名称都放到一个字符串里，到循环外面再输出
+						if (nLines >= opt_max_response_lines)
+							break;
+
+						sbHelp.append (nID);
+						sbHelp.append (":");
+						sbHelp.append (sName);
+						sbHelp.append (" ");
+					}
+					else if (StringUtils.equalsIgnoreCase (sAction, "show"))
 					{
 						if (nLines >= opt_max_response_lines)
 							break;
 
-						StringBuilder sbHelp = new StringBuilder ();
 						sbHelp.append (
-							"#" + rs.getLong ("ID") +
-							"  " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_HTMLParser) + BOT_OPTION_SEPARATOR + "nou" + BOT_OPTION_SEPARATOR + "run" + BOT_OPTION_SEPARATOR + rs.getShort ("max") +"  '" + Colors.RED + rs.getString ("Name") + Colors.NORMAL +
+							"#" + nID +
+							"  " + formatBotCommandInstance(BOT_PRIMARY_COMMAND_HTMLParser) + BOT_OPTION_SEPARATOR + "nou" + BOT_OPTION_SEPARATOR + "run" + BOT_OPTION_SEPARATOR + rs.getShort ("max") +"  '" + Colors.RED + sName + Colors.NORMAL +
 							"'  '" + Colors.DARK_GREEN + rs.getString ("url") + Colors.NORMAL +
 							"'  '" + Colors.BLUE + rs.getString ("selector") + Colors.NORMAL +
 							"'"
@@ -8535,6 +8550,10 @@ logger.fine ("url after parameter expansion: " + sURL);
 				}
 				if (StringUtils.equalsIgnoreCase (sAction, "show") || StringUtils.equalsIgnoreCase (sAction, "list"))
 				{
+					if (StringUtils.equalsIgnoreCase (sAction, "list"))
+					{
+						SendMessage (ch, nick, mapGlobalOptions, sbHelp.toString ());
+					}
 					return;
 				}
 			}
