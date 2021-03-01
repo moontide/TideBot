@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?taglib uri='http://www.zkoss.org/dsp/web/core' prefix='c' ?>
 <?page title='TideBot Web 管理' id='indexPage'?>
-<zk xmlns:n='http://www.zkoss.org/2005/zk/native'>
+<zk xmlns:n='native' xmlns:js='client'>
 
 <zscript src='common.java'/>
 <!--
@@ -22,13 +22,14 @@
 	<tabs>
 		<tab label='HTML/JSON 模板'/>
 		<tab label='鞭挞'/>
+		<tab label='自动回复 AutoReply'/>
 	</tabs>
 	<tabpanels>
 		<tabpanel>
 <grid>
 <columns>
-	<column width='100px'/>
-	<column/>
+	<column width='100px' hflex='min'/>
+	<column hflex='min'/>
 </columns>
 <rows>
 	<row>
@@ -58,22 +59,24 @@
 <separator/>
 <listbox id='listboxHtmlJsonTemplatesList' mold='paging' pagingPosition='top' pageSize='10' onSelect='LoadHtmlJsonTemplate (self.selectedItem.value)'>
 <listhead sizable='true'>
-	<listheader label='#' width='6ex'/>
-	<listheader label='名称'/>
-	<listheader label='URL'/>
-	<listheader label='ContentType' width='8ex'/>
-	<listheader label='Selector'/>
-	<listheader label='SubSelector'/>
-	<listheader label='URLParamHelp'/>
+	<listheader label='#' width='6ex' hflex='min'/>
+	<listheader label='名称' hflex='min'/>
+	<listheader label='URL' hflex='min'/>
+	<listheader label='ContentType' width='8ex' hflex='min'/>
+	<listheader label='Selector' hflex='min'/>
+	<listheader label='SubSelector' hflex='min'/>
+	<listheader label='URLParamHelp' hflex='min'/>
 </listhead>
 </listbox>
 <button label='删除选中的HTML_JSON模板' onClick='删除选中的HTML_JSON模板 ()'/>
 
 <separator/>
+<groupbox id='groupboxHtmlJsonTemplateForm'>
+	<caption>HTML_JSON 模板 表单</caption>
 <grid id='gridHtmlJsonTemplateForm'>
 	<columns>
-		<column width='150px'/>
-		<column/>
+		<column width='150px' hflex='min'/>
+		<column hflex='min'/>
 	</columns>
 	<rows>
 		<row>
@@ -91,7 +94,8 @@
 		<row>
 			网址
 			<div>
-				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='95%' constraint='no empty'/> 网址中可包含 \$\{p} \$\{p2} \$\{p3}... 参数(参数会经过 urlencode 处理) 或 \$\{u} \$\{u2} \$\{u3}... 参数(参数原样传递，不经过 urlencode 处理)
+				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='95%' constraint='no empty'/><n:br/>
+				网址中可包含 \$\{p} \$\{p2} \$\{p3}... 参数(参数会经过 urlencode 处理) 或 \$\{u} \$\{u2} \$\{u3}... 参数(参数原样传递，不经过 urlencode 处理)
 				<separator/>
 				URL参数帮助信息 <textbox id='textboxHtmlJsonTemplateForm_URLParamUsage' value='' width='50%'/> (需要给使用者说明这些参数该填啥)
 				<separator/>
@@ -116,19 +120,21 @@
 		</row>
 		<row id='rowHtmlJsonTemplateForm_Selector'>
 			Selector
-			<div><textbox id='textboxHtmlJsonTemplateForm_Selector' value='' width='95%'/> 这里的 selector 仅仅适用于 html 内容类型， json/js 内容类型不读该信息。 jsoup 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html</div>
+			<div>
+				<textbox id='textboxHtmlJsonTemplateForm_Selector' value='' width='95%'/><n:br/>
+				这里的 selector 仅仅适用于 html 内容类型， json/js 内容类型不读该信息。 jsoup 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html
+			</div>
 		</row>
 		<row>
 			SubSelector及取值
-			<hbox>
+			<hlayout>
 			<div>
-				<textbox id='textboxHtmlJsonTemplateForm_SubSelector' value='' multiline='true' rows='10' width='95%'/>
+				<textbox id='textboxHtmlJsonTemplateForm_SubSelector' value='' multiline='true' rows='10' width='95%'/><n:br/>
 				对于 html 内容类型，这里填写 Selector 取出的 element 内的 SubSelector 选定的元素。对于 json/js 内容类型，这里填写 javascript 代码
 			</div>
-			<div>
-				左填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingLeft' value=''/>
-				<n:br/>
-				取值 <combobox id='comboboxHtmlJsonTemplateForm_Extract'>
+			<vlayout>
+				<div>左填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingLeft' value=''/></div>
+				<div>取值 <combobox id='comboboxHtmlJsonTemplateForm_Extract'>
 						<comboitem label=''/>
 						<comboitem label='text'/>
 						<comboitem label='html'/>
@@ -147,23 +153,19 @@
 						<comboitem label='val'/>
 						<comboitem label='value'/>
 					</combobox>
-				<n:br/>
-				属性值 <textbox id='textboxHtmlJsonTemplateForm_Attribute' value=''/> *仅仅当“取值”="attr"时用到
-				<n:br/>
-				格式化标志 <textbox id='textboxHtmlJsonTemplateForm_FormatFlags' value='' maxlength='1' width='1ex'/>
-				<n:br/>
-				格式化长度 <textbox id='textboxHtmlJsonTemplateForm_FormatWidth' value='' maxlength='3' width='3ex'/>
-				<n:br/>
-				右填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingRight' value=''/>
-			</div>
-			</hbox>
+				</div>
+				<div>属性值 <textbox id='textboxHtmlJsonTemplateForm_Attribute' value=''/> *仅仅当“取值”="attr"时用到</div>
+				<div>格式化标志 <textbox id='textboxHtmlJsonTemplateForm_FormatFlags' value='' maxlength='1' width='1ex'/></div>
+				<div>格式化长度 <textbox id='textboxHtmlJsonTemplateForm_FormatWidth' value='' maxlength='3' width='3ex'/></div>
+				<div>右填充 <textbox id='textboxHtmlJsonTemplateForm_PaddingRight' value=''/></div>
+			</vlayout>
+			</hlayout>
 		</row>
 		<row>
 			SubSelectors及取值
 			<div>
 				<div id='divHtmlJsonTemplateForm_OtherSubSelectorsContainer'></div>
 				<button label='＋ 增加 SubSelector' src='/images/icon-button-add.png' onClick='AddNewSubSelector ("", "", " ", "", "", "", "", "");'/>
-
 			</div>
 		</row>
 		<row>
@@ -199,10 +201,89 @@
 		<footer><button label='-- 保存HTML_JSON模板 --' onClick='SaveHtmlJsonTemplate ()'/></footer>
 	</foot>
 </grid>
-
+</groupbox>
 		</tabpanel>
 
 		<tabpanel>
+		</tabpanel>
+
+		<tabpanel>
+<grid>
+<columns>
+	<column width='100px' hflex='min'/>
+	<column hflex='min'/>
+</columns>
+<rows>
+	<row>
+		<label/>
+		<button image='images/icon-button-refresh.png' label='查询自动回复' onClick='查询自动回复_GUI ();'/>
+	</row>
+</rows>
+</grid>
+
+<separator/>
+<listbox id='listboxAutoReplyMessagePatterns' mold='paging' pagingPosition='top' pageSize='10' onSelect='加载自动回复 (self.selectedItem.value)'>
+<listhead sizable='true'>
+	<listheader label='#' width='6ex' hflex='min'/>
+	<listheader label='Pattern' hflex='min'/>
+</listhead>
+</listbox>
+<!--
+<button label='删除选中的HTML_JSON模板' onClick='删除选中的HTML_JSON模板 ()'/>
+-->
+
+<separator/>
+<groupbox id='groupboxAutoReplyEditForm'>
+	<caption>自动回复 表单</caption>
+<grid id='gridAutoReplyEditForm'>
+	<columns>
+		<column width='150px' hflex='min'/>
+		<column hflex='min'/>
+	</columns>
+	<rows>
+		<row>
+			#
+			<div>
+				<textbox id='textboxAutoReplyEditForm_ID' disabled='true'/>
+				<button label='新建自动回复/清空表单' onClick='加载自动回复 (Collections.EMPTY_MAP);' style='background-color: #CFC'/>
+				<button label='复制自动回复/清空模板ID' onClick='textboxAutoReplyEditForm_ID.setValue(""); ' style='background-color: #CFC'/>
+			</div>
+		</row>
+		<row>
+			Pattern
+			<textbox id='textboxAutoReplyEditForm_Pattern' value='' width='95%' constraint='no empty'/>
+		</row>
+		<row>
+			回复内容列表
+			<grid id='gridAutoReplyEditForm_Replies' mold='paging' pageSize='10'>
+				<columns sizable='true'>
+					<column label='#' width='6ex' hflex='min'/>
+					<column label='回复内容' style='min-width:30em' hflex='min'/>
+					<column label='回复时的情绪' hflex='min'/>
+					<column label='操作' hflex='min'/>
+				</columns>
+				<rows>
+				</rows>
+				<foot>
+					<footer span='4'>
+						<button label='＋ 增加行' src='/images/icon-button-add.png' onClick='当新增回复内容行按钮按下时 (event);'/>
+						<combobox id='comboboxAutoReplyEditForm_Mood_Template' width='4em' visible='false'>
+							<comboitem value='' label=''/>
+							<comboitem value='烦' label='烦'/>
+							<comboitem value='坏' label='坏'/>
+							<comboitem value='爱' label='爱'/>
+						</combobox>
+					</footer>
+				</foot>
+			</grid>
+		</row>
+	</rows>
+	<foot>
+		<footer></footer>
+		<footer><button label='-- 保存自动回复 --' onClick='SaveAutoReply ()'/></footer>
+	</foot>
+</grid>
+</groupbox>
 		</tabpanel>
 	</tabpanels>
 </tabbox>

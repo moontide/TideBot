@@ -110,7 +110,7 @@ void 查询HTML_JSON模板_GUI ()
 			for (int i=1; i<=rsmd.getColumnCount(); i++)
 				object.put (rsmd.getColumnLabel(i), rs.getString(rsmd.getColumnLabel(i)));
 
-			object.put ("sub_selector", new String(rs.getString("sub_selector").getBytes("ISO-8859-1")));	// 修正 varbinary -> varchar 的编码导致字符乱码的问题
+			object.put ("sub_selector", rs.getString("sub_selector"));
 
 			object.put ("added_time_date", rs.getTimestamp("added_time"));
 			object.put ("updated_time_date", rs.getTimestamp("updated_time"));
@@ -125,7 +125,7 @@ void 查询HTML_JSON模板_GUI ()
 					Map mapSubSelector = new HashMap ();
 					for (int i=1; i<=rsmd2.getColumnCount(); i++)
 						mapSubSelector.put (rsmd2.getColumnLabel(i), rs2.getString(rsmd2.getColumnLabel(i)));
-					mapSubSelector.put ("sub_selector", new String(rs2.getString("sub_selector").getBytes("ISO-8859-1")));	// 修正 varbinary -> varchar 的编码导致字符乱码的问题
+					mapSubSelector.put ("sub_selector", rs2.getString("sub_selector"));
 					listOtherSubSelectors.add (mapSubSelector);
 				}
 				dbaa2.CloseDatabase();
@@ -222,7 +222,7 @@ void LoadHtmlJsonTemplate (Map t)
 public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, String sPaddingLeft, String sExtract, String sAttribute, String sFormatFlags, String sFormatWidth, String sPaddingRight)
 {
 	Div mainContainer = divHtmlJsonTemplateForm_OtherSubSelectorsContainer;
-	Hbox container = new Hbox();
+	Hlayout container = new Hlayout();
 	mainContainer.appendChild (container);
 
 	// 子选择器 ID
@@ -236,11 +236,13 @@ public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, Strin
 	tbSubSelector.setConstraint ("no empty");
 	tbSubSelector.setMultiline (true);
 	tbSubSelector.setRows (5);
-	tbSubSelector.setCols (100);
+	tbSubSelector.setCols (50);
+
+	Vlayout v_container = new Vlayout();
+	container.appendChild (v_container);
 
 	Textbox tbPaddingLeft = new Textbox(sPaddingLeft);
-	container.appendChild (tbPaddingLeft);
-	container.appendChild (new Separator());
+	v_container.appendChild (tbPaddingLeft);
 
 	Combobox cbExtract = new Combobox(sExtract);
 	for (Comboitem item : comboboxHtmlJsonTemplateForm_Extract.getItems())
@@ -248,24 +250,24 @@ public void AddNewSubSelector (String sSubSelectorID, String sSubSelector, Strin
 		Comboitem newItem = new Comboitem (item.getLabel());
 		cbExtract.appendChild (newItem);
 	}
-	container.appendChild (cbExtract);
+	v_container.appendChild (cbExtract);
 
 	Textbox tbAttribute = new Textbox(sAttribute);
-	container.appendChild (tbAttribute);
+	v_container.appendChild (tbAttribute);
 
 	Textbox tbFormatFlags = new Textbox(sFormatFlags);
 	tbFormatFlags.setWidth ("1ex");
 	tbFormatFlags.setMaxlength (1);
-	container.appendChild (tbFormatFlags);
+	v_container.appendChild (tbFormatFlags);
 
 	Textbox tbFormatWidth = new Textbox(sFormatWidth);
 	tbFormatWidth.setWidth ("3ex");
 	tbFormatWidth.setMaxlength (3);
-	container.appendChild (tbFormatWidth);
+	v_container.appendChild (tbFormatWidth);
 
 	container.appendChild (new Separator());
 	Textbox tbPaddingRight = new Textbox(sPaddingRight);
-	container.appendChild (tbPaddingRight);
+	v_container.appendChild (tbPaddingRight);
 
 	// 添加操作按钮
 	Button buttonMoveUp = new Button ("↑上移");
@@ -608,4 +610,388 @@ void 删除选中的HTML_JSON模板 ()
 			}
 		}
 		);
+}
+
+
+
+
+
+// -----------------------------------------------------------------------------
+void 查询自动回复_GUI ()
+{
+	Listbox lb = listboxAutoReplyMessagePatterns;
+
+	//String sName = textboxHtmlJsonTemplateQueryForm_Name.getValue ();
+	//String sURL = textboxHtmlJsonTemplateQueryForm_URL.getText();
+	//String sContentType = radiogroupHtmlJsonTemplateQueryForm_ContentType.getSelectedItem().getValue();
+
+	DatabaseAccessAgent dbaa = null, dbaa2 = null;
+	ResultSet rs = null, rs2 = null;
+	boolean bFound = false;
+	try
+	{
+		dbaa = new DatabaseAccessAgent (g_sDataSourceName, null, null);
+		//dbaa2 = new DatabaseAccessAgent (g_sDataSourceName, null, null);
+		StringBuilder sbSQL = new StringBuilder ();
+		List listParams = new ArrayList ();
+
+		sbSQL.append ("SELECT\n");
+		sbSQL.append ("	*\n");
+		sbSQL.append ("FROM\n");
+		sbSQL.append ("	auto_reply_patterns\n");
+		sbSQL.append ("WHERE 1=1\n");
+
+		sbSQL.append ("ORDER BY message_pattern_id DESC");
+
+		Object[] params = listParams.toArray();
+
+//System.out.println (sbSQL);
+
+		rs = dbaa.Query (sbSQL.toString(), params);
+		ResultSetMetaData rsmd = rs.getMetaData ();
+
+		ZKUtils.ClearRows (lb);
+		while (rs.next())
+		{
+			bFound = true;
+			Map object = new HashMap ();
+			for (int i=1; i<=rsmd.getColumnCount(); i++)
+				object.put (rsmd.getColumnLabel(i), rs.getString(rsmd.getColumnLabel(i)));
+
+			Listitem li = new Listitem (object.get("message_pattern_id"), object);
+			lb.appendChild (li);
+			li.appendChild (new Listcell(object.get("message_pattern")));
+		}
+		dbaa.CloseDatabase();
+
+		if (!bFound)
+			ZKUtils.ShowWarning ("未查到自动回复消息匹配样式");
+	}
+	catch (Throwable e)
+	{
+		if (dbaa!=null) dbaa.CloseDatabase();
+		ZKUtils.ShowException (e, "查询自动回复消息匹配样式出错：");
+	}
+}
+
+
+void 加载自动回复 (Map object)
+{
+	textboxAutoReplyEditForm_ID.setRawValue (object.get("message_pattern_id"));
+	textboxAutoReplyEditForm_Pattern.setRawValue (object.get("message_pattern"));
+
+	查询加载回复内容列表 (object);
+
+	SetUIStatus_NewOrModify (groupboxAutoReplyEditForm, StringUtils.isEmpty(textboxAutoReplyEditForm_ID.getValue()));
+}
+
+public void 查询加载回复内容列表 (Map object)
+{
+	Grid grid = gridAutoReplyEditForm_Replies;
+	Rows rows = grid.getRows ();
+	ZKUtils.ClearRows (grid);
+
+	String sID = object.get("message_pattern_id");
+	if (StringUtils.isEmpty (sID))
+		return;
+
+	DatabaseAccessAgent dbaa = null;
+	try
+	{
+		String sSQL = "SELECT * FROM auto_reply_replies\n";
+		sSQL = sSQL + "WHERE 1=1\n";
+		sSQL = sSQL + "	AND message_pattern_id='" + sID + "'\n";
+		sSQL = sSQL + "ORDER BY reply_id";
+		dbaa = new DatabaseAccessAgent (g_sDataSourceName, null, null);
+		rs = dbaa.Query (sSQL);
+		ResultSetMetaData rsmd = rs.getMetaData ();
+		while (rs.next())
+		{
+			Map object = new HashMap ();
+			for (int i=1; i<=rsmd.getColumnCount(); i++)
+				object.put (rsmd.getColumnLabel(i), rs.getString(i));
+
+			在界面里添加回复内容行 (object);
+		}
+		dbaa.CloseDatabase();
+	}
+	catch (Exception e)
+	{
+		if (dbaa != null)
+			dbaa.CloseDatabase();
+		e.printStackTrace ();
+		ZKUtils.ShowException (e, "查询回复内容列表出错");
+	}
+}
+
+public void 在界面里添加回复内容行 (Map map回复内容)
+{
+	在界面里添加回复内容行 (map回复内容, gridAutoReplyEditForm_Replies.getRows().getChildren().size());
+}
+public void 在界面里添加回复内容行 (Map map回复内容, int iItem)
+{
+	Grid grid = gridAutoReplyEditForm_Replies;
+	Rows rows = grid.getRows();
+	org.zkoss.zul.ext.Paginal paginal = grid.getPaginal();
+	if (rows==null)
+	{
+		rows = new Rows ();
+		grid.appendChild (rows);
+	}
+
+	org.zkoss.zul.Row row = new org.zkoss.zul.Row();
+	SetUIStatus_NewOrModify (row, StringUtils.isEmpty (map回复内容.get("reply_id")));
+
+	// ID
+	org.zkoss.zul.Textbox tbID =  new org.zkoss.zul.Textbox (map回复内容.get("reply_id"));
+		tbID.setId (null);
+		tbID.setDisabled (true);
+		tbID.setWidth ("8ex");
+	row.appendChild (tbID);
+
+	// 回复内容
+	org.zkoss.zul.Textbox tbReplyContent = new org.zkoss.zul.Textbox (map回复内容.get("reply"));
+		tbReplyContent.setId (null);
+		tbReplyContent.setConstraint ("no empty");
+		tbReplyContent.setWidth ("100%");
+	row.appendChild (tbReplyContent);
+
+	// 回复情绪
+	org.zkoss.zul.Combobox cbMood = comboboxAutoReplyEditForm_Mood_Template.clone ();
+		cbMood.setId (null);
+		cbMood.setValue (map回复内容.get("mood"));
+		cbMood.setVisible (true);
+	row.appendChild (cbMood);
+
+	// 操作
+	Hlayout hlOperations = new Hlayout ();
+
+	/*
+	Checkbox checkboxMarkToBeDeleted = checkboxMarkToBeDeleted_ForClone.clone ();
+		checkboxMarkToBeDeleted.setId (null);
+	checkboxMarkToBeDeleted.setAttribute ("container", row);
+	hlOperations.appendChild (checkboxMarkToBeDeleted);
+
+	Button buttonMoveUp = buttonMoveUp_ForClone.clone ();
+		buttonMoveUp.setId (null);
+		buttonMoveUp.setVisible (hasModificationPermission);
+	buttonMoveUp.setAttribute ("container", row);
+	hlOperations.appendChild (buttonMoveUp);
+
+	Button buttonMoveDown = buttonMoveDown_ForClone.clone ();
+		buttonMoveDown.setId (null);
+		buttonMoveDown.setVisible (hasModificationPermission);
+	buttonMoveDown.setAttribute ("container", row);
+	hlOperations.appendChild (buttonMoveDown);
+
+	if (map回复内容.get("reply_id") == null)
+	{
+		Button buttonRemoveRow = buttonDeleteRow_ForClone.clone ();	// new Button ("✗移除该项");
+			buttonRemoveRow.setId (null);
+			buttonRemoveRow.setVisible (true);
+		buttonRemoveRow.setAttribute ("container", row);
+		hlOperations.appendChild (buttonRemoveRow);
+	}
+	*/
+
+	row.appendChild (hlOperations);
+
+	row.setAttribute ("COMPONENT_ID", tbID);
+	row.setAttribute ("COMPONENT_ReplyContent", tbReplyContent);
+	row.setAttribute ("COMPONENT_Mood", cbMood);
+	//row.setAttribute ("COMPONENT_MarkToBeDeleted", checkboxMarkToBeDeleted);
+
+	if (rows.getChildren().size() <= iItem || iItem < 0)
+		rows.appendChild (row);
+	else
+		rows.getChildren().add (iItem, row);
+
+	if (paginal != null)
+		paginal.setActivePage (paginal.getPageCount() - 1);
+}
+
+void 当新增回复内容行按钮按下时 (Event event)
+{
+	在界面里添加回复内容行 (Collections.EMPTY_MAP);
+}
+
+public void SaveAutoReply ()
+{
+	// 检查输入的有效性
+	String sMessagePatternID = textboxAutoReplyEditForm_ID.getValue ();
+	String sMessagePattern = textboxAutoReplyEditForm_Pattern.getValue ();
+	Grid grid = gridAutoReplyEditForm_Replies;
+	Rows rows = grid.getRows();
+
+	// 询问是否要保存
+	if (Messagebox.show("确定要保存吗？!!", null, Messagebox.OK | Messagebox.CANCEL, Messagebox.QUESTION) != Messagebox.OK) return;
+
+
+	// 保存
+	String sSQL;
+	Object[] params;
+
+	// 保存 DictionaryTemplate 一般信息
+	String sSQL_Insert = "INSERT INTO auto_reply_patterns (message_pattern) VALUES (?)";
+	String sSQL_Update = "UPDATE auto_reply_patterns SET message_pattern=? WHERE message_pattern_id=?";
+	Object[] params_Insert =
+	{
+		sMessagePattern,
+	};
+	Object[]params_Update =
+	{
+		sMessagePattern,
+		sMessagePatternID,
+	};
+
+	String[] idColumnName = {"message_pattern_id"};
+	String[] autoGeneratedKeys = null;
+
+	boolean bInsert;
+	if (StringUtils.isEmpty (sMessagePatternID))
+	{
+		// INSERT
+		sSQL = sSQL_Insert;
+		params = params_Insert;
+		autoGeneratedKeys = idColumnName;
+		bInsert = true;
+	}
+	else
+	{
+		// UPDATE
+		sSQL = sSQL_Update;
+		params = params_Update;
+		autoGeneratedKeys = null;
+		bInsert = false;
+	}
+
+	int iRowsAffected;
+	DatabaseAccessAgent dbaa = null;
+	try
+	{
+		dbaa = new DatabaseAccessAgent(g_sDataSourceName, null, null);
+		//dbaa.DisableAutoCommit ();	// MyISAM 引擎不支持事务处理，所以，不需要倒腾这个
+
+		// 主表信息
+		iRowsAffected = dbaa.ExecuteUpdate (sSQL, params, autoGeneratedKeys);
+		if (bInsert)
+		{
+			try
+			{
+				Statement stmt = dbaa.getPreparedStatement ();
+				ResultSet rs = stmt.getGeneratedKeys();
+				while (rs.next())
+				{
+					sMessagePatternID = rs.getString(1);
+					textboxAutoReplyEditForm_ID.setValue (sMessagePatternID);
+					SetUIStatus_NewOrModify (groupboxAutoReplyEditForm, false);
+				}
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace ();
+				dbaa.CloseDatabase();
+				ZKUtils.ShowException (e, "保存消息模式成功，但在获取消息模式编号时出错");
+				return;
+			}
+		}
+
+		// 回复内容信息
+		idColumnName[0] = "reply_id";
+		String sSQL_InsertReplyContent = "INSERT INTO auto_reply_replies (message_pattern_id, reply, mood) VALUES (?,?,?)";
+		String sSQL_UpdateReplyContent = "UPDATE auto_reply_replies SET reply=?, mood=? WHERE message_pattern_id=? AND reply_id=?";	// 注意：MyISAM 存储引擎，联合主键需要将联合主键的列全部指定条件
+		Object[] params_InsertItem =
+		{
+			sMessagePatternID,
+			null,
+			null,
+		};
+		Object[] params_UpdateItem =
+		{
+			null,
+			null,
+			sMessagePatternID,
+			null,
+		};
+
+		for (int iGridRow=0; iGridRow<rows.getChildren().size(); iGridRow++)
+		{
+			org.zkoss.zul.Row row = rows.getChildren().get (iGridRow);
+			row = rows.getChildren().get (iGridRow);
+			org.zkoss.zul.Textbox tbID = row.getAttribute ("COMPONENT_ID");
+			org.zkoss.zul.Textbox tbReply = row.getAttribute ("COMPONENT_ReplyContent");
+			org.zkoss.zul.Combobox cbMood = row.getAttribute ("COMPONENT_Mood");
+
+			String sID = tbID.getValue ();
+			String sReply = tbReply.getValue ();
+			String sMood = cbMood.getValue ();
+
+			params_InsertItem[1] = sReply;
+			params_InsertItem[2] = sMood;
+
+			params_UpdateItem[0] = sReply;
+			params_UpdateItem[1] = sMood;
+			params_UpdateItem[3] = sID;
+
+			if (StringUtils.isEmpty (sID))
+			{
+				// INSERT
+				sSQL = sSQL_InsertReplyContent;
+				params = params_InsertItem;
+				autoGeneratedKeys = idColumnName;
+				bInsert = true;
+			}
+			else
+			{
+				// UPDATE
+				sSQL = sSQL_UpdateReplyContent;
+				params = params_UpdateItem;
+				autoGeneratedKeys = null;
+				bInsert = false;
+			}
+
+//System.out.println (sSQL + " " + Arrays.toString (params));
+			iRowsAffected += dbaa.ExecuteUpdate (sSQL, params, autoGeneratedKeys);
+//System.out.println ("iRowsAffected = " + iRowsAffected);
+			if (bInsert)
+			{
+				try
+				{
+					Statement stmt = dbaa.getPreparedStatement ();
+					ResultSet rs = stmt.getGeneratedKeys();
+					while (rs.next())
+					{
+						sID = rs.getString(1);
+						tbID.setValue (sID);
+						SetUIStatus_NewOrModify (row, false);
+					}
+				}
+				catch(Exception e)
+				{
+					e.printStackTrace ();
+					dbaa.CloseDatabase();
+					ZKUtils.ShowException (e, "保存新回复内容成功，但在获取新回复内容序号时出错");
+					return;
+				}
+			}
+		}
+
+		dbaa.CloseDatabase();
+
+		if (iRowsAffected > 0)
+		{
+			ZKUtils.ShowInfo ("保存自动回复成功！");
+			查询自动回复_GUI ();	//刷新
+		}
+		else
+			ZKUtils.ShowWarning ("保存自动回复的 SQL 语句执行成功，但受影响的行数却为 0");
+	}
+	catch (Exception e)
+	{
+		e.printStackTrace ();
+		if (dbaa != null)
+			dbaa.CloseDatabase();
+		ZKUtils.ShowException (e, "保存自动回复时出错");
+		return;
+	}
 }
