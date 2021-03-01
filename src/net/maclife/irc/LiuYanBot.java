@@ -7851,12 +7851,13 @@ logger.fine ("url after parameter expansion: " + sURL);
 	 * @param listSubSelectors
 	 * @param listLeftPaddings
 	 * @param listExtracts
+	 * @param listFilters
 	 * @param listAttributes
 	 * @param listFormatFlags
 	 * @param listFormatWidth
 	 * @param listRightPaddings
 	 */
-	void FixHTCommandSubSelectorParameterGroupsSize (List<String> listSubSelectors, List<String> listLeftPaddings, List<String> listExtracts, List<String> listAttributes, List<String> listFormatFlags, List<String> listFormatWidth, List<String> listRightPaddings)
+	void FixHTCommandSubSelectorParameterGroupsSize (List<String> listSubSelectors, List<String> listLeftPaddings, List<String> listExtracts, List<String> listFilters, List<String> listAttributes, List<String> listFormatFlags, List<String> listFormatWidth, List<String> listRightPaddings)
 	{
 		if (listSubSelectors.isEmpty ())	// 有可能不指定 sub-selector，而只指定了 selector，这时候需要补充参数，否则空的 listSubSelectors 会导致空的输出
 			listSubSelectors.add ("");
@@ -7865,6 +7866,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 			listLeftPaddings.add ("");
 		for (int i=listExtracts.size (); i<listSubSelectors.size (); i++)
 			listExtracts.add ("");
+		for (int i=listExtracts.size (); i<listSubSelectors.size (); i++)
+			listFilters.add ("");
 		for (int i=listAttributes.size (); i<listSubSelectors.size (); i++)
 			listAttributes.add ("");
 		for (int i=listFormatFlags.size (); i<listSubSelectors.size (); i++)
@@ -7937,6 +7940,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 		List<String> listSubSelectors = new ArrayList<String> ();
 		List<String> listLeftPaddings = new ArrayList<String> ();
 		List<String> listExtracts = new ArrayList<String> ();
+		List<String> listFilters = new ArrayList<String> ();
 		List<String> listAttributes = new ArrayList<String> ();
 		List<String> listFormatFlags = new ArrayList<String> ();
 		List<String> listFormatWidth = new ArrayList<String> ();
@@ -8001,37 +8005,42 @@ logger.fine ("url after parameter expansion: " + sURL);
 					{	// 遇到 /ss 时，把 listSubSelectors listExtracts listAttributes 都添加一项，listExtracts listAttributes 添加的是空字符串，这样是为了保证三个列表的数量相同
 						// 另外：  /ss  /e  /a 的参数顺序必须保证 /ss 是在前面的
 						listSubSelectors.add (value);
-						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 					}
 					else if (param.equalsIgnoreCase ("lp") || param.equalsIgnoreCase ("LeftPadding") || param.equalsIgnoreCase ("PaddingLeft") || param.equalsIgnoreCase ("左填充"))
 					{
-						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listLeftPaddings.set (listLeftPaddings.size () - 1, value);
 					}
 					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
 					{
-						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						//FixElementNumber (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listRightPaddings);
 						listExtracts.set (listExtracts.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
+					else if (param.equalsIgnoreCase ("filters") || param.equalsIgnoreCase ("filters") || param.equalsIgnoreCase ("过滤器"))
+					{
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						listFilters.set (listFilters.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
+					}
 					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性名"))
 					{
-						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listAttributes.set (listAttributes.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("ff") || param.equalsIgnoreCase ("FormatFlags") || param.equalsIgnoreCase ("FormatFlag") || param.equalsIgnoreCase ("格式化符号"))
 					{
-						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listFormatFlags.set (listFormatFlags.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("fw") || param.equalsIgnoreCase ("FormatWidth") || param.equalsIgnoreCase ("格式化宽度"))
 					{
-						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listFormatWidth.set (listFormatWidth.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("rp") || param.equalsIgnoreCase ("RightPadding") || param.equalsIgnoreCase ("PaddingRight") || param.equalsIgnoreCase ("右填充"))
 					{
-						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listRightPaddings.set (listRightPaddings.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
 					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
@@ -8079,7 +8088,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			}
 		}
 
-		FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
+		FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 
 		// 处理用 json 命令别名执行命令时的特别设置： (1).强制改变 Content-Type  (2).强制忽略 http 返回的 Content-Type，否则 jsoup 会报错
 		if (botCmdAlias.equalsIgnoreCase ("/json"))
@@ -8117,6 +8126,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				listSubSelectors.clear ();
 				listLeftPaddings.clear ();
 				listExtracts.clear ();
+				listFilters.clear ();
 				listAttributes.clear ();
 				listRightPaddings.clear ();
 
@@ -8346,6 +8356,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						listSubSelectors.clear ();
 						listLeftPaddings.clear ();
 						listExtracts.clear ();
+						listFilters.clear ();
 						listAttributes.clear ();
 						listFormatFlags.clear ();
 						listFormatWidth.clear ();
@@ -8354,6 +8365,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						listSubSelectors.add (rs.getString ("sub_selector"));
 						listLeftPaddings.add (rs.getString ("padding_left"));
 						listExtracts.add (rs.getString ("extract"));
+						listFilters.add (rs.getString ("filters"));
 						listAttributes.add (rs.getString ("attr"));
 						listFormatFlags.add (rs.getString ("format_flags"));
 						listFormatWidth.add (rs.getString ("format_width"));
@@ -8383,6 +8395,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 								listSubSelectors.add (rs_GetSubSelectors.getString("sub_selector"));
 								listLeftPaddings.add (rs_GetSubSelectors.getString ("padding_left"));
 								listExtracts.add (rs_GetSubSelectors.getString("extract"));
+								listFilters.add (rs_GetSubSelectors.getString ("filters"));
 								listAttributes.add (rs_GetSubSelectors.getString("attr"));
 								listFormatFlags.add (rs_GetSubSelectors.getString ("format_flags"));
 								listFormatWidth.add (rs_GetSubSelectors.getString ("format_width"));
@@ -8443,6 +8456,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 							String sSubSelector = listSubSelectors.get (iSS);
 							String sLeftPadding = listLeftPaddings.get (iSS);
 							String sExtract = listExtracts.get (iSS);
+							String sFilters = listFilters.get (iSS);
 							String sAttr = listAttributes.get (iSS);
 							String sFormatFlags = listFormatFlags.get (iSS);
 							String sFormatWidth = listFormatWidth.get (iSS);
@@ -8466,6 +8480,13 @@ logger.fine ("url after parameter expansion: " + sURL);
 							{
 								sbHelp.append (" /e '");
 								sbHelp.append (sExtract);
+								sbHelp.append ("'");
+							}
+
+							if (StringUtils.isNotEmpty (sFilters))
+							{
+								sbHelp.append (" /filters '");
+								sbHelp.append (sFilters);
 								sbHelp.append ("'");
 							}
 
@@ -8560,8 +8581,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
 				conn.setAutoCommit (false);
-				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
-				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,CURRENT_TIMESTAMP)");
+				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
+				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
@@ -8578,6 +8599,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listSubSelectors.get (0)));
 				stmt.setString (iParam++, listLeftPaddings.get (0));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listExtracts.get (0)));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (listFilters.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listAttributes.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatFlags.get (0)));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (0)));
@@ -8602,7 +8624,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				rs.close ();
 				stmt.close ();
 
-				stmt = conn.prepareStatement ("INSERT ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)", new String[]{"sub_selector_id"});
+				stmt = conn.prepareStatement ("INSERT ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, filters, ormat_width, padding_right) VALUES (?,?,?,?,?, ?,?,?,?)", new String[]{"sub_selector_id"});
 				for (int i=1; i<listSubSelectors.size (); i++)
 				{
 					iParam = 1;
@@ -8610,6 +8632,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listSubSelectors.get (i)));
 					stmt.setString (iParam++, listLeftPaddings.get (i));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listExtracts.get (i)));
+					stmt.setString (iParam++, StringUtils.stripToEmpty (listFilters.get (i)));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listAttributes.get (i)));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatFlags.get (i)));
 					stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (i)));
@@ -8763,7 +8786,7 @@ System.out.println (sHTTPReferer);
 							is = http.getInputStream();
 						//s = new DataInputStream (is).readUTF();
 						sContent = org.apache.commons.io.IOUtils.toString (is, GetContentEncodingFromHTTPHead (http, JVM_CHARSET.toString ()));
-					    System.err.println (sContent);
+System.err.println (sContent);
 					}
 					catch (Exception e)
 					{
@@ -8817,6 +8840,7 @@ fw.close ();
 				for (int i=0; i<listSubSelectors.size (); i++)	// 再依次执行各个 sub selector 的求值表达式 (javascript)
 				{
 					String sSubSelector = listSubSelectors.get (i);
+					String sFilters = listFilters.get (i);
 					String sLeftPadding = listLeftPaddings.get (i);
 					String sRightPadding = listRightPaddings.get (i);
 					try
@@ -8834,6 +8858,7 @@ fw.close ();
 							if (StringUtils.isNotEmpty (sLeftPadding))
 								sbText.append (sLeftPadding);
 
+							evaluateResult = HTOutputFilter (evaluateResult.toString (), sFilters);
 							sbText.append (evaluateResult);
 
 							if (StringUtils.isNotEmpty (sRightPadding))
@@ -8942,6 +8967,7 @@ System.out.println (sQueryString);
 						String sSubSelector = listSubSelectors.get (iSS);
 						String sLeftPadding = listLeftPaddings.get (iSS);
 						String sExtract = listExtracts.get (iSS);
+						String sFilters = listFilters.get (iSS);
 						String sAttr = listAttributes.get (iSS);
 						String sFormatFlags = listFormatFlags.get (iSS);
 						String sFormatWidth = listFormatWidth.get (iSS);
@@ -8950,7 +8976,7 @@ System.out.println (sQueryString);
 						if (StringUtils.isEmpty (sSubSelector))
 						{	// 如果子选择器为空，则采用主选择器选出的元素
 							sub_e = e;
-							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
 							nLines += StringUtils.countMatches (text, '\n');	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
 							if (nLines >= opt_max_response_lines)
 								break;
@@ -9013,7 +9039,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 	 * @param strings
 	 * @return
 	 */
-	public String ExtractTextFromElement (Element e, StringBuilder sb, boolean isOutputScheme, String sLeftPadding, String sExtract, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
+	public String ExtractTextFromElement (Element e, StringBuilder sb, boolean isOutputScheme, String sLeftPadding, String sExtract, String sFilters, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
 	{
 		String text = "";
 		if (StringUtils.isEmpty (sExtract))	// 如果 Extract 是空的话，对 tagName 是 a 的做特殊处理
@@ -9116,12 +9142,44 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 //System.out.print (text);
 //System.out.println ("]");
 			}
+			if (StringUtils.isNotEmpty (sFilters))
+				text = HTOutputFilter (text, sFilters);
 			sb.append (text);
 
 			if (StringUtils.isNotEmpty (sRightPadding))
 				sb.append (sRightPadding);
 		}
 		return text;
+	}
+
+	String HTOutputFilter (String sSrc, String sFilters)
+	{
+		if (StringUtils.isEmpty (sFilters))
+			return sSrc;
+		String sResult = sSrc;
+		String[] arrayFilters = sFilters.split (" +");
+		for (String sFilter : arrayFilters)
+		{
+			if (StringUtils.equalsAnyIgnoreCase (sFilter, "md2irc", "markdown2irc"))
+			{
+				sResult = HTOutputFilter_MarkdownToIRC (sResult);
+			}
+		}
+		return sResult;
+	}
+	/**
+	 * 过滤器：将 Markdown 转换为 IRC 转义序列。
+	 * 只处理简单的 Markdown： (1).**<b>加粗/高亮</b>** (2).暂无
+	 * @param sSrc
+	 * @return
+	 */
+	String HTOutputFilter_MarkdownToIRC (String sSrc)
+	{
+		String sResult = sSrc;
+		//
+		//sResult = sResult.replaceAll ("**(.+)**", "\\1");
+		sResult = StringUtils.replace (sResult, "**", Colors.BOLD);
+		return sResult;
 	}
 
 	public void ValidateChannelName (String ch)
@@ -9161,6 +9219,12 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 	public Dialog FindDialog (long nDialogThreadID)
 	{
 		return FindDialog (dialogs, nDialogThreadID);
+	}
+
+	@Override // TODO
+	protected void onUserList (String s, User[] arrayUsers)
+	{
+
 	}
 
 	/**

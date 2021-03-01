@@ -330,6 +330,7 @@ CREATE TABLE ht_templates
 	sub_selector TEXT COLLATE utf8_bin NOT NULL COMMENT '当 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
 	padding_left VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',	/* 原数据类型:  ENUM('','text', 'html','inner','innerhtml', 'outerhtml','outer', 'attr','attribute', 'tagname', 'nodename', 'classname', 'owntext', 'data', 'id', 'val','value') */
+	filters VARCHAR(50) COMMENT '输出过滤器。目前支持的过滤器有：md2irc - Markdown 转换为 IRC 转义。过滤器可以填写多个，多个过滤器名字之间用空格隔开',
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
 	format_flags VARCHAR(1) NOT NULL DEFAULT '' COMMENT '格式化字符串中的“标志”，如 “-”“0”。在此程序中，应当只用到“-”和空字符串。默认为空字符串 -- 无标志',
 	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
@@ -363,6 +364,7 @@ CREATE TABLE ht_templates_other_sub_selectors
 	sub_selector TEXT COLLATE utf8_bin NOT NULL COMMENT '当 ht_template 主表的 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
 	padding_left VARCHAR(20) NOT NULL DEFAULT ' ' COMMENT '取值后，填充在 左侧//前面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：更改输出的颜色、输出空格等）',
 	extract VARCHAR(20) NOT NULL DEFAULT '',
+	filters VARCHAR(50) COMMENT '输出过滤器。目前支持的过滤器有：md2irc - Markdown 转换为 IRC 转义。过滤器可以填写多个，多个过滤器名字之间用空格隔开',
 	attr VARCHAR(20) NOT NULL DEFAULT '' COMMENT '当 extract 为 attr 时，指定 attr 参数',
 	format_flags VARCHAR(1) NOT NULL DEFAULT '' COMMENT '格式化字符串中的“标志”，如 “-”“0”。在此程序中，应当只用到“-”和空字符串。默认为空字符串 -- 无标志',
 	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
