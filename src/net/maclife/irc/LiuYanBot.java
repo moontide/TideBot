@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.image.*;
 import java.io.*;
 import java.net.*;
@@ -52,9 +51,18 @@ import net.maclife.mac.*;
 import net.maclife.seapi.*;
 import net.maclife.util.qqwry.*;
 
-public class LiuYanBot extends PircBot implements Runnable
+public class LiuYanBot extends PircBot
 {
 	static Logger logger = Logger.getLogger (LiuYanBot.class.getName());
+	public static final ExecutorService executor = Executors.newFixedThreadPool (15);
+
+	/**
+	 * 连接多个 IRC 服务器时，将连接多个服务器所生成的 Bot 存放到该 Map 中。Key 为 IRC 服务器的主机名（命令行 -s 参数传递的参数）
+	 */
+	static Map<String, LiuYanBot> mapBots = new LinkedHashMap<String, LiuYanBot> ();
+	static LiuYanBot currentBot = null;
+	String currentChannel = "";
+
 
 	public static final Charset JVM_CHARSET = Charset.defaultCharset();
 	//public Charset IRC_SERVER_CHARSET = Charset.defaultCharset();
@@ -172,6 +180,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String BOT_PRIMARY_COMMAND_Raw              = "/raw";
 	public static final String BOT_PRIMARY_COMMAND_Version          = "/Version";
 
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Server   = "/Server";	// 切换当前操作的服务器
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Connect  = "/Connect";	// 连接指定的服务器
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Disconnect= "/Disconnect";	// 断开连接
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Reconnect= "/Reconnect";	// 重新连接
@@ -258,6 +267,7 @@ public class LiuYanBot extends PircBot implements Runnable
 		{BOT_PRIMARY_COMMAND_Raw, },
 		{BOT_PRIMARY_COMMAND_Version, },
 
+		{BOT_PRIMARY_COMMAND_CONSOLE_Server, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Connect, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Disconnect, },
 		{BOT_PRIMARY_COMMAND_CONSOLE_Reconnect, },
@@ -299,7 +309,7 @@ public class LiuYanBot extends PircBot implements Runnable
 	public static final String COLOR_COMMAND_PARAMETER = Colors.DARK_BLUE;	//Colors.PURPLE;
 	public static final String COLOR_COMMAND_PARAMETER_INSTANCE = Colors.BLUE;	//Colors.MAGENTA;
 
-	Comparator<?> antiFloodComparitor = new AntiFloodComparator ();
+	//Comparator<?> antiFloodComparitor = new AntiFloodComparator ();
 	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
 	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 3;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
@@ -338,10 +348,6 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * 此标志变量仅仅用于在 onDisconnect 事件中，不要再执行重连服务器的操作。
 	 */
 	boolean isQuiting = false;
-
-	public static String currentChannel = "";
-
-	public ExecutorService executor = Executors.newFixedThreadPool (15);
 
 	String geoIP2DatabaseFileName = null;
 	long geoIP2DatabaseFileTimestamp = 0;
@@ -383,28 +389,27 @@ public class LiuYanBot extends PircBot implements Runnable
 	 * @author liuyan
 	 *
 	 */
-	class AntiFloodComparator implements Comparator<Map<String, Object>>
-	{
-		@Override
-		public int compare (Map<String, Object> o1, Map<String, Object> o2)
-		{
-			return (long)o1.get("灌水计数器") > (long)o2.get("灌水计数器") ? 1 :
-				((long)o1.get("灌水计数器") < (long)o2.get("灌水计数器") ? -1 :
-					((long)o1.get("最后活动时间") > (long)o2.get("最后活动时间") ? 1 :
-						((long)o1.get("最后活动时间") < (long)o2.get("最后活动时间") ? -1 : 0)
-					)
-				);
-		}
-	}
+	//class AntiFloodComparator implements Comparator<Map<String, Object>>
+	//{
+	//	@Override
+	//	public int compare (Map<String, Object> o1, Map<String, Object> o2)
+	//	{
+	//		return (long)o1.get("灌水计数器") > (long)o2.get("灌水计数器") ? 1 :
+	//			((long)o1.get("灌水计数器") < (long)o2.get("灌水计数器") ? -1 :
+	//				((long)o1.get("最后活动时间") > (long)o2.get("最后活动时间") ? 1 :
+	//					((long)o1.get("最后活动时间") < (long)o2.get("最后活动时间") ? -1 : 0)
+	//				)
+	//			);
+	//	}
+	//}
 
 	public LiuYanBot ()
 	{
+		currentBot = this;
+
 		String botcmd_prefix = System.getProperty ("botcmd.prefix");
 		if (StringUtils.isNotEmpty (botcmd_prefix))
 			BOT_COMMAND_PREFIX = botcmd_prefix;
-
-		// 开启控制台输入线程
-		executor.execute (this);
 
 		// 从数据库加载 vote 到 cache
 		LoadVotesFromDatabaseToCache ();
@@ -1077,7 +1082,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	@Override
 	public void onJoin (String ch, String u, String login, String hostname)
 	{
-		if (u.equalsIgnoreCase(this.getNick ()))
+		if (u.equalsIgnoreCase(getNick ()))
 			return;
 		if (geoIP2DatabaseReader==null)
 			return;
@@ -1441,7 +1446,7 @@ System.err.println (message);
 				else
 				{
 					// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
-					this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
+					SaveChannelUserLastMessages (channel, nick, login, hostname, message);
 
 					if (isSayingToMe && botCmd == null)	// 如果命令无法识别，而且是直接指名对“我”说，则显示帮助信息
 					{
@@ -1454,7 +1459,7 @@ System.err.println (message);
 			else if (! botCmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_RegExp))
 			{
 				// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
-				this.SaveChannelUserLastMessages (channel, nick, login, hostname, message);
+				SaveChannelUserLastMessages (channel, nick, login, hostname, message);
 			}
 
 			Map<String, Object> banInfo = null;
@@ -5979,19 +5984,6 @@ System.out.println (nMatch + ": " + sMatchedString);
 		return sMessage;
 	}
 
-	boolean isNickExistsInChannel (String channel, String nick)
-	{
-		User [] users = this.getUsers (channel);
-		for (User u : users)
-		{
-			if (u.getNick ().equalsIgnoreCase (nick))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
 	/**
 	 * 字符串规则表达式 命令。
 	 * <li>
@@ -6937,7 +6929,7 @@ System.out.println (sb);
 		// 要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则执行存储过程报错
 		// GRANT SELECT ON mysql.proc TO bot@'192.168.2.%'
 		// 参见: http://stackoverflow.com/questions/986628/cant-execute-a-mysql-stored-procedure-from-java
-		botDS.setUrl (System.getProperty ("database.url", "jdbc:mysql://192.168.2.1/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull"));
+		botDS.setUrl (System.getProperty ("database.url", "jdbc:mysql://localhost/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull"));
 		// 在 prepareCall 时报错:
 		// User does not have access to metadata required to determine stored procedure parameter types. If rights can not be granted, configure connection with "noAccessToProcedureBodies=true" to have driver generate parameters that represent INOUT strings irregardless of actual parameter types.
 		//botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;noAccessToProcedureBodies=true&amp;useInformationSchema=true"); // 没有作用
@@ -7866,7 +7858,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			listLeftPaddings.add ("");
 		for (int i=listExtracts.size (); i<listSubSelectors.size (); i++)
 			listExtracts.add ("");
-		for (int i=listExtracts.size (); i<listSubSelectors.size (); i++)
+		for (int i=listFilters.size (); i<listSubSelectors.size (); i++)
 			listFilters.add ("");
 		for (int i=listAttributes.size (); i<listSubSelectors.size (); i++)
 			listAttributes.add ("");
@@ -8018,7 +8010,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 						//FixElementNumber (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listRightPaddings);
 						listExtracts.set (listExtracts.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
-					else if (param.equalsIgnoreCase ("filters") || param.equalsIgnoreCase ("filters") || param.equalsIgnoreCase ("过滤器"))
+					else if (param.equalsIgnoreCase ("filters") || param.equalsIgnoreCase ("filter") || param.equalsIgnoreCase ("过滤器"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listFilters.set (listFilters.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
@@ -8994,7 +8986,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m" + sSubSelector + ANSIEscapeTool.CSI + "m" + " 选出了第 " + (iSSE+1) + " 项: " + sub_e);
 							//if (sub_e == null)	// 子选择器可能选择到不存在的，则忽略该条（比如 糗事百科的贴图，并不是每个糗事都有贴图）
 							//	continue;
-							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
 							nLines += StringUtils.countMatches (text, '\n');	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
 							if (nLines >= opt_max_response_lines)
 								break ht_sub_loop;
@@ -9041,6 +9033,16 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 	 */
 	public String ExtractTextFromElement (Element e, StringBuilder sb, boolean isOutputScheme, String sLeftPadding, String sExtract, String sFilters, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
 	{
+//System.out.print ("Element e=");	System.out.println (e);
+//System.out.print ("sb=");	System.out.println (sb);
+//System.out.print ("isOutputScheme=");	System.out.println (isOutputScheme);
+//System.out.print ("sLeftPadding");	System.out.println (sLeftPadding);
+//System.out.print ("sExtract=");	System.out.println (sExtract);
+//System.out.print ("sFilters=");	System.out.println (sFilters);
+//System.out.print ("sAttr=");	System.out.println (sAttr);
+//System.out.print ("sFormatFlags=");	System.out.println (sFormatFlags);
+//System.out.print ("sFormatWidth=");	System.out.println (sFormatWidth);
+//System.out.print ("sRightPadding=");	System.out.println (sRightPadding);
 		String text = "";
 		if (StringUtils.isEmpty (sExtract))	// 如果 Extract 是空的话，对 tagName 是 a 的做特殊处理
 		{
@@ -9149,6 +9151,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			if (StringUtils.isNotEmpty (sRightPadding))
 				sb.append (sRightPadding);
 		}
+//System.out.print ("结果=");	System.out.println (text);
 		return text;
 	}
 
@@ -9182,6 +9185,32 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		return sResult;
 	}
 
+	public static Dialog FindDialog (Collection<Dialog> dialogs, long nDialogThreadID)
+	{
+		for (Dialog d : dialogs)
+		{
+			if (d.threadID == nDialogThreadID)
+			{
+				return d;
+			}
+		}
+		return null;
+	}
+	public Dialog FindDialog (long nDialogThreadID)
+	{
+		return FindDialog (dialogs, nDialogThreadID);
+	}
+
+	@Override
+	protected void onUserList (String ch, User[] arrayUsers)
+	{
+System.out.print ("用户列表获取到，频道名：");
+System.out.println (ch);
+System.out.print ("用户列表：");
+System.out.println (Arrays.toString (arrayUsers));
+		//User[] arrayUsers_faulty = getUsers (ch);
+	}
+
 	public void ValidateChannelName (String ch)
 	{
 		String[] channels = getChannels ();
@@ -9200,31 +9229,24 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		}
 	}
 
+	boolean isNickExistsInChannel (String channel, String nick)
+	{
+		return true;	// getUsers 存在 bug，经常碰到人在频道内却获取不到的问题，尤其是在 znc 下，然后 znc 断线重连后。所以，暂时不校验该条件了
+
+		// User [] users = getUsers (channel);
+		// for (User u : users)
+		// {
+		// 	if (u.getNick ().equalsIgnoreCase (nick))
+		// 	{
+		// 		return true;
+		// 	}
+		// }
+		// return false;
+	}
+
 	public void ValidateNickNames (String ch, Collection<String> collectionParticipants)
 	{
 		ValidateNickNames (ch, collectionParticipants, null);
-	}
-
-	public static Dialog FindDialog (Collection<Dialog> dialogs, long nDialogThreadID)
-	{
-		for (Dialog d : dialogs)
-		{
-			if (d.threadID == nDialogThreadID)
-			{
-				return d;
-			}
-		}
-		return null;
-	}
-	public Dialog FindDialog (long nDialogThreadID)
-	{
-		return FindDialog (dialogs, nDialogThreadID);
-	}
-
-	@Override // TODO
-	protected void onUserList (String s, User[] arrayUsers)
-	{
-
 	}
 
 	/**
@@ -9246,16 +9268,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			if (StringUtils.isNotEmpty (sNickPrefixToSkipValidation) && StringUtils.startsWithIgnoreCase (nick, sNickPrefixToSkipValidation))
 				continue;	// “这个昵称你不用检查了”
 
-			boolean bFound = false;
-			for (User u : users)
-			{
-				if (u.equals (nick))
-				{
-					bFound = true;
-					break;
-				}
-//System.out.println ("user " + u + ", nick " + nick + ", result=" + bFound);
-			}
+			boolean bFound = isNickExistsInChannel (ch, nick);
 			if (! bFound)
 			{
 				throw new IllegalArgumentException ("在 " + ch + " 频道内找不到 " + nick + " 昵称");
@@ -10885,15 +10898,18 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 
 	public static void main (String[] args) throws IOException, IrcException
 	{
-		String sServer = "irc.freenode.net";
-		String sPort = "6667";
-		int nPort = 0;
-		String sNick = "CmdBot";
-		String sAccount = "";
-		String sPassword = "";
-		String sChannels = "#LiuYanBot,#linuxba";
-		String[] arrayChannels;
-		String encoding = "UTF-8";
+		//String sServer = "irc.freenode.net";
+		//String sPort = "6667";
+		//int nPort = 0;
+		//String sNick = "CmdBot";
+		//String sAccount = "";
+		//String sPassword = "";
+		//String sChannels = "#LiuYanBot,#linuxba";
+		//String[] arrayChannels;
+		//String encoding = "UTF-8";
+		List<Map<String, String>> listServersParams = new ArrayList<Map<String, String>> ();
+		Map<String, String> mapCurrentServerParams = null;
+
 		String geoIPDB = null;
 		String chunzhenIPDB = null;
 		String sOUIFileName = null;	// "../db/oui.txt"
@@ -10901,7 +10917,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		String banWildcardPatterns = null;
 
 		if (args.length==0)
-			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [-s 服务器地址] [-port 端口号，默认为6667] [-n 昵称] [-u 登录帐号] [-p 登录密码] [-c 要加入的频道，多个频道用 ',' 分割] [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-oui 从ieee.org下载oui.txt文件] [-e 字符集编码] [-ban 要封锁的用户名，多个名字用 ',' 分割]");
+			System.out.println ("Usage: java -cp ../lib/ net.maclife.irc.LiuYanBot [<-s 服务器地址> [-port 端口号，默认为6667] <-n 昵称> <-u 登录帐号> <-p 登录密码> [-c 要加入的频道，多个频道用 ',' 分割]]... [-geoipdb GeoIP2数据库文件] [-chunzhenipdb 纯真IP数据库文件] [-oui 从ieee.org下载oui.txt文件] [-e 字符集编码] [-ban 要封锁的用户名，多个名字用 ',' 分割]");
 
 		int i=0;
 		for (i=0; i<args.length; i++)
@@ -10917,7 +10933,12 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						System.err.println ("需要指定 IRC 服务器地址(主机名或 IP 地址)");
 						return;
 					}
-					sServer = args[i+1];
+					//sServer = args[i+1];
+					mapCurrentServerParams = new HashMap<String, String> ();
+					mapCurrentServerParams.put ("server", args[i+1]);
+					mapCurrentServerParams.put ("port", "6667");
+					mapCurrentServerParams.put ("encoding", "UTF-8");
+					listServersParams.add (mapCurrentServerParams);
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("port"))
@@ -10927,9 +10948,10 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						System.err.println ("需要指定服务器端口号");
 						return;
 					}
-					sPort = args[i+1];
+					//sPort = args[i+1];
+					mapCurrentServerParams.put ("port", args[i+1]);
 					i ++;
-					nPort = Integer.parseInt (sPort);
+					//nPort = Integer.parseInt (sPort);
 				}
 				else if (arg.equalsIgnoreCase("n") || arg.equalsIgnoreCase("nick") || arg.equalsIgnoreCase("name"))
 				{
@@ -10938,7 +10960,8 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						System.err.println ("需要指定昵称");
 						return;
 					}
-					sNick = args[i+1];
+					//sNick = args[i+1];
+					mapCurrentServerParams.put ("nick", args[i+1]);
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("u") || arg.equalsIgnoreCase("account") || arg.equalsIgnoreCase("login"))
@@ -10948,7 +10971,8 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						System.err.println ("需要指定登录帐号");
 						return;
 					}
-					sAccount = args[i+1];
+					mapCurrentServerParams.put ("account", args[i+1]);
+					//sAccount = args[i+1];
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("p") || arg.equalsIgnoreCase("pass") || arg.equalsIgnoreCase("password"))
@@ -10958,7 +10982,8 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						System.err.println ("需要指定登录密码");
 						return;
 					}
-					sPassword = args[i+1];
+					//sPassword = args[i+1];
+					mapCurrentServerParams.put ("password", args[i+1]);
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("c"))
@@ -10968,7 +10993,19 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						System.err.println ("需要指定要加入的频道列表，多个频道用 ',' 分割");
 						return;
 					}
-					sChannels = args[i+1];
+					//sChannels = args[i+1];
+					mapCurrentServerParams.put ("channels", args[i+1]);
+					i ++;
+				}
+				else if (arg.equalsIgnoreCase("e"))
+				{
+					if (i == args.length-1)
+					{
+						System.err.println ("需要指定服务器字符集编码");
+						return;
+					}
+					//encoding = args[i+1];
+					mapCurrentServerParams.put ("encoding", args[i+1]);
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("ban"))
@@ -10979,16 +11016,6 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 						return;
 					}
 					banWildcardPatterns = args[i+1];
-					i ++;
-				}
-				else if (arg.equalsIgnoreCase("e"))
-				{
-					if (i == args.length-1)
-					{
-						System.err.println ("需要指定服务器字符集编码");
-						return;
-					}
-					encoding = args[i+1];
 					i ++;
 				}
 				else if (arg.equalsIgnoreCase("geoipdb"))
@@ -11024,410 +11051,461 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			}
 		}
 
-		LiuYanBot bot = new LiuYanBot ();
-		String sMessageDelay = System.getProperty ("message.delay");
-		if (StringUtils.isNotEmpty (sMessageDelay))
+System.out.println (listServersParams);
+		for (Map<String, String> mapServerParams : listServersParams)
 		{
-			bot.setMessageDelay (Long.parseLong (sMessageDelay));
-		}
-		bot.setName (sNick);
-		if (StringUtils.isNotEmpty (sAccount))
-		{
-			bot.setLogin (sAccount);
-		}
-		bot.setVerbose (true);
-		bot.setAutoNickChange (true);
-		bot.setEncoding (encoding);
-		if (geoIPDB!=null)
-			bot.setGeoIPDatabaseFileName(geoIPDB);
-		if (chunzhenIPDB != null)
-			bot.set纯真IPDatabaseFileName (chunzhenIPDB);
-		if (sOUIFileName != null)
-			bot.setOUIFileName (sOUIFileName);
-
-		bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, null, "名称中含有 bot (被认定为机器人)");
-		if (banWildcardPatterns != null)
-		{
-			arrayBans = banWildcardPatterns.split ("[,;]+");
-			for (String ban : arrayBans)
+			String sServer = mapServerParams.get ("server");
+			String sPort = mapServerParams.get ("port");
+			String sEncoding = mapServerParams.get ("encoding");
+			String sNick = mapServerParams.get ("nick");
+			String sAccount = mapServerParams.get ("account");
+			String sPassword = mapServerParams.get ("password");
+			String sChannels = mapServerParams.get ("channels");
+			if (StringUtils.isEmpty (sServer))
 			{
-				if (StringUtils.isEmpty (ban))
-					continue;
-				if (ban.contains (":"))
+System.err.println ("服务器未指定");
+				continue;
+			}
+			LiuYanBot bot = new LiuYanBot ();
+			String sKeyName = sAccount + "@" + sServer + ":" + sPort;
+			mapBots.put (sKeyName, bot);
+
+			String sMessageDelay = System.getProperty ("message.delay");
+			if (StringUtils.isNotEmpty (sMessageDelay))
+			{
+				bot.setMessageDelay (Long.parseLong (sMessageDelay));
+			}
+			bot.setName (sNick);
+			if (StringUtils.isNotEmpty (sAccount))
+			{
+				bot.setLogin (sAccount);
+			}
+			bot.setVerbose (true);
+			bot.setAutoNickChange (true);
+			bot.setEncoding (sEncoding);
+			if (geoIPDB!=null)
+				bot.setGeoIPDatabaseFileName(geoIPDB);
+			if (chunzhenIPDB != null)
+				bot.set纯真IPDatabaseFileName (chunzhenIPDB);
+			if (sOUIFileName != null)
+				bot.setOUIFileName (sOUIFileName);
+
+			bot.AddBan (DEFAULT_BAN_WILDCARD_PATTERN, null, "名称中含有 bot (被认定为机器人)");
+			if (banWildcardPatterns != null)
+			{
+				arrayBans = banWildcardPatterns.split ("[,;]+");
+				for (String ban : arrayBans)
 				{
-					String[] arrayBanAndReason = ban.split (":+");
-					ban = arrayBanAndReason[0];
-					String bannedBotCmd = "*";
-					String reason = null;
-					if (arrayBanAndReason.length >= 2)
-						bannedBotCmd = arrayBanAndReason[1];
-					if (arrayBanAndReason.length >= 3)
-						reason = arrayBanAndReason[2];
-					bot.AddBan (ban, bannedBotCmd, reason);
+					if (StringUtils.isEmpty (ban))
+						continue;
+					if (ban.contains (":"))
+					{
+						String[] arrayBanAndReason = ban.split (":+");
+						ban = arrayBanAndReason[0];
+						String bannedBotCmd = "*";
+						String reason = null;
+						if (arrayBanAndReason.length >= 2)
+							bannedBotCmd = arrayBanAndReason[1];
+						if (arrayBanAndReason.length >= 3)
+							reason = arrayBanAndReason[2];
+						bot.AddBan (ban, bannedBotCmd, reason);
+					}
+					else
+						bot.AddBan (ban);
 				}
-				else
-					bot.AddBan (ban);
+			}
+
+			int nPort = Integer.parseInt (sPort);
+			if (nPort != 0 && StringUtils.isEmpty (sPassword))
+				bot.connect (sServer, nPort);
+			else if (nPort != 0 && StringUtils.isNotEmpty (sPassword))
+				bot.connect (sServer, nPort, sPassword);
+			else	//if (nPort == 0 || StringUtils.isEmpty (sPassword))
+				bot.connect (sServer);
+			//bot.changeNick (nick);
+			String[] arrayChannels = sChannels.split ("[,;/]+");
+			for (String ch : arrayChannels)
+			{
+				if (StringUtils.isEmpty (ch))
+					continue;
+				if (!ch.startsWith("#"))
+					ch = "#" + ch;
+				bot.joinChannel (ch);
 			}
 		}
-
-		if (nPort != 0 && StringUtils.isEmpty (sPassword))
-			bot.connect (sServer, nPort);
-		else if (nPort != 0 && StringUtils.isNotEmpty (sPassword))
-			bot.connect (sServer, nPort, sPassword);
-		else	//if (nPort == 0 || StringUtils.isEmpty (sPassword))
-			bot.connect (sServer);
-		//bot.changeNick (nick);
-		arrayChannels = sChannels.split ("[,;/]+");
-		for (String ch : arrayChannels)
-		{
-			if (StringUtils.isEmpty (ch))
-				continue;
-			if (!ch.startsWith("#"))
-				ch = "#" + ch;
-			bot.joinChannel (ch);
-		}
-
 
 		// TODO:
 		//	1. 从数据库中加载 vote 信息，然后开启 undo vote Timer 定时器
 		//		undo vote 定时器定时（每秒？）扫描一次当前 vote 列表，如果到了 undo 的时间，就 undo，并入库
 		//	2.1 查看各频道的的 ban / quiet 信息，如果有的话： 跟数据库加载的比较，如果不存在，则自动入库； 如果存在，则不处理（等待 undo vote Timer 处理）……
 		//	2.2 查看各频道用户的 op voice 等信息，如果有的话： 跟数据库加载的比较，如果不存在，则自动入库； 如果存在，则不处理（等待 undo vote Timer 处理）……
-	}
 
-	@Override
-	public void run ()
-	{
-		String sTerminalInput = null;
-		try
-		{
-			BufferedReader reader = new BufferedReader (new InputStreamReader (System.in));
-			while ( (sTerminalInput=reader.readLine ()) != null)
+		// 开启控制台输入线程
+		executor.submit
+		(() ->
 			{
-				if (StringUtils.isEmpty (sTerminalInput))
-					continue;
-				try
+			String sTerminalInput = null;
+			try
+			{
+				BufferedReader reader = new BufferedReader (new InputStreamReader (System.in));
+				while ( (sTerminalInput=reader.readLine ()) != null)
 				{
-					String cmd = getBotPrimaryCommand (sTerminalInput);
-					String cmdAlias = getBotCommandAlias (sTerminalInput);
-					if (cmd == null)
-					{
-						System.err.println ("无法识别该命令: [" + cmd + "]");
+					if (StringUtils.isEmpty (sTerminalInput))
 						continue;
-					}
+					try
+					{
+						String cmd = getBotPrimaryCommand (sTerminalInput);
+						String cmdAlias = getBotCommandAlias (sTerminalInput);
+						if (cmd == null)
+						{
+							System.err.println ("无法识别该命令: [" + cmd + "]");
+							continue;
+						}
 
-					String[] params = null;
-					if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Ban) || cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Set))
-						this.onMessage (null, "", "", "", sTerminalInput);
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Msg))
-					{
-						if (StringUtils.isEmpty (currentChannel))
-						{
-							params = sTerminalInput.split (" +", 3);
-							if (params.length < 3)
-							{
-								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Msg + " -- 发送消息。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " <目标(#频道或昵称)> <消息>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " [消息]，该消息将发往默认频道");
-								continue;
-							}
-							this.sendMessage (params[1], params[2]);
-						}
-						else
+						String[] params = null;
+						if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Server))
 						{
 							params = sTerminalInput.split (" +", 2);
-							this.sendMessage (currentChannel, params[1]);
-						}
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CustomizedAction))
-					{
-						if (StringUtils.isEmpty (currentChannel))
-						{
-							params = sTerminalInput.split (" +", 3);
-							if (params.length < 3)
+							String sServerKey = null;
+							if (params.length > 1)
+								sServerKey = params[1];
+
+							if (StringUtils.isEmpty (sServerKey))
 							{
-								System.err.println (BOT_PRIMARY_COMMAND_CustomizedAction + " -- 发送动作表情。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <动作>，该动作将发往默认频道");
+System.out.println ("所有 Bot 列表：");
+System.out.println (mapBots);
+System.out.println ("当前 Bot：");
+System.out.println (currentBot);
 								continue;
 							}
-							this.sendAction (params[1], params[2]);
+
+							LiuYanBot bot = null;
+							//if (sServerKey.matches ("^\\d+$"))
+							//{
+							//	bot = ((LinkedHashMap)mapServers).get
+							//}
+							//else
+								bot = mapBots.get (sServerKey);
+							if (bot == null)
+							{
+System.err.println ("未找到服务器主机名为: [" + sServerKey + "] 的 bot，请确认输入是否正确（注意：服务器主机名区分大小写）");
+								continue;
+							}
+							currentBot = bot;
 						}
-						else
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Ban) || cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Set))
+							currentBot.onMessage (null, "", "", "", sTerminalInput);
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Msg))
 						{
-							params = sTerminalInput.split (" +", 2);
-							this.sendAction (currentChannel, params[1]);
-						}
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Nick))
-					{
-						params = sTerminalInput.split (" +", 2);
-						if (params.length < 2)
-						{
-							System.err.println ( BOT_PRIMARY_COMMAND_CONSOLE_Nick + " -- 更改姓名。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Nick + " <昵称)>");
-							continue;
-						}
-						String nick = params[1];
-						changeNick (nick);
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Channel))
-					{
-						params = sTerminalInput.split (" +", 2);
-						if (params.length < 2)
-						{
-							if (StringUtils.isNotEmpty (currentChannel))
-								System.out.println ("当前频道为: " + currentChannel);
-							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Channel + " -- 更改默认频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
-							continue;
-						}
-						String channel = params[1];
-						if (channel.startsWith ("#"))
-						{
-							currentChannel = channel;
-							System.out.println ("当前频道已改为: " + currentChannel);
-						}
-						else
-						{
-							currentChannel = "";
-							System.out.println ("已取消当前频道");
-						}
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Join))
-					{
-						params = sTerminalInput.split (" +", 2);
-						if (params.length < 2)
-						{
-							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Join + " -- 加入频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Join + " <#频道名>...");
-							continue;
-						}
-						String[] arrayChannels = params[1].split ("[,;/\\s]+");
-						for (int i=0; i<arrayChannels.length; i++)
-						{
-							String channel = arrayChannels[i];
-							if (! channel.startsWith ("#"))
-								channel = "#" + channel;
-							joinChannel (channel);
-						}
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Part))
-					{
-						params = sTerminalInput.split (" +", 3);
-						if (params.length < 2)
-						{
-							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Part + " -- 离开频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Part + " <#频道名，多个频道用 ,;/ 等字符分割开> [原因]");
-							continue;
-						}
-						String channels = params[1];
-						String reason = params.length >= 3 ? params[2] : "";
-						String[] arrayChannels = channels.split ("[,;/]+");
-						for (int i=0; i<arrayChannels.length; i++)
-						{
-							String channel = arrayChannels[i];
-							if (! channel.startsWith ("#"))
-								channel = "#" + channel;
-							if (StringUtils.isEmpty (reason))
-								partChannel (channel);
+							if (StringUtils.isEmpty (currentBot.currentChannel))
+							{
+								params = sTerminalInput.split (" +", 3);
+								if (params.length < 3)
+								{
+									System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Msg + " -- 发送消息。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " <目标(#频道或昵称)> <消息>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " [消息]，该消息将发往默认频道");
+									continue;
+								}
+								currentBot.sendMessage (params[1], params[2]);
+							}
 							else
-								partChannel (channel, reason);
+							{
+								params = sTerminalInput.split (" +", 2);
+								currentBot.sendMessage (currentBot.currentChannel, params[1]);
+							}
 						}
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quit))
-					{
-						params = sTerminalInput.split (" +", 2);
-						//if (params.length < 1)
-						//{
-							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Quit + " -- 从 IRC 服务器退出，然后退出程序。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " [原因]");
-						//	continue;
-						//}
-						String reason = null;
-						if (params.length >= 2)
-							reason = params[1];
-
-						Quit (reason);
-
-						System.err.println ("等几秒钟 (等连接关闭完毕)…");
-						TimeUnit.SECONDS.sleep (1);
-						System.exit (0);
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Disconnect))
-					{
-						System.err.println ("开始断开连接…");
-						disconnect ();
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Connect))
-					{
-						params = sTerminalInput.split (" +", 2);
-						if (params.length < 2)
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CustomizedAction))
 						{
-							System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Connect + " -- 连接到 IRC 服务器。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " <服务器地址>");
-							continue;
+							if (StringUtils.isEmpty (currentBot.currentChannel))
+							{
+								params = sTerminalInput.split (" +", 3);
+								if (params.length < 3)
+								{
+									System.err.println (BOT_PRIMARY_COMMAND_CustomizedAction + " -- 发送动作表情。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <动作>，该动作将发往默认频道");
+									continue;
+								}
+								currentBot.sendAction (params[1], params[2]);
+							}
+							else
+							{
+								params = sTerminalInput.split (" +", 2);
+								currentBot.sendAction (currentBot.currentChannel, params[1]);
+							}
 						}
-						String server = params[1];
-						System.err.println ("开始连接到 [" + server + "]…");
-						connect (server);
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Reconnect))
-					{
-						System.err.println ("开始重连…");
-						reconnect ();
-					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Identify)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Mode)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Invite)
-							|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Vote)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quiet)
-							//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet)
-						)
-					{
-						params = sTerminalInput.split (" +", 3);
-						if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Identify))
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Nick))
 						{
+							params = sTerminalInput.split (" +", 2);
 							if (params.length < 2)
 							{
-								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Identify + " -- 通过 NickServ 验证。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Identify + " <密码>");
+								System.err.println ( BOT_PRIMARY_COMMAND_CONSOLE_Nick + " -- 更改姓名。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Nick + " <昵称)>");
 								continue;
 							}
-							identify (params[1]);
-							continue;
+							String nick = params[1];
+							currentBot.changeNick (nick);
 						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Mode))
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Channel))
 						{
-							if (params.length < 2 || (StringUtils.isEmpty (currentChannel) && params.length < 3))
+							params = sTerminalInput.split (" +", 2);
+							if (params.length < 2)
 							{
-								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Mode + " -- 设置频道/用户模式。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Mode + " [#频道] <模式>。如果事先通过 /channel <#频道> 命令设置了预设频道时，则必须忽略 [#频道] 参数");
+								if (StringUtils.isNotEmpty (currentBot.currentChannel))
+									System.out.println ("当前频道为: " + currentBot.currentChannel);
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Channel + " -- 更改默认频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
 								continue;
 							}
-							if (StringUtils.isEmpty (currentChannel))
-								setMode (params[1], params[2]);
-							else
-								setMode (currentChannel, params[2]);
-							continue;
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Kick, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
-						{
-							if (StringUtils.isEmpty (currentChannel))
-								params = sTerminalInput.split (" +", 4);
-							//else
-							//	params = sTerminalInput.split (" +", 3);
-							if (params.length < 2 || (StringUtils.isEmpty (currentChannel) && params.length < 3))
+							String channel = params[1];
+							if (channel.startsWith ("#"))
 							{
-								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Kick + " -- 将用户踢出频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Kick + " <用户昵称> [#频道] [原因]。只有当事先通过 /channel <#频道> 命令设置了预设频道时，才允许忽略 [#频道] 参数");
-								continue;
-							}
-							if (StringUtils.isEmpty (currentChannel))
-							{
-								if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
-								{
-									ban (params[2], params[1]);
-								}
-								if (params.length <= 3)
-									kick (params[2], params[1]);
-								else
-									kick (params[2], params[1], params[3]);
+								currentBot.currentChannel = channel;
+								System.out.println ("当前频道已改为: " + currentBot.currentChannel);
 							}
 							else
 							{
-								if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
-								{
-									ban (currentChannel, params[1]);
-								}
-								if (params.length <= 2)
-									kick (currentChannel, params[1]);
-								else
-									kick (currentChannel, params[1], params[2]);
+								currentBot.currentChannel = "";
+								System.out.println ("已取消当前频道");
 							}
-							continue;
 						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Join))
+						{
+							params = sTerminalInput.split (" +", 2);
+							if (params.length < 2)
+							{
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Join + " -- 加入频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Join + " <#频道名>...");
+								continue;
+							}
+							String[] arrayChannels = params[1].split ("[,;/\\s]+");
+							for (int j=0; j<arrayChannels.length; j++)
+							{
+								String channel = arrayChannels[j];
+								if (! channel.startsWith ("#"))
+									channel = "#" + channel;
+								currentBot.joinChannel (channel);
+							}
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Part))
+						{
+							params = sTerminalInput.split (" +", 3);
+							if (params.length < 2)
+							{
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Part + " -- 离开频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Part + " <#频道名，多个频道用 ,;/ 等字符分割开> [原因]");
+								continue;
+							}
+							String channels = params[1];
+							String reason = params.length >= 3 ? params[2] : "";
+							String[] arrayChannels = channels.split ("[,;/]+");
+							for (int j=0; j<arrayChannels.length; j++)
+							{
+								String channel = arrayChannels[j];
+								if (! channel.startsWith ("#"))
+									channel = "#" + channel;
+								if (StringUtils.isEmpty (reason))
+									currentBot.partChannel (channel);
+								else
+									currentBot.partChannel (channel, reason);
+							}
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quit))
+						{
+							params = sTerminalInput.split (" +", 2);
+							//if (params.length < 1)
+							//{
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Quit + " -- 从 IRC 服务器退出，然后退出程序。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " [原因]");
+							//	continue;
+							//}
+							String reason = null;
+							if (params.length >= 2)
+								reason = params[1];
 
-						String sChannel = currentChannel;
-						String sTarget = null;
-						if (params.length < 2 || (StringUtils.isEmpty (currentChannel) && params.length < 3))
-						{
-							System.err.println (cmd + " 命令语法： " + cmd + " <目标> [#频道]。如果事先通过 /channel <#频道> 命令设置了预设频道时，则必须忽略 [#频道] 参数");
-							continue;
+							currentBot.Quit (reason);
+
+							System.err.println ("等几秒钟 (等连接关闭完毕)…");
+							TimeUnit.SECONDS.sleep (1);
+							System.exit (0);
 						}
-						if (StringUtils.isEmpty (currentChannel))
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Disconnect))
 						{
-							sTarget = params[1];
-							sChannel = params[2];
+							System.err.println ("开始断开连接…");
+							currentBot.disconnect ();
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Connect))
+						{
+							params = sTerminalInput.split (" +", 2);
+							if (params.length < 2)
+							{
+								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Connect + " -- 连接到 IRC 服务器。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Quit + " <服务器地址>");
+								continue;
+							}
+							String server = params[1];
+							System.err.println ("开始连接到 [" + server + "]…");
+							currentBot.connect (server);
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Reconnect))
+						{
+							System.err.println ("开始重连…");
+							currentBot.reconnect ();
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Identify)
+								|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Mode)
+								|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Invite)
+								|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_Vote)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Kick)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_IRCBan)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnBan)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_KickBan)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_OP)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeOP)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Voice)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_DeVoice)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Quiet)
+								//|| cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet)
+							)
+						{
+							params = sTerminalInput.split (" +", 3);
+							if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Identify))
+							{
+								if (params.length < 2)
+								{
+									System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Identify + " -- 通过 NickServ 验证。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Identify + " <密码>");
+									continue;
+								}
+								currentBot.identify (params[1]);
+								continue;
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Mode))
+							{
+								if (params.length < 2 || (StringUtils.isEmpty (currentBot.currentChannel) && params.length < 3))
+								{
+									System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Mode + " -- 设置频道/用户模式。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Mode + " [#频道] <模式>。如果事先通过 /channel <#频道> 命令设置了预设频道时，则必须忽略 [#频道] 参数");
+									continue;
+								}
+								if (StringUtils.isEmpty (currentBot.currentChannel))
+									currentBot.setMode (params[1], params[2]);
+								else
+									currentBot.setMode (currentBot.currentChannel, params[2]);
+								continue;
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_Kick, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+							{
+								if (StringUtils.isEmpty (currentBot.currentChannel))
+									params = sTerminalInput.split (" +", 4);
+								//else
+								//	params = sTerminalInput.split (" +", 3);
+								if (params.length < 2 || (StringUtils.isEmpty (currentBot.currentChannel) && params.length < 3))
+								{
+									System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Kick + " -- 将用户踢出频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Kick + " <用户昵称> [#频道] [原因]。只有当事先通过 /channel <#频道> 命令设置了预设频道时，才允许忽略 [#频道] 参数");
+									continue;
+								}
+								if (StringUtils.isEmpty (currentBot.currentChannel))
+								{
+									if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+									{
+										currentBot.ban (params[2], params[1]);
+									}
+									if (params.length <= 3)
+										currentBot.kick (params[2], params[1]);
+									else
+										currentBot.kick (params[2], params[1], params[3]);
+								}
+								else
+								{
+									if (StringUtils.equalsAnyIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_KickBan))
+									{
+										currentBot.ban (currentBot.currentChannel, params[1]);
+									}
+									if (params.length <= 2)
+										currentBot.kick (currentBot.currentChannel, params[1]);
+									else
+										currentBot.kick (currentBot.currentChannel, params[1], params[2]);
+								}
+								continue;
+							}
+
+							String sChannel = currentBot.currentChannel;
+							String sTarget = null;
+							if (params.length < 2 || (StringUtils.isEmpty (currentBot.currentChannel) && params.length < 3))
+							{
+								System.err.println (cmd + " 命令语法： " + cmd + " <目标> [#频道]。如果事先通过 /channel <#频道> 命令设置了预设频道时，则必须忽略 [#频道] 参数");
+								continue;
+							}
+							if (StringUtils.isEmpty (currentBot.currentChannel))
+							{
+								sTarget = params[1];
+								sChannel = params[2];
+							}
+							else
+							{
+								params = sTerminalInput.split (" +", 2);
+								sTarget = params[1];
+								//sChannel = currentChannel;
+							}
+
+							if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Invite))
+							{
+								System.err.println (" -- 邀请用户进入频道");
+								currentBot.sendInvite (sTarget, sChannel);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_IRCBan))
+							{
+								System.err.println (" -- 封锁指定用户进入频道 (+b)");
+								currentBot.ban (sChannel, sTarget);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_UnBan))
+							{
+								System.err.println (" -- 取消对指定用户进入频道的封锁 (-b)");
+								currentBot.unBan (sChannel, sTarget);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_OP))
+							{
+								System.err.println (" -- 将用户设置为 OP (+o)");
+								currentBot.op (sChannel, sTarget);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_DeOP))
+							{
+								System.err.println (" -- 收回用户的 OP 权限 (-o)");
+								currentBot.deOp (sChannel, sTarget);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_Voice))
+							{
+								System.err.println (" -- 将用户设置为 Voice 模式 (+v)");
+								currentBot.voice (sChannel, sTarget);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_DeVoice))
+							{
+								System.err.println (" -- 取消用户的 Voice 模式 (-v)");
+								currentBot.deVoice (sChannel, sTarget);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_Quiet))
+							{
+								System.err.println (" -- 禁止用户发言 (+q)");
+								currentBot.setMode (sChannel, "+q " + sTarget);
+							}
+							else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet))
+							{
+								System.err.println (" -- 解除对用户发言的禁止 (-q)");
+								currentBot.setMode (sChannel, "-q " + sTarget);
+							}
+						}
+						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Verbose))
+						{
+							currentBot.toggleVerbose ();
+							System.err.println ("verbose 改为 " + currentBot.getVerbose ());
 						}
 						else
 						{
-							params = sTerminalInput.split (" +", 2);
-							sTarget = params[1];
-							//sChannel = currentChannel;
-						}
-
-						if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Invite))
-						{
-							System.err.println (" -- 邀请用户进入频道");
-							sendInvite (sTarget, sChannel);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_IRCBan))
-						{
-							System.err.println (" -- 封锁指定用户进入频道 (+b)");
-							ban (sChannel, sTarget);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_UnBan))
-						{
-							System.err.println (" -- 取消对指定用户进入频道的封锁 (-b)");
-							unBan (sChannel, sTarget);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_OP))
-						{
-							System.err.println (" -- 将用户设置为 OP (+o)");
-							op (sChannel, sTarget);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_DeOP))
-						{
-							System.err.println (" -- 收回用户的 OP 权限 (-o)");
-							deOp (sChannel, sTarget);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_Voice))
-						{
-							System.err.println (" -- 将用户设置为 Voice 模式 (+v)");
-							voice (sChannel, sTarget);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_DeVoice))
-						{
-							System.err.println (" -- 取消用户的 Voice 模式 (-v)");
-							deVoice (sChannel, sTarget);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_Quiet))
-						{
-							System.err.println (" -- 禁止用户发言 (+q)");
-							setMode (sChannel, "+q " + sTarget);
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (cmdAlias, BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet))
-						{
-							System.err.println (" -- 解除对用户发言的禁止 (-q)");
-							setMode (sChannel, "-q " + sTarget);
+							System.err.println ("从控制台输入时，只允许执行 /ban /vip /set /verbose 和 /connect /disconnect /reconnect /join /part /quit /nick /msg /me  /identify /auth /invite  /kick /IRCBan /unBan /kickBan /op /deOP /voice /deVoice /quiet /unQuiet  命令");
+							continue;
 						}
 					}
-					else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Verbose))
+					catch (Exception e)
 					{
-						toggleVerbose ();
-						System.err.println ("verbose 改为 " + getVerbose ());
+						e.printStackTrace ();
 					}
-					else
-					{
-						System.err.println ("从控制台输入时，只允许执行 /ban /vip /set /verbose 和 /connect /disconnect /reconnect /join /part /quit /nick /msg /me  /identify /auth /invite  /kick /IRCBan /unBan /kickBan /op /deOP /voice /deVoice /quiet /unQuiet  命令");
-						continue;
-					}
-				}
-				catch (Exception e)
-				{
-					e.printStackTrace ();
 				}
 			}
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
-		}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+			}
+		);
 	}
 }

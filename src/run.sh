@@ -28,29 +28,28 @@ echo "PATH   = $PATH"
 
 server=${server:-chat.freenode.net}
 #port=${port:-6667}
-channels=${channels:-LiuYanBot,linuxba,fedora-zh}
-
 nick=${nick:-CmdBot}
 #account=${account:-liuyan}
 #password=${password:-liuyan}
+channels=${channels:-LiuYanBot,linuxba}
 
 #-Djavax.net.debug=ssl,handshake,record -Ddeployment.security.TLSv1.2=false
 export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix \
 -Dmessage.delay=100 -Djava.util.logging.config.file=$botdir/logging.properties \
 -DGFWProxy.TrustStore=$dbdir/bot.jks \
 -DGFWProxy.Type=${GFWProxyType} \
--DGFWProxy.Host=${GFWProxyHost-192.168.2.1} \
--DGFWProxy.Port=${GFWProxyPort-8087} \
+-DGFWProxy.Host=${GFWProxyHost-192.168.181.70} \
+-DGFWProxy.Port=${GFWProxyPort-9910} \
 -Ddatabase.driver=${database_driver-com.mysql.jdbc.Driver} \
 -Ddatabase.username=${database_username-bot} \
 -Ddatabase.userpassword=${database_userpassword} \
--Ddatabase.url=${database_url-jdbc:mysql://192.168.2.1/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull&useSSL=false} \
+-Ddatabase.url=${database_url-jdbc:mysql://192.168.181.70/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull&useSSL=false} \
 -Dgame.sanguosha.allowed-channels=#LiuYanBot \
 $_JAVA_OPTIONS"
 
-for lf in commons-lang3-3.11 commons-text-1.9 commons-io-2.8.0 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.9.0 commons-dbcp2-2.8.0 commons-codec-1.15 \
-    mysql-connector-java-8.0.22  mariadb-java-client-2.6.2 \
-    jackson-core-2.12.1  jackson-databind-2.12.1  jackson-annotations-2.12.1 \
+for lf in commons-lang3-3.12.0 commons-text-1.9 commons-io-2.10.0 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.9.0 commons-dbcp2-2.8.0 commons-codec-1.15 \
+    mysql-connector-java-8.0.25  mariadb-java-client-2.7.3 \
+    jackson-core-2.12.3  jackson-databind-2.12.3  jackson-annotations-2.12.3 \
     maxmind-db-2.0.0  geoip2-2.15.0  \
     google-pagerank-api-2.0 \
     jsoup-1.13.1 \
@@ -80,6 +79,12 @@ java -cp "$CP" net.maclife.irc.LiuYanBot \
 	${port:+/port $port} \
 	-n $nick \
 	${account:+/u $account} \
+	${password:+/p $password} \
+	-c "$channels" \
+	-s $server \
+	${port:+/port $port} \
+	-n $nick \
+	/u liuyan/liberachat \
 	${password:+/p $password} \
 	-c "$channels" \
 	/ban "$ban" \

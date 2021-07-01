@@ -1437,8 +1437,8 @@ System.out.println (mySolution);
 		// 评估手牌情况，决定抢不抢地主
 		// 底牌，有可能增强手牌，也完全有可能多出 3 张废牌、多出 3 道单牌！
 
-		List<Map<String, Object>> listMyCards = (List<Map<String, Object>>) args[0];
-		List<String[]> list抢地主候选答案 = (List<String[]>) args[1];
+		List<Map<String, Object>> listMyCards = listPlayerCards;
+		List<String[]> list抢地主候选答案 = listCandidateAnswers;
 		int n抢地主最小分数 = Integer.parseInt (list抢地主候选答案.get (0)[0]);
 //System.out.println (listMyCards);
 		List<String> listMyCardRanks = DouDiZhu.PlayerCardsToCardRanks (listMyCards);
@@ -1494,6 +1494,12 @@ System.out.println (listMyCardRanks);
 			return null;
 
 		return mySolution.remove (0).get ("牌");	// 务必删除掉
+	}
+
+	@Override
+	public String 出牌 (List<Map<String, Object>> listPlayerCards)
+	{
+		return "";
 	}
 
 	@Override

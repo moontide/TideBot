@@ -252,7 +252,7 @@ public class DouDiZhu extends CardGame
 						System.out.println (游戏信息 (sTurnPlayer_回合阶段 + " 的手牌"));
 						System.out.println (游戏信息 (GenerateCardsInfoTo (sTurnPlayer_回合阶段).toString ()));
 
-						answer = ((DouDiZhuBotPlayer)turnPlayer_回合阶段).出牌 (player_cards);
+						answer = ((DouDiZhuBotPlayer)turnPlayer_回合阶段).出牌 ((List<Map<String, Object>>)(List<?>)player_cards);	// Cannot cast from List<Object> to List<Map<String, Object>> : https://stackoverflow.com/questions/38964037/cast-listobject-to-listmapstring-object
 						//value = answer;
 						//value_and_label = value;
 					}
