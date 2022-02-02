@@ -131,7 +131,8 @@ System.out.println ("Answer=[" + answer + "]");
 					}
 					nNoAnswerCount = 0;
 
-					// 显示结果
+					// 判断并显示结果
+					char[] arrayCharacterResultFlag = new char [sWordToGuess.length()];
 					String sWordToGuess_LowerCase = sWordToGuess.toLowerCase ();
 					String sAnswer_LowerCase = answer.toLowerCase ();
 					for (int j=0; j<sWordToGuess.length(); j++)
@@ -140,11 +141,13 @@ System.out.println ("Answer=[" + answer + "]");
 						sb.append (',');
 						if (sWordToGuess_LowerCase.charAt (j) == sAnswer_LowerCase.charAt (j))
 						{	//
+							arrayCharacterResultFlag[j] = 'c';
 							sb.append (Colors.GREEN.substring (1));	//
 							nCorrect++;
 						}
-						else if (sWordToGuess_LowerCase.indexOf (sAnswer_LowerCase.charAt (j)) >= 0)
+						else if (IsCharacterPresent(sWordToGuess_LowerCase, sAnswer_LowerCase, j, arrayCharacterResultFlag))
 						{
+							arrayCharacterResultFlag[j] = 'p';
 							sb.append (Colors.OLIVE.substring (1));	//
 							nPresent++;
 						}
@@ -187,5 +190,17 @@ System.out.println ("Answer=[" + answer + "]");
 		{
 			games.remove (this);
 		}
+	}
+
+	boolean IsCharacterPresent (String sWordToGuess_LowerCase, String sAnswer_LowerCase, int iChar, char[] arrayCharacterResultFlag)
+	{
+		//return sWordToGuess_LowerCase.indexOf (sAnswer_LowerCase.charAt (iChar)) >= 0;
+		boolean bPresent = false;
+		//for (int i=0; i<sWordToGuess_LowerCase.length (); i++)
+		//{
+		//	if
+		//}
+		bPresent = sWordToGuess_LowerCase.substring (iChar).indexOf (sAnswer_LowerCase.charAt (iChar)) >= 0;
+		return bPresent;
 	}
 }

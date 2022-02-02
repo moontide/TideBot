@@ -231,7 +231,7 @@ public class LiuYanBot extends PircBot
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
 		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "/json", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
-		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "SanGuoSha", "三国杀入门", "SanGuoSha_Simple", "三国杀身份", "SanGuoSha_RoleRevealing", "三国杀国战", "SanGuoSha_CountryRevealing", "2048", },
+		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "SanGuoSha", "三国杀入门", "SanGuoSha_Simple", "三国杀身份", "SanGuoSha_RoleRevealing", "三国杀国战", "SanGuoSha_CountryRevealing", "2048", "猜单词", "Wordle", "ABCDle"},
 		{BOT_PRIMARY_COMMAND_MacManufactory, "oui", "macm", },
 		{BOT_PRIMARY_COMMAND_Vote, "/voteKick", "/voteBan", "/voteKickBan", "/voteUnBan", "/voteOp", "/voteDeOP", "/voteVoice", "/voteDeVoice", "/voteQuiet", "/voteGag", "/voteMute", "/voteUnQuiet", "/voteUnGag", "/voteUnMute", "/voteInvite",
 			BOT_PRIMARY_COMMAND_CONSOLE_Kick,
@@ -2261,7 +2261,8 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					"|" + formatBotParameterInstance ("三国杀入门", true) +
 					//"|" + formatBotParameterInstance ("三国杀身份", true) +
 					//"|" + formatBotParameterInstance ("三国杀国战", true) +
-					"   http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主 http://zh.wikipedia.org/wiki/三国杀"
+					"|" + formatBotParameterInstance ("Wordle", true) +
+					"   http://zh.wikipedia.org/wiki/猜数字 http://en.wikipedia.org/wiki/Blackjack http://zh.wikipedia.org/wiki/斗地主 http://zh.wikipedia.org/wiki/三国杀 http://en.wikipedia.org/wiki/Wordle"
 			);
 			SendMessage (ch, u, mapGlobalOptions,
 				BOT_OPTION_SEPARATOR + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字"
@@ -9571,7 +9572,7 @@ System.out.println (Arrays.toString (arrayUsers));
 		List<String> listParams = splitCommandLine (params);
 		String sGame = "";
 		if (StringUtils.equalsIgnoreCase (botCmdAlias, "猜数字")
-			|| StringUtils.equalsAnyIgnoreCase (botCmdAlias, "猜单词", "Wordle")
+			|| StringUtils.equalsAnyIgnoreCase (botCmdAlias, "猜单词", "Wordle", "ABCDle")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "21点")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "斗地主")
 			|| StringUtils.equalsAnyIgnoreCase (botCmdAlias, "三国杀", "三国杀入门", "三国杀身份", "三国杀国战")
