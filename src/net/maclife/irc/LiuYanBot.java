@@ -633,35 +633,35 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	 * 根据给定的用户名 wildcardPatternToFetch 从列表中获取相应的用户名信息
 	 * @param wildcardPatternToFetch 要获取的通配符表达式。参见 ProcessCommand_BanOrWhite 的描述
 	 * @param iMatchMode
-	 * @param botCmd 与用户相关的命令。如果为 null 或者空字符串，则返回 null。如果为 <code>*</code> 或 <code>.</code>，则匹配任何命令。 如果为其他，则仅仅匹配该命令。
+	 * @param sBotCmdToRun 用户想要执行的的命令。如果为 null 或者空字符串，则返回 null。如果为 <code>*</code> 或 <code>.</code>，则匹配任何命令。 如果为其他，则仅仅匹配该命令。
 	 * @param list 名单列表
 	 * @param listName 名单列表的名称
 	 * @return null - 不存在； not null - 存在
 	 */
-	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, String botCmd, byte iMatchMode, List<Map<String, Object>> list, String listName)
+	Map<String, Object> GetUserFromList (String wildcardPatternToFetch, String sBotCmdToRun, byte iMatchMode, List<Map<String, Object>> list, String listName)
 	{
-		logger.finer ("判断 " + wildcardPatternToFetch + " 是否在" + listName + "中");
-		if (StringUtils.isEmpty (botCmd))
+		logger.finer ("判断 " + wildcardPatternToFetch + " 是否在" + listName + "中, sBotCmdToRun=" + sBotCmdToRun + ", 匹配模式=" + iMatchMode);
+		if (StringUtils.isEmpty (sBotCmdToRun))
 		{
-			logger.finer ("botCmd 为空 (可能用户不是输入的本 bot 所识别的命令)，所以返回 null");
+			logger.finer ("sBotCmdToRun 为空 (可能用户不是输入的本 bot 所识别的命令)，所以返回 null");
 			return null;
 		}
-		for (Map<String,Object> userInfo : list)
+		for (Map<String,Object> mapUserInfo : list)
 		{
-			String wildcard = (String)userInfo.get("Wildcard");
-			String regExp = (String)userInfo.get("RegExp");
-			String user_botcmd = (String)userInfo.get("BotCmd");
-			boolean isBotCmdMatched = ("*".equals (user_botcmd) || ".".equals (user_botcmd) || botCmd.equalsIgnoreCase (user_botcmd));
-			String sMatchInfo = "wildcard=" + wildcard + ", regexp=" + regExp + ", 匹配模式=" + iMatchMode;
-			if ( ((iMatchMode & USER_LIST_MATCH_MODE_Equals) != 0) && wildcardPatternToFetch.equalsIgnoreCase (wildcard) && isBotCmdMatched)
+			String sWildcard = (String)mapUserInfo.get("Wildcard");
+			String sRegExp = (String)mapUserInfo.get("RegExp");
+			String sBotCmd = (String)mapUserInfo.get("BotCmd");
+			boolean isBotCmdMatched = ("*".equals (sBotCmd) || ".".equals (sBotCmd) || sBotCmdToRun.equalsIgnoreCase (sBotCmd));
+			String sMatchInfo = "wildcard=" + sWildcard + ", regexp=" + sRegExp + ", cmd=" + sBotCmd;
+			if ( ((iMatchMode & USER_LIST_MATCH_MODE_Equals) != 0) && wildcardPatternToFetch.equalsIgnoreCase (sWildcard) && isBotCmdMatched)
 			{
 				logger.finer (sMatchInfo + " 结果=true");
-				return userInfo;
+				return mapUserInfo;
 			}
-			if ( ((iMatchMode & USER_LIST_MATCH_MODE_RegExp) != 0) && wildcardPatternToFetch.matches ("(?i)^"+regExp + "$") && isBotCmdMatched)
+			if ( ((iMatchMode & USER_LIST_MATCH_MODE_RegExp) != 0) && wildcardPatternToFetch.matches ("(?i)^"+sRegExp + "$") && isBotCmdMatched)
 			{
 				logger.finer (sMatchInfo + " 结果=true");
-				return userInfo;
+				return mapUserInfo;
 			}
 			logger.finer (sMatchInfo + " 结果=false");
 		}
@@ -812,7 +812,11 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		if (StringUtils.isEmpty (botCmdAliasToBanOrWhite) || botCmdAliasToBanOrWhite.equals ("."))
 			botCmdAliasToBanOrWhite = "*";
 		if (! StringUtils.equalsIgnoreCase (botCmdAliasToBanOrWhite, "*"))	// 规整命令名
+		{
+System.out.print ("AddUserToList: " + botCmdAliasToBanOrWhite + " 命令的主命令名 = ");
 			botCmdAliasToBanOrWhite = getBotPrimaryCommand (botCmdAliasToBanOrWhite);
+System.out.println (botCmdAliasToBanOrWhite);
+		}
 		if (reason==null)
 			reason = "";
 		if (banObjectType != BAN_OBJECT_TYPE_DEFAULT)
@@ -826,7 +830,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 		{
 			userToAdd = userInfo;
 			msg = "要添加的通配符表达式已经被添加过，更新之";
-			System.err.println (msg);
+System.err.println (msg);
 			SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 			userToAdd.put ("UpdatedTime", new java.sql.Timestamp(System.currentTimeMillis ()));
 			int nTimes = userToAdd.get ("AddedTimes")==null ? 1 : (int)userToAdd.get ("AddedTimes");
@@ -853,7 +857,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 			(StringUtils.isEmpty (reason) ? "无原因" : "原因=" + userToAdd.get ("Reason")) +
 			"";
 
-		System.out.println (msg);
+System.out.println (msg);
 		if (StringUtils.isNotEmpty (nick))
 		{
 			SendMessage (channel, nick, true, MAX_RESPONSE_LINES_SOFT_LIMIT, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
@@ -1083,9 +1087,15 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	public void onJoin (String ch, String u, String login, String hostname)
 	{
 		if (u.equalsIgnoreCase(getNick ()))
+		{
+System.out.println (u + " 是机器人自己，将不做处理");
 			return;
+		}
 		if (geoIP2DatabaseReader==null)
-			return;
+		{
+System.out.println ("geoIP2DatabaseReader 为空，将不做处理");
+			//return;
+		}
 
 /*
 		final String DEFAULT_GEOIP_LANG = "zh-CN";	// ISO: CN
@@ -1151,6 +1161,68 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 			e.printStackTrace ();
 		}
 */
+		JoinQuitCommon (u, login, hostname, ch);
+	}
+
+	@Override
+	protected void onQuit (String sourceNick, String sourceLogin, String sourceHostname, String reason)
+	{
+		if (! StringUtils.equalsIgnoreCase (reason, "Changing Host"))
+			return;
+
+		JoinQuitCommon (sourceNick, sourceLogin, sourceHostname, null);
+	}
+
+	void JoinQuitCommon (String nick, String login, String hostname, String sChannel_MayBeEmtpy)
+	{
+		if (StringUtils.contains (hostname, "/"))
+		{
+System.out.println (hostname + " 包含了 '/' 字符，所以，该主机名可能是隐身衣，将不做处理");
+			return;
+		}
+		try
+		{
+			InetAddress inetaddr = InetAddress.getByName (hostname);
+			if (inetaddr instanceof Inet6Address)
+			{
+System.out.println (hostname + " 是 IPv6 地址，将不处理（纯真 IP 数据库只有 IPv4 地址）");
+				return;
+			}
+
+			String sIPv4 = inetaddr.getHostAddress ();
+			if (qqwry == null)
+				open纯真IPDatabaseFile ();
+
+			net.maclife.util.qqwry.Location location = qqwry.Query (sIPv4);
+System.out.println (location.getCountryName () + " " + location.getRegionName ());
+			if
+			(
+				StringUtils.contains (location.getCountryName (), "赤峰") ||
+				(
+					StringUtils.contains (location.getCountryName (), "南昌") &&
+					StringUtils.contains (location.getRegionName (), "电信")
+				)
+			)
+			{
+				if (StringUtils.isNotEmpty (sChannel_MayBeEmtpy))
+				{
+System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick + " 疑似非正常人物加入了频道" + ANSIEscapeTool.CSI + "m");
+					if (! amIOperator (sChannel_MayBeEmtpy))
+					{
+System.out.println (ANSIEscapeTool.CSI + "32;1m" + getNick() + " 机器人目前还不是管理员，尝试变成管理员" + ANSIEscapeTool.CSI + "m");
+						sendMessage ("chanserv", "op " + sChannel_MayBeEmtpy + " " + this.getNick ());
+					}
+				}
+				else
+				{
+System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick + " 疑似非正常人物尝试隐身（更换主机，隐身）" + ANSIEscapeTool.CSI + "m");
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
 	}
 
 	@Override
@@ -1469,10 +1541,10 @@ System.err.println (message);
 				banInfo = GetBan (nick, login, hostname, USER_LIST_MATCH_MODE_RegExp, botCmd);
 				if (banInfo != null)
 				{
-					System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被封。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
+System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + "m 已被禁止使用本 Bot。 匹配：" + banInfo.get ("Wildcard") + "   " + banInfo.get ("RegExp") + " 命令: " + banInfo.get ("BotCmd") + "。原因: " + banInfo.get ("Reason"));
 					if (banInfo.get ("NotifyTime") == null || (System.currentTimeMillis () - ((java.sql.Timestamp)banInfo.get ("NotifyTime")).getTime ())>3600000 )	// 没通知 或者 距离上次通知超过一个小时，则再通知一次
 					{
-						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "禁止执行命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
+						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "禁止使用 Bot 命令: " + banInfo.get ("BotCmd") + " 。" + (StringUtils.isEmpty ((String)banInfo.get ("Reason"))?"": "原因: " + Colors.RED + banInfo.get ("Reason")) + Colors.NORMAL);	// + " (本消息只提醒一次)"
 						banInfo.put ("NotifyTime", new java.sql.Timestamp(System.currentTimeMillis ()));
 					}
 					return;
@@ -1691,7 +1763,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Alias))
 				ProcessCommand_Alias (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Cmd))
-				ExecuteCommand (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+				ProcessCommand_ShellCommand (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_ParseCmd))
 				ProcessCommand_ParseCommand (channel, nick, login, hostname, botCmd,botCmdAlias,  mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_IPLocation))
@@ -1780,10 +1852,12 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 	/**
 	 * 从输入的字符串中提取出合法的 bot 首选命令
-	 * @param sInput
+	 * @param sInput 原始输入
+	 * @param sBotCmdPrefix 命令前缀
+	 * @param returnPrimaryCommandOrAlias 取主命令，还是取命令别名（sInput 中取出来的）。true - 取主命令, false - 取命令别名
 	 * @return 如果存在合法的命令，则返回 BOT_COMMAND_NAMES 数组中的第一个元素（即：首选的命令，命令别名不返回）；如果不存在合法的命令，则返回 null
 	 */
-	public static String getBotPrimaryCommandOrAlias (String sInput, boolean returnPrimaryCommandOrAlias)
+	public static String getBotPrimaryCommandOrAlias (String sInput, /*String sBotCmdPrefix,*/ boolean returnPrimaryCommandOrAlias)
 	{
 		// [“输入”与“命令”完全相等]，
 		// 或者 [“输入”以“命令”开头，且紧接空格" "字符]，空格字符用于分割 bot 命令和 bot 命令参数
@@ -1807,22 +1881,24 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 
 	/**
 	 * 从输入的字符串中提取出合法的 bot 首选命令
-	 * @param sInput
+	 * @param sInput 原始输入
+	 * @param sBotCmdPrefix 命令前缀
 	 * @return 如果存在合法的命令，则返回 BOT_COMMAND_NAMES 数组中的第一个元素（即：首选的命令，命令别名不返回）；如果不存在合法的命令，则返回 null
 	 */
-	public static String getBotPrimaryCommand (String sInput)
+	public static String getBotPrimaryCommand (String sInput/*, String sBotCmdPrefix*/)
 	{
-		return getBotPrimaryCommandOrAlias (sInput, true);
+		return getBotPrimaryCommandOrAlias (sInput, /*sBotCmdPrefix,*/ true);
 	}
 
 	/**
 	 * 从输入的字符串中提取出输入的 bot 命令别名，命令别名本身也要合法
-	 * @param sInput
+	 * @param sInput 原始输入
+	 * @param sBotCmdPrefix 命令前缀
 	 * @return 按本 bot 命令行习惯解析出输入的命令，命令别名本身也要合法
 	 */
-	public static String getBotCommandAlias (String sInput)
+	public static String getBotCommandAlias (String sInput /*, String sBotCmdPrefix*/)
 	{
-		return getBotPrimaryCommandOrAlias (sInput, false);
+		return getBotPrimaryCommandOrAlias (sInput, /*sBotCmdPrefix,*/ false);
 	}
 
 	public static String formatBotCommand (String cmd, boolean colorized)
@@ -9468,6 +9544,7 @@ System.out.println (Arrays.toString (arrayUsers));
 			! (	// 不需要加额外参数就能玩的游戏要排除掉
 				StringUtils.equalsIgnoreCase (botCmdAlias, "猜数字")
 				|| StringUtils.equalsIgnoreCase (botCmdAlias, "2048")
+				|| StringUtils.equalsAnyIgnoreCase (botCmdAlias, "猜单词", "Wordle")
 			)
 			)
 		{
@@ -9494,16 +9571,11 @@ System.out.println (Arrays.toString (arrayUsers));
 		List<String> listParams = splitCommandLine (params);
 		String sGame = "";
 		if (StringUtils.equalsIgnoreCase (botCmdAlias, "猜数字")
+			|| StringUtils.equalsAnyIgnoreCase (botCmdAlias, "猜单词", "Wordle")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "21点")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "斗地主")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀入门")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀身份")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "三国杀国战")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha_Simple")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha_RoleRevealing")
-			|| StringUtils.equalsIgnoreCase (botCmdAlias, "SanGuoSha_CountryRevealing")
+			|| StringUtils.equalsAnyIgnoreCase (botCmdAlias, "三国杀", "三国杀入门", "三国杀身份", "三国杀国战")
+			|| StringUtils.equalsAnyIgnoreCase (botCmdAlias, "SanGuoSha", "SanGuoSha_Simple", "SanGuoSha_RoleRevealing", "SanGuoSha_CountryRevealing")
 			|| StringUtils.equalsIgnoreCase (botCmdAlias, "2048")
 			)
 			sGame = botCmdAlias;
@@ -9586,6 +9658,11 @@ System.out.println (Arrays.toString (arrayUsers));
 		{
 			game = new GuessDigits (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
+		else if (StringUtils.equalsAnyIgnoreCase (sGame, "猜单词", "Wordle", "ABCDle")
+				)
+			{
+				game = new Wordle (this, games, setParticipants,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
+			}
 		else if (StringUtils.equalsIgnoreCase (sGame, "斗地主")
 			|| StringUtils.equalsIgnoreCase (sGame, "ddz")
 			)
@@ -9627,14 +9704,10 @@ System.out.println (Arrays.toString (arrayUsers));
 			}
 			game = new DouDiZhu (this, games, setParticipants_WithBotPlayers,  ch, nick, login, hostname, botcmd, botCmdAlias, mapGlobalOptions, listCmdEnv, params);
 		}
-		else if (StringUtils.equalsIgnoreCase (sGame, "三国杀")
-			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha")
-			|| StringUtils.equalsIgnoreCase (sGame, "三国杀入门")
-			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha_Simple")
-			|| StringUtils.equalsIgnoreCase (sGame, "三国杀身份")
-			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha_RoleRevealing")
-			|| StringUtils.equalsIgnoreCase (sGame, "三国杀国战")
-			|| StringUtils.equalsIgnoreCase (sGame, "SanGuoSha_CountryRevealing")
+		else if (StringUtils.equalsAnyIgnoreCase (sGame, "三国杀", "SanGuoSha")
+			|| StringUtils.equalsAnyIgnoreCase (sGame, "三国杀入门", "SanGuoSha_Simple")
+			|| StringUtils.equalsAnyIgnoreCase (sGame, "三国杀身份", "SanGuoSha_RoleRevealing")
+			|| StringUtils.equalsAnyIgnoreCase (sGame, "三国杀国战", "SanGuoSha_CountryRevealing")
 			)
 		{
 			if (StringUtils.isEmpty (ch))
@@ -10265,7 +10338,7 @@ System.out.println (Arrays.toString (arrayUsers));
 		}
 	}
 
-	void ExecuteCommand (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	void ProcessCommand_ShellCommand (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
 		if (StringUtils.isEmpty (params))
 		{
@@ -11094,13 +11167,19 @@ System.err.println ("服务器未指定");
 			if (banWildcardPatterns != null)
 			{
 				arrayBans = banWildcardPatterns.split ("[,;]+");
+System.out.println ();
+System.out.println ();
+System.out.println (Arrays.toString (arrayBans));
 				for (String ban : arrayBans)
 				{
+System.out.println ();
+System.out.println (ban);
 					if (StringUtils.isEmpty (ban))
 						continue;
 					if (ban.contains (":"))
 					{
 						String[] arrayBanAndReason = ban.split (":+");
+System.out.println (Arrays.toString (arrayBanAndReason));
 						ban = arrayBanAndReason[0];
 						String bannedBotCmd = "*";
 						String reason = null;
@@ -11150,12 +11229,15 @@ System.err.println ("服务器未指定");
 				BufferedReader reader = new BufferedReader (new InputStreamReader (System.in));
 				while ( (sTerminalInput=reader.readLine ()) != null)
 				{
+//System.out.println (sTerminalInput);
 					if (StringUtils.isEmpty (sTerminalInput))
 						continue;
 					try
 					{
 						String cmd = getBotPrimaryCommand (sTerminalInput);
 						String cmdAlias = getBotCommandAlias (sTerminalInput);
+//System.out.println (cmd);
+//System.out.println (cmdAlias);
 						if (cmd == null)
 						{
 							System.err.println ("无法识别该命令: [" + cmd + "]");
@@ -11202,7 +11284,7 @@ System.err.println ("未找到服务器主机名为: [" + sServerKey + "] 的 bo
 								params = sTerminalInput.split (" +", 3);
 								if (params.length < 3)
 								{
-									System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Msg + " -- 发送消息。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " <目标(#频道或昵称)> <消息>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " [消息]，该消息将发往默认频道");
+System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Msg + " -- 发送消息。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " <目标(#频道或昵称)> <消息>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CONSOLE_Msg + " [消息]，该消息将发往默认频道");
 									continue;
 								}
 								currentBot.sendMessage (params[1], params[2]);
@@ -11220,7 +11302,7 @@ System.err.println ("未找到服务器主机名为: [" + sServerKey + "] 的 bo
 								params = sTerminalInput.split (" +", 3);
 								if (params.length < 3)
 								{
-									System.err.println (BOT_PRIMARY_COMMAND_CustomizedAction + " -- 发送动作表情。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <动作>，该动作将发往默认频道");
+System.err.println (BOT_PRIMARY_COMMAND_CustomizedAction + " -- 发送动作表情。 命令语法：\n\t若未用 " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " 设置默认频道，命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <目标(#频道或昵称)> <动作>\n\t若已设置默认频道，则命令语法为： " + BOT_PRIMARY_COMMAND_CustomizedAction + " <动作>，该动作将发往默认频道");
 									continue;
 								}
 								currentBot.sendAction (params[1], params[2]);
@@ -11236,7 +11318,7 @@ System.err.println ("未找到服务器主机名为: [" + sServerKey + "] 的 bo
 							params = sTerminalInput.split (" +", 2);
 							if (params.length < 2)
 							{
-								System.err.println ( BOT_PRIMARY_COMMAND_CONSOLE_Nick + " -- 更改姓名。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Nick + " <昵称)>");
+System.err.println ( BOT_PRIMARY_COMMAND_CONSOLE_Nick + " -- 更改姓名。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Nick + " <昵称)>");
 								continue;
 							}
 							String nick = params[1];
@@ -11249,19 +11331,19 @@ System.err.println ("未找到服务器主机名为: [" + sServerKey + "] 的 bo
 							{
 								if (StringUtils.isNotEmpty (currentBot.currentChannel))
 									System.out.println ("当前频道为: " + currentBot.currentChannel);
-								System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Channel + " -- 更改默认频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
+System.err.println (BOT_PRIMARY_COMMAND_CONSOLE_Channel + " -- 更改默认频道。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Channel + " <#频道名>，如果频道名不是以 # 开头，则清空默认频道");
 								continue;
 							}
 							String channel = params[1];
 							if (channel.startsWith ("#"))
 							{
 								currentBot.currentChannel = channel;
-								System.out.println ("当前频道已改为: " + currentBot.currentChannel);
+System.out.println ("当前频道已改为: " + currentBot.currentChannel);
 							}
 							else
 							{
 								currentBot.currentChannel = "";
-								System.out.println ("已取消当前频道");
+System.out.println ("已取消当前频道");
 							}
 						}
 						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Join))

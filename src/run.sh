@@ -47,12 +47,12 @@ export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix \
 -Dgame.sanguosha.allowed-channels=#LiuYanBot \
 $_JAVA_OPTIONS"
 
-for lf in commons-lang3-3.12.0 commons-text-1.9 commons-io-2.10.0 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.9.0 commons-dbcp2-2.8.0 commons-codec-1.15 \
-    mysql-connector-java-8.0.25  mariadb-java-client-2.7.3 \
-    jackson-core-2.12.3  jackson-databind-2.12.3  jackson-annotations-2.12.3 \
+for lf in commons-lang3-3.12.0 commons-text-1.9 commons-io-2.11.0 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.11.1 commons-dbcp2-2.9.0 commons-codec-1.15 \
+    mysql-connector-java-8.0.28  mariadb-java-client-2.7.3 \
+    jackson-core-2.13.1  jackson-databind-2.13.1  jackson-annotations-2.13.1 \
     maxmind-db-2.0.0  geoip2-2.15.0  \
     google-pagerank-api-2.0 \
-    jsoup-1.13.1 \
+    jsoup-1.14.3 \
     bsh-2.0b6 \
     jython-standalone-2.7.2 \
     hcicloud-5.0.0 \
@@ -71,7 +71,9 @@ CP="${CP}$botdir"
 echo "classpath=$CP"
 export CLASSPATH="$CP"
 
-java -cp "$CP" net.maclife.irc.LiuYanBot \
+java -cp "$CP" \
+	-Dgame.wordle.words.dictionary.file=$dbdir/words_5letters.txt \
+	net.maclife.irc.LiuYanBot \
 	-geoipdb /usr/share/GeoIP/GeoLite2-City.mmdb \
 	-chunzhenipdb $dbdir/qqwry.dat \
 	-oui $dbdir/oui.txt \
