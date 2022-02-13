@@ -208,7 +208,7 @@ System.out.println ("Answer=[" + answer + "]");
 	int MarkCorrect (String sWordToGuess_LowerCase, String sCandidateAnswer_LowerCase, char[] arraySourceCharacterFlags, char[] arrayCandidateAnswerCharacterFlags)
 	{
 		int nCorrect = 0;
-		for (int j=0; j<sWordToGuess_LowerCase.length(); j++)
+		for (int j=0; j<sCandidateAnswer_LowerCase.length(); j++)
 		{
 			if (sWordToGuess_LowerCase.charAt (j) == sCandidateAnswer_LowerCase.charAt (j))
 			{
@@ -230,9 +230,9 @@ System.out.println ("Answer=[" + answer + "]");
 	int MarkPresent (String sWordToGuess_LowerCase, String sCandidateAnswer_LowerCase, char[] arraySourceCharacterFlags, char[] arrayCandidateAnswerCharacterFlags)
 	{
 		int nPresent = 0;
-		for (int i=0; i<sWordToGuess_LowerCase.length(); i++)
+		for (int i=0; i<sCandidateAnswer_LowerCase.length(); i++)
 		{
-			if (arraySourceCharacterFlags[i]!=0x00 || arrayCandidateAnswerCharacterFlags[i]!=0x00)
+			if (arrayCandidateAnswerCharacterFlags[i]!=0x00)
 				continue;
 			if (IsCharacterPresent(sWordToGuess_LowerCase, sCandidateAnswer_LowerCase, i, arraySourceCharacterFlags, arrayCandidateAnswerCharacterFlags))
 			{
@@ -249,7 +249,7 @@ System.out.println ("Answer=[" + answer + "]");
 		boolean bPresent = false;
 		for (int i=0; i<sWordToGuess_LowerCase.length (); i++)
 		{
-			if (arraySourceCharacterFlags[i]!=0x00 || i==iCandidateAnswerCharacter || arrayCandidateAnswerCharacterFlags[i]!=0x00)
+			if (arraySourceCharacterFlags[i]!=0x00)
 				continue;
 			if (sWordToGuess_LowerCase.charAt (i) == sCandidateAnswer_LowerCase.charAt (iCandidateAnswerCharacter))
 			{
