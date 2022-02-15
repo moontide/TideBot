@@ -56,7 +56,8 @@ System.out.println ("Wordle 词库加载成功，共 " + listWords.size () + " �
 	@Override
 	public boolean IsWordExistsInDictionary (String sWord)
 	{
-		return listWords.contains (sWord.toLowerCase ());
+		//return listWords.contains (sWord.toLowerCase ());
+		return listWords.stream ().anyMatch (sWord::equalsIgnoreCase);
 	}
 
 }
