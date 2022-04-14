@@ -23,10 +23,11 @@ public class WordFromTextFile implements WordleWordProvider
 		if (! fWordFile.exists ())
 			throw new FileNotFoundException (fWordFile.getAbsolutePath () + " 文件不存在");
 
-		ReadWordsToCache ();
+		ReloadWordsCache ();
 	}
 
-	void ReadWordsToCache () throws IOException
+	@Override
+	public void ReloadWordsCache () throws IOException
 	{
 		listWords = new ArrayList<String> ();
 		BufferedReader br = new BufferedReader (new FileReader (fWordFile));
@@ -39,7 +40,7 @@ public class WordFromTextFile implements WordleWordProvider
 			throw new IOException ("词库文件中没有单词");
 		else
 		{
-System.out.println ("Wordle 词库加载成功，共 " + listWords.size () + " 个 5 字母单词");
+System.out.println ("Wordle 词库加载成功，共 " + listWords.size () + " 个单词");
 		}
 	}
 

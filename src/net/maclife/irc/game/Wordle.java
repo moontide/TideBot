@@ -3,6 +3,7 @@ package net.maclife.irc.game;
 import java.io.*;
 import java.util.*;
 
+import org.apache.commons.lang3.*;
 import org.jibble.pircbot.*;
 
 import net.maclife.ansi.*;
@@ -53,6 +54,21 @@ public class Wordle extends Game
 	{
 		if (WORD_PROVIDER == null)
 			throw new RuntimeException ("词库未准备好");
+
+		if (mapGlobalOptions.containsKey ("reload"))
+			WORD_PROVIDER.ReloadWordsCache ();
+
+		if (StringUtils.isNotEmpty (params))
+		{	// 用户自己指定答案的方式（仅仅用来测试）
+			if (WORD_PROVIDER.IsWordExistsInDictionary (params))
+			{
+				sWordToGuess = params;
+				return;
+			}
+			else
+				throw new RuntimeException ("所指定的单词 [" + params + "] 在词库中不存在");
+		}
+
 		sWordToGuess = WORD_PROVIDER.GetWord ();
 		System.out.println ("从词库获取到的单词为: " + sWordToGuess);
 	}
@@ -168,9 +184,11 @@ System.out.println ("Answer=[" + answer + "]");
 				if (t==1 || nCorrect==sWordToGuess.length () || isParticipantWannaQuit)
 				{
 					if (isParticipantWannaQuit)
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: 有人" + sCandidateAnswer + ". 正确答案为: " + sWordToGuess));
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: 有人" + sCandidateAnswer + ". 答案为: " + sWordToGuess));
+					else if (nCorrect==sWordToGuess.length ())
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: " + Colors.GREEN + sb + Colors.NORMAL + ". 猜对了!"));
 					else
-						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: " + (nCorrect==sWordToGuess.length () ? Colors.GREEN + sb + Colors.NORMAL : sb) + ". 正确答案: " + sWordToGuess));
+						bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("结束: " + sb + ". 答案: " + sWordToGuess));
 
 					break;
 				}
@@ -193,6 +211,7 @@ System.out.println ("Answer=[" + answer + "]");
 		}
 		finally
 		{
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, "----------------------------------------");
 			games.remove (this);
 		}
 	}
