@@ -11,7 +11,7 @@ source /etc/profile.d/env.sh
 
 file=oui.txt
 temp_file=/var/tmp/$file
-file_url=http://standards-oui.ieee.org/oui.txt
+file_url=https://standards-oui.ieee.org/oui/oui.txt
 echo "$file_url"
 
 size_file=/var/tmp/oui-size.txt

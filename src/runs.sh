@@ -24,7 +24,7 @@ export database_url="jdbc:mysql://192.168.115.88/bot?autoReconnect=true&zeroDate
 #export GFWProxyPort=8087
 
 export GFWProxyType=SOCKS
-export GFWProxyHost=192.168.181.70
+export GFWProxyHost=192.168.181.69
 export GFWProxyPort=9909
 
 $botdir/run.sh

@@ -161,7 +161,7 @@ void 查询HTML_JSON模板_GUI ()
 
 void onHtmlJsonTemplateContentTypeChanged ()
 {
-	rowHtmlJsonTemplateForm_Selector.setVisible (radiogroupHtmlJsonTemplateForm_ContentType.getSelectedItem().getValue().isEmpty());
+	rowHtmlJsonTemplateForm_Selector.setVisible (StringUtils.equalsAnyIgnoreCase (radiogroupHtmlJsonTemplateForm_ContentType.getSelectedItem().getValue(), new String[]{"", "pdf",}));
 	checkboxHtmlJsonTemplateForm_IgnoreContentType.setVisible (rowHtmlJsonTemplateForm_Selector.isVisible());
 	divHtmlJsonTemplateForm_JSCut_Wrapper.setVisible (! rowHtmlJsonTemplateForm_Selector.isVisible());
 }

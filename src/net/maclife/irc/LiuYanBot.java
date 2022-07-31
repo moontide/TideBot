@@ -27,7 +27,14 @@ import org.apache.commons.exec.*;
 import org.apache.commons.io.*;
 import org.apache.commons.io.output.*;
 import org.apache.commons.lang3.*;
+
+import org.apache.pdfbox.*;
+import org.apache.pdfbox.pdmodel.*;
+import org.apache.pdfbox.pdmodel.encryption.*;
+import org.apache.pdfbox.text.*;
+
 import org.jibble.pircbot.*;
+import org.jsoup.*;
 //import org.jsoup.*;
 import org.jsoup.nodes.*;
 import org.jsoup.select.*;
@@ -229,7 +236,7 @@ public class LiuYanBot extends PircBot
 		{BOT_PRIMARY_COMMAND_PixelFont, "/pf", },
 		{BOT_PRIMARY_COMMAND_Tag, "/bt", "鞭挞", "sm", "tag",},
 		{BOT_PRIMARY_COMMAND_GithubCommitLogs, "gh", "LinuxKernel", "lk", "/kernel", },
-		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "/json", },
+		{BOT_PRIMARY_COMMAND_HTMLParser, "jsoup", "ht", "/json", "/pdf", },
 		{BOT_PRIMARY_COMMAND_Dialog, },
 		{BOT_PRIMARY_COMMAND_Game, "猜数字", "21点", "斗地主", "三国杀", "SanGuoSha", "三国杀入门", "SanGuoSha_Simple", "三国杀身份", "SanGuoSha_RoleRevealing", "三国杀国战", "SanGuoSha_CountryRevealing", "2048", "猜单词", "Wordle", "ABCDle"},
 		{BOT_PRIMARY_COMMAND_MacManufactory, "oui", "macm", },
@@ -1299,11 +1306,16 @@ logger.finer ("消息是对本 Bot 说的");
 			{
 				int nDialogCountForThisUser = 0;
 				Dialog dlg = null;
+				StringBuilder sbDialogThreadIDs = new StringBuilder ();
 				for (Dialog d : dialogs)
 				{
 					if (! d.isParticipant (nick))
 						continue;
 
+					if (sbDialogThreadIDs.length () != 0)
+						sbDialogThreadIDs.append (" ");
+					//sbDialogThreadIDs.append ("#");
+					sbDialogThreadIDs.append (d.threadID);
 					nDialogCountForThisUser ++;
 					dlg = d;
 				}
@@ -1312,7 +1324,7 @@ logger.finer ("消息是对本 Bot 说的");
 					// 判断用户有没有用指定对话框回答问题
 					if (! message.matches ("#\\d+ .*"))
 					{	// 未指定对话框
-						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "你当前在 " + nDialogCountForThisUser + " 个对话框中，请在消息前面加上 '#对话框号码 ' 的方式来回答特定的问题。如：'#16 34567'" );
+						SendMessage (channel, nick, true, 1, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, "你当前在 " + nDialogCountForThisUser + " 个对话框中 (" + sbDialogThreadIDs + ")，请在消息前面加上 '#对话框号码 ' 的方式来回答特定的问题。如：'#16 34567'" );
 						return;
 					}
 					// 指定对话框了
@@ -1320,8 +1332,8 @@ logger.finer ("消息是对本 Bot 说的");
 					String[] arrayMessageParts = message.split (" +", 2);
 					String sDialogThreadIDExpression = arrayMessageParts[0];
 					message = arrayMessageParts[1];
-					sDialogThreadIDExpression = StringUtils.substring (sDialogThreadIDExpression, 1);	// 去掉前面的字符 ('#' 字符)
-					long nDialogThreadID = Long.parseLong (sDialogThreadIDExpression);
+					String sDialogThreadID = StringUtils.substring (sDialogThreadIDExpression, 1);	// 去掉前面的字符 ('#' 字符)
+					long nDialogThreadID = Long.parseLong (sDialogThreadID);
 					dlg = FindDialog (nDialogThreadID);
 					if (dlg == null)
 					{
@@ -1351,7 +1363,7 @@ logger.finer ("消息是对本 Bot 说的");
 				String sBotCommandParameters = "";
 				String[] args = null;
 				// 查看 /me 命令的动作表，看看名字是否有，如果有的话，就直接执行之
-				Connection conn = null;
+				java.sql.Connection conn = null;
 				PreparedStatement stmt = null;
 				ResultSet rs = null;
 				try
@@ -1433,7 +1445,7 @@ System.err.println ("[" + message + "]");
 				String sBotCommandParameters = "";
 				String[] args = null;
 				// 查看 ht 命令的模板表，看看名字是否有，如果有的话，就直接执行之
-				Connection conn = null;
+				java.sql.Connection conn = null;
 				PreparedStatement stmt = null;
 				ResultSet rs = null;
 				try
@@ -1843,7 +1855,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_Version))
 				ProcessCommand_Version (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 		}
-		catch (Exception e)
+		catch (Throwable e)
 		{
 			e.printStackTrace ();
 			SendMessage (channel, nick, true, MAX_RESPONSE_LINES_SOFT_LIMIT, MAX_SPLIT_LINES, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, e.toString ());
@@ -2178,6 +2190,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				"|" + formatBotCommandInstance ("jsoup", true) +
 				"|" + formatBotCommandInstance ("ht", true) +
 				"|" + formatBotCommandInstance ("/json", true) +
+				"|" + formatBotCommandInstance ("/pdf", true) +
 
 				"[." + formatBotOptionInstance ("add", true) + "|." + formatBotOptionInstance ("run", true) + "|." + formatBotOptionInstance ("show", true) + "|." + formatBotOptionInstance ("list", true) + "|." + formatBotOptionInstance ("os", true) + "|." + formatBotOptionInstance ("gfw", true) + "] " +	//  + "|." + formatBotOptionInstance ("stats", true)
 				"[<" + formatBotParameter ("网址", true) + "> <" + formatBotParameter ("CSS 选择器", true) + ">] " +
@@ -2268,7 +2281,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				BOT_OPTION_SEPARATOR + formatBotOption ("正整数", true) + "含义: " + formatBotParameterInstance ("21点", true) + " - 用几副牌(1-4), 默认 1; " + formatBotParameterInstance ("猜数字", true) + " - 猜几位数字"
 			);
 			SendMessage (ch, u, mapGlobalOptions,
-				formatBotParameterInstance ("斗地主", true) + "可用 ." + formatBotOption ("报牌数", true) + " 通报每次出牌后的剩牌数." +
+				formatBotParameterInstance ("斗地主", true) + " 可用 ." + formatBotOption ("报牌数", true) + " 通报每次出牌后的剩牌数." +
 				" 在用 /p 添加玩家时，可用 @不出牌[其他附加名] 添加不出牌的机器人，" +
 				"用 @谁都打[其他附加名] 或 @能出牌就出牌[其他附加名] 或 @不出牌不舒服斯基[其他附加名] 来添加谁都打的机器人玩家，" +
 				"用 @智能[其他附加名] 或 @有点智能[其他附加名] 或 @Smart[其他附加名] 添加稍微有点小智能的机器人。"
@@ -2284,6 +2297,9 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 			);
 			SendMessage (ch, u, mapGlobalOptions, formatBotParameterInstance ("三国杀", true) + " 目前只实现了 " + formatBotParameterInstance ("三国杀入门", true) + " 玩法：只有杀、闪、桃，最多只能 3 人玩（3 人以内不用关心距离）。其他玩法，想想实现起来的工作量就有点头疼…"
 			);
+			SendMessage (ch, u, mapGlobalOptions,
+					formatBotParameterInstance ("Wordle", true) + " 可以自己指定一个答案单词来进行练习/测试，该单词也必须在词库中存在。指定答案单词：游戏名后面加空格，再加上答案单词"
+				);
 		}
 		primaryCmd = BOT_PRIMARY_COMMAND_MacManufactory;         if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + " [" + formatBotParameter ("MAC地址", true) + "]...    -- 查询 MAC 地址所属的厂商 http://standards.ieee.org/develop/regauth/oui/public.html . MAC 地址可以有多个, MAC 地址只需要指定前 3 个字节, 格式可以为 (1) AA:BB:CC (2) AA-BB-CC (3) AABBCC");
@@ -2505,7 +2521,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					return;
 				}
 
-				Connection conn = null;
+				java.sql.Connection conn = null;
 				PreparedStatement stmt = null;
 				ResultSet rs = null;
 				int nRowsAffected = 0;
@@ -2591,7 +2607,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 					ValidateNickNames (channel, setNicks);
 				}
 
-				Connection conn = null;
+				java.sql.Connection conn = null;
 				PreparedStatement stmt = null;
 				ResultSet rs = null;
 				boolean bFound = false;
@@ -3205,7 +3221,7 @@ System.out.println ("Undoing " + sAction + " " + sTarget + " @ " + sChannel);
 
 	void SaveVoteToDatabase (String sAction, String sTarget, String sReason, String sChannel, String nick, String user, String host, int nTimeLength, String sTimeUnit)
 	{
-		Connection conn = null;
+		java.sql.Connection conn = null;
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		int nVoteID = 0;
@@ -3265,7 +3281,7 @@ System.out.println ("Undoing " + sAction + " " + sTarget + " @ " + sChannel);
 
 	void UndoVoteInDatabase (Integer nVoteID, String sChannel, String sAction, String sTarget, String sUndoReason, String sUndoOperatorNick, String sUndoOperatorUser, String sUndoOperatorHost)
 	{
-		Connection conn = null;
+		java.sql.Connection conn = null;
 		PreparedStatement stmt = null;
 		int nRowsAffected = 0;
 		try
@@ -3318,7 +3334,7 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 
 	void LoadVotesFromDatabaseToCache ()
 	{
-		Connection conn = null;
+		java.sql.Connection conn = null;
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 		try
@@ -7156,7 +7172,7 @@ System.out.println (sb);
 					@Override
 					public void run ()
 					{
-						Connection conn = null;
+						java.sql.Connection conn = null;
 						CallableStatement stmt_sp = null;
 						PreparedStatement stmt = null;
 						ResultSet rs = null;
@@ -7247,7 +7263,7 @@ System.out.println (sb);
 		}
 
 
-		Connection conn = null;
+		java.sql.Connection conn = null;
 		CallableStatement stmt_sp = null;
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
@@ -7513,7 +7529,7 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 		//
 		String sSQL_MatchPattern = "SELECT * FROM auto_reply_patterns WHERE ? RLIKE message_pattern ORDER BY RAND() LIMIT 1";
 		String sSQL_FetchReply = "SELECT * FROM auto_reply_replies WHERE message_pattern_id = ? ORDER BY RAND() LIMIT 1";
-		Connection conn = null;
+		java.sql.Connection conn = null;
 		PreparedStatement stmt_MatchPattern = null, stmt_FetchReply = null;
 		ResultSet rs = null;
 		int iParamIndex = 1;
@@ -7949,7 +7965,14 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 	/**
 	 * 获取任意 HTML 网址的内容，将解析结果显示出来。
-	 * 目前支持读取 Content-Type 为 text/*, application/xml, or application/xhtml+xml (这些是 Jsoup 默认支持的内容类型) 和 application/json (这是单独处理的) 的内容的读取。
+	 *
+	 *
+	 * 目前支持的 Content-Type：
+	 *   - text/*, application/xml, or application/xhtml+xml (这些是 Jsoup 默认支持的内容类型) 和
+	 *   - application/json (这是单独处理的) 的内容的读取
+	 *   - application/pdf
+	 *
+	 * 执行：
 	 *   - 最直接的方式就是直接执行：  ht  <网址> <CSS选择器>
 	 *   - 模板化： 对于经常用到的 html 网址可做成模板，用 ht.run <模板名/或模板ID> 来执行
 	 *
@@ -7997,7 +8020,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
-		String sContentType = "html";	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json
+		String sContentType = "html";	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json / pdf
 		int nJS_Cut_Start = 0;
 		int nJS_Cut_End = 0;
 		//String sID = null;
@@ -8022,6 +8045,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 		//String sIgnoreContentType = null;
 		boolean isIgnoreContentType = false;
 		boolean isIgnoreHTTPSCertificateValidation = true;
+		boolean disabled = false;	// 模板是否已禁用。
+		String sDisabledReason = null;	// 模板禁用原因说明
 
 		//String sStart = null;
 		long iStart = 0;
@@ -8048,10 +8073,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 					if (param.equalsIgnoreCase ("ct") || param.equalsIgnoreCase ("ContentType") || param.equalsIgnoreCase ("Content-Type"))
 					{
 						sContentType = value;
-						if (sContentType.equalsIgnoreCase ("json") || sContentType.equalsIgnoreCase ("js"))
+						if (StringUtils.equalsAnyIgnoreCase (sContentType, "json", "js"))
 						{
 							//
 						}
+						else if (StringUtils.equalsAnyIgnoreCase (sContentType, "pdf"))
+							sContentType = "pdf";
 						else
 							sContentType = "html";	// 其他的默认为 html
 					}
@@ -8160,9 +8187,14 @@ logger.fine ("url after parameter expansion: " + sURL);
 		FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 
 		// 处理用 json 命令别名执行命令时的特别设置： (1).强制改变 Content-Type  (2).强制忽略 http 返回的 Content-Type，否则 jsoup 会报错
-		if (botCmdAlias.equalsIgnoreCase ("/json"))
+		if (StringUtils.equalsIgnoreCase (botCmdAlias, "/json"))
 		{
 			sContentType = "json";
+			isIgnoreContentType = true;
+		}
+		else if (StringUtils.equalsIgnoreCase (botCmdAlias, "/pdf"))
+		{
+			sContentType = "pdf";
 			isIgnoreContentType = true;
 		}
 
@@ -8274,7 +8306,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			}
 		}
 
-		Connection conn = null;
+		java.sql.Connection conn = null;
 		CallableStatement stmt_sp = null;
 		PreparedStatement stmt = null;
 		PreparedStatement stmt_GetSubSelectors = null;
@@ -8406,8 +8438,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 						if (! usingGFWProxy)	// 如果默认未指定用 GFW 代理，则从数据库中读取“是否用 GFW 代理”的配置
 							usingGFWProxy = rs.getBoolean ("use_gfw_proxy");
 						sContentType = rs.getString ("content_type");
-						if (StringUtils.equalsIgnoreCase (sContentType, "json") || StringUtils.equalsIgnoreCase (sContentType, "js"))
-							isIgnoreContentType = true;
+						isIgnoreContentType = rs.getBoolean ("ignore_content_type");
+						//if (StringUtils.equalsAnyIgnoreCase (sContentType, "json", "js", "pdf"))
+						//	isIgnoreContentType = true;
 
 						nJS_Cut_Start = rs.getInt ("js_cut_start");
 						nJS_Cut_End = rs.getInt ("js_cut_end");
@@ -8454,6 +8487,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 							sHTTPReferer = rs.getString ("referer");
 
 						sURLParamsHelp = rs.getString ("url_param_usage");
+
+						disabled = rs.getBoolean ("disabled");
+						sDisabledReason = rs.getString ("disabled_reason");
 
 						try
 						{
@@ -8693,7 +8729,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				rs.close ();
 				stmt.close ();
 
-				stmt = conn.prepareStatement ("INSERT ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, filters, ormat_width, padding_right) VALUES (?,?,?,?,?, ?,?,?,?)", new String[]{"sub_selector_id"});
+				stmt = conn.prepareStatement ("INSERT ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?,?)", new String[]{"sub_selector_id"});
 				for (int i=1; i<listSubSelectors.size (); i++)
 				{
 					iParam = 1;
@@ -8749,6 +8785,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 				sURL = HtParameterExpansion_DefaultValue_CStyle (sURL, listOrderedParams, sURLParamsHelp);
 			}
 
+			if (disabled)
+			{
+				SendMessage (ch, nick, mapGlobalOptions, "此 ht 模板已被禁用" + (StringUtils.isNotEmpty(sDisabledReason) ? "：" + sDisabledReason : ""));
+				return;
+			}
+
 			Document doc = null;
 			String sQueryString = null;
 			if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST") && sURL.contains ("?"))
@@ -8765,12 +8807,14 @@ System.out.println (sURL);
 				proxy = new Proxy (Proxy.Type.valueOf (System.getProperty ("GFWProxy.Type")), new InetSocketAddress(System.getProperty ("GFWProxy.Host"), Integer.parseInt (System.getProperty ("GFWProxy.Port"))));
 				System.out.println (proxy);
 			}
+
+			// 处理 JSON 内容
 			if (StringUtils.equalsIgnoreCase (sContentType, "json")
 				//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json")
 				|| StringUtils.equalsIgnoreCase (sContentType, "js")
 				//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/javascript")
 			)
-			{	// 处理 JSON 数据
+			{
 
 				URL url = new URL (sURL);
 				HttpURLConnection http = null;
@@ -8859,8 +8903,8 @@ System.err.println (sContent);
 					}
 					catch (Exception e)
 					{
-					    //e.printStackTrace ();
-					    System.err.println (e);
+						//e.printStackTrace ();
+						System.err.println (e);
 					}
 
 					throw new RuntimeException ("HTTP 响应不是 2XX: " + sStatusLine);	// + "\n" + sContent);
@@ -8952,9 +8996,11 @@ fw.close ();
 					nLines ++;
 				}
 			}
+			// 处理 html 和 pdf 内容
 			else
 			{
 				org.jsoup.Connection jsoup_conn = null;
+				org.jsoup.Connection.Response jsoup_response = null;
 				jsoup_conn = org.jsoup.Jsoup.connect (sURL);
 				if (usingGFWProxy)
 				{
@@ -8984,7 +9030,7 @@ System.out.println (sHTTPReferer);
 					jsoup_conn.referrer (sHTTPReferer);
 				}
 
-				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
+				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, org.jsoup.Connection.Method.POST.toString ()))
 				{
 System.out.println (sHTTPRequestMethod);
 					if (StringUtils.isNotEmpty (sQueryString))
@@ -8998,13 +9044,58 @@ System.out.println (sQueryString);
 							mapParams.put (arrayParam[0], arrayParam[1]);
 						}
 						//doc = jsoup_conn.data (sQueryString).post ();
-						doc = jsoup_conn.data (mapParams).post ();
+						//doc = jsoup_conn.data (mapParams).post ();
+						jsoup_conn.data (mapParams);
 					}
-					else
-						doc = jsoup_conn.post ();
+					//else
+					//	doc = jsoup_conn.post ();
+					jsoup_conn.method (org.jsoup.Connection.Method.POST);
+				}
+				//else
+				//	//doc = jsoup_conn.get();
+				//	jsoup_conn.method (org.jsoup.Connection.Method.GET);	// 默认就是 GET
+
+				jsoup_response = jsoup_conn.execute ();
+
+				// pdf
+				if (StringUtils.equalsIgnoreCase (sContentType, "pdf"))
+				{
+					try
+					{
+						PDDocument pdf_doc = PDDocument.load (jsoup_response.bodyStream ());
+						AccessPermission pdf_access_permission = pdf_doc.getCurrentAccessPermission ();
+						if (!pdf_access_permission.canExtractContent ())
+						{
+							SendMessage (ch, nick, mapGlobalOptions, "没有权限取出 pdf 中的文字");
+							return;
+						}
+
+						PDFTextStripper stripper = new PDFTextStripper ();
+						stripper.setSortByPosition (true);
+
+						StringBuilder sbText = new StringBuilder ();
+						for (int p=1; p<=pdf_doc.getNumberOfPages (); p++)
+						{
+							stripper.setStartPage (p);
+							stripper.setEndPage (p);
+							// 转换成基本的 html 格式，供 jsoup 解析。（无奈，jsoup 暂时不支持对 text/plain 内容类型自动解析，只能在这里转为 html，再由 jsoup 转回来，也许以后需要针对 text/plain 单独写一个不使用 jsoup 的解析功能）
+							sbText.append ("<span>");
+							sbText.append (StringUtils.replaceEach (StringUtils.trimToEmpty (stripper.getText (pdf_doc)), new String[]{"<", ">", "&", "\n"}, new String[]{"&lt;", "&gt;", "&amp;", "</span>\n<span>"}));
+							sbText.append ("</span>");
+						}
+						pdf_doc.close ();
+						doc = Jsoup.parse (sbText.toString ());
+					}
+					catch (Exception e)
+					{
+						e.printStackTrace ();
+						return;
+					}
+
 				}
 				else
-					doc = jsoup_conn.get();
+					// html/xml
+					doc = jsoup_response.parse ();
 
 				Elements es = doc.select (sSelector);
 				if (es.size () == 0)
@@ -9027,6 +9118,7 @@ System.out.println (sQueryString);
 					Element sub_e = e;
 
 					String text = "";
+					int nNewLineCharacterCount = 0;
 					StringBuilder sbText = new StringBuilder ();
 
 //System.err.println ("处理 " + e);
@@ -9045,8 +9137,9 @@ System.out.println (sQueryString);
 						if (StringUtils.isEmpty (sSubSelector))
 						{	// 如果子选择器为空，则采用主选择器选出的元素
 							sub_e = e;
-							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
-							nLines += StringUtils.countMatches (text, '\n');	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
+							nNewLineCharacterCount = ExtractTextFromElementOrResponseAndAppendToBuffer (jsoup_conn, sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							nLines += nNewLineCharacterCount;	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
+System.err.println ("	行数总数=" + nLines);
 							if (nLines >= opt_max_response_lines)
 								break;
 							continue;
@@ -9063,8 +9156,9 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m" + sSubSelector + ANSIEscapeTool.CSI + "m" + " 选出了第 " + (iSSE+1) + " 项: " + sub_e);
 							//if (sub_e == null)	// 子选择器可能选择到不存在的，则忽略该条（比如 糗事百科的贴图，并不是每个糗事都有贴图）
 							//	continue;
-							text = ExtractTextFromElement (sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
-							nLines += StringUtils.countMatches (text, '\n');	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
+							nNewLineCharacterCount = ExtractTextFromElementOrResponseAndAppendToBuffer (jsoup_conn, sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							nLines += nNewLineCharacterCount;	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
+System.err.println ("	行数总数=" + nLines);
 							if (nLines >= opt_max_response_lines)
 								break ht_sub_loop;
 						}
@@ -9095,7 +9189,8 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 	}
 
 	/**
-	 * 从 Element 对象根据要提取的数据类型来取出文字。
+	 * 从 Element 对象 和/或 org.jsoup.Connection 对象中，根据要提取的数据类型来取出字符串。
+	 * @param jsoup_conn
 	 * @param e Element 对象
 	 * @param sb 字符串缓冲区
 	 * @param isOutputScheme 是否输出 a 链接的 scheme (https:// 或者 http://)
@@ -9106,9 +9201,9 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 	 * @param sFormatWidth 格式化字符串的宽度。默认为空 - 不指定宽度。当 sFormatWidth 和 sFormatWidth 都是空时，不执行格式化字符串操作。
 	 * @param sRightPadding 右填充
 	 * @param strings
-	 * @return
+	 * @return 最终文本中包含的换行符数量（注意：一个换行符，表示会输出两行，但这里只计一次，因为外面循环还会有单独的计数）。
 	 */
-	public String ExtractTextFromElement (Element e, StringBuilder sb, boolean isOutputScheme, String sLeftPadding, String sExtract, String sFilters, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
+	public int ExtractTextFromElementOrResponseAndAppendToBuffer (org.jsoup.Connection jsoup_conn, Element e, StringBuilder sb, boolean isOutputScheme, String sLeftPadding, String sExtract, String sFilters, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
 	{
 //System.out.print ("Element e=");	System.out.println (e);
 //System.out.print ("sb=");	System.out.println (sb);
@@ -9140,11 +9235,11 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 		}
 		else if (sExtract.equalsIgnoreCase ("text"))
 				text = e.text ();
-		else if (sExtract.equalsIgnoreCase ("html") || sExtract.equalsIgnoreCase ("innerhtml") || sExtract.equalsIgnoreCase ("inner"))
+		else if (StringUtils.equalsAnyIgnoreCase (sExtract, "html", "innerhtml", "inner"))
 			text = e.html ();
-		else if (sExtract.equalsIgnoreCase ("outerhtml") || sExtract.equalsIgnoreCase ("outer"))
+		else if (StringUtils.equalsAnyIgnoreCase (sExtract, "outerhtml", "outer"))
 			text = e.outerHtml ();
-		else if (sExtract.equalsIgnoreCase ("attr") || sExtract.equalsIgnoreCase ("attribute"))
+		else if (StringUtils.equalsAnyIgnoreCase (sExtract, "attr", "attribute"))
 		{
 			text = e.attr (sAttr);
 			if (e.tagName ().equalsIgnoreCase ("a") && (sAttr.equalsIgnoreCase ("href") || sAttr.equalsIgnoreCase ("abs:href")))
@@ -9173,6 +9268,28 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			text = e.id ();
 		else if (sExtract.equalsIgnoreCase ("val") || sExtract.equalsIgnoreCase ("value"))
 			text = e.val ();
+		else if (StringUtils.startsWithIgnoreCase (sExtract, "header"))	// 此处，不从 Element 中获取内容，而是从 jsoup Connection 中获取
+		{
+			Map<String, String> mapHeaders = jsoup_conn.response ().headers ();
+			text = mapHeaders.get (sAttr);
+		}
+		else if (StringUtils.startsWithIgnoreCase (sExtract, "response"))	// 此处，不从 Element 中获取内容，而是从 jsoup Connection.Response 中获取
+		{
+			org.jsoup.Connection.Response response = jsoup_conn.response ();
+			//Map<String, String> mapHeaders = response.headers ();
+			if (StringUtils.equalsAnyIgnoreCase (sAttr, "URL"))	// 此 URL 为 response 的最终重定向 URL，不是 request URL
+				text = response.url ().toString ();
+			else if (StringUtils.equalsAnyIgnoreCase (sAttr, "StatusCode"))
+				text = String.valueOf (response.statusCode ());
+			else if (StringUtils.equalsAnyIgnoreCase (sAttr, "StatusMessage"))
+				text = response.statusMessage ();
+			else if (StringUtils.equalsAnyIgnoreCase (sAttr, "CharSet"))
+				text = response.charset ();
+			else if (StringUtils.equalsAnyIgnoreCase (sAttr, "ContentType"))
+				text = response.contentType ();
+			else if (StringUtils.equalsAnyIgnoreCase (sAttr, "Method"))
+				text = response.method ().toString ();
+		}
 		else
 		{
 			text = sExtract;	// 如果以上都不是，则把 sExtract 的字符串加进去，此举是为了能自己增加一些明文文字（通常是一些分隔符、label）
@@ -9205,10 +9322,11 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			*/
 			);
 
+		StringBuilder sbFinalText = new StringBuilder ();
 		if (StringUtils.isNotEmpty (text))
 		{	// 仅当要输出的字符串有内容时才会输出（并且也输出前填充、后填充）
 			if (StringUtils.isNotEmpty (sLeftPadding))
-				sb.append (sLeftPadding);
+				sbFinalText.append (sLeftPadding);
 
 			if (StringUtils.isNoneEmpty (sFormatFlags) || StringUtils.isNoneEmpty (sFormatWidth))
 			{
@@ -9223,13 +9341,16 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 			}
 			if (StringUtils.isNotEmpty (sFilters))
 				text = HTOutputFilter (text, sFilters);
-			sb.append (text);
+			sbFinalText.append (text);
 
 			if (StringUtils.isNotEmpty (sRightPadding))
-				sb.append (sRightPadding);
+				sbFinalText.append (sRightPadding);
+
+			sb.append (sbFinalText);
 		}
 //System.out.print ("结果=");	System.out.println (text);
-		return text;
+		//return text;
+		return StringUtils.countMatches (sbFinalText, '\n');
 	}
 
 	String HTOutputFilter (String sSrc, String sFilters)
@@ -9264,8 +9385,10 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 
 	public static Dialog FindDialog (Collection<Dialog> dialogs, long nDialogThreadID)
 	{
+System.out.println ("FindDialog nDialogThreadID=" + nDialogThreadID);
 		for (Dialog d : dialogs)
 		{
+System.out.println ("dialog.threadId=" + d.threadID);
 			if (d.threadID == nDialogThreadID)
 			{
 				return d;

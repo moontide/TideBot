@@ -320,7 +320,7 @@ CREATE TABLE ht_templates
 	url VARCHAR(300) NOT NULL DEFAULT '',
 	use_gfw_proxy TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否使用 GFWProxy 代理服务器访问该 URL。默认不使用，除非特别的接口需要翻墙才能访问时才需要使用。',
 	ignore_https_certificate_validation TINYINT(1) NOT NULL DEFAULT 1 COMMENT '忽略 https 的证书有效性验证 -- ht 命令非关键任务，不需要验证证书有效性；此参数仅对 https 网址生效， http 不处理该参数。参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/',
-	content_type ENUM('', 'html', 'json', 'js') NOT NULL DEFAULT '',
+	content_type ENUM('', 'html', 'json', 'js', 'pdf') NOT NULL DEFAULT '',
 	ignore_content_type TINYINT(1) NOT NULL DEFAULT 1 COMMENT '这是给 jsoup 库用到的是否忽略 http 返回的内容类型，json 目前不关心此信息（一直假定为文本数据）',
 	js_cut_start INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '这是为了给 json 使用的：有的接口返回了回调函数，回调函数里的参数是 JSON，这时候就需要把 JSON 切出来。该参数指定切的起始偏移量，>=0，=0 表示不切前面的字符',
 	js_cut_end INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '该参数指定从后面切的字符数，数值需要 >=0，=0 表示不切后面的字符',
@@ -341,6 +341,9 @@ CREATE TABLE ht_templates
 	referer VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'Referer 头',
 
 	max TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT '最多获取/显示多少行。注意: 此数值仍然受 bot 最大响应行数上限的限制',
+
+	disabled BOOLEAN NOT NULL DEFAULT false COMMENT '',
+	disabled_reason VARCHAR(100) COMMENT '',
 
 	source_type ENUM('irc', 'wechat') NOT NULL DEFAULT 'irc' COMMENT '添加模板时的来源类型。目前支持 irc 和 wechat 两种，因为 irc 和微信输出略有区别，所以在不同的机器人处理时，需要特殊处理一下：微信中输出 irc 中添加的模板时，要剔除 padding 中的 irc 转义序列字符串、单行/多行；irc 中输出微信中添加的模板时，utf8mb4 处理？…',
 	added_by VARCHAR(16) NOT NULL DEFAULT '',

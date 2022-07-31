@@ -44,9 +44,10 @@
 		内容类型
 		<radiogroup id='radiogroupHtmlJsonTemplateQueryForm_ContentType'>
 			<radio value='' label='--不限--' checked='true'/>
-			<radio value='html' label='html'/>
-			<radio value='json' label='json'/>
-			<radio value='js' label='javascript'/>
+			<radio value='html' label='HTML/XML'/>
+			<radio value='json' label='JSON'/>
+			<radio value='js' label='JavaScript'/>
+			<radio value='pdf' label='PDF'/>
 		</radiogroup>
 	</row>
 	<row>
@@ -106,9 +107,10 @@
 			内容类型
 			<div>
 				<radiogroup id='radiogroupHtmlJsonTemplateForm_ContentType' onCheck='onHtmlJsonTemplateContentTypeChanged ();'>
-					<radio value='' label='HTML' checked='true'/>
+					<radio value='' label='HTML/XML' checked='true'/>
 					<radio value='json' label='JSON'/>
 					<radio value='js' label='JavaScript'/>
+					<radio value='pdf' label='PDF'/>
 				</radiogroup>
 				<separator/>
 				<checkbox id='checkboxHtmlJsonTemplateForm_IgnoreContentType' label='忽略 ContentType (仅对 html　的内容类型生效)' checked='true'/>
@@ -152,6 +154,8 @@
 						<comboitem label='id'/>
 						<comboitem label='val'/>
 						<comboitem label='value'/>
+						<comboitem label='header' description='选用此项时，需要在 attr 栏中填写 http 响应头的名称，此名称是区分大小写的，且应当是小写的（参考 jsoup 文档 Connection.Base.headers()）'/>
+						<comboitem label='response' description='选用此项时，需要在 attr 栏中填写以下内容中的一个（不区分大小写）：url StatusCode StatusMessage CharSet ContentType Method（参考 jsoup Connection.Response）'/>
 					</combobox>
 				</div>
 				<div>属性值 <textbox id='textboxHtmlJsonTemplateForm_Attribute' value=''/> *仅仅当“取值”="attr"时用到</div>

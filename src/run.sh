@@ -1,3 +1,5 @@
+#!/bin/bash
+
 botdir=${botdir:-$(dirname $0)}
 libdir=$(readlink -e "$botdir/../lib")
 dbdir=$(readlink -e "$botdir/../db")
@@ -38,21 +40,22 @@ export _JAVA_OPTIONS="-Dbotcmd.prefix=$botcmdPrefix \
 -Dmessage.delay=100 -Djava.util.logging.config.file=$botdir/logging.properties \
 -DGFWProxy.TrustStore=$dbdir/bot.jks \
 -DGFWProxy.Type=${GFWProxyType} \
--DGFWProxy.Host=${GFWProxyHost-192.168.181.70} \
+-DGFWProxy.Host=${GFWProxyHost-192.168.181.69} \
 -DGFWProxy.Port=${GFWProxyPort-9910} \
 -Ddatabase.driver=${database_driver-com.mysql.jdbc.Driver} \
 -Ddatabase.username=${database_username-bot} \
 -Ddatabase.userpassword=${database_userpassword} \
--Ddatabase.url=${database_url-jdbc:mysql://192.168.181.70/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull&useSSL=false} \
+-Ddatabase.url=${database_url-jdbc:mysql://192.168.181.69/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull&useSSL=false} \
 -Dgame.sanguosha.allowed-channels=#LiuYanBot \
 $_JAVA_OPTIONS"
 
 for lf in commons-lang3-3.12.0 commons-text-1.9 commons-io-2.11.0 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.11.1 commons-dbcp2-2.9.0 commons-codec-1.15 \
-    mysql-connector-java-8.0.28  mariadb-java-client-2.7.3 \
-    jackson-core-2.13.1  jackson-databind-2.13.1  jackson-annotations-2.13.1 \
+    pdfbox-2.0.26 fontbox-2.0.26 \
+    mysql-connector-java-8.0.30  mariadb-java-client-2.7.3 \
+    jackson-core-2.13.2  jackson-databind-2.13.2  jackson-annotations-2.13.2 \
     maxmind-db-2.0.0  geoip2-2.15.0  \
     google-pagerank-api-2.0 \
-    jsoup-1.14.3 \
+    jsoup-1.15.2 \
     bsh-2.0b6 \
     jython-standalone-2.7.2 \
     hcicloud-5.0.0 \
@@ -83,10 +86,12 @@ java -cp "$CP" \
 	${account:+/u $account} \
 	${password:+/p $password} \
 	-c "$channels" \
-	-s $server \
-	${port:+/port $port} \
-	-n $nick \
-	/u liuyan/liberachat \
-	${password:+/p $password} \
-	-c "$channels" \
 	/ban "$ban" \
+
+
+#	-s $server \
+#	${port:+/port $port} \
+#	-n $nick \
+#	/u liuyan/liberachat \
+#	${password:+/p $password} \
+#	-c "$channels" \

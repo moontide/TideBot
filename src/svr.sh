@@ -16,7 +16,7 @@ export account=
 export password=
 export botcmdPrefix=
 export channels=LiuYanBot,linuxba
-export ban="*:cmd:服务器上运行，怕被玩坏，禁止所有人使用 Cmd 命令;*:/javascript;*:/java;*/variation:*:萌妹子机器人也是机器人;*bot*:*:名称中含有 bot，被认为是机器人"
+export ban="*:cmd:服务器上运行，怕被玩坏，禁止所有人使用 Cmd 命令;*:/javascript;*:/java;*/varia:*:萌妹子机器人也是机器人;*bot*:*:名称中含有 bot，被认为是机器人"
 export LANG=zh_CN.UTF-8
 #export _JAVA_OPTIONS="-Dhttp.proxyHost=192.168.105.26 -Dhttp.proxyPort=8118 -Dhttps.proxyHost=192.168.105.26 -Dhttps.proxyPort=8118  -Dhttp.nonProxyHosts= -Dhttp.proxyUser= -Dhttp.proxyPassword="
 
@@ -31,7 +31,7 @@ export database_url="jdbc:mysql://localhost/bot?autoReconnect=true&zeroDateTimeB
 
 # GFWProxyType 要注意用大写，因为是要用 java.net.Proxy.Type 解析的，如果小写则会报错： java.lang.IllegalArgumentException: No enum constant java.net.Proxy.Type.socks
 export GFWProxyType=SOCKS
-export GFWProxyHost=192.168.181.70
+export GFWProxyHost=192.168.181.69
 export GFWProxyPort=9909
 
 $botdir/run.sh

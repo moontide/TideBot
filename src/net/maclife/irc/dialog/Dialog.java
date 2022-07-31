@@ -134,16 +134,16 @@ public class Dialog implements Callable<Map<String, Object>>
 		//if (opt_reply_to_option_on && !StringUtils.equalsIgnoreCase (participant, opt_reply_to))
 		//	participant = opt_reply_to;
 		//participants.add (participant);
-		System.out.println ("问题类型: " + type);
-		System.out.println ("问题: " + question);
-		System.out.println ("参与者: " + participants);
+System.out.println ("问题类型: " + type);
+System.out.println ("问题: " + question);
+System.out.println ("参与者: " + participants);
 		StringBuilder sb = new StringBuilder ();
 		for (String[] ca : candidateAnswers)
 		{
 			sb.append (Arrays.toString (ca));
 			sb.append (", ");
 		}
-		System.out.println ("候选答案: " + sb);
+System.out.println ("候选答案: " + sb);
 	}
 	public Dialog (DialogUser dlgUser, LiuYanBot bot, List<Dialog> listDialogs, Dialog.Type qt, String q, boolean isShowQuestion, Object participants, List<String[]> listCandidateAnswers,
 			String ch, String nick, String login, String hostname,
@@ -387,7 +387,7 @@ public class Dialog implements Callable<Map<String, Object>>
 	public Map<String, Object> call ()
 	{
 		threadID = Thread.currentThread ().getId ();
-		System.out.println ("Dialog #" + threadID + " started. " + question);
+System.out.println ("Dialog #" + threadID + " started. " + question);
 		StringBuilder sb = new StringBuilder ();
 
 		if (dlguser == null || showQuestion)
