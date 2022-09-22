@@ -21,7 +21,11 @@ public class WordFromTextFile implements WordleWordProvider
 		this.fWordFile = new File (sWordFileName);
 
 		if (! fWordFile.exists ())
-			throw new FileNotFoundException (fWordFile.getAbsolutePath () + " 文件不存在");
+		{
+			//throw new FileNotFoundException (fWordFile.getAbsolutePath () + " 文件不存在");
+System.err.println (fWordFile.getAbsolutePath () + " 文件不存在");
+			return;
+		}
 
 		ReloadWordsCache ();
 	}

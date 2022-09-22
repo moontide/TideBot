@@ -53,7 +53,7 @@ public class Wordle extends Game
 	void InitWord () throws IOException
 	{
 		if (WORD_PROVIDER == null)
-			throw new RuntimeException ("词库未准备好");
+			throw new RuntimeException ("提供词库的引擎未准备好");
 
 		if (mapGlobalOptions.containsKey ("reload"))
 			WORD_PROVIDER.ReloadWordsCache ();
