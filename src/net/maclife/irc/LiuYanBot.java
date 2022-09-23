@@ -1081,10 +1081,11 @@ System.out.println (msg);
 		//super.onDisconnect ();
 		try
 		{
+			TimeUnit.SECONDS.sleep (30);
 			if (! isQuiting)
 				reconnect ();
 		}
-		catch (IOException | IrcException e)
+		catch (Exception e)
 		{
 			e.printStackTrace();
 		}
@@ -6335,9 +6336,32 @@ System.out.println (nMatch + ": " + sMatchedString);
 		}
 	}
 
-	static ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
-	static ScriptEngine public_jse = scriptEngineManager.getEngineByName("JavaScript");
-	static ScriptContext public_jsContext = (public_jse==null?null:public_jse.getContext ());
+	static ScriptEngineManager scriptEngineManager = null;
+	static void InitializedScriptEngineManager (boolean bNewOrReuse)
+	{
+System.err.println ("正在初始化脚本引擎管理器 ScriptEngineManager…");
+		if (scriptEngineManager == null || bNewOrReuse)
+			scriptEngineManager = new ScriptEngineManager();
+System.err.println ("初始化脚本引擎管理器 ScriptEngineManager 结束");
+	}
+	static ScriptEngine public_jse = null;
+	static ScriptContext public_jsContext = null;
+	static void InitializedScriptEngine_JavaScript (boolean bNewOrReuse)
+	{
+		InitializedScriptEngineManager (bNewOrReuse);
+
+System.err.println ("正在初始化 javascript 脚本引擎…");
+		if (public_jse == null || bNewOrReuse)
+			public_jse = scriptEngineManager.getEngineByName("JavaScript");
+		if (public_jsContext == null || bNewOrReuse)
+			public_jsContext = (public_jse==null?null:public_jse.getContext ());
+System.err.println ("初始化 javascript 脚本引擎结束");
+	}
+	static void InitializedScriptEngine_JavaScript ()
+	{
+		InitializedScriptEngine_JavaScript (false);
+	}
+
 	/**
 	 * 执行 JavaScript 脚本。
 	 *
@@ -6364,6 +6388,8 @@ function 彩虹(s) { var r=""; for (var i=0; i<s.length; i++) { var c = s.charAt
 		}
 System.out.println ("JavaScript 脚本：");
 System.out.println (params);
+
+		InitializedScriptEngine_JavaScript ();
 		ScriptEngine jse = public_jse;
 		ScriptContext jsContext = public_jsContext;
 		if (jse==null)
@@ -6549,8 +6575,24 @@ System.out.println (params);
 	}
 
 
-	static ScriptEngine public_jython_engine = scriptEngineManager.getEngineByName("python");
-	static ScriptContext public_jythonContext = (public_jython_engine==null?null:public_jython_engine.getContext ());
+	static ScriptEngine public_jython_engine = null;
+	static ScriptContext public_jythonContext = null;
+	static void InitializedScriptEngine_Jython (boolean bNewOrReuse)
+	{
+		InitializedScriptEngineManager (bNewOrReuse);
+
+System.err.println ("正在初始化 jython 脚本引擎…");
+		if (public_jython_engine == null || bNewOrReuse)
+			public_jython_engine = scriptEngineManager.getEngineByName("python");
+		if (public_jythonContext == null || bNewOrReuse)
+			public_jythonContext = (public_jython_engine==null?null:public_jython_engine.getContext ());
+System.err.println ("初始化 jython 脚本引擎结束");
+	}
+	static void InitializedScriptEngine_Jython ()
+	{
+		InitializedScriptEngine_Jython (false);
+	}
+
 	/**
 	 * 执行 Jython 脚本。
 	 *
@@ -6572,6 +6614,9 @@ System.out.println (params);
 		}
 System.out.println ("Jython 脚本：");
 System.out.println (params);
+
+		InitializedScriptEngine_Jython ();
+
 		ScriptEngine jye = public_jython_engine;
 		ScriptContext jyContext = public_jythonContext;
 		if (jye==null)
@@ -8940,6 +8985,7 @@ fw.close ();
 				//ObjectMapper om = new ObjectMapper();
 				//om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
 				//JsonNode node = om.readTree (sJSON);
+				InitializedScriptEngine_JavaScript ();
 				ScriptEngine jse = public_jse;
 				ScriptContext jsContext = new SimpleScriptContext ();
 				StringWriter stdout = new StringWriter ();
