@@ -29,6 +29,17 @@ public class Wordle extends Game
 	//char[] arrayCharactersToGuess;
 	String sWordToGuess = null;
 
+	/**
+	 * 最多偷看多少次。（每次偷看只能偷看一个字符，不可配置）。
+	 * 想偷看某个位置的字符时，在该位置用字符 '?' 或 '_' 或 '-' 代替。
+	 */
+	public static final int MAX_PEEK_TIMES = 1;
+
+	/**
+	 * 当前偷看了多少次。
+	 */
+	private int nPeekTimes = 0;
+
 	public Wordle (LiuYanBot bot, List<Game> listGames, Set<? extends Object> setParticipants,
 			String ch, String nick, String login, String hostname,
 			String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
@@ -74,20 +85,39 @@ public class Wordle extends Game
 	}
 
 	@Override
-	public boolean ValidateAnswer (String ch, String n, String u, String host, String answer, Object... args)
+	public boolean ValidateAnswer (String ch, String n, String u, String host, String sRepliedAnswer, Object... args)
 	{
-		if (isQuitGameAnswer(answer))
+		if (isQuitGameAnswer(sRepliedAnswer))
 			return true;
 
-System.out.println ("Answer=[" + answer + "]");
+System.out.println ("Answer=[" + sRepliedAnswer + "]");
 		// 先检查是否是 5 位字母的单词
-		if (answer.length () != sWordToGuess.length ())
-			throw new IllegalArgumentException ("需要回答一个 " + sWordToGuess.length () + " 位字母的单词。 [" + answer + "] 不符合要求。");
+		if (sRepliedAnswer.length () != sWordToGuess.length ())
+			throw new IllegalArgumentException ("需要回答一个 " + sWordToGuess.length () + " 位字母的单词。 [" + sRepliedAnswer + "] 不符合要求。");
 
-		if (! WORD_PROVIDER.IsWordExistsInDictionary (answer))
-			throw new IllegalArgumentException ("单词 [" + answer + "] 不在词库中，回答无效");
+		if (CountPeekCharacters(sRepliedAnswer) > 1)
+			throw new IllegalArgumentException ("偷看模式，每次只能偷看一个字符。");
+		if (CountPeekCharacters(sRepliedAnswer) == 1)
+		{
+			if (nPeekTimes >= MAX_PEEK_TIMES)
+				throw new IllegalArgumentException ("偷看次数已达到最多允许的次数。");
+
+			nPeekTimes ++;
+			int iCharIndex = StringUtils.indexOfAny (sRepliedAnswer, '?', '_', '-');
+			String sChar = StringUtils.substring (sWordToGuess, iCharIndex, iCharIndex+1);
+			throw new SecurityException (游戏信息 ("偷看模式: 第 " + (iCharIndex+1) + " 个字母为 " + ANSIEscapeTool.COLOR_DARK_RED + sChar + Colors.NORMAL));
+		}
+
+
+		if (! WORD_PROVIDER.IsWordExistsInDictionary (sRepliedAnswer))
+			throw new IllegalArgumentException ("单词 [" + sRepliedAnswer + "] 不在词库中，回答无效");
 
 		return true;
+	}
+
+	static int CountPeekCharacters (String sAnswer)
+	{
+		return StringUtils.countMatches (sAnswer, '?') + StringUtils.countMatches (sAnswer, '_') + StringUtils.countMatches (sAnswer, '-');
 	}
 
 	@Override
@@ -97,7 +127,7 @@ System.out.println ("Answer=[" + answer + "]");
 		try
 		{
 			InitWord ();
-			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("开始… 请回答/猜一个 " + sWordToGuess.length () + " 位字母的英文单词… 总共可以猜 " + MAX_GUESS_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。"));
+			bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 ("开始… 请回答/猜一个 " + sWordToGuess.length () + " 位字母的英文单词，总共可以猜 " + MAX_GUESS_TIMES + " 次。偷看字母模式：若某个字母若为 '?' 或 '_' 或 '-'，则将显示该字母，偷看模式每次只能偷看一个字母，最多只能偷看 " + MAX_PEEK_TIMES + " 次。如果回答" + ANSIEscapeTool.COLOR_DARK_RED + "不玩了" + Colors.NORMAL + "、" + ANSIEscapeTool.COLOR_DARK_RED + "掀桌子" + Colors.NORMAL + "，则游戏立刻结束。"));
 
 			boolean isParticipantWannaQuit = false;
 			int nPreviousCorrect=0, nPreviousPresent=0;
