@@ -51,7 +51,7 @@ $_JAVA_OPTIONS"
 
 for lf in commons-lang3-3.12.0 commons-text-1.9 commons-io-2.11.0 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.11.1 commons-dbcp2-2.9.0 commons-codec-1.15 \
     pdfbox-2.0.26 fontbox-2.0.26 \
-    mysql-connector-java-8.0.30  mariadb-java-client-2.7.3 \
+    mysql-connector-j-8.0.31  mariadb-java-client-2.7.3 \
     jackson-core-2.13.4  jackson-databind-2.13.4  jackson-annotations-2.13.4 \
     maxmind-db-2.0.0  geoip2-2.15.0  \
     jsoup-1.15.3 \

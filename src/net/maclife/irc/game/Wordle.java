@@ -132,6 +132,7 @@ System.out.println ("Answer=[" + sRepliedAnswer + "]");
 			boolean isParticipantWannaQuit = false;
 			int nPreviousCorrect=0, nPreviousPresent=0;
 			int nCorrect=0, nPresent=0;
+			char[] arrayAccumulatedCorrectCharacters = new char[sWordToGuess.length ()];
 			for (int t=MAX_GUESS_TIMES; t>=1; t--)
 			{
 				if (stop_flag)
@@ -183,7 +184,7 @@ System.out.println ("Answer=[" + sRepliedAnswer + "]");
 					String sWordToGuess_LowerCase = sWordToGuess.toLowerCase ();
 					String sCandidateAnswer_LowerCase = sCandidateAnswer.toLowerCase ();
 
-					nCorrect = MarkCorrect (sWordToGuess_LowerCase, sCandidateAnswer_LowerCase, arraySourceCharacterFlags, arrayCharacterOfCandidateAnswerFlags);
+					nCorrect = MarkCorrect (sWordToGuess_LowerCase, sCandidateAnswer_LowerCase, arraySourceCharacterFlags, arrayCharacterOfCandidateAnswerFlags, arrayAccumulatedCorrectCharacters);
 					nPresent = MarkPresent (sWordToGuess_LowerCase, sCandidateAnswer_LowerCase, arraySourceCharacterFlags, arrayCharacterOfCandidateAnswerFlags);
 					for (int j=0; j<sWordToGuess.length(); j++)
 					{
@@ -228,7 +229,34 @@ System.out.println ("Answer=[" + sRepliedAnswer + "]");
 						sDeltaInfo = ANSIEscapeTool.COLOR_DARK_RED + "啊哦" + Colors.NORMAL;
 					else if (nCorrect>nPreviousCorrect || (nCorrect==nPreviousCorrect && nPresent>nPreviousPresent))
 						sDeltaInfo = Colors.GREEN + "加油" + Colors.NORMAL;
-					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sb + (sDeltaInfo==null ? "" : " " + sDeltaInfo) + ". 还剩下 " + (t-1) + " 次, 继续猜…"));
+
+					if (sDeltaInfo != null)
+					{
+						sb.append (" ");
+						sb.append (sDeltaInfo);
+					}
+
+					sb.append (". 已猜对：");
+					for (char c : arrayAccumulatedCorrectCharacters)
+					{
+						if (c == 0)
+						{
+							sb.append (Colors.DARK_GRAY);	//
+							sb.append ('_');
+							sb.append (Colors.NORMAL);
+						}
+						else
+						{
+							sb.append (Colors.GREEN);	//
+							sb.append (c);
+							sb.append (Colors.NORMAL);
+						}
+					}
+					sb.append (". 还剩下 ");
+					sb.append (t-1);
+					sb.append (" 次, 继续猜…");
+
+					bot.SendMessage (channel, "", LiuYanBot.OPT_DO_NOT_OUTPUT_USER_NAME, 1, 游戏信息 (sb.toString ()));
 					nPreviousCorrect = nCorrect;
 					nPreviousPresent = nPresent;
 				}
@@ -252,9 +280,10 @@ System.out.println ("Answer=[" + sRepliedAnswer + "]");
 	 * @param sCandidateAnswer_LowerCase
 	 * @param arraySourceCharacterFlags
 	 * @param arrayCandidateAnswerCharacterFlags
+	 * @param arrayAccumulatedCorrectCharacters 已猜对的字符（累积的），若元素为 null，则表示未曾猜对过
 	 * @return 正确字符数量
 	 */
-	int MarkCorrect (String sWordToGuess_LowerCase, String sCandidateAnswer_LowerCase, char[] arraySourceCharacterFlags, char[] arrayCandidateAnswerCharacterFlags)
+	int MarkCorrect (String sWordToGuess_LowerCase, String sCandidateAnswer_LowerCase, char[] arraySourceCharacterFlags, char[] arrayCandidateAnswerCharacterFlags, char[] arrayAccumulatedCorrectCharacters)
 	{
 		int nCorrect = 0;
 		for (int j=0; j<sCandidateAnswer_LowerCase.length(); j++)
@@ -262,6 +291,7 @@ System.out.println ("Answer=[" + sRepliedAnswer + "]");
 			if (sWordToGuess_LowerCase.charAt (j) == sCandidateAnswer_LowerCase.charAt (j))
 			{
 				arraySourceCharacterFlags[j] = arrayCandidateAnswerCharacterFlags[j] = 'c';
+				arrayAccumulatedCorrectCharacters[j] = sCandidateAnswer_LowerCase.charAt (j);
 				nCorrect ++;
 			}
 		}
