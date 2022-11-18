@@ -40,7 +40,9 @@ import org.jsoup.nodes.*;
 import org.jsoup.select.*;
 
 import com.fasterxml.jackson.core.*;
+import com.fasterxml.jackson.core.json.*;
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.json.*;
 import com.fasterxml.jackson.databind.node.*;
 import com.maxmind.db.*;
 import com.maxmind.geoip2.*;
@@ -85,6 +87,25 @@ public class LiuYanBot extends PircBot
 		if (arrayJavaVersions.length > 1)	// Java 11，仅仅返回 11，没有 minor_version
 			JAVA_MINOR_VERSION = Integer.parseInt (arrayJavaVersions[1]);
 	}
+
+
+	public static final ObjectMapper jacksonObjectMapper_Strict = new ObjectMapper ();
+	public static final ObjectMapper jacksonObjectMapper_Loose = new ObjectMapper ();	// 不那么严格的选项，但解析时也支持严格选项
+	static
+	{
+		jacksonObjectMapper_Loose.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);	// 允许不对字段名加引号
+		jacksonObjectMapper_Loose.configure (JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES.mappedFeature (), true);	// 允许不对字段名加引号
+		//JsonMapper.builder ().configure (JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+
+		jacksonObjectMapper_Loose.configure (MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);	// 字段名不区分大小写
+
+		jacksonObjectMapper_Loose.configure (JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);	// 允许用单引号把数值引起来
+		jacksonObjectMapper_Loose.configure (JsonParser.Feature.ALLOW_NUMERIC_LEADING_ZEROS, true);	// 允许数值前面带 0
+		jacksonObjectMapper_Loose.configure (JsonReadFeature.ALLOW_LEADING_ZEROS_FOR_NUMBERS.mappedFeature (), true);	// 允许数值前面带 0
+		jacksonObjectMapper_Loose.configure (JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);	// 允许不引起来的控制字符
+		jacksonObjectMapper_Loose.configure (JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature (), true);	// 允许不引起来的控制字符
+	}
+
 
 	public static final boolean OPT_OUTPUT_USER_NAME         = true;
 	public static final boolean OPT_DO_NOT_OUTPUT_USER_NAME  = false;
@@ -214,6 +235,8 @@ public class LiuYanBot extends PircBot
 
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Mode     = "/Mode";
 
+	public static final String BOT_PRIMARY_COMMAND_CONSOLE_PSN      = "/PSN";	// 发起主从协商
+
 	public static final String BOT_PRIMARY_COMMAND_CONSOLE_Verbose  = "/Verbose";	// 调试开关切换
 
 	static final String[][] BOT_COMMAND_ALIASES =
@@ -300,6 +323,8 @@ public class LiuYanBot extends PircBot
 		// {BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag", },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Mode, },
+
+		{BOT_PRIMARY_COMMAND_CONSOLE_PSN, },
 
 		{BOT_PRIMARY_COMMAND_CONSOLE_Verbose, "/debug"},
 	};
@@ -392,6 +417,11 @@ public class LiuYanBot extends PircBot
 	public List<Game> games = new CopyOnWriteArrayList<Game> ();
 
 	/**
+	 * 主从协商器
+	 */
+	PrimarySecondaryNegotiator psn = null;
+
+	/**
 	 *
 	 * @author liuyan
 	 *
@@ -425,6 +455,18 @@ public class LiuYanBot extends PircBot
 		timerUndoVote = new Timer (true);
 		TimerTask timertaskUndoVote = new UndoVoteTimerTask ();
 		timerUndoVote.schedule (timertaskUndoVote, 5000, 1000);
+
+		//
+		try
+		{
+System.err.println ("初始化主从协商器 " + new java.sql.Timestamp (System.currentTimeMillis ()));
+			psn = new PrimarySecondaryNegotiator (currentBot, System.getProperty ("primary-secondary-negotiation.keystore.file"), System.getProperty ("primary-secondary-negotiation.keystore.password"), System.getProperty ("primary-secondary-negotiation.key.name"), System.getProperty ("primary-secondary-negotiation.key.password"));
+System.err.println ("初始化主从协商器结束 " + new java.sql.Timestamp (System.currentTimeMillis ()));
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
 	}
 
 	public void setGeoIPDatabaseFileName (String fn)
@@ -1250,6 +1292,9 @@ System.out.println ("小时内秒数=" + 小时内秒数 + ", 收到 " + sender 
 			//	//sendAction (target, action);
 			//	sendAction (target, "p[i]a p[i]a p[i]a " + sender);
 		}
+
+		if (psn != null)
+			psn.OnActionReceived (this, sender, login, hostname, target, action);
 	}
 
 	@Override
@@ -1355,9 +1400,11 @@ logger.finer ("消息是对本 Bot 说的");
 			botCmd = getBotPrimaryCommand (message);
 
 
-			if (botCmd == null)
+			boolean bAmIPrimaryBot = (psn==null ? false : psn.AmIPrimary (channel));
+			boolean isHTTemplateShortcut = false;
+			boolean isCustomizedActionCmdShortcut = false;
+			if (botCmd == null && bAmIPrimaryBot)
 			{
-				boolean isCustomizedActionCmdShortcut = false;
 				String msgTo = sSayTo_andSoReplyTo;
 				String sCustomizedActionCmd = "";
 				String sBotCommandOptions = "";
@@ -1436,9 +1483,8 @@ System.err.println ("[" + message + "]");
 			}
 
 			//  如果不是 bot 命令，那再判断是不是 ht 模板名的快捷命令
-			if (botCmd == null)
+			if (botCmd == null && bAmIPrimaryBot)
 			{
-				boolean isHTTemplateShortcut = false;
 				//String sHTContentType = "";
 				String msgTo = sSayTo_andSoReplyTo;
 				String sHTTemplateName = "";
@@ -1528,7 +1574,11 @@ System.err.println ("[" + message + "]");
 						+ (StringUtils.isEmpty (msgTo) ? "" : BOT_OPTION_SEPARATOR + "to " + msgTo) + " " + sHTTemplateName + (sBotCommandParameters.isEmpty () ? "" : " " + sBotCommandParameters);	// 重新组合生成 ht 命令
 System.err.println (message);
 				}
-				else
+			}
+
+			if (botCmd == null)
+			{
+				//if (!isHTTemplateShortcut && !isCustomizedActionCmdShortcut)
 				{
 					// 保存用户最后 1 条消息，用于 regexp 的 replace 命令
 					SaveChannelUserLastMessages (channel, nick, login, hostname, message);
@@ -3342,9 +3392,13 @@ System.out.println ("sChannel = " + nRowsAffected + ", msg=解除了对 " + Colo
 		{
 			SetupDataSource ();
 
+System.err.println ("botDS.getConnection " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			conn = botDS.getConnection ();
+System.err.println ("conn.prepareStatement " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			stmt = conn.prepareStatement ("SELECT * FROM irc_votes WHERE action IN ('ban', 'kickban', 'quiet', 'voice', 'op') AND undo_time IS NULL");
+System.err.println ("stmt.executeQuery " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			rs = stmt.executeQuery ();
+System.err.println ("stmt.executeQuery done " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			while (rs.next ())
 			{
 				AddVoteToCache (
@@ -5867,11 +5921,8 @@ System.out.println (sGoogleSearchURL);
 			else
 				is = CURL_Stream_ViaProxy (sGoogleSearchURL, opt_timeout_length_seconds, System.getProperty ("GFWProxy.Type"), System.getProperty ("GFWProxy.Host"), System.getProperty ("GFWProxy.Port"));
 
-			ObjectMapper om = new ObjectMapper();
-			om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
-
 			JsonNode rootNode = null;
-			rootNode = om.readTree (is);
+			rootNode = jacksonObjectMapper_Loose.readTree (is);
 System.out.println (rootNode);
 			is.close ();
 
@@ -7056,17 +7107,22 @@ System.out.println (sb);
 	private String ch;
 	void SetupDataSource ()
 	{
+logger.entering (LiuYanBot.class.getName (), "SetupDataSource");
 		if (botDS != null)
 			return;
-		botDS = new BasicDataSource();
+System.err.println ("new BasicDataSource " + new java.sql.Timestamp (System.currentTimeMillis ()));
+		botDS = new BasicDataSource ();
 		//botDS.setDriverClassName("org.mariadb.jdbc.Driver");
+System.err.println ("botDS.setDriverClassName " + new java.sql.Timestamp (System.currentTimeMillis ()));
 		botDS.setDriverClassName (System.getProperty ("database.driver", "com.mysql.jdbc.Driver"));
+System.err.println ("botDS.setUsername 、setPassword " + new java.sql.Timestamp (System.currentTimeMillis ()));
 		botDS.setUsername (System.getProperty ("database.username", "bot"));
 		if (StringUtils.isNotEmpty (System.getProperty ("database.userpassword")))
 			botDS.setPassword (System.getProperty ("database.userpassword"));
 		// 要赋给 mysql 用户对 mysql.proc SELECT 的权限，否则执行存储过程报错
 		// GRANT SELECT ON mysql.proc TO bot@'192.168.2.%'
 		// 参见: http://stackoverflow.com/questions/986628/cant-execute-a-mysql-stored-procedure-from-java
+System.err.println ("botDS.setUrl " + new java.sql.Timestamp (System.currentTimeMillis ()));
 		botDS.setUrl (System.getProperty ("database.url", "jdbc:mysql://localhost/bot?autoReconnect=true&zeroDateTimeBehavior=convertToNull"));
 		// 在 prepareCall 时报错:
 		// User does not have access to metadata required to determine stored procedure parameter types. If rights can not be granted, configure connection with "noAccessToProcedureBodies=true" to have driver generate parameters that represent INOUT strings irregardless of actual parameter types.
@@ -7077,6 +7133,8 @@ System.out.println (sb);
 		//botDS.setUrl ("jdbc:mysql://192.168.2.1/bot?autoReconnect=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;useInformationSchema=true");
 
 		//botDS.setMaxTotal (5);
+System.err.println ("SetupDataSource done " + new java.sql.Timestamp (System.currentTimeMillis ()));
+logger.exiting (LiuYanBot.class.getName (), "SetupDataSource");
 	}
 
 	/**
@@ -8982,9 +9040,6 @@ fw.close ();
 				else
 					sbJSON.append (sContent + ";\n");
 
-				//ObjectMapper om = new ObjectMapper();
-				//om.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
-				//JsonNode node = om.readTree (sJSON);
 				InitializedScriptEngine_JavaScript ();
 				ScriptEngine jse = public_jse;
 				ScriptContext jsContext = new SimpleScriptContext ();
@@ -10023,10 +10078,10 @@ System.out.println (Arrays.toString (arrayUsers));
 		{
 			NluRecogResult result = hcicloudBot.Recognize (sQuestion);
 			List<NluRecogResultItem> listResultItems = result.getRecogResultItemList ();
-			ObjectMapper om = new ObjectMapper();
+
 			for (NluRecogResultItem ri : listResultItems)
 			{
-				JsonNode root_node = om.readTree (ri.getResult ());
+				JsonNode root_node = jacksonObjectMapper_Strict.readTree (ri.getResult ());
 				JsonNode answer = root_node.get ("answer");
 					JsonNode content = answer.get ("content");
 						JsonNode text = content.get ("text");
@@ -11139,6 +11194,11 @@ System.out.println (Arrays.toString (arrayUsers));
 		return listTokens;
 	}
 
+	public void 话事人选举 ()
+	{
+		//
+	}
+
 	public static void main (String[] args) throws IOException, IrcException
 	{
 		//String sServer = "irc.freenode.net";
@@ -11735,6 +11795,17 @@ System.out.println ("已取消当前频道");
 								System.err.println (" -- 解除对用户发言的禁止 (-q)");
 								currentBot.setMode (sChannel, "-q " + sTarget);
 							}
+						}
+						else if (StringUtils.equalsIgnoreCase (cmd, BOT_PRIMARY_COMMAND_CONSOLE_PSN))
+						{
+							params = sTerminalInput.split (" +");
+
+							if (currentBot.psn == null)
+								currentBot.psn = new PrimarySecondaryNegotiator (currentBot, System.getProperty ("primary-secondary-negotiation.keystore.file"), System.getProperty ("primary-secondary-negotiation.keystore.password"), System.getProperty ("primary-secondary-negotiation.key.name"), System.getProperty ("primary-secondary-negotiation.key.password"));
+
+							boolean bForced = StringUtils.containsIgnoreCase (params[0], ".force");
+							for (int iParam=1; iParam<params.length; iParam++)
+								currentBot.psn.InitiateNegotiation (params[iParam], bForced);
 						}
 						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Verbose))
 						{

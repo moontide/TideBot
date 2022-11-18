@@ -52,7 +52,7 @@ $_JAVA_OPTIONS"
 for lf in commons-lang3-3.12.0 commons-text-1.9 commons-io-2.11.0 commons-exec-1.3 commons-logging-1.2 commons-pool2-2.11.1 commons-dbcp2-2.9.0 commons-codec-1.15 \
     pdfbox-2.0.26 fontbox-2.0.26 \
     mysql-connector-j-8.0.31  mariadb-java-client-2.7.3 \
-    jackson-core-2.13.4  jackson-databind-2.13.4  jackson-annotations-2.13.4 \
+    jackson-core-2.14.0  jackson-databind-2.14.0  jackson-annotations-2.14.0 \
     maxmind-db-2.0.0  geoip2-2.15.0  \
     jsoup-1.15.3 \
     bsh-2.0b6 \
@@ -76,6 +76,11 @@ export CLASSPATH="$CP"
 
 java -cp "$CP" \
 	-Dgame.wordle.words.dictionary.file=$dbdir/words_5letters.txt \
+	-Dprimary-secondary-negotiation.keystore.file=$dbdir/primary-secondary-negotiation.ks \
+	-Dprimary-secondary-negotiation.keystore.password=changeit \
+	-Dprimary-secondary-negotiation.key.name=psn-ed25519 \
+	-Dprimary-secondary-negotiation.key.password=changeit \
+	-Dprimary-secondary-negotiation.signature.algorithm=Ed25519 \
 	net.maclife.irc.LiuYanBot \
 	-geoipdb /usr/share/GeoIP/GeoLite2-City.mmdb \
 	-chunzhenipdb $dbdir/qqwry.dat \

@@ -416,13 +416,13 @@ public class ANSIEscapeTool
 	 * 	<dd>是否 256 色。boolean 类型，可能为 null，若为 null 则等同于 false。</dd>
 	 *
 	 * 	<dt>fg</dt>
-	 * 	<dd>背景色。整数类型。该数值为 ANSI 的颜色数值。如 31 37 38 或 256 色的 100 等。</dd>
+	 * 	<dd>背景色。整数类型。该数值为 ANSI 的颜色数值。如 31 37 或 256 色的 100 等。</dd>
 	 *
 	 * 	<dt>bg</dt>
-	 * 	<dd>字符颜色/前景色。整数类型。该数值为 ANSI 的颜色数值。如 31 37 38 或 256 色的 100 等。</dd>
+	 * 	<dd>字符颜色/前景色。整数类型。该数值为 ANSI 的颜色数值。如 31 37 或 256 色的 100 等。</dd>
 	 * </dl>
 	 */
-	public static void PutsToScreenBuffer (List<CharBuffer> listVirtualTerminalBuffer, List<List<Map<String, Object>>>listLinesCharactersAttributes, StringBuffer sbSrc, final Map<String, Object> currentAttribute, int TERMINAL_COLUMNS)
+	public static void PutsToVirtualTerminalBuffer (List<CharBuffer> listVirtualTerminalBuffer, List<List<Map<String, Object>>>listLinesCharactersAttributes, StringBuffer sbSrc, final Map<String, Object> currentAttribute, int TERMINAL_COLUMNS)
 	{
 		int i=0, j=0;
 		int nLineNO = 1;
@@ -438,7 +438,7 @@ public class ANSIEscapeTool
 		int iLineIndex = nLineNO - 1, iColumnIndex = nColumnNO - 1;
 		boolean isOutputingFirstCharacterInThisLine = true;
 
-		logger.finest (nLineNO + " 行 " + nColumnNO + " 列 输出：" + sbSrc);
+		logger.finest (nLineNO + " 行 " + nColumnNO + " 列 输出 [" + sbSrc + "]");
 		logger.finest ("属性: " + currentAttribute);
 		logger.finest ("-------------------------------------------------");
 
@@ -788,7 +788,7 @@ public class ANSIEscapeTool
 
 		int nDelta = 1;
 
-		List<CharBuffer> listScreenBuffer = new ArrayList<CharBuffer>();
+		List<CharBuffer> listVirtualTerminalBuffer = new ArrayList<CharBuffer>();
 		/**
 		 * Object[] 属性列表
 		 * #0: boolean 是否 bold, true | false
@@ -854,7 +854,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 				previousCharacterAttribute.put ("LINE_NO", nCurrentLineNO);
 				previousCharacterAttribute.put ("COLUMN_NO", nCurrentColumnNO);
 				previousCharacterAttribute.put ("TERMINAL_COLUMNS", TERMINAL_COLUMNS);
-				PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute, TERMINAL_COLUMNS);	// 因为 regexp 每次遇到新的 ANSI Escape 时，之前的字符串还没输出，所以，需要用前面的属性输出前面的字符串
+				PutsToVirtualTerminalBuffer (listVirtualTerminalBuffer, listAttributes, sbReplace, previousCharacterAttribute, TERMINAL_COLUMNS);	// 因为 regexp 每次遇到新的 ANSI Escape 时，之前的字符串还没输出，所以，需要用前面的属性输出前面的字符串
 				nCurrentLineNO = (int)previousCharacterAttribute.get ("LINE_NO");	// 因为写入字符串后，“光标”位置会变化，所以，要再读出来，供下次计算位置
 				nCurrentColumnNO = (int)previousCharacterAttribute.get ("COLUMN_NO");
 
@@ -981,27 +981,37 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 							logger.finer (GetANSIColorName(false, nSGRParam) + "　背景");
 							break;
 						case 38:
-						case 48:	// xterm-256 前景/背景颜色扩展，后续参数 '5;' x ，x 是 0-255 的颜色索引号
-							assert i<arraySGR.length-2;
-							assert arraySGR[i+1].equals("5");
-							try {
-								int iColorIndex = Integer.parseInt (arraySGR[i+2]) % 256;
-								if (nSGRParam==38)
+						case 48:	// 256 色或 24 位真彩色 前景/背景颜色扩展，后续参数 '5;' x 或 '2;' r ';' g ';' b ，x 是 0-255 的颜色索引号，r g b 为 红 蓝 绿
+							if (arraySGR[i+1].equals("5"))
+							{
+								assert i<arraySGR.length-2;
+								//assert arraySGR[i+1].equals("5");
+								try
 								{
-									currentCharacterAttribute.put ("256color-fg", true);
-									currentCharacterAttribute.put ("fg", iColorIndex);
-									logger.finer ("256　色前景色 " + iColorIndex);
+									int iColorIndex = Integer.parseInt (arraySGR[i+2]) % 256;
+									if (nSGRParam==38)
+									{
+										currentCharacterAttribute.put ("256color-fg", true);
+										currentCharacterAttribute.put ("fg", iColorIndex);
+										logger.finer ("256　色前景色 " + iColorIndex);
+									}
+									else if (nSGRParam==48)
+									{
+										currentCharacterAttribute.put ("256color-bg", true);
+										currentCharacterAttribute.put ("bg", iColorIndex);
+										logger.finer ("256　色背景色 " + iColorIndex);
+									}
 								}
-								else if (nSGRParam==48)
+								catch (NumberFormatException e)
 								{
-									currentCharacterAttribute.put ("256color-bg", true);
-									currentCharacterAttribute.put ("bg", iColorIndex);
-									logger.finer ("256　色背景色 " + iColorIndex);
+									e.printStackTrace ();
 								}
-							} catch (NumberFormatException e) {
-								e.printStackTrace ();
+								i += 2;
 							}
-							i += 2;
+							else if (arraySGR[i+1].equals("2"))
+							{
+								//
+							}
 							break;
 						default:
 							logger.warning ("不支持的 SGR 参数: " + nSGRParam);
@@ -1141,7 +1151,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 					//e.printStackTrace ();
 				}
 
-				ClearText (listScreenBuffer, listAttributes, currentCharacterAttribute, chEscCmd, nDelta, nCurrentLineNO, nCurrentColumnNO, TERMINAL_COLUMNS);
+				ClearText (listVirtualTerminalBuffer, listAttributes, currentCharacterAttribute, chEscCmd, nDelta, nCurrentLineNO, nCurrentColumnNO, TERMINAL_COLUMNS);
 			}
 		}
 		matcher.appendTail (sbReplace);
@@ -1149,16 +1159,16 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 		previousCharacterAttribute.put ("COLUMN_NO", nCurrentColumnNO);
 		previousCharacterAttribute.put ("TERMINAL_COLUMNS", TERMINAL_COLUMNS);
 		logger.finer ("光标在将最后一个字符串写入缓冲区前的位置=" + nCurrentLineNO + " 行 " + nCurrentColumnNO + " 列");
-		PutsToScreenBuffer (listScreenBuffer, listAttributes, sbReplace, previousCharacterAttribute, TERMINAL_COLUMNS);
+		PutsToVirtualTerminalBuffer (listVirtualTerminalBuffer, listAttributes, sbReplace, previousCharacterAttribute, TERMINAL_COLUMNS);
 
-		return ToIRCEscapeSequence (listScreenBuffer, listAttributes);
+		return ToIRCEscapeSequence (listVirtualTerminalBuffer, listAttributes);
 	}
 
 	/**
 	 * 清除文字。
 	 * 用空格清除屏幕
-	 * @param listScreenBuffer 屏幕缓冲区
-	 * @param listAttributes 屏幕缓冲区的字符属性
+	 * @param listVirtualTerminalBuffer 缓冲区
+	 * @param listAttributes 缓冲区的字符属性
 	 * @param currentCharacterAttribute 当前字符属性
 	 * @param cmd 清除命令，只能为 <code>J</code>--屏幕内清除 或者 <code>K</code>--行内清除
 	 * @param param 只能为 <code>0</code> 或者 <code>1</code> 或者 <code>2</code>
@@ -1166,7 +1176,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 	 * @param nColumnNO 当前列号
 	 * @param TERMINAL_COLUMNS 屏幕宽度（每行字符数量）
 	 */
-	public static void ClearText (List<CharBuffer> listScreenBuffer, List<List<Map<String, Object>>>listAttributes, Map<String, Object> currentCharacterAttribute, char cmd, int param, int nLineNO, int nColumnNO, final int TERMINAL_COLUMNS)
+	public static void ClearText (List<CharBuffer> listVirtualTerminalBuffer, List<List<Map<String, Object>>>listAttributes, Map<String, Object> currentCharacterAttribute, char cmd, int param, int nLineNO, int nColumnNO, final int TERMINAL_COLUMNS)
 	{
 		if (param > 2)
 		{
@@ -1209,12 +1219,12 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 					if (param == 0)
 					{
 						nStartLineNO = nLineNO;
-						//nEndLineNO = listScreenBuffer.size () + 1;
-						if (nLineNO >= listScreenBuffer.size ())	// 如果当前行已经 是/超过 最后一行，则没有其他行需要清除
+						//nEndLineNO = listVirtualTerminalBuffer.size () + 1;
+						if (nLineNO >= listVirtualTerminalBuffer.size ())	// 如果当前行已经 是/超过 最后一行，则没有其他行需要清除
 							nOtherLines = 0;
 						else
-							nOtherLines = listScreenBuffer.size() - nLineNO;
-						logger.finer ("从 " + nLineNO + " 行 " + nColumnNO + " 列向下向后 清屏，到最后一行 " + listScreenBuffer.size () + " 行为止");
+							nOtherLines = listVirtualTerminalBuffer.size() - nLineNO;
+						logger.finer ("从 " + nLineNO + " 行 " + nColumnNO + " 列向下向后 清屏，到最后一行 " + listVirtualTerminalBuffer.size () + " 行为止");
 					}
 					else if (param == 1)
 					{
@@ -1234,7 +1244,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 					//sb.delete (0, sb.length ());
 					nStartLineNO = 1;
 					nStartColumnNO = 1;
-					nOtherLines = listScreenBuffer.size ();
+					nOtherLines = listVirtualTerminalBuffer.size ();
 					for (i=0; i<nOtherLines; i++)	// 全屏幕（不完全正确，确切的说是全缓冲区，因为这不是真实屏幕，没有“高度”这个概念）
 					{
 						for (int col=0; col<TERMINAL_COLUMNS; col++)
@@ -1245,7 +1255,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 			attr.put ("LINE_NO", nStartLineNO);
 			attr.put ("COLUMN_NO", nStartColumnNO);
 
-			PutsToScreenBuffer (listScreenBuffer, listAttributes, sb, attr, TERMINAL_COLUMNS);	// 覆盖/清屏
+			PutsToVirtualTerminalBuffer (listVirtualTerminalBuffer, listAttributes, sb, attr, TERMINAL_COLUMNS);	// 覆盖/清屏
 		}
 		else if (cmd=='K')
 		{
@@ -1268,7 +1278,7 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 			attr.put ("LINE_NO", nLineNO);
 			attr.put ("COLUMN_NO", nStartColumnNO);
 
-			PutsToScreenBuffer (listScreenBuffer, listAttributes, sb, attr, TERMINAL_COLUMNS);	// 覆盖/清屏
+			PutsToVirtualTerminalBuffer (listVirtualTerminalBuffer, listAttributes, sb, attr, TERMINAL_COLUMNS);	// 覆盖/清屏
 		}
 	}
 
