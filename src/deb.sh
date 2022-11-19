@@ -1,7 +1,7 @@
 #export botdir=/home/bot/ircbot/src
 export botdir=${botdir:-$(dirname $0)}
 
-export channels=${channels:-LiuYanBot,linuxba}
+export channels=${channels:-liuyanbot,linuxba}
 
 export nick=DebCmdBot
 

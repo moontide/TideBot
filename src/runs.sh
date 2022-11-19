@@ -4,7 +4,7 @@ export botdir=$(dirname $0)
 
 #export server=${server:-card.freenode.net}
 export server=${server:-weber.freenode.net}
-export channels=LiuYanBot
+export channels=liuyanbot
 
 export nick=GameBot2
 

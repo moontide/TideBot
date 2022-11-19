@@ -167,6 +167,11 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 			"谁赞成？谁反对？",
 			"同意的请举手，反对的请举手",
 		};
+	String[] arrayInitiatMessages_Forced =
+		{
+			"还有谁？！",
+			"反对的请举手",
+		};
 	String[] arrayVoteMessages =
 		{
 			// 中国古装电视剧风格
@@ -184,6 +189,9 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 		{
 			//
 			"反对",
+
+			// 电影《黑社会》中“阿乐”的台词
+			"下一届 我会全力支持你做话事人",
 		};
 
 	public PrimarySecondaryNegotiator (LiuYanBot bot, String sKeyStoreFileName, String sKeyStorePassword, String sKeyName, String sKeyPassword) throws Exception
@@ -222,6 +230,7 @@ System.out.println ("ks.getCertificate (String).getPublicKey () done " + new jav
 
 	Map<String, Object> GetCurrentChannelState (String sChannel)
 	{
+		sChannel = StringUtils.lowerCase (sChannel);
 		Map<String, Object> mapCurrentChannelState = mapChannelsState.get (sChannel);
 		if (mapCurrentChannelState == null)
 		{
@@ -233,28 +242,33 @@ System.out.println ("ks.getCertificate (String).getPublicKey () done " + new jav
 
 	JsonNode GetCurrentNegotiation (String sChannel)
 	{
+		sChannel = StringUtils.lowerCase (sChannel);
 		return (JsonNode)GetCurrentChannelState (sChannel).get ("CurrentNegotiation");
 	}
 
 	String GetCurrentNegotiationInitiator (String sChannel)
 	{
+		sChannel = StringUtils.lowerCase (sChannel);
 		return (String)GetCurrentChannelState (sChannel).get ("CurrentNegotiationInitiator");
 	}
 
 	void SetCurrentNegotiationAndInitiator (String sChannel, JsonNode jsonInitiateNegotiatioin_WithoutWrapper, String sInitiator)
 	{
+		sChannel = StringUtils.lowerCase (sChannel);
 		GetCurrentChannelState (sChannel).put ("CurrentNegotiation", jsonInitiateNegotiatioin_WithoutWrapper);
 		GetCurrentChannelState (sChannel).put ("CurrentNegotiationInitiator", sInitiator);
 	}
 
 	public boolean AmIPrimary (String sChannel)
 	{
+		sChannel = StringUtils.lowerCase (sChannel);
 		Boolean bPrimary = (Boolean)GetCurrentChannelState (sChannel).get ("AmIPrimary");
 		return bPrimary==null ? false : bPrimary;
 	}
 
 	Map<String, NegotiationCode> GetCurrentNegotiationVotes (String sChannel)
 	{
+		sChannel = StringUtils.lowerCase (sChannel);
 		Map<String, NegotiationCode> mapVotes = (Map<String, NegotiationCode>)GetCurrentChannelState (sChannel).get ("Votes");
 		if (mapVotes == null)
 		{
@@ -266,6 +280,7 @@ System.out.println ("ks.getCertificate (String).getPublicKey () done " + new jav
 
 	public void InitiateNegotiation (String sChannel, boolean bForced)
 	{
+		//sChannel = StringUtils.lowerCase (sChannel);	// Local variable sChannel defined in an enclosing scope must be final or effectively final
 		if (GetCurrentNegotiation(sChannel) != null)
 		{
 System.err.println (sChannel + " 频道当前有正在进行的主从协商，不能同时进行多个协商，只能一个一个来");
@@ -279,21 +294,24 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 
 		ObjectNode jsonWrapper = LiuYanBot.jacksonObjectMapper_Strict.createObjectNode ();
 		ObjectNode jsonInitiateNegotiation = LiuYanBot.jacksonObjectMapper_Strict.createObjectNode ();
-		String sActionCode = NegotiationCode.I_WANNA_BE_PRIMARY.toString ();
-		String sMessage = arrayInitiatMessages[oThisBot.rand.nextInt (arrayInitiatMessages.length)];
+		String sNegotiationCode = NegotiationCode.I_WANNA_BE_PRIMARY.toString ();
+		String sMessage = bForced ? arrayInitiatMessages_Forced[oThisBot.rand.nextInt (arrayInitiatMessages_Forced.length)] : arrayInitiatMessages[oThisBot.rand.nextInt (arrayInitiatMessages.length)];
 		long lTime = System.currentTimeMillis ();
 		String sIID = String.valueOf (lTime);
 		//jsonInitiateNegotiation.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
-		jsonInitiateNegotiation.put ("c", sActionCode);	// code
+		jsonInitiateNegotiation.put ("c", sNegotiationCode);	// code
 		jsonInitiateNegotiation.put ("iid", sIID);	// time
 		jsonInitiateNegotiation.put ("m", sMessage);	// message
 		jsonInitiateNegotiation.put ("t", lTime);	// time
-		String sSignature = GenerateSignatureString (oThisBot.getNick (), oThisBot.getLogin (), sChannel, sIID, sActionCode, sMessage, lTime);
+		String sSignature = GenerateSignatureString (oThisBot.getNick (), oThisBot.getLogin (), sChannel, sIID, sNegotiationCode, sMessage, lTime);
 		if (sSignature == null)
 			return;
 		jsonInitiateNegotiation.put ("s", sSignature);	// signature
 		if (bForced)
+		{
 			jsonInitiateNegotiation.put ("f", bForced);	// forced 强制成为首选 bot，其他 bot 收到此消息后，如果是首选 bot 的，需要退位
+			GetCurrentChannelState (sChannel).put ("AmIPrimary", true);
+		}
 
 		jsonWrapper.set ("psn", jsonInitiateNegotiation);
 
@@ -307,12 +325,12 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 				@Override
 				public void run ()
 				{
-					Map<String, NegotiationCode> mapVotes = GetCurrentNegotiationVotes (sChannel);
+					Map<String, NegotiationCode> mapVotes = GetCurrentNegotiationVotes (sChannel);	// Local variable sChannel defined in an enclosing scope must be final or effectively final
 					int nOK = 0;
 					int nReject = 0;
-					for (NegotiationCode actioncode : mapVotes.values ())
+					for (NegotiationCode negotiation_code : mapVotes.values ())
 					{
-						switch (actioncode)
+						switch (negotiation_code)
 						{
 							case OK:
 								nOK ++;
@@ -328,6 +346,10 @@ System.out.println ("主从协商结束：" + nOK + " 票同意，" + nReject + 
 						// Announce 新话事人产生
 						Announce (oThisBot, sChannel, sIID, "新话事人就是我");
 					}
+					else
+					{
+						CleanUpCurrentNegotiation (sChannel);
+					}
 				}
 			}
 			, 60*1000
@@ -340,6 +362,7 @@ bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "OnActionRecei
 		if (StringUtils.isEmpty (sAction) || !StringUtils.equalsIgnoreCase (StringUtils.left (sAction, 1), "{"))
 			return;
 
+		sTargetChannel = StringUtils.lowerCase (sTargetChannel);
 		try
 		{
 			JsonNode json = LiuYanBot.jacksonObjectMapper_Strict.readTree (sAction);
@@ -366,12 +389,12 @@ System.err.println (sTargetChannel + " 频道，JSON 消息中没有包含 psn�
 
 			// 再验证数据的基本有效性
 			String sIID = jsonInitiationID.asText ();
-			String sActionCode = jsonActionCode.asText ();
-			NegotiationCode actioncode = null;
+			String sNegotiationCode = jsonActionCode.asText ();
+			NegotiationCode negotiation_code = null;
 
 			try
 			{
-				actioncode = NegotiationCode.valueOf (sActionCode);
+				negotiation_code = NegotiationCode.valueOf (sNegotiationCode);
 			}
 			catch (IllegalArgumentException e)
 			{
@@ -389,9 +412,9 @@ System.err.println (sTargetChannel + " 频道，主从协商时间时长超时�
 
 			// 再验证签名是否有效（是否同一组 Bot 发出的 PSN 消息、是否别人伪造的 PSN 消息…）
 			String sSignature = jsonSignature.asText ();
-			//String sMyCalculatedSign = GenerateSignatureString (sIID, sActionCode, sMessage, lTime);
+			//String sMyCalculatedSign = GenerateSignatureString (sIID, sNegotiationCode, sMessage, lTime);
 			//if (! StringUtils.equalsIgnoreCase (sMyCalculatedSign, sSignature))
-			if (! VerifyData (sSignature, sFromNickName, sFromAccount, sTargetChannel, sIID, sActionCode, sMessage, lTime))
+			if (! VerifyData (sSignature, sFromNickName, sFromAccount, sTargetChannel, sIID, sNegotiationCode, sMessage, lTime))
 			{
 LiuYanBot.logger.warning (sTargetChannel + " 频道，签名不一致，不处理。（可能是不同的 Bot 集群、或 可能是伪造）");
 				return;
@@ -403,7 +426,7 @@ LiuYanBot.logger.warning (sTargetChannel + " 频道，签名不一致，不处�
 			if (jsonForced!=null && ! jsonForced.isNull ())
 				bForced = jsonForced.asBoolean ();
 
-			switch (actioncode)
+			switch (negotiation_code)
 			{
 				case I_WANNA_BE_PRIMARY:
 System.err.println (sTargetChannel + " 频道，收到其他 Bot 想要成为首选的请求");
@@ -455,7 +478,7 @@ System.err.println ("非强制性的");
 System.err.println (sTargetChannel + " 频道，回复人不是发起人，或者，回复的不是当前正在进行的协商，不处理");
 						break;
 					}
-					GetCurrentNegotiationVotes (sTargetChannel).put (sFromNickName, actioncode);
+					GetCurrentNegotiationVotes (sTargetChannel).put (sFromNickName, negotiation_code);
 					break;
 				case ANNOUNCE:
 					OnPrimaryWasElected (bot, sTargetChannel, sFromNickName);
@@ -475,23 +498,23 @@ System.err.println (sTargetChannel + " 频道，回复人不是发起人，或�
 bot.logger.exiting (PrimarySecondaryNegotiator.class.getName (), "OnActionReceived");
 	}
 
-	void Reply (LiuYanBot bot, String sFromNickName, String sFromAccount, String sHostname, String sTargetChannel, String sIID, NegotiationCode actioncode, String sMessage)
+	void Reply (LiuYanBot bot, String sFromNickName, String sFromAccount, String sHostname, String sTargetChannel, String sIID, NegotiationCode negotiation_code, String sMessage)
 	{
 bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "Reply");
 		ObjectNode jsonWrapper = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		ObjectNode jsonInitiateNegotiation = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
-		String sActionCode = actioncode.toString ();
-		//if (actioncode == NegotiationCode.OK)
+		String sNegotiationCode = negotiation_code.toString ();
+		//if (negotiation_code == NegotiationCode.OK)
 		//	sMessage = Colors.GREEN + sMessage + Colors.NORMAL;
-		//else if (actioncode == NegotiationCode.REJECT)
+		//else if (negotiation_code == NegotiationCode.REJECT)
 		//	sMessage = Colors.RED + sMessage + Colors.NORMAL;
 		long lTime = System.currentTimeMillis ();
 		//jsonInitiateNegotiation.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
-		jsonInitiateNegotiation.put ("c", sActionCode);	// code
+		jsonInitiateNegotiation.put ("c", sNegotiationCode);	// code
 		jsonInitiateNegotiation.put ("iid", sIID);	// time
 		jsonInitiateNegotiation.put ("m", sMessage);	// message
 		jsonInitiateNegotiation.put ("t", lTime);	// time
-		String sSignature = GenerateSignatureString (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, sActionCode, sMessage, lTime);
+		String sSignature = GenerateSignatureString (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, sNegotiationCode, sMessage, lTime);
 		if (sSignature == null)
 			return;
 		jsonInitiateNegotiation.put ("s", sSignature);	// signature
@@ -528,22 +551,30 @@ bot.logger.exiting (PrimarySecondaryNegotiator.class.getName (), "Announce");
 
 	void OnPrimaryWasElected (LiuYanBot bot, String sChannel, String sFromNickName)
 	{
+		sChannel = StringUtils.lowerCase (sChannel);
 		// 接收方收到消息后，要根据情况进行退位、删除缓存的当前协商（以便可以进行下一个协商）
 		Map<String, Object> mapChannelState = GetCurrentChannelState (sChannel);
 		mapChannelState.put ("AmIPrimary", StringUtils.equalsIgnoreCase (sFromNickName, bot.getNick ()));
+		CleanUpCurrentNegotiation (sChannel);
+	}
+
+	void CleanUpCurrentNegotiation (String sChannel)
+	{
+		sChannel = StringUtils.lowerCase (sChannel);
+		Map<String, Object> mapChannelState = GetCurrentChannelState (sChannel);
 		mapChannelState.remove ("CurrentNegotiation");
 		mapChannelState.remove ("CurrentNegotiationInitiator");
 	}
 
 	// 不能截取签名字符串，然后对比字符串是否一致 的方式进行签名验证，因为即使输入是一样的，签名字符串也会变
 	/**
-	public String GenerateShortSignatureString (String sIID, String sActionCode, String sMessage, Long nTime)
+	public String GenerateShortSignatureString (String sIID, String sNegotiationCode, String sMessage, Long nTime)
 	{
-		return GenerateShortSignatureString (sIID, sActionCode, sMessage, nTime, "");
+		return GenerateShortSignatureString (sIID, sNegotiationCode, sMessage, nTime, "");
 	}
-	public String GenerateShortSignatureString (String sIID, String sActionCode, String sMessage, Long nTime, String sSalt)
+	public String GenerateShortSignatureString (String sIID, String sNegotiationCode, String sMessage, Long nTime, String sSalt)
 	{
-		String sFullSignature = GenerateSignatureString (sIID, sActionCode, sMessage, nTime, sSalt);
+		String sFullSignature = GenerateSignatureString (sIID, sNegotiationCode, sMessage, nTime, sSalt);
 		if (sFullSignature == null)
 			return null;
 		String sShortSignature = StringUtils.right (sFullSignature, 40);
@@ -552,25 +583,25 @@ System.err.println ("sShortSignature: " + sShortSignature);
 	}
 	*/
 
-	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sActionCode, String sMessage, Long nTime)
+	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime)
 	{
-		return GenerateSignatureString (sFromNickName, sFromAccount, sChannel,sIID, sActionCode, sMessage, nTime, false);
+		return GenerateSignatureString (sFromNickName, sFromAccount, sChannel,sIID, sNegotiationCode, sMessage, nTime, false);
 	}
-	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sActionCode, String sMessage, Long nTime, boolean bLowerCase)
+	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime, boolean bLowerCase)
 	{
-		return GenerateSignatureString (keyPrivateKey, sSignatureAlgorithm, sFromNickName, sFromAccount, sChannel,sIID, sActionCode, sMessage, nTime, "", bLowerCase);
-	}
-
-	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sActionCode, String sMessage, Long nTime, String sSalt)
-	{
-		return GenerateSignatureString (sFromNickName, sFromAccount, sChannel,sIID, sActionCode, sMessage, nTime, sSalt, false);
-	}
-	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sActionCode, String sMessage, Long nTime, String sSalt, boolean bLowerCase)
-	{
-		return GenerateSignatureString (keyPrivateKey, sSignatureAlgorithm, sFromNickName, sFromAccount, sChannel,sIID, sActionCode, sMessage, nTime, sSalt, bLowerCase);
+		return GenerateSignatureString (keyPrivateKey, sSignatureAlgorithm, sFromNickName, sFromAccount, sChannel,sIID, sNegotiationCode, sMessage, nTime, "", bLowerCase);
 	}
 
-	public static String GenerateSignatureString (PrivateKey private_key, String sSignatureAlgorithm, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sActionCode, String sMessage, Long nTime, String sSalt, boolean bLowerCase)
+	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime, String sSalt)
+	{
+		return GenerateSignatureString (sFromNickName, sFromAccount, sChannel,sIID, sNegotiationCode, sMessage, nTime, sSalt, false);
+	}
+	public String GenerateSignatureString (String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime, String sSalt, boolean bLowerCase)
+	{
+		return GenerateSignatureString (keyPrivateKey, sSignatureAlgorithm, sFromNickName, sFromAccount, sChannel,sIID, sNegotiationCode, sMessage, nTime, sSalt, bLowerCase);
+	}
+
+	public static String GenerateSignatureString (PrivateKey private_key, String sSignatureAlgorithm, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime, String sSalt, boolean bLowerCase)
 	{
 		Signature sign = null;
 		if (private_key == null)
@@ -578,6 +609,8 @@ System.err.println ("sShortSignature: " + sShortSignature);
 System.err.println ("private_key 为 null，不能生成签名");
 			return null;
 		}
+
+		sChannel = StringUtils.lowerCase (sChannel);
 		try
 		{
 System.out.println ("private_key " + private_key);
@@ -586,7 +619,7 @@ System.out.println ("Signature.getInstance " + new java.sql.Timestamp (System.cu
 			sign = Signature.getInstance (sSignatureAlgorithm);
 System.out.println ("initSign " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			sign.initSign (private_key);
-			String sSrc = sFromNickName + /*"!~" + sFromAccount +*/ "@... PRIVMSG " + sChannel + " :ACTION " + sIID + sActionCode + sMessage + nTime + sSalt;	// 在 znc 后面运行 bot 时，FromAccount 是 znc 分配的帐号，不是 IRC Server 分配的帐号，其他 bot 不知道 znc 分配的帐号，所以，签名会验证失败
+			String sSrc = sFromNickName + /*"!~" + sFromAccount +*/ "@... PRIVMSG " + sChannel + " :ACTION " + sIID + sNegotiationCode + sMessage + nTime + sSalt;	// 在 znc 后面运行 bot 时，FromAccount 是 znc 分配的帐号，不是 IRC Server 分配的帐号，其他 bot 不知道 znc 分配的帐号，所以，签名会验证失败
 System.out.println ("update " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			sign.update (sSrc.getBytes (StandardCharsets.UTF_8));
 System.out.println ("sign " + new java.sql.Timestamp (System.currentTimeMillis ()));
@@ -600,7 +633,7 @@ System.err.println ("sFromNickName: " + sFromNickName);
 //System.err.println ("sFromAccount: " + sFromAccount);
 System.err.println ("sChannel: " + sChannel);
 System.err.println ("sIID: " + sIID);
-System.err.println ("sActionCode: " + sActionCode);
+System.err.println ("sNegotiationCode: " + sNegotiationCode);
 System.err.println ("sMessage: " + sMessage);
 System.err.println ("nTime: " + nTime);
 System.err.println ("sSalt: " + sSalt);
@@ -635,11 +668,11 @@ System.err.println ("----------");
 		return new String (arrayHexCharacters);
 	}
 
-	public Boolean VerifyData (String sSignature, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sActionCode, String sMessage, Long nTime)
+	public Boolean VerifyData (String sSignature, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime)
 	{
-		return VerifyData (keyPublicKey, sSignatureAlgorithm, sSignature, sFromNickName, sFromAccount, sChannel, sIID, sActionCode, sMessage, nTime);
+		return VerifyData (keyPublicKey, sSignatureAlgorithm, sSignature, sFromNickName, sFromAccount, sChannel, sIID, sNegotiationCode, sMessage, nTime);
 	}
-	public static Boolean VerifyData (PublicKey public_key, String sSignatureAlgorithm, String sSignature, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sActionCode, String sMessage, Long nTime)
+	public static Boolean VerifyData (PublicKey public_key, String sSignatureAlgorithm, String sSignature, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime)
 	{
 		Signature sign = null;
 		if (public_key == null)
@@ -647,6 +680,8 @@ System.err.println ("----------");
 System.err.println ("public_key 为 null，不能验证签名");
 			return false;
 		}
+
+		sChannel = StringUtils.lowerCase (sChannel);
 		try
 		{
 System.out.println ("public_key " + public_key);
@@ -655,7 +690,7 @@ System.out.println ("Signature.getInstance " + new java.sql.Timestamp (System.cu
 			sign = Signature.getInstance (sSignatureAlgorithm);
 System.out.println ("initVerify " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			sign.initVerify (public_key);
-			String sSrc = sFromNickName + /*"!~" + sFromAccount +*/ "@... PRIVMSG " + sChannel + " :ACTION " + sIID + sActionCode + sMessage + nTime;
+			String sSrc = sFromNickName + /*"!~" + sFromAccount +*/ "@... PRIVMSG " + sChannel + " :ACTION " + sIID + sNegotiationCode + sMessage + nTime;
 System.out.println ("签收方构造的 sSrc " + sSrc);
 System.out.println ("update " + new java.sql.Timestamp (System.currentTimeMillis ()));
 			sign.update (sSrc.getBytes (StandardCharsets.UTF_8));
@@ -781,11 +816,11 @@ psn-ed25519, 2022年11月17日, PrivateKeyEntry,
 		psn.sSignatureAlgorithm = args[4];
 
 		int iArg=5;
-		String sActionCode = args.length > iArg ? args[iArg] : "I_WANNA_BE_PRIMARY";	iArg ++;
+		String sNegotiationCode = args.length > iArg ? args[iArg] : "I_WANNA_BE_PRIMARY";	iArg ++;
 		String sMessage = args.length > iArg ? args[iArg] : "反对的请举手";	iArg ++;
 		long lTime = args.length > iArg ? Long.valueOf (args[iArg]) : System.currentTimeMillis ();	iArg ++;
 		String sSalt =  args.length > iArg ? args[iArg] : "";	iArg ++;
-		psn.GenerateSignatureString ("", "", "", String.valueOf(lTime), sActionCode, sMessage, lTime, sSalt);
+		psn.GenerateSignatureString ("", "", "", String.valueOf(lTime), sNegotiationCode, sMessage, lTime, sSalt);
 //System.out.println ();
 	}
 }

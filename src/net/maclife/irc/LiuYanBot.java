@@ -1134,11 +1134,13 @@ System.out.println (msg);
 	}
 
 	@Override
-	public void onJoin (String ch, String u, String login, String hostname)
+	public void onJoin (String sChannel, String u, String login, String hostname)
 	{
 		if (u.equalsIgnoreCase(getNick ()))
 		{
-System.out.println (u + " 是机器人自己，将不做处理");
+System.out.println (u + " 是机器人自己，将发起主动协商");
+			if (psn != null)
+				psn.InitiateNegotiation (sChannel, false);
 			return;
 		}
 		if (geoIP2DatabaseReader==null)
@@ -1211,7 +1213,7 @@ System.out.println ("geoIP2DatabaseReader 为空，将不做处理");
 			e.printStackTrace ();
 		}
 */
-		JoinQuitCommon (u, login, hostname, ch);
+		JoinQuitCommon (u, login, hostname, sChannel);
 	}
 
 	@Override
@@ -11437,7 +11439,7 @@ System.out.println (Arrays.toString (arrayBanAndReason));
 			{
 				if (StringUtils.isEmpty (ch))
 					continue;
-				if (!ch.startsWith("#"))
+				if (! ch.startsWith ("#"))
 					ch = "#" + ch;
 				bot.joinChannel (ch);
 			}
@@ -11803,9 +11805,21 @@ System.out.println ("已取消当前频道");
 							if (currentBot.psn == null)
 								currentBot.psn = new PrimarySecondaryNegotiator (currentBot, System.getProperty ("primary-secondary-negotiation.keystore.file"), System.getProperty ("primary-secondary-negotiation.keystore.password"), System.getProperty ("primary-secondary-negotiation.key.name"), System.getProperty ("primary-secondary-negotiation.key.password"));
 
+							boolean bHasValidChannelParams = false;
 							boolean bForced = StringUtils.containsIgnoreCase (params[0], ".force");
 							for (int iParam=1; iParam<params.length; iParam++)
+							{
+								if (StringUtils.isEmpty (params[iParam]))
+									continue;
+
+								bHasValidChannelParams = true;
 								currentBot.psn.InitiateNegotiation (params[iParam], bForced);
+							}
+
+							if (! bHasValidChannelParams || params.length == 1)
+							{
+System.out.println (currentBot.psn.mapChannelsState);
+							}
 						}
 						else if (cmd.equalsIgnoreCase (BOT_PRIMARY_COMMAND_CONSOLE_Verbose))
 						{
