@@ -94,6 +94,9 @@ public class LiuYanBot extends PircBot
 	static
 	{
 		jacksonObjectMapper_Loose.configure (JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);	// 允许不对字段名加引号
+		jacksonObjectMapper_Loose.configure (JsonGenerator.Feature.QUOTE_FIELD_NAMES, false);
+		jacksonObjectMapper_Loose.configure (JsonWriteFeature.QUOTE_FIELD_NAMES.mappedFeature (), false);
+
 		jacksonObjectMapper_Loose.configure (JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES.mappedFeature (), true);	// 允许不对字段名加引号
 		//JsonMapper.builder ().configure (JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES, true);
 
@@ -1139,9 +1142,19 @@ System.out.println (msg);
 		if (u.equalsIgnoreCase(getNick ()))
 		{
 System.out.println (u + " 是机器人自己，将发起主动协商");
+
 			if (psn != null)
-				psn.InitiateNegotiation (sChannel, false);
-			return;
+			{
+				try
+				{
+					psn.InitiateNegotiation (sChannel, false);
+					return;
+				}
+				catch (JsonProcessingException e)
+				{
+					e.printStackTrace();
+				}
+			}
 		}
 		if (geoIP2DatabaseReader==null)
 		{
@@ -1402,7 +1415,7 @@ logger.finer ("消息是对本 Bot 说的");
 			botCmd = getBotPrimaryCommand (message);
 
 
-			boolean bAmIPrimaryBot = (psn==null ? false : psn.AmIPrimary (channel));
+			boolean bAmIPrimaryBot = (StringUtils.isEmpty (channel) ? true : psn==null ? false : psn.AmIPrimary (channel));
 			boolean isHTTemplateShortcut = false;
 			boolean isCustomizedActionCmdShortcut = false;
 			if (botCmd == null && bAmIPrimaryBot)
@@ -11809,11 +11822,12 @@ System.out.println ("已取消当前频道");
 							boolean bForced = StringUtils.containsIgnoreCase (params[0], ".force");
 							for (int iParam=1; iParam<params.length; iParam++)
 							{
-								if (StringUtils.isEmpty (params[iParam]))
+								String sChannel = params[iParam];
+								if (StringUtils.isEmpty (sChannel))
 									continue;
 
 								bHasValidChannelParams = true;
-								currentBot.psn.InitiateNegotiation (params[iParam], bForced);
+								currentBot.psn.InitiateNegotiation (sChannel, bForced);
 							}
 
 							if (! bHasValidChannelParams || params.length == 1)
