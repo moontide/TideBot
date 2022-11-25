@@ -120,7 +120,7 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 		I_WANNA_BE_PRIMARY,
 		OK,
 		REJECT,
-		ANNOUNCE,
+		ANNOUNCEMENT,
 	};
 
 	LiuYanBot oThisBot = null;
@@ -128,26 +128,27 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 	/**
 	 * 协商器在通道中的状态。
 	 * <dl>
-	 * 	<dt>key : 频道名称</dt>
+	 * 	<dt>key: 频道名称</dt>
 	 * <dd>每个频道名一个 key，如： <code>#liuyanbot</code></dd>
 	 *
-	 * <dt>value</dt>
+	 * <dt>value:</dt>
 	 * <dd>又是一个 Map，
 	 * 		<dl>
 	 * 			<dt>key = <code>CurrentNegotiation</code></dt>
-	 * 			<dd><code>JsonNode</code> 类型，当前正在进行的协商。同一组 Bot、在同一频道内、同一时间内 只能有一个协商。当有其他协商时</dd>
+	 * 			<dd>value: 当前正在进行的协商。<code>JsonNode</code> 类型。同一组 Bot、在同一频道内、同一时间内 只能有一个协商。当有其他协商时</dd>
 
 	 * 			<dt>key = <code>CurrentNegotiationInitiator</code></dt>
-	 * 			<dd><code>String</code> 类型, 当前主从协商发起方的昵称</dd>
+	 * 			<dd>value: 当前主从协商发起方的昵称。<code>String</code> 类型。</dd>
 
 	 * 			<dt>key = <code>AmIPrimary</code></dt>
-	 * 			<dd><code>Boolean</code> 类型, 我是否是首选 Bot</dd>
+	 * 			<dd>value: 我是否是首选 Bot。<code>Boolean</code> 类型。</dd>
 
 	 * 			<dt>key = <code>Votes</code></dt>
-	 * 			<dd><code>Map</code> 类型, 投票记录。
+	 * 			<dd>value: 投票记录。<code>Map</code> 类型。
 	 * 				<dl>
 	 * 					<dt>key: 投票 Bot 的昵称</dt>
-	 * 					<dt>value: <code>NegotiationCode</code> ，OK 或 REJECT</dt>
+	 * 					<dd>因为采用的是一票否决制，所以，不用担心【使用传统投票计数方式】时才会出现的【当 Bot 昵称改名后再次投票，被计为多张票】的问题</dd>
+	 * 					<dt>value: 投票结果，OK 或 REJECT。<code>enum NegotiationCode</code> 类型。</dt>
 	 * 				</dl>
 	 * 			</dd>
 	 * 		</dl>
@@ -350,7 +351,7 @@ System.out.println (sChannel + " 主从协商结束：" + nOK + " 票同意，" 
 						// Announce 新首选 Bot 产生
 						try
 						{
-							Announce (oThisBot, sChannel, sIID, "新话(打)事(工)人就是我");
+							Announce (oThisBot, sChannel, sIID, "新话(打)事(工)人就是我");	// “话事人/首选 Bot”本质上其实是打工人：快捷命令它全干，同组的其他 Bot 实例全歇着。
 						}
 						catch (Exception e)
 						{
@@ -478,18 +479,21 @@ System.err.println ("非强制性的");
 				case OK:
 				case REJECT:
 					// 通常由发起方处理回复。其他接收方，也可以存储结果，但目前的实现方式是不处理
-					if (! StringUtils.equalsIgnoreCase (bot.getNick (), GetCurrentNegotiationInitiator(sTargetChannel))
-							|| (GetCurrentNegotiation(sTargetChannel)!=null
-								&& !StringUtils.equalsIgnoreCase (sIID, GetCurrentNegotiation(sTargetChannel).get ("iid").asText ())
-								)
-						)
+					if (GetCurrentNegotiation(sTargetChannel)!=null && !StringUtils.equalsIgnoreCase (sIID, GetCurrentNegotiation(sTargetChannel).get ("iid").asText ()) )
 					{
-System.err.println (sTargetChannel + " 频道，回复人不是发起人，或者，回复的不是当前正在进行的协商，不处理");
+System.err.println (sTargetChannel + " 频道，回复的不是当前正在进行的协商，不处理。正常情况下，这个条件不会满足，因为正常情况下，同一频道、同一组 Bot、同一时间只能有一个主从协商");
+						break;
+					}
+					if (! StringUtils.equalsIgnoreCase (bot.getNick (), GetCurrentNegotiationInitiator(sTargetChannel)))
+					{
+System.err.println (sTargetChannel + " 频道，回复人不是发起人，一般情况下不处理。但当回复 REJECT 时，需要立刻取消本地缓存的主从协商，否则会阻塞下一次的主从协商。");
+						if (negotiation_code == NegotiationCode.REJECT)
+							this.CleanUpCurrentNegotiation (sTargetChannel);
 						break;
 					}
 					GetCurrentNegotiationVotes (sTargetChannel).put (sFromNickName, negotiation_code);
 					break;
-				case ANNOUNCE:
+				case ANNOUNCEMENT:
 					OnPrimaryWasElected (bot, sTargetChannel, sFromNickName);
 					break;
 			}
@@ -541,11 +545,11 @@ bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "Announce");
 		ObjectNode jsonNegotiationAnnouncement = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		long lTime = System.currentTimeMillis ();
 		//jsonNegotiationAnnouncement.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
-		jsonNegotiationAnnouncement.put ("c", NegotiationCode.ANNOUNCE.toString ());	// code
+		jsonNegotiationAnnouncement.put ("c", NegotiationCode.ANNOUNCEMENT.toString ());	// code
 		jsonNegotiationAnnouncement.put ("iid", sIID);	// time
 		jsonNegotiationAnnouncement.put ("m", sMessage);	// message
 		jsonNegotiationAnnouncement.put ("t", lTime);	// time
-		String sSignature_Base64 = GenerateSignatureBase64String (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, NegotiationCode.ANNOUNCE.toString (), sMessage, lTime);
+		String sSignature_Base64 = GenerateSignatureBase64String (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, NegotiationCode.ANNOUNCEMENT.toString (), sMessage, lTime);
 		if (sSignature_Base64 == null)
 			return;
 		jsonNegotiationAnnouncement.put ("s", sSignature_Base64);	// signature

@@ -560,13 +560,13 @@ public class ANSIEscapeTool
 				if (ch == 0)	// null，结束，换下一行
 					break;
 
-				//System.err.print ((iLine+1) + "行" + (iColumn+1) + "列");
+//System.err.print ((iLine+1) + "行" + (iColumn+1) + "列 [" + ch + "], attr=" + attr);
 				int l_reset = 0;
 				int l_bold = 0;
 				int l_reverse = 0;
 				int l_underline = 0;
-				boolean l_256color_fg = false;
-				boolean l_256color_bg = false;
+				//boolean l_256color_fg = false;
+				//boolean l_256color_bg = false;
 				int l_fg = 0;
 				int l_bg = 0;
 
@@ -586,8 +586,8 @@ public class ANSIEscapeTool
 					l_reverse = previous_attr.get ("reverse")==null ? 0 : ((boolean)previous_attr.get ("reverse") ?  1 : 0);
 					l_underline = previous_attr.get ("underline")==null ? 0 : ((boolean)previous_attr.get ("underline") ?  1 : 0);
 
-					//l_256color_fg = (Boolean)previous_attr.get ("256color_fg")==null ? false : (boolean)previous_attr.get ("256color_fg");
-					//l_256color_bg = (Boolean)previous_attr.get ("256color_bg")==null ? false : (boolean)previous_attr.get ("256color_bg");
+					//l_256color_fg = (Boolean)previous_attr.get ("256color-fg")==null ? false : (boolean)previous_attr.get ("256color-fg");
+					//l_256color_bg = (Boolean)previous_attr.get ("256color-bg")==null ? false : (boolean)previous_attr.get ("256color-bg");
 					l_fg = previous_attr.get ("fg")==null ? 0 : (int)previous_attr.get ("fg");
 					l_bg = previous_attr.get ("bg")==null ? 0 : (int)previous_attr.get ("bg");
 				}
@@ -598,8 +598,8 @@ public class ANSIEscapeTool
 					r_reverse = attr.get ("reverse")==null ? 0 : ((boolean)attr.get ("reverse") ?  1 : 0);
 					r_underline = attr.get ("underline")==null ? 0 : ((boolean)attr.get ("underline") ?  1 : 0);
 
-					r_256color_fg = (Boolean)attr.get ("256color_fg")==null ? false : (boolean)attr.get ("256color_fg");
-					r_256color_bg = (Boolean)attr.get ("256color_bg")==null ? false : (boolean)attr.get ("256color_bg");
+					r_256color_fg = (Boolean)attr.get ("256color-fg")==null ? false : (boolean)attr.get ("256color-fg");
+					r_256color_bg = (Boolean)attr.get ("256color-bg")==null ? false : (boolean)attr.get ("256color-bg");
 					r_fg = attr.get ("fg")==null ? 0 : (int)attr.get ("fg");
 					r_bg = attr.get ("bg")==null ? 0 : (int)attr.get ("bg");
 				}
@@ -759,7 +759,7 @@ public class ANSIEscapeTool
 	}
 	/**
 	 * <ul>
-	 * <li>最常用的颜色转义序列，即： CSI n 'm'</li>
+	 * <li>最常用的颜色转义序列，即：SGR 序列 (CSI n 'm')</li>
 	 * <li>光标移动转义序列，处理光标前进、向下的移动，也处理回退、向上的移动</li>
 	 * <li>清屏、清除行</li>
 	 * <li>其他的转义序列，全部清空</li>

@@ -5492,19 +5492,26 @@ System.out.println ("时间单位 = " + mat.group(2));
 		if (sContentType == null)
 			return sDefaultCharset;
 
-		String[] arrayContentTypeItems = sContentType.split(";");
+		sCharset = GetCharsetAttributeFromContentTypeHead (sContentType);
+		if (sCharset == null)
+			return sDefaultCharset;
+		else
+			return sCharset;
+	}
 
+	public static String GetCharsetAttributeFromContentTypeHead (String sResponseContentType)
+	{
+		String[] arrayContentTypeItems = sResponseContentType.split(";");
 		for (int i=1; i<arrayContentTypeItems.length; i++)
 		{
 			String sAttributeString = arrayContentTypeItems[i].trim();
 
 			if (sAttributeString.toLowerCase().startsWith("charset="))
 			{
-				sCharset = sAttributeString.substring("charset=".length());
-				return sCharset;
+				return sAttributeString.substring("charset=".length());
 			}
 		}
-		return sDefaultCharset;
+		return null;
 	}
 
 	/**
@@ -8156,9 +8163,10 @@ logger.fine ("url after parameter expansion: " + sURL);
 		List<String> listFormatWidth = new ArrayList<String> ();
 		List<String> listRightPaddings = new ArrayList<String> ();
 
-		String sHTTPUserAgent = null;
+		String sHTTPHead_UserAgent = null;
 		String sHTTPRequestMethod = null;
-		String sHTTPReferer = null;
+		String sHTTPHead_Referer = null;
+		String sHTTPHead_AcceptLanguage = null;
 
 		//String sIgnoreContentType = null;
 		boolean isIgnoreContentType = false;
@@ -8274,11 +8282,13 @@ logger.fine ("url after parameter expansion: " + sURL);
 					//		opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 					//}
 					else if (param.equalsIgnoreCase ("ua") || param.equalsIgnoreCase ("user-agent") || param.equalsIgnoreCase ("浏览器"))
-						sHTTPUserAgent = value;
+						sHTTPHead_UserAgent = value;
 					else if (param.equalsIgnoreCase ("m") || param.equalsIgnoreCase ("method") || param.equalsIgnoreCase ("方法"))
 						sHTTPRequestMethod = value;
 					else if (param.equalsIgnoreCase ("r") || param.equalsIgnoreCase ("ref") || param.equalsIgnoreCase ("refer") || param.equalsIgnoreCase ("referer") || param.equalsIgnoreCase ("来源"))
-						sHTTPReferer = value;
+						sHTTPHead_Referer = value;
+					else if (param.equalsIgnoreCase ("l") || param.equalsIgnoreCase ("lang") || param.equalsIgnoreCase ("language") || param.equalsIgnoreCase ("accept-language") || param.equalsIgnoreCase ("语言"))
+						sHTTPHead_AcceptLanguage = value;
 					else if (param.equalsIgnoreCase ("start") || param.equalsIgnoreCase ("offset") || param.equalsIgnoreCase ("起始") || param.equalsIgnoreCase ("偏移量"))
 					{
 						//sStart = value;
@@ -8491,20 +8501,25 @@ logger.fine ("url after parameter expansion: " + sURL);
 					//	sbSQL.append ("	AND max = ?\n");
 					//	listSQLParams.add (sMax);
 					//}
-					if (StringUtils.isNotEmpty (sHTTPUserAgent))
+					if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
 					{
 						sbSQL.append ("	AND ua LIKE ?\n");
-						listSQLParams.add ("%" + sHTTPUserAgent + "%");
+						listSQLParams.add ("%" + sHTTPHead_UserAgent + "%");
 					}
 					if (StringUtils.isNotEmpty (sHTTPRequestMethod))
 					{
 						sbSQL.append ("	AND request_method = ?\n");
 						listSQLParams.add (sHTTPRequestMethod);
 					}
-					if (StringUtils.isNotEmpty (sHTTPReferer))
+					if (StringUtils.isNotEmpty (sHTTPHead_Referer))
 					{
 						sbSQL.append ("	AND referer LIKE ?\n");
-						listSQLParams.add ("%" + sHTTPReferer + "%");
+						listSQLParams.add ("%" + sHTTPHead_Referer + "%");
+					}
+					if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
+					{
+						sbSQL.append ("	AND lang LIKE ?\n");
+						listSQLParams.add ("%" + sHTTPHead_AcceptLanguage + "%");
 					}
 
 					sbSQL.append (" ORDER BY id DESC\n");
@@ -8597,12 +8612,14 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 						isIgnoreHTTPSCertificateValidation = rs.getBoolean ("ignore_https_certificate_validation");
 
-						if (StringUtils.isEmpty (sHTTPUserAgent))
-							sHTTPUserAgent = rs.getString ("ua");
+						if (StringUtils.isEmpty (sHTTPHead_UserAgent))
+							sHTTPHead_UserAgent = rs.getString ("ua");
 						if (StringUtils.isEmpty (sHTTPRequestMethod))
 							sHTTPRequestMethod = rs.getString ("request_method");
-						if (StringUtils.isEmpty (sHTTPReferer))
-							sHTTPReferer = rs.getString ("referer");
+						if (StringUtils.isEmpty (sHTTPHead_Referer))
+							sHTTPHead_Referer = rs.getString ("referer");
+						if (StringUtils.isEmpty (sHTTPHead_AcceptLanguage))
+							sHTTPHead_AcceptLanguage = rs.getString ("lang");
 
 						sURLParamsHelp = rs.getString ("url_param_usage");
 
@@ -8804,8 +8821,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
 				conn.setAutoCommit (false);
-				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right, ua, request_method, referer, max, added_by, added_by_user, added_by_host, added_time)\n");
-				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, CURRENT_TIMESTAMP)");
+				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right, ua, request_method, referer, lang, max, added_by, added_by_user, added_by_host, added_time)\n");
+				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
@@ -8828,9 +8845,10 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (0)));
 				stmt.setString (iParam++, listRightPaddings.get (0));
 
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPUserAgent));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_UserAgent));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPReferer));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_Referer));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_AcceptLanguage));
 
 				stmt.setInt (iParam++, opt_max_response_lines);
 
@@ -8966,15 +8984,20 @@ System.out.println (sURL);
 					https.setSSLSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());
 					https.setHostnameVerifier (hvAllowAllHostnames);
 				}
-				if (StringUtils.isNotEmpty (sHTTPUserAgent))
+				if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
 				{
-System.out.println (sHTTPUserAgent);
-					http.setRequestProperty ("User-Agent", sHTTPUserAgent);
+System.out.println (sHTTPHead_UserAgent);
+					http.setRequestProperty ("User-Agent", sHTTPHead_UserAgent);
 				}
-				if (StringUtils.isNotEmpty (sHTTPReferer))
+				if (StringUtils.isNotEmpty (sHTTPHead_Referer))
 				{
-System.out.println (sHTTPReferer);
-					http.setRequestProperty ("Referer", sHTTPReferer);
+System.out.println (sHTTPHead_Referer);
+					http.setRequestProperty ("Referer", sHTTPHead_Referer);
+				}
+				if (StringUtils.isNotEmpty (sHTTPHead_Referer))
+				{
+System.out.println (sHTTPHead_Referer);
+					http.setRequestProperty ("Accept-Language", sHTTPHead_AcceptLanguage);
 				}
 
 				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
@@ -9112,7 +9135,7 @@ fw.close ();
 					nLines ++;
 				}
 			}
-			// 处理 html 和 pdf 内容
+			// 使用 jsoup 获取内容 （text/html text/xml text/plain 和 application/pdf )
 			else
 			{
 				org.jsoup.Connection jsoup_conn = null;
@@ -9135,15 +9158,20 @@ fw.close ();
 						.ignoreContentType (isIgnoreContentType)
 						.timeout (opt_timeout_length_seconds * 1000)
 						;
-				if (StringUtils.isNotEmpty (sHTTPUserAgent))
+				if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
 				{
-System.out.println (sHTTPUserAgent);
-					jsoup_conn.userAgent (sHTTPUserAgent);
+System.out.println (sHTTPHead_UserAgent);
+					jsoup_conn.userAgent (sHTTPHead_UserAgent);
 				}
-				if (StringUtils.isNotEmpty (sHTTPReferer))
+				if (StringUtils.isNotEmpty (sHTTPHead_Referer))
 				{
-System.out.println (sHTTPReferer);
-					jsoup_conn.referrer (sHTTPReferer);
+System.out.println (sHTTPHead_Referer);
+					jsoup_conn.referrer (sHTTPHead_Referer);
+				}
+				if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
+				{
+System.out.println (sHTTPHead_AcceptLanguage);
+					jsoup_conn.header ("Accept-Language", sHTTPHead_AcceptLanguage);
 				}
 
 				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, org.jsoup.Connection.Method.POST.toString ()))
@@ -9172,6 +9200,8 @@ System.out.println (sQueryString);
 				//	jsoup_conn.method (org.jsoup.Connection.Method.GET);	// 默认就是 GET
 
 				jsoup_response = jsoup_conn.execute ();
+				String sResponseContentType = jsoup_response.contentType ();
+System.out.println ("响应返回的 Content-Type: " + sResponseContentType);
 
 				// pdf
 				if (StringUtils.equalsIgnoreCase (sContentType, "pdf"))
@@ -9207,7 +9237,22 @@ System.out.println (sQueryString);
 						e.printStackTrace ();
 						return;
 					}
+				}
+				else if (StringUtils.startsWithIgnoreCase (sResponseContentType, "text/plain"))
+				{
+					//Document.OutputSettings outputSettings = new Document.OutputSettings();
+					//outputSettings.prettyPrint (false);
+					String sCharset = GetCharsetAttributeFromContentTypeHead (sResponseContentType);
+					if (sCharset == null)
+						sCharset = JVM_CHARSET.toString ();
+					String sText = IOUtils.toString (jsoup_response.bodyStream (), sCharset);
+					//doc = Jsoup.parse (sText);
+					//doc.outputSettings (outputSettings);
+					if (StringUtils.isNotEmpty (listFilters.get (0)))
+						sText = HTOutputFilter (sText, listFilters.get (0));
 
+					SendMessage (ch, nick, mapGlobalOptions, sText);
+					return;
 				}
 				else
 					// html/xml
@@ -9418,14 +9463,14 @@ System.err.println ("	行数总数=" + nLines);
 				"\u0000", "\u0001", /*"\u0002", "\u0003",*/ "\u0004", "\u0005", "\u0006", "\u0007",
 				"\u0008", "\u0009"/*\t*/, "\n"/*\u000A*/, "\u000B", "\u000C", "\r"/*\u000D*/, "\u000E", /*"\u000F",*/
 				"\u0010", "\u0011", "\u0012", "\u0013", "\u0014", "\u0015", /*"\u0016",*/ "\u0017",
-				"\u0018", "\u0019", "\u001A", "\u001B", "\u001C", "\u001D", "\u001E", /*"\u001F",*/
+				"\u0018", "\u0019", "\u001A", /*"\u001B",*/ "\u001C", "\u001D", "\u001E", /*"\u001F",*/	// \u001B，ANSI Escape 标志，有的 http 接口返回的数据包含该字符，所以不再处理
 			},
 			new String[]
 			{
 				"", "", "", /*"", "",*/ "", "", "",
 				"", " ", " ", "", " ", " ", "", /*"",*/
 				"", "", "", "", "", "", /*"",*/ "",
-				"", "", "", "", "", "", "", /*"",*/
+				"", "", "", /*"",*/ "", "", "", /*"",*/
 			}
 			/*
 			new String[]
@@ -9481,6 +9526,10 @@ System.err.println ("	行数总数=" + nLines);
 			{
 				sResult = HTOutputFilter_MarkdownToIRC (sResult);
 			}
+			else if (StringUtils.equalsAnyIgnoreCase (sFilter, "ansi", "ansi2irc", "ANSIEscape"))
+			{
+				sResult = HTOutputFilter_ANSIEscapeToIRC (sResult);
+			}
 		}
 		return sResult;
 	}
@@ -9496,7 +9545,31 @@ System.err.println ("	行数总数=" + nLines);
 		//
 		//sResult = sResult.replaceAll ("**(.+)**", "\\1");
 		sResult = StringUtils.replace (sResult, "**", Colors.BOLD);
+System.out.println (sSrc);
+System.out.println ("执行 MarkdownToIRC 过滤器后的结果");
+System.out.println (sResult);
 		return sResult;
+	}
+	/**
+	 * 过滤器：将 ANSI Escape 序列 转换为 IRC 转义序列。
+	 * 有的网站，提供 ANSI Escape 输出，如：<code>curl http://wttr.in/shenzhen</code>。
+	 * 只处理简单的 SGR 类的 ANSI Escape，暂不处理“光标移动”等 ANSI Escape 序列。
+	 * @param sSrc
+	 * @return
+	 */
+	String HTOutputFilter_ANSIEscapeToIRC (String sSrc)
+	{
+		StringBuilder sb = new StringBuilder ();
+		List<String> listResult = ANSIEscapeTool.ConvertAnsiEscapeTo (sSrc);
+		for (String s : listResult)
+		{
+			sb.append (s);
+			sb.append ('\n');
+		}
+System.out.println (sSrc);
+System.out.println ("执行 ANSIEscapeToIRC 过滤器后的结果");
+System.out.println (sb);
+		return sb.toString ();
 	}
 
 	public static Dialog FindDialog (Collection<Dialog> dialogs, long nDialogThreadID)
