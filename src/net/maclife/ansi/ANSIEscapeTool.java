@@ -135,7 +135,7 @@ public class ANSIEscapeTool
 	/**
 	 * 16 色 IRC 颜色数组，便于用索引号访问颜色
 	 */
-	public static String[] IRC_16_COLORS =
+	public static final String[] IRC_16_COLORS =
 	{
 		Colors.WHITE, Colors.BLACK, Colors.DARK_BLUE, Colors.DARK_GREEN,
 		Colors.RED, COLOR_DARK_RED, Colors.PURPLE, COLOR_ORANGE,
@@ -148,7 +148,7 @@ public class ANSIEscapeTool
 	 * <br/>
 	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03' 之后的代码</span>
 	 */
-	public static String[] IRC_16_BACKGROUND_COLORS =
+	public static final String[] IRC_16_BACKGROUND_COLORS =
 	{
 		",00", ",01", ",02", ",03",
 		",04", ",05", ",06", ",07",
@@ -169,7 +169,7 @@ public class ANSIEscapeTool
 	 * <br/>
 	 * <span style='color:red'>注意，这个不是完整的 IRC 颜色代码，只是补充在 '\x03,' 之后的代码</span>
 	 */
-	public static String[] IRC_BACKGROUND_Rainbow_COLORS =
+	public static final String[] IRC_BACKGROUND_Rainbow_COLORS =
 	{
 		"05", "07", "04", "08", "09",
 		"03", "02", "12", "10", "11",
@@ -178,7 +178,7 @@ public class ANSIEscapeTool
 	/**
 	 * 16 色 IRC 颜色+相同颜色的背景颜色数组，便于用索引号访问颜色
 	 */
-	public static String[] IRC_16_COLORS_WITH_SAME_BACKGROUND_COLORS =
+	public static final String[] IRC_16_COLORS_WITH_SAME_BACKGROUND_COLORS =
 	{
 		Colors.WHITE + ",00", Colors.BLACK + ",01", Colors.DARK_BLUE + ",02", Colors.DARK_GREEN + ",03",
 		Colors.RED + ",04", COLOR_DARK_RED + ",05", Colors.PURPLE + ",06", COLOR_ORANGE + ",07",
@@ -188,7 +188,7 @@ public class ANSIEscapeTool
 	/**
 	 * 16 色 ANSI 颜色数组，便于用索引号访问颜色
 	 */
-	public static String[] ANSI_16_COLORS =
+	public static final String[] ANSI_16_COLORS =
 	{
 		"30",   "31",   "32",   "33",   "34",   "35",   "36",   "37",
 		"30;1", "31;1", "32;1", "33;1", "34;1", "35;1", "36;1", "37;1",
@@ -196,7 +196,7 @@ public class ANSIEscapeTool
 	/**
 	 * 8 色 ANSI 背景颜色数组，便于用索引号访问颜色
 	 */
-	public static String[] ANSI_8_BACKGROUND_COLORS =
+	public static final String[] ANSI_8_BACKGROUND_COLORS =
 	{
 		"40",   "41",   "42",   "43",   "44",   "45",   "46",   "47",
 	};
@@ -214,7 +214,7 @@ public class ANSIEscapeTool
 	/**
 	 * 16 色 ANSI 颜色转换到 IRC 颜色索引数组
 	 */
-	public static String[][] ANSI_16_TO_IRC_16_COLORS = {
+	public static final String[][] ANSI_16_TO_IRC_16_COLORS = {
 		// {普通属性颜色, 带高亮属性的颜色,}
 		{Colors.BLACK, Colors.DARK_GRAY,},	// 黑色 / 深灰
 		{COLOR_DARK_RED, Colors.RED,},	// 深红 / 浅红
@@ -225,7 +225,8 @@ public class ANSIEscapeTool
 		{COLOR_DARK_CYAN, Colors.CYAN,},	// 青色
 		{Colors.LIGHT_GRAY, Colors.WHITE,},	// 浅灰 / 白色
 	};
-	public static String[] XTERM_256_TO_IRC_16_COLORS = {
+	public static final String[] ANSI_256_TO_IRC_16_COLORS =
+	{
 		// 传统 16 色
 		// 0-7
 		Colors.BLACK, COLOR_DARK_RED, Colors.DARK_GREEN, COLOR_ORANGE, Colors.DARK_BLUE, Colors.PURPLE, COLOR_DARK_CYAN, Colors.LIGHT_GRAY,
@@ -317,6 +318,166 @@ public class ANSIEscapeTool
 		Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY, Colors.LIGHT_GRAY,
 		Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE, Colors.WHITE,
 	};
+
+
+	public static final String[] hexstringRGB_COLOR_PALLETTE__IRC_100__i_dont_care_about_0to15_or_99 =
+	{
+		null, null, null, null, null, null, null, null,
+		null, null, null, null, null, null, null, null,
+		"470000", "472100", "474700", "324700", "004700", "00472c", "004747", "002747", "000047", "2e0047", "470047", "47002a",
+		"740000", "743a00", "747400", "517400", "007400", "007449", "007474", "004074", "000074", "4b0074", "740074", "740045",
+		"b50000", "b56300", "b5b500", "7db500", "00b500", "00b571", "00b5b5", "0063b5", "0000b5", "7500b5", "b500b5", "b5006b",
+		"ff0000", "ff8c00", "ffff00", "b2ff00", "00ff00", "00ffa0", "00ffff", "008cff", "0000ff", "a500ff", "ff00ff", "ff0098",
+		"ff5959", "ffb459", "ffff71", "cfff60", "6fff6f", "65ffc9", "6dffff", "59b4ff", "5959ff", "c459ff", "ff66ff", "ff59bc",
+		"ff9c9c", "ffd39c", "ffff9c", "e2ff9c", "9cff9c", "9cffdb", "9cffff", "9cd3ff", "9c9cff", "dc9cff", "ff9cff", "ff94d3",
+		"000000", "131313", "282828", "363636", "4d4d4d", "656565", "818181", "9f9f9f", "bcbcbc", "e2e2e2", "ffffff", null
+	};
+	public static final Integer[] integerRGB_COLOR_PALLETTE__IRC_100__i_dont_care_about_0to15_or_99 = new Integer[hexstringRGB_COLOR_PALLETTE__IRC_100__i_dont_care_about_0to15_or_99.length];
+
+	public static final String[] hexstringRGB_COLOR_PALLETTE__ANSI_256 =
+	{
+		"000000", "800000", "008000", "808000", "000080", "800080", "008080", "c0c0c0",
+		"808080", "ff0000", "00ff00", "ffff00", "0000ff", "ff00ff", "00ffff", "ffffff",
+
+		"000000", "00005f", "000087", "0000af", "0000d7", "0000ff", "005f00", "005f5f",
+		"005f87", "005faf", "005fd7", "005fff", "008700", "00875f", "008787", "0087af",
+		"0087d7", "0087ff", "00af00", "00af5f", "00af87", "00afaf", "00afd7", "00afff",
+		"00d700", "00d75f", "00d787", "00d7af", "00d7d7", "00d7ff", "00ff00", "00ff5f",
+		"00ff87", "00ffaf", "00ffd7", "00ffff", "5f0000", "5f005f", "5f0087", "5f00af",
+		"5f00d7", "5f00ff", "5f5f00", "5f5f5f", "5f5f87", "5f5faf", "5f5fd7", "5f5fff",
+		"5f8700", "5f875f", "5f8787", "5f87af", "5f87d7", "5f87ff", "5faf00", "5faf5f",
+		"5faf87", "5fafaf", "5fafd7", "5fafff", "5fd700", "5fd75f", "5fd787", "5fd7af",
+		"5fd7d7", "5fd7ff", "5fff00", "5fff5f", "5fff87", "5fffaf", "5fffd7", "5fffff",
+		"870000", "87005f", "870087", "8700af", "8700d7", "8700ff", "875f00", "875f5f",
+		"875f87", "875faf", "875fd7", "875fff", "878700", "87875f", "878787", "8787af",
+		"8787d7", "8787ff", "87af00", "87af5f", "87af87", "87afaf", "87afd7", "87afff",
+		"87d700", "87d75f", "87d787", "87d7af", "87d7d7", "87d7ff", "87ff00", "87ff5f",
+		"87ff87", "87ffaf", "87ffd7", "87ffff", "af0000", "af005f", "af0087", "af00af",
+		"af00d7", "af00ff", "af5f00", "af5f5f", "af5f87", "af5faf", "af5fd7", "af5fff",
+		"af8700", "af875f", "af8787", "af87af", "af87d7", "af87ff", "afaf00", "afaf5f",
+		"afaf87", "afafaf", "afafd7", "afafff", "afd700", "afd75f", "afd787", "afd7af",
+		"afd7d7", "afd7ff", "afff00", "afff5f", "afff87", "afffaf", "afffd7", "afffff",
+		"d70000", "d7005f", "d70087", "d700af", "d700d7", "d700ff", "d75f00", "d75f5f",
+		"d75f87", "d75faf", "d75fd7", "d75fff", "d78700", "d7875f", "d78787", "d787af",
+		"d787d7", "d787ff", "d7af00", "d7af5f", "d7af87", "d7afaf", "d7afd7", "d7afff",
+		"d7d700", "d7d75f", "d7d787", "d7d7af", "d7d7d7", "d7d7ff", "d7ff00", "d7ff5f",
+		"d7ff87", "d7ffaf", "d7ffd7", "d7ffff", "ff0000", "ff005f", "ff0087", "ff00af",
+		"ff00d7", "ff00ff", "ff5f00", "ff5f5f", "ff5f87", "ff5faf", "ff5fd7", "ff5fff",
+		"ff8700", "ff875f", "ff8787", "ff87af", "ff87d7", "ff87ff", "ffaf00", "ffaf5f",
+		"ffaf87", "ffafaf", "ffafd7", "ffafff", "ffd700", "ffd75f", "ffd787", "ffd7af",
+		"ffd7d7", "ffd7ff", "ffff00", "ffff5f", "ffff87", "ffffaf", "ffffd7", "ffffff",
+
+		"080808", "121212", "1c1c1c", "262626", "303030", "3a3a3a", "444444", "4e4e4e",
+		"585858", "626262", "6c6c6c", "767676", "808080", "8a8a8a", "949494", "9e9e9e",
+		"a8a8a8", "b2b2b2", "bcbcbc", "c6c6c6", "d0d0d0", "dadada", "e4e4e4", "eeeeee",
+	};
+	public static final Integer[] integerRGB_COLOR_PALLETTE__ANSI_256 = new Integer[hexstringRGB_COLOR_PALLETTE__ANSI_256.length];
+	public static void ConvertHexadecimalStringPaletteToIntegerPalette (String[] hexstringPalette, Integer[] integerPalette)
+	{
+		assert hexstringPalette != null;
+		assert integerPalette !=  null;
+		assert hexstringPalette.length == integerPalette.length;
+		for (int i=0; i<hexstringPalette.length; i++)
+		{
+			String s = hexstringPalette [i];
+			if (StringUtils.isEmpty (s))
+				continue;
+			integerPalette[i] = Integer.parseInt (s, 16);
+		}
+System.out.println (Arrays.toString (integerPalette));
+	}
+	public static int FindClosestRGBColorIndexFromPalette (int nColorValue, Integer[] integerPalette)
+	{
+		int r = (nColorValue >> 16) & 0xFF;
+		int g = (nColorValue >> 8) & 0xFF;
+		int b = nColorValue & 0xFF;
+
+		Integer[][] arrayarayDeltaAndIndex = new Integer [integerPalette.length][2];
+		for (int i=0; i<integerPalette.length; i++)
+		{
+			Integer nColorInPalette = integerPalette[i];
+			arrayarayDeltaAndIndex[i][1] = i;
+			if (nColorInPalette == null)
+			{
+				arrayarayDeltaAndIndex[i][0] = Integer.MAX_VALUE;
+				continue;
+			}
+			int r2 = (nColorInPalette >> 16) & 0xFF;
+			int g2 = (nColorInPalette >> 8) & 0xFF;
+			int b2 = nColorInPalette & 0xFF;
+			int nDelta = Math.abs (r-r2) + Math.abs (g-g2) + Math.abs (b-b2);
+			arrayarayDeltaAndIndex[i][0] = nDelta;
+		}
+		Arrays.sort
+			(
+				arrayarayDeltaAndIndex,
+				new Comparator<Integer[]>()
+				{
+					@Override
+					public int compare (Integer[] arrayL, Integer[] arrayR)
+					{
+						return arrayL[0].compareTo (arrayR[0]);
+					}
+				}
+			);
+System.out.println ("RGB 颜色 " + String.format ("%06x", nColorValue) + "，从调色板中找到的最接近的颜色是 " + String.format ("%06x", integerPalette[arrayarayDeltaAndIndex[0][1]]) + "，差值：" + arrayarayDeltaAndIndex[0][0] + "，其索引号为 " + arrayarayDeltaAndIndex[0][1]);
+		return arrayarayDeltaAndIndex[0][1];
+	}
+
+	public static final String[] ANSI_256_TO_IRC_100_COLORS = new String[256];
+	public static final String[] IRC_100_COLORS_TO_ANSI_256 =
+	{
+		// 传统 16 色
+		// 0-7
+		Colors.BLACK, COLOR_DARK_RED, Colors.DARK_GREEN, COLOR_ORANGE, Colors.DARK_BLUE, Colors.PURPLE, COLOR_DARK_CYAN, Colors.LIGHT_GRAY,
+		// 8-15
+		Colors.DARK_GRAY, Colors.RED, Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.MAGENTA, Colors.CYAN, Colors.WHITE,
+
+		// 对应关系，基于 http://anti.teamidiot.de/static/nei/*/extended_mirc_color_proposal.html https://modern.ircdocs.horse/formatting.html#colors-16-98 中的颜色对应表格
+		// 16-27
+		"52",  "94",  "100", "58",  "22",  "29",  "23",  "24",  "17",  "54",  "53",  "89",
+		// 28-39
+		"88",  "130", "142", "64",  "28",  "35",  "30",  "25",  "18",  "91",  "90",  "125",
+		// 40-51
+		"124", "166", "184", "106", "34",  "49",  "37",  "33",  "19",  "129", "127", "161",
+		// 52-63
+		"196", "208", "226", "154", "46",  "86",  "51",  "75",  "21",  "171", "201", "198",
+		// 64-75
+		"203", "215", "227", "191", "83",  "122", "87",  "111", "63",  "177", "207", "205",
+		// 76-87
+		"217", "223", "229", "193", "157", "158", "159", "153", "147", "183", "219", "212",
+		// 88-98，11 个灰度阶梯，IRC 没有第 99 色
+		"16",  "233", "235", "237", "239", "241", "244", "247", "250", "254", "231",
+	};
+	static void Generate_ANSI256ToIRC100_Table ()
+	{
+		for (int i=0; i<IRC_100_COLORS_TO_ANSI_256.length; i++)
+		{
+			String s = IRC_100_COLORS_TO_ANSI_256[i];
+			if (i<16)
+				s = StringUtils.right (s, 2);
+			int iANSI256TableIndex = Integer.valueOf (s);
+
+			ANSI_256_TO_IRC_100_COLORS[iANSI256TableIndex] = "\u0003" + String.format ("%02d", i);
+		}
+
+		// TODO 还要补充剩下的 158 个
+		for (int i=16; i<ANSI_256_TO_IRC_100_COLORS.length; i++)
+		{
+			int nColorValue = integerRGB_COLOR_PALLETTE__ANSI_256[i];
+			int iClosestIRCColorIndex = FindClosestRGBColorIndexFromPalette (nColorValue, integerRGB_COLOR_PALLETTE__IRC_100__i_dont_care_about_0to15_or_99);
+			ANSI_256_TO_IRC_100_COLORS[i] = "\u0003" + String.format ("%02d", iClosestIRCColorIndex);
+		}
+
+System.out.println ("ANSI_256_TO_IRC_100_COLORS 表");
+System.out.println (Arrays.toString (ANSI_256_TO_IRC_100_COLORS));
+	}
+	static
+	{
+		ConvertHexadecimalStringPaletteToIntegerPalette (hexstringRGB_COLOR_PALLETTE__IRC_100__i_dont_care_about_0to15_or_99, integerRGB_COLOR_PALLETTE__IRC_100__i_dont_care_about_0to15_or_99);
+		ConvertHexadecimalStringPaletteToIntegerPalette (hexstringRGB_COLOR_PALLETTE__ANSI_256, integerRGB_COLOR_PALLETTE__ANSI_256);
+		Generate_ANSI256ToIRC100_Table ();
+	}
 
 	public static final int HEX_DUMP_BYTES_PER_LINE = 16;
 	public static final int HEX_DUMP_BYTES_PER_HALF_LINE = HEX_DUMP_BYTES_PER_LINE / 2;
@@ -637,7 +798,7 @@ public class ANSIEscapeTool
 					{	// 有前景色
 						if (r_256color_fg)
 						{
-							sIRC_FG = XTERM_256_TO_IRC_16_COLORS [r_fg];
+							sIRC_FG = ANSI_256_TO_IRC_100_COLORS[r_fg];	//ANSI_256_TO_IRC_16_COLORS [r_fg];
 						}
 						else
 						{
@@ -648,7 +809,7 @@ public class ANSIEscapeTool
 					if (r_bg != 0)
 					{	// 有背景色
 						if (r_256color_bg)
-							sIRC_BG = XTERM_256_TO_IRC_16_COLORS [r_bg];
+							sIRC_BG = ANSI_256_TO_IRC_100_COLORS[r_bg];	//ANSI_256_TO_IRC_16_COLORS [r_bg];
 						else
 							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
 
@@ -679,7 +840,7 @@ public class ANSIEscapeTool
 					{	// 前景色变化了
 						if (r_256color_fg)
 						{
-							sIRC_FG = XTERM_256_TO_IRC_16_COLORS [r_fg];
+							sIRC_FG = ANSI_256_TO_IRC_100_COLORS[r_fg];	//ANSI_256_TO_IRC_16_COLORS [r_fg];
 						}
 						else if (r_fg != 0)
 						{
@@ -690,7 +851,7 @@ public class ANSIEscapeTool
 					if (l_bg != r_bg)
 					{	// 背景色变化了
 						if (r_256color_bg)
-							sIRC_BG = XTERM_256_TO_IRC_16_COLORS [r_bg];
+							sIRC_BG = ANSI_256_TO_IRC_100_COLORS[r_bg];	//ANSI_256_TO_IRC_16_COLORS [r_bg];
 						else if (r_bg != 0)
 							sIRC_BG = ANSI_16_TO_IRC_16_COLORS [r_bg-40][0];	// iBold -> 0 背景不高亮
 
@@ -1401,9 +1562,9 @@ _vte_terminal_set_default_attributes(VteTerminal *terminal)
 						try {
 							int iColorIndex = Integer.parseInt (arraySGR[i+2]) % 256;
 							if (nSGRParam==38)
-								sIRC_FG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
+								sIRC_FG = ANSI_256_TO_IRC_100_COLORS[iColorIndex];	//ANSI_256_TO_IRC_16_COLORS [iColorIndex];
 							else if (nSGRParam==48)
-								sIRC_BG = XTERM_256_TO_IRC_16_COLORS [iColorIndex];
+								sIRC_BG = ANSI_256_TO_IRC_100_COLORS[iColorIndex];	//ANSI_256_TO_IRC_16_COLORS [iColorIndex];
 						} catch (NumberFormatException e) {
 							e.printStackTrace ();
 						}
