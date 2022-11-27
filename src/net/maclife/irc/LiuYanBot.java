@@ -9110,7 +9110,7 @@ fw.close ();
 							if (StringUtils.isNotEmpty (sLeftPadding))
 								sbText.append (sLeftPadding);
 
-							evaluateResult = HTOutputFilter (evaluateResult.toString (), sFilters);
+							evaluateResult = HTOutputFilter (evaluateResult.toString (), sFilters, mapGlobalOptions);
 							sbText.append (evaluateResult);
 
 							if (StringUtils.isNotEmpty (sRightPadding))
@@ -9249,9 +9249,19 @@ System.out.println ("响应返回的 Content-Type: " + sResponseContentType);
 					//doc = Jsoup.parse (sText);
 					//doc.outputSettings (outputSettings);
 					if (StringUtils.isNotEmpty (listFilters.get (0)))
-						sText = HTOutputFilter (sText, listFilters.get (0));
+						sText = HTOutputFilter (sText, listFilters.get (0), mapGlobalOptions);
 
-					SendMessage (ch, nick, mapGlobalOptions, sText);
+					String[] arrayLines = sText.split ("\n");
+					for (int i=0; i<arrayLines.length; i++)
+					{
+						String sLine = arrayLines[i];
+						if (nLines >= opt_max_response_lines)
+							break;
+						if (StringUtils.isEmpty (sLine))
+							continue;
+						SendMessage (ch, nick, mapGlobalOptions, sLine);
+						nLines ++;
+					}
 					return;
 				}
 				else
@@ -9298,7 +9308,7 @@ System.out.println ("响应返回的 Content-Type: " + sResponseContentType);
 						if (StringUtils.isEmpty (sSubSelector))
 						{	// 如果子选择器为空，则采用主选择器选出的元素
 							sub_e = e;
-							nNewLineCharacterCount = ExtractTextFromElementOrResponseAndAppendToBuffer (jsoup_conn, sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							nNewLineCharacterCount = ExtractTextFromElementOrResponseAndAppendToBuffer (jsoup_conn, sub_e, sbText, mapGlobalOptions, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
 							nLines += nNewLineCharacterCount;	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
 System.err.println ("	行数总数=" + nLines);
 							if (nLines >= opt_max_response_lines)
@@ -9317,7 +9327,7 @@ System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m"
 System.err.println ("	子选择器 " + (iSS+1) + " " + ANSIEscapeTool.CSI + "1m" + sSubSelector + ANSIEscapeTool.CSI + "m" + " 选出了第 " + (iSSE+1) + " 项: " + sub_e);
 							//if (sub_e == null)	// 子选择器可能选择到不存在的，则忽略该条（比如 糗事百科的贴图，并不是每个糗事都有贴图）
 							//	continue;
-							nNewLineCharacterCount = ExtractTextFromElementOrResponseAndAppendToBuffer (jsoup_conn, sub_e, sbText, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
+							nNewLineCharacterCount = ExtractTextFromElementOrResponseAndAppendToBuffer (jsoup_conn, sub_e, sbText, mapGlobalOptions, isOutputScheme, sLeftPadding, sExtract, sFilters, sAttr, sFormatFlags, sFormatWidth, sRightPadding, sURL);
 							nLines += nNewLineCharacterCount;	// 左右填充字符串可能会包含换行符，所以输出行数要加上这些
 System.err.println ("	行数总数=" + nLines);
 							if (nLines >= opt_max_response_lines)
@@ -9354,6 +9364,7 @@ System.err.println ("	行数总数=" + nLines);
 	 * @param jsoup_conn
 	 * @param e Element 对象
 	 * @param sb 字符串缓冲区
+	 * @param mapGlobalOptions
 	 * @param isOutputScheme 是否输出 a 链接的 scheme (https:// 或者 http://)
 	 * @param sLeftPadding 左填充
 	 * @param sExtract 要提取的数据类型
@@ -9364,7 +9375,7 @@ System.err.println ("	行数总数=" + nLines);
 	 * @param strings
 	 * @return 最终文本中包含的换行符数量（注意：一个换行符，表示会输出两行，但这里只计一次，因为外面循环还会有单独的计数）。
 	 */
-	public int ExtractTextFromElementOrResponseAndAppendToBuffer (org.jsoup.Connection jsoup_conn, Element e, StringBuilder sb, boolean isOutputScheme, String sLeftPadding, String sExtract, String sFilters, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
+	public int ExtractTextFromElementOrResponseAndAppendToBuffer (org.jsoup.Connection jsoup_conn, Element e, StringBuilder sb, Map<String, Object> mapGlobalOptions, boolean isOutputScheme, String sLeftPadding, String sExtract, String sFilters, String sAttr, String sFormatFlags, String sFormatWidth, String sRightPadding, String...strings)
 	{
 //System.out.print ("Element e=");	System.out.println (e);
 //System.out.print ("sb=");	System.out.println (sb);
@@ -9501,7 +9512,7 @@ System.err.println ("	行数总数=" + nLines);
 //System.out.println ("]");
 			}
 			if (StringUtils.isNotEmpty (sFilters))
-				text = HTOutputFilter (text, sFilters);
+				text = HTOutputFilter (text, sFilters, mapGlobalOptions);
 			sbFinalText.append (text);
 
 			if (StringUtils.isNotEmpty (sRightPadding))
@@ -9514,7 +9525,7 @@ System.err.println ("	行数总数=" + nLines);
 		return StringUtils.countMatches (sbFinalText, '\n');
 	}
 
-	String HTOutputFilter (String sSrc, String sFilters)
+	String HTOutputFilter (String sSrc, String sFilters, Map<String, Object> mapGlobalOptions)
 	{
 		if (StringUtils.isEmpty (sFilters))
 			return sSrc;
@@ -9528,7 +9539,7 @@ System.err.println ("	行数总数=" + nLines);
 			}
 			else if (StringUtils.equalsAnyIgnoreCase (sFilter, "ansi", "ansi2irc", "ANSIEscape"))
 			{
-				sResult = HTOutputFilter_ANSIEscapeToIRC (sResult);
+				sResult = HTOutputFilter_ANSIEscapeToIRC (sResult, mapGlobalOptions);
 			}
 		}
 		return sResult;
@@ -9555,12 +9566,20 @@ System.out.println (sResult);
 	 * 有的网站，提供 ANSI Escape 输出，如：<code>curl http://wttr.in/shenzhen</code>。
 	 * 只处理简单的 SGR 类的 ANSI Escape，暂不处理“光标移动”等 ANSI Escape 序列。
 	 * @param sSrc
+	 * @param mapGlobalOptions Bot命令行传递全局 参数/选项
 	 * @return
 	 */
-	String HTOutputFilter_ANSIEscapeToIRC (String sSrc)
+	String HTOutputFilter_ANSIEscapeToIRC (String sSrc, Map<String, Object> mapGlobalOptions)
 	{
+		Map<String, String> mapUserEnv = (Map<String, String>)mapGlobalOptions.get ("env");
+		int COLUMNS = ANSIEscapeTool.DEFAULT_SCREEN_COLUMNS;
+		if (mapUserEnv.get ("COLUMNS") != null)
+		{
+			COLUMNS = Integer.parseInt (mapUserEnv.get ("COLUMNS"));
+		}
+
 		StringBuilder sb = new StringBuilder ();
-		List<String> listResult = ANSIEscapeTool.ConvertAnsiEscapeTo (sSrc);
+		List<String> listResult = ANSIEscapeTool.ConvertAnsiEscapeTo (sSrc, COLUMNS);
 		for (String s : listResult)
 		{
 			sb.append (s);
