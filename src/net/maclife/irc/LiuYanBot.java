@@ -372,6 +372,18 @@ public class LiuYanBot extends PircBot
 	List<Map<String,Object>> listWhiteListPatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
 
 	/**
+	 保留各频道用户的最后一次发言，以供 replace 使用
+	 */
+	Map<String, Map<String, String>> mapChannelUsersLastMessages = new HashMap<String, Map<String, String>> ();
+
+	/**
+	 保留本 Bot 对接收方发送的最近几条消息（暂定 3 条）。目的，尽可能避免可能存在的多个 Bot 实例被不小心触发相互对话，导致死循环情况发生。
+	 但要注意：不能把需要发的，被误操
+	 */
+	Map<String, java.util.Queue<String>> mapRecentSentMessages = new HashMap<String, java.util.Queue<String>> ();
+	public static final int RECENT_SENT_MESSAGES_COUNT = 3;
+
+	/**
 	 * 用来取消 Vote 操作的定时器。
 	 */
 	Timer timerUndoVote = null;
@@ -621,7 +633,7 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 	{
 		return SplitUTF8Strings (sInput, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, MAX_SPLIT_LINES);
 	}
-	public void SendMessage (String channel, String user, Map<String, Object> mapGlobalOptions, String msg)
+	public void SendMessage (String sChannel, String sUserNickName, Map<String, Object> mapGlobalOptions, String msg)
 	{
 		boolean opt_output_username = (boolean)mapGlobalOptions.get ("opt_output_username");
 		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
@@ -631,54 +643,99 @@ logger.finest ("修复结束后的字符串: [" + s + "]");
 
 		boolean opt_reply_to_option_on = (boolean)mapGlobalOptions.get ("opt_reply_to_option_on");
 		String opt_reply_to = (String)mapGlobalOptions.get ("opt_reply_to");
-		if (opt_reply_to_option_on && !StringUtils.equalsIgnoreCase (user, opt_reply_to))
-			user = opt_reply_to;
-		SendMessage (channel, user, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, msg);
+		if (opt_reply_to_option_on && !StringUtils.equalsIgnoreCase (sUserNickName, opt_reply_to))
+			sUserNickName = opt_reply_to;
+		SendMessage (sChannel, sUserNickName, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, msg);
 	}
 	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, String msg)
 	{
 		SendMessage (channel, user, opt_output_username, opt_max_response_lines, 1, MAX_SAFE_BYTES_LENGTH_OF_IRC_MESSAGE, msg);
 	}
-	public void SendMessage (String channel, String user, boolean opt_output_username, int opt_max_response_lines, int opt_max_split_lines, int opt_max_bytes_per_line, String msg)
+	public void SendMessage (String sChannel, String sUserNickName, boolean opt_output_username, int opt_max_response_lines, int opt_max_split_lines, int opt_max_bytes_per_line, String sMsg)
 	{
-		if (msg == null)
+		if (sMsg == null)
 		{
 			System.err.println ("\u001b[41mmsg 是 null\u001b[m");
 			return;
 		}
-		if (msg.contains ("\r") || msg.contains ("\n"))
+		if (sMsg.contains ("\r") || sMsg.contains ("\n"))
 		{	// 部分 java Exception 的错误信息包含多行，这会导致后面的行被 IRC 服务器当做是错误的命令放弃，这里需要处理一下
-			String[]lines = msg.split ("[\r\n]+");
+			String[]lines = sMsg.split ("[\r\n]+");
 			for (String line : lines)
 			{
-				SendMessage (channel, user, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, line);	// 递归
+				SendMessage (sChannel, sUserNickName, opt_output_username, opt_max_response_lines, opt_max_split_lines, opt_max_bytes_per_line, line);	// 递归
 			}
 			return;
 		}
 
-		String msgTo = channel;
-		if (channel == null)	// 如果频道为空，则认为是发私信给用户 user
-			msgTo = user;
-		if (channel!=null && opt_output_username)	// 如果是发往频道，而且输出用户名，则在消息前加上 user ":"
-			msg = user + ": " + msg;
+		String sMsgTo = sChannel;
+		if (sChannel == null)	// 如果频道为空，则认为是发私信给用户 user
+			sMsgTo = sUserNickName;
+		if (sChannel!=null && opt_output_username)	// 如果是发往频道，而且输出用户名，则在消息前加上 user ":"
+			sMsg = sUserNickName + ": " + sMsg;
+
+		if (/*opt_output_username &&` */AmISentThisMessageRecently(sMsgTo, sMsg))
+			return;
 
 		if (JVM_CHARSET.equals (UTF8_CHARSET))
 		{	// 假设 jvm 运行的默认字符集是 utf8，则做分行处理
 			// 假定 msg 是很长的行
-			List<String> listSplitedLines = SplitUTF8Strings (msg, opt_max_bytes_per_line, opt_max_split_lines);
-			for (String line : listSplitedLines)
+			List<String> listSplitedLines = SplitUTF8Strings (sMsg, opt_max_bytes_per_line, opt_max_split_lines);
+			for (String sLine : listSplitedLines)
 			{
-				if (StringUtils.isEmpty (line))	// 有可能是空行哦
+				if (StringUtils.isEmpty (sLine))	// 有可能是空行哦
 					continue;
-				sendMessage (msgTo, line);
+				sendMessage (sMsgTo, sLine);
 			}
 		}
 		else if (JVM_CHARSET.equals (GBK_CHARSET) || JVM_CHARSET.equals (GB2312_CHARSET))
 		{
-			sendMessage (msgTo, msg);
+			sendMessage (sMsgTo, sMsg);
 		}
 		else
-			sendMessage (msgTo, msg);
+		{
+			sendMessage (sMsgTo, sMsg);
+		}
+		SaveRecentSentMessage (sMsgTo, sMsg);
+	}
+
+	void SaveRecentSentMessage (String sTo, String sMsg)
+	{
+		java.util.Queue<String> queueRecentSentMessages = GetRecentSentMessagesQueue (sTo);
+		if (! queueRecentSentMessages.offer (sMsg))
+		{
+			queueRecentSentMessages.remove ();
+			queueRecentSentMessages.offer (sMsg);
+		}
+	}
+
+	java.util.Queue<String> GetRecentSentMessagesQueue (String sTo)
+	{
+		java.util.Queue<String> queueRecentSentMessages = mapRecentSentMessages.get (sTo.toLowerCase ());
+		if (queueRecentSentMessages==null)
+		{
+			queueRecentSentMessages = new ArrayBlockingQueue<String> (RECENT_SENT_MESSAGES_COUNT);
+			mapRecentSentMessages.put (sTo.toLowerCase (), queueRecentSentMessages);
+		}
+		return queueRecentSentMessages;
+	}
+
+	boolean AmISentThisMessageRecently (String sTo, String sMsg)
+	{
+		return AmISentThisMessageRecently (GetRecentSentMessagesQueue (sTo), sMsg);
+	}
+	static boolean AmISentThisMessageRecently (java.util.Queue<String> queueRecentSentMessages, String sMsg)
+	{
+		boolean bFound = false;
+		for (String s : queueRecentSentMessages)
+		{
+			if (StringUtils.equalsIgnoreCase (s, sMsg))
+			{
+				bFound = true;
+				break;
+			}
+		}
+		return bFound;
 	}
 
 	/**
@@ -6125,8 +6182,6 @@ System.out.println (nMatch + ": " + sMatchedString);
 		return result;
 	}
 
-	// 保留各频道用户的最后一次发言，以供 replace 使用
-	Map<String, Map<String, String>> mapChannelUsersLastMessages = new HashMap<String, Map<String, String>> ();
 	void SaveChannelUserLastMessages (String channel, String nick, String login, String hostname, String msg)
 	{
 		Map<String, String> mapUsersLastMessages = GetChannelUserLastMessages (channel);
@@ -11917,6 +11972,14 @@ System.out.println ("已取消当前频道");
 								String sChannel = params[iParam];
 								if (StringUtils.isEmpty (sChannel))
 									continue;
+								for (String sChannelJoined : currentBot.getChannels ())
+								{
+									if (! StringUtils.equalsIgnoreCase (sChannel, sChannelJoined) && ! bForced)
+									{
+System.err.println ("当前 Bot 未加入到 " + sChannel + " 频道中。如果确定要继续，请在命令选项中增加 .force 选项。");
+										continue;
+									}
+								}
 
 								bHasValidChannelParams = true;
 								currentBot.psn.InitiateNegotiation (sChannel, bForced);

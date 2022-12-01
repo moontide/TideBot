@@ -19,7 +19,7 @@ import net.maclife.irc.dialog.*;
 /**
  简单的主从协商，主要用于解决在频道里发 $ht模板、.action模板 快捷命令时，多个 bot 会全部响应的问题。
  <p>
- 支持在不同的频道里进行协商。即，支持这种情况：
+ 支持在不同的频道里进行主从协商。即，支持这种情况：
 <ul>
 <li>Bot A 在 Channel A 是主，但在 Channel B 是从；</li>
 <li>Bot B 在 Channel A 是从，但在 Channel B 是主。</li>
@@ -27,31 +27,26 @@ import net.maclife.irc.dialog.*;
  </p>
 
 <p>
- 消息要加密，避免被其他人、其他 bot 恶搞，消息经过验证后是真的协商消息，才执行协商。
- 多个 bot 实例，需要使用相同的秘钥。
+ 消息要加密，避免被其他人、其他 Bot 恶搞，消息经过验证后是真的主从协商消息，才执行主从协商。
+ 同一个群组内的多个 Bot 实例，需要使用相同的钥匙对。
 </p>
 
 <p>
- 异常情况处理：Bot A 刚进频道，同组 bot 只有它自己，它发起协商，无其他 bot 应答，超时后，它成为了主 bot。然后它超时断线了。同组的另一个 Bot B 进来了，执行了相同的操作，成为了主 Bot。然后 Bot A 回来了…
+ 异常情况处理：Bot A 刚进频道，同组 Bot 只有它自己，它发起主从协商，无其他 Bot 应答，超时后，它成为了首选 Bot。然后它超时断线了。同组的另一个 Bot B 进来了，执行了相同的操作，成为了首先 Bot。然后 Bot A 回来了…
 </p>
 
 <p>
- 发起协商，请求当首选 Bot (Master Slave Negotiation / Primary Secondary Negotiation)：
- {"msn":"i wanna be primary","msg":"反对的请举手","msgtime":"2022-11-15 12:00:00.001","become-primary-time":"这里是成为主 Bot 的时间，仅当出现多个主 Bot 的情况时才有用","sign":"0011223344556677889900...."}
+ 发起主从协商，请求当首选 Bot (Master Slave Negotiation / Primary Secondary Negotiation)：
+ {"psn":{"c":"I_WANNA_BE_PRIMARY", iid:"主从协商发起号，目前使用毫秒时间戳当 iid，但是，是字符串类型", "m":"反对的请举手", "t":毫秒时间戳, "s":"签名（base64）0011223344556677889900...."}}
  </p>
 
 <p>
- 响应，情况1，已经有 bot 实例是 主要 bot：
- {"msna":"reject/down/against","msg":"这里可以选一些景点电影里的台词，如“还有谁？！”“You Shall Not Pass!”","msgtime":"2022-11-15 12:00:00.002","become-primary-time":"这里是成为主 Bot 的时间，仅当出现多个主 Bot 的情况时才有用","sign":"0011223344556677889900...."}
+ 响应，情况1，已经有 Bot 实例是 首选 Bot：
+ {"psn"{"c":"OK|REJECT", iid:"主从协商发起号", "m":"这里可以选一些景点电影里的台词，如“还有谁？！”“You Shall Not Pass!”", "t":毫秒时间戳, "s":"签名（base64）0011223344556677889900...."}}
 </p>
 
 <p>
- 响应，情况2，其他 bot 实例不是 主要 bot：
- {"msna":"ok","msg":"这里可以选一些社畜的台词，如“收到！”“好的！”“1”","sign":"0011223344556677889900...."}
- </p>
-
-<p>
- 无响应，当没有 Bot 响应时，暂定 60 秒内，超时后，自封为主 Bot。
+ 无响应，当没有 Bot 响应时，暂定 60 秒内，超时后，自封为首先 Bot。
  </p>
 
  <hr/>
@@ -67,18 +62,18 @@ import net.maclife.irc.dialog.*;
  	<dd>避免 Bot 快捷命令被多个 Bot 实例一起执行。Bot 的正常命令，可以通过命令前缀来避免多个 Bot 实例同时执行，但快捷命令却没法避免。</dd>
 
   	<dt>Primary 和 Secondary 有没有心跳检测？</dt>
- 	<dd>没有，一个 Bot 不知道另一个 Bot 的存在。而且，因为这是在 IRC 频道中执行协商，首次协商成功后，即使知道了同组 Bot 的存在，也不便于在频道里频繁的发心跳信息。</dd>
+ 	<dd>没有，一个 Bot 不知道另一个 Bot 的存在。而且，因为这是在 IRC 频道中执行主从协商，首次主从协商成功后，即使知道了同组 Bot 的存在，也不便于在频道里频繁的发心跳信息。</dd>
 
   	<dt>没有心跳检测，那 Primary 断线了怎么办，快捷命令就没有 Primary Bot 响应了</dt>
- 	<dd>暂时没有完美的解决方法。目前，需要在另一个 Bot 的命令行控制台手工执行协商，将其设置为首选 Bot</dd>
+ 	<dd>暂时没有完美的解决方法。目前，需要在另一个 Bot 的命令行控制台手工执行主从协商，将其设置为首选 Bot</dd>
 
-  	<dt>怎么与别的 Bot 实例区分开，不混在一起？（或者说：Bot 组、Bot 集群 如何划分？）</dt>
- 	<dd>一组 Bot 使用同一个公钥秘钥对，使用不同的 KeyPair 进行签名和验证时，验证会失败 -- 不会当做自己所在 Bot 组的协商消息。所以，只需要使用不同的秘钥对，即可划分为不同的 Bot 组</dd>
+  	<dt>怎么与别的 Bot 实例区分开，不混在一起？（或者说：Bot 群组 / Bot 集群 如何划分？）</dt>
+ 	<dd>一组 Bot 使用同一个公钥秘钥对，使用不同的 KeyPair 进行签名和验证时，验证会失败 -- 不会当做自己所在 Bot 群组的主从协商消息。所以，只需要使用不同的秘钥对，即可划分为不同的 Bot 群组</dd>
 
-  	<dt>同一时间内能进行多个协商吗？</dt>
- 	<dd>同一组（同一集群）的 Bot 同一时间内只能有一个协商，只有一个协商结束后，才能进行下一个协商。当不同组的 Bot 在一起时，可以同时进行各组的协商。</dd>
+  	<dt>同一时间内能进行多个主从协商吗？</dt>
+ 	<dd>在同一个频道内，同一群组（同一集群）的 Bot 同一时间内只能有一个主从协商，只有一个主从协商结束后，才能进行下一个主从协商。当不同群组的 Bot 在一起时，各群组之间可以同时进行不同的主从协商。</dd>
 
-  	<dt>为什么要支持【在不同的频道里进行协商】</dt>
+  	<dt>为什么要支持【在不同的频道里进行主从协商】</dt>
  	<dd>存在这种需求：在不同的频道需要由特定 Bot 实例执行快捷命令。比如：多个 Bot 实例分别运行在不同 CPU 架构的主机上，然后有几个关于各自 CPU 架构的频道，这时“有可能”需要在特定 CPU 架构频道用运行在该 CPU 架构上的 Bot 实例来执行快捷命令。</dd>
 
   	<dt></dt>
@@ -90,31 +85,6 @@ import net.maclife.irc.dialog.*;
  */
 public class PrimarySecondaryNegotiator //implements DialogUser
 {
-	/**
-	 * 协商阶段。
-	 * @author liuyan
-	 *
-	 */
-	//enum NegotiationStage
-	//{
-	//	__NONE__,
-
-		/**
-		 * 发起
-		 */
-	//	INITIATE,
-
-		/**
-		 * 对发起方进行 回复 / 响应 / 投票
-		 * （投票策略：一票否决制，有 Bot 反对就不成功）
-		 */
-	//	REPLY,	// VOTE
-
-		/**
-		 * 宣布结果阶段
-		 */
-	//	ANNOUNCE,
-	//};
 	enum NegotiationCode
 	{
 		I_WANNA_BE_PRIMARY,
@@ -126,7 +96,7 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 	LiuYanBot oThisBot = null;
 
 	/**
-	 * 协商器在通道中的状态。
+	 * 主从协商器在通道中的状态。
 	 * <dl>
 	 * 	<dt>key: 频道名称</dt>
 	 * <dd>每个频道名一个 key，如： <code>#liuyanbot</code></dd>
@@ -135,7 +105,7 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 	 * <dd>又是一个 Map，
 	 * 		<dl>
 	 * 			<dt>key = <code>CurrentNegotiation</code></dt>
-	 * 			<dd>value: 当前正在进行的协商。<code>JsonNode</code> 类型。同一组 Bot、在同一频道内、同一时间内 只能有一个协商。当有其他协商时</dd>
+	 * 			<dd>value: 当前正在进行的主从协商。<code>JsonNode</code> 类型。同一组 Bot、在同一频道内、同一时间内 只能有一个主从协商。当有其他主从协商时</dd>
 
 	 * 			<dt>key = <code>CurrentNegotiationInitiator</code></dt>
 	 * 			<dd>value: 当前主从协商发起方的昵称。<code>String</code> 类型。</dd>
@@ -163,17 +133,17 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 
 	String sSignatureAlgorithm = System.getProperty ("primary-secondary-negotiation.signature.algorithm", "SHA256withDSA");
 
-	String[] arrayInitiatMessages =
+	static final String[] arrayInitiatMessages =
 		{
 			"谁赞成？谁反对？",
 			"同意的请举手，反对的请举手",
 		};
-	String[] arrayInitiatMessages_Forced =
+	static final String[] arrayInitiatMessages_Forced =
 		{
 			"还有谁？！",
 			"反对的请举手",
 		};
-	String[] arrayVoteMessages =
+	static final String[] arrayVoteMessages =
 		{
 			// 中国古装电视剧风格
 			"恩准",
@@ -186,7 +156,7 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 			"收到",
 			"好的",
 		};
-	String[] arrayVoteAgainstMessages =
+	static final String[] arrayVoteAgainstMessages =
 		{
 			//
 			"反对",
@@ -194,6 +164,22 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 			// 电影《黑社会》中“阿乐”的台词
 			"下一届 我会全力支持你做话事人",
 		};
+	static final String[] arrayAnnouncementMessages =
+		{
+			//
+			"新话(打)事(工)人就是我",
+
+			// 看电影看多了
+			//"月黑风高",
+
+			// 三国杀 袁术 台词
+			"玉玺在手，天下我有",
+
+			// 大内密探零零发 慧贤雅叙老板娘 台词
+			"老鸨就是我呀",
+		};
+
+	Timer schedulerTimer = new Timer ();
 
 	public PrimarySecondaryNegotiator (LiuYanBot bot, String sKeyStoreFileName, String sKeyStorePassword, String sKeyName, String sKeyPassword) throws Exception
 	{
@@ -213,7 +199,7 @@ System.out.println ("KeyStore.getInstance(File, char[]) done " + new java.sql.Ti
 	{
 		oThisBot = bot;
 System.out.println ("KeyStore.getInstance(String) " + new java.sql.Timestamp (System.currentTimeMillis ()));
-		KeyStore ks = KeyStore.getInstance (sKeyStoreType);
+		KeyStore ks = KeyStore.getInstance (sKeyStoreType);	// 在 赛昉科技StarFive VisionFive 1 单板机上，Ubuntu 22.04.01 操作系统下，这一步骤耗时 50 秒左右，但在 openSUSE Tumbleweed 下，却很快
 System.out.println ("ks.load(InputStream, char[]) " + new java.sql.Timestamp (System.currentTimeMillis ()));
 		ks.load (new FileInputStream(sKeyStoreFileName), sKeyStorePassword.toCharArray ());
 System.out.println ("ks.load(InputStream, char[]) done " + new java.sql.Timestamp (System.currentTimeMillis ()));
@@ -223,7 +209,7 @@ System.out.println ("ks.load(InputStream, char[]) done " + new java.sql.Timestam
 	public void GetPrivatePublicKey (KeyStore ks, String sKeyName, String sPassword) throws Exception
 	{
 System.out.println ("ks.getKey (String, char[]) " + new java.sql.Timestamp (System.currentTimeMillis ()));
-		keyPrivateKey = (PrivateKey)ks.getKey (sKeyName, sPassword.toCharArray ());
+		keyPrivateKey = (PrivateKey)ks.getKey (sKeyName, sPassword.toCharArray ());	// 在 赛昉科技StarFive VisionFive 1 单板机上，Ubuntu 22.04.01 操作系统下，这一步骤耗时 30 秒左右，但在 openSUSE Tumbleweed 下，却很快
 System.out.println ("ks.getCertificate (String).getPublicKey () " + new java.sql.Timestamp (System.currentTimeMillis ()));
 		keyPublicKey = ks.getCertificate (sKeyName).getPublicKey ();
 System.out.println ("ks.getCertificate (String).getPublicKey () done " + new java.sql.Timestamp (System.currentTimeMillis ()));
@@ -288,7 +274,7 @@ System.out.println ("ks.getCertificate (String).getPublicKey () done " + new jav
 		//sChannel = StringUtils.lowerCase (sChannel);	// Local variable sChannel defined in an enclosing scope must be final or effectively final
 		if (GetCurrentNegotiation(sChannel) != null)
 		{
-System.err.println (sChannel + " 频道当前有正在进行的主从协商，不能同时进行多个协商，只能一个一个来");
+System.err.println (sChannel + " 频道当前有正在进行的主从协商，不能同时进行多个主从协商，只能一个一个来");
 			return;
 		}
 		if (AmIPrimary(sChannel) && !bForced)
@@ -314,7 +300,7 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 		jsonInitiateNegotiation.put ("s", sSignature_Base64);	// signature
 		if (bForced)
 		{
-			jsonInitiateNegotiation.put ("f", bForced);	// forced 强制成为首选 bot，其他 bot 收到此消息后，如果是首选 bot 的，需要退位
+			jsonInitiateNegotiation.put ("f", bForced);	// forced 强制成为首选 Bot，其他 bot 收到此消息后，如果是首选 Bot 的，需要退位
 			GetCurrentChannelState (sChannel).put ("AmIPrimary", true);
 		}
 
@@ -323,7 +309,7 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 		oThisBot.sendAction (sChannel, LiuYanBot.jacksonObjectMapper_Loose.writer().writeValueAsString (jsonWrapper));
 		SetCurrentNegotiationAndInitiator (sChannel, jsonInitiateNegotiation, oThisBot.getNick ());
 
-		new Timer().schedule
+		schedulerTimer.schedule
 		(
 			new TimerTask()
 			{
@@ -345,13 +331,13 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 								break;
 						}
 					}
-System.out.println (sChannel + " 主从协商结束：" + nOK + " 票同意，" + nReject + " 票反对。");
+System.out.println ("由“我”在 " + sChannel + " 频道发起的主从协商 " + sIID + " 结束：" + nOK + " 票同意，" + nReject + " 票反对。");
 					if (nReject == 0)
 					{
 						// Announce 新首选 Bot 产生
 						try
 						{
-							Announce (oThisBot, sChannel, sIID, "新话(打)事(工)人就是我");	// “话事人/首选 Bot”本质上其实是打工人：快捷命令它全干，同组的其他 Bot 实例全歇着。
+							Announce (oThisBot, sChannel, sIID, arrayAnnouncementMessages[oThisBot.rand.nextInt (arrayAnnouncementMessages.length)]);	// “话事人/首选 Bot”本质上其实是打工人：快捷命令它全干，同组的其他 Bot 实例全歇着。
 						}
 						catch (Exception e)
 						{
@@ -360,7 +346,7 @@ System.out.println (sChannel + " 主从协商结束：" + nOK + " 票同意，" 
 					}
 					else
 					{
-						CleanUpCurrentNegotiation (sChannel);
+						CleanUpCurrentNegotiation (sChannel);	// 一票否决制
 					}
 				}
 			}
@@ -368,13 +354,13 @@ System.out.println (sChannel + " 主从协商结束：" + nOK + " 票同意，" 
 		);
 	}
 
-	public void OnActionReceived (LiuYanBot bot, String sFromNickName, String sFromAccount, String sHostname, String sTargetChannel, String sAction)
+	public void OnActionReceived (LiuYanBot bot, String sFromNickName, String sFromAccount, String sHostname, String sChannel, String sAction)
 	{
 bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "OnActionReceived");
 		if (StringUtils.isEmpty (sAction) || !StringUtils.equalsIgnoreCase (StringUtils.left (sAction, 1), "{"))
 			return;
 
-		sTargetChannel = StringUtils.lowerCase (sTargetChannel);
+		sChannel = StringUtils.lowerCase (sChannel);
 		try
 		{
 			JsonNode json = LiuYanBot.jacksonObjectMapper_Loose.readTree (sAction);
@@ -383,13 +369,13 @@ bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "OnActionRecei
 			JsonNode jsonNegotiation = json.get ("psn");
 			if (jsonNegotiation==null || jsonNegotiation.isNull ())
 			{
-System.err.println (sTargetChannel + " 频道，JSON 消息中没有包含 psn，这不是主从协商消息");
+System.err.println (sChannel + " 频道，JSON 消息中没有包含 psn，这不是主从协商消息");
 				return;
 			}
 			//JsonNode jsonStage = jsonNegotiation.get ("stage");
 			//if (jsonStage==null || jsonStage.isNull ())
 			//	return;
-			JsonNode jsonInitiationID = jsonNegotiation.get ("iid");	// 此 协商发起ID ，仅仅在发起方才生成此 ID，后续响应方需要原样返回，而不再生成新 iid
+			JsonNode jsonInitiationID = jsonNegotiation.get ("iid");	// 此 主从协商发起ID ，仅仅在发起方才生成此 ID，后续响应方需要原样返回，而不再生成新 iid
 			JsonNode jsonActionCode = jsonNegotiation.get ("c");	// Action Code
 			JsonNode jsonMessage = jsonNegotiation.get ("m");	// Message 附加的文字消息，其本身仅仅用来生成签名、搞笑的用途，并不影响消息判断
 			JsonNode jsonTime = jsonNegotiation.get ("t");	// Time of local time of the sender bot
@@ -411,22 +397,22 @@ System.err.println (sTargetChannel + " 频道，JSON 消息中没有包含 psn�
 			catch (IllegalArgumentException e)
 			{
 				e.printStackTrace ();
-System.err.println (sTargetChannel + " 频道，ActionCode 参数无效");
+System.err.println (sChannel + " 频道，ActionCode 参数无效");
 				return;
 			}
 			String sMessage = jsonMessage.asText ();
 			long lTime = jsonTime.asLong ();	// 时间不可超过 1 分钟，超过 1 分钟则认为是过期消息，不再处理
 			if ((System.currentTimeMillis () - lTime) > 60*1000)
 			{
-System.err.println (sTargetChannel + " 频道，主从协商时间时长超时，不再处理");
+System.err.println (sChannel + " 频道，主从协商时间时长超时，不再处理");
 				return;
 			}
 
 			// 再验证签名是否有效（是否同一组 Bot 发出的 PSN 消息、是否别人伪造的 PSN 消息…）
 			String sSignature_Base64 = jsonSignature.asText ();
-			if (! VerifyData_Signature_Base64 (sSignature_Base64, sFromNickName, sFromAccount, sTargetChannel, sIID, sNegotiationCode, sMessage, lTime))
+			if (! VerifyData_Signature_Base64 (sSignature_Base64, sFromNickName, sFromAccount, sChannel, sIID, sNegotiationCode, sMessage, lTime))
 			{
-LiuYanBot.logger.warning (sTargetChannel + " 频道，签名不一致，不处理。（可能是不同的 Bot 集群、或 可能是伪造）");
+LiuYanBot.logger.warning (sChannel + " 频道，签名不一致，不处理。（可能是不同的 Bot 群组、或 可能是伪造）");
 				return;
 			}
 
@@ -439,33 +425,34 @@ LiuYanBot.logger.warning (sTargetChannel + " 频道，签名不一致，不处�
 			switch (negotiation_code)
 			{
 				case I_WANNA_BE_PRIMARY:
-System.err.println (sTargetChannel + " 频道，收到其他 Bot 想要成为首选的请求");
+System.err.println (sChannel + " 频道，收到其他 Bot 想要成为首选 Bot 的请求");
 					if (bForced)
 					{
 System.err.println ("强制性的");
 						//
 						//Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, arrayVoteMessages[bot.rand.nextInt (arrayVoteMessages.length)]);
-						OnPrimaryWasElected (bot, sTargetChannel, sFromNickName);
+						OnPrimaryWasElected (bot, sChannel, sFromNickName);
 					}
 					else
 					{
 System.err.println ("非强制性的");
-						// 如果有当前有正在进行的协商，则否决（同一组 Bot ，同一时间内，不能进行多个协商，即：一个一个来）
+						// 如果有当前有正在进行的主从协商，则否决（同一组 Bot ，同一时间内，不能进行多个主从协商，即：一个一个来）
 						// implement it...
-						if (GetCurrentNegotiation(sTargetChannel) != null)
+						if (GetCurrentNegotiation(sChannel) != null)
 						{
-							Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.REJECT, "本频道、本 Bot 群组、当前有另外一个主从协商正在进行，一个一个来");
-							break;
-						}
-						// 如果自己是 Primary，则否决；否则，赞成
-						if (AmIPrimary(sTargetChannel))
-						{
-							Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.REJECT, "下一届 我会全力支持你做话事人");
+							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.REJECT, "在本频道的本 Bot 群组中，当前有另外一个主从协商正在进行，一个一个来。不同的 Bot 群组，用不同的 KeyPair 区分。");
 							break;
 						}
 
-						SetCurrentNegotiationAndInitiator (sTargetChannel, jsonNegotiation, sFromNickName);
-						Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, arrayVoteMessages[bot.rand.nextInt (arrayVoteMessages.length)]);
+						// 如果自己是 Primary，则否决；否则，赞成
+						if (AmIPrimary(sChannel))
+						{
+							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.REJECT, arrayVoteAgainstMessages[bot.rand.nextInt (arrayVoteAgainstMessages.length)]);
+							break;
+						}
+
+						SetCurrentNegotiationAndInitiator (sChannel, jsonNegotiation, sFromNickName);
+						Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.OK, arrayVoteMessages[bot.rand.nextInt (arrayVoteMessages.length)]);
 
 						//// 测试
 						//int n = bot.rand.nextInt ();
@@ -479,22 +466,29 @@ System.err.println ("非强制性的");
 				case OK:
 				case REJECT:
 					// 通常由发起方处理回复。其他接收方，也可以存储结果，但目前的实现方式是不处理
-					if (GetCurrentNegotiation(sTargetChannel)!=null && !StringUtils.equalsIgnoreCase (sIID, GetCurrentNegotiation(sTargetChannel).get ("iid").asText ()) )
+					if (GetCurrentNegotiation(sChannel)!=null && !StringUtils.equalsIgnoreCase (sIID, GetCurrentNegotiation(sChannel).get ("iid").asText ()) )
 					{
-System.err.println (sTargetChannel + " 频道，回复的不是当前正在进行的协商，不处理。正常情况下，这个条件不会满足，因为正常情况下，同一频道、同一组 Bot、同一时间只能有一个主从协商");
+System.err.println (sChannel + " 频道，回复的不是当前正在进行的主从协商，不处理。正常情况下，这个条件不会满足，因为正常情况下，同一频道、同一组 Bot、同一时间只能有一个主从协商");
 						break;
 					}
-					if (! StringUtils.equalsIgnoreCase (bot.getNick (), GetCurrentNegotiationInitiator(sTargetChannel)))
+					if (! StringUtils.equalsIgnoreCase (bot.getNick (), GetCurrentNegotiationInitiator(sChannel)))
 					{
-System.err.println (sTargetChannel + " 频道，回复人不是发起人，一般情况下不处理。但当回复 REJECT 时，需要立刻取消本地缓存的主从协商，否则会阻塞下一次的主从协商。");
+System.err.println (sChannel + " 频道，回复人不是发起人，一般情况下不处理。但当回复 REJECT 时，需要立刻取消本地缓存的主从协商，否则会阻塞下一次的主从协商。");
 						if (negotiation_code == NegotiationCode.REJECT)
-							this.CleanUpCurrentNegotiation (sTargetChannel);
+							this.CleanUpCurrentNegotiation (sChannel);
 						break;
 					}
-					GetCurrentNegotiationVotes (sTargetChannel).put (sFromNickName, negotiation_code);
+					if (negotiation_code == NegotiationCode.REJECT)
+					{
+System.out.println ("因有其他 Bot 投反对票（一票否决制），由“我”在 " + sChannel + " 频道发起的主从协商 " + sIID + " 立刻结束，不做其他操作。针对本次主从协商，其他 Bot 若还有回复将不会回应。");
+						schedulerTimer.cancel ();
+						this.CleanUpCurrentNegotiation (sChannel);	// 一票否决制
+						break;
+					}
+					GetCurrentNegotiationVotes (sChannel).put (sFromNickName, negotiation_code);
 					break;
 				case ANNOUNCEMENT:
-					OnPrimaryWasElected (bot, sTargetChannel, sFromNickName);
+					OnPrimaryWasElected (bot, sChannel, sFromNickName);
 					break;
 			}
 
@@ -565,7 +559,7 @@ bot.logger.exiting (PrimarySecondaryNegotiator.class.getName (), "Announce");
 	void OnPrimaryWasElected (LiuYanBot bot, String sChannel, String sFromNickName)
 	{
 		sChannel = StringUtils.lowerCase (sChannel);
-		// 接收方收到消息后，要根据情况进行退位、删除缓存的当前协商（以便可以进行下一个协商）
+		// 接收方收到消息后，要根据情况进行退位、删除缓存的当前主从协商（以便可以进行下一个主从协商）
 		Map<String, Object> mapChannelState = GetCurrentChannelState (sChannel);
 		mapChannelState.put ("AmIPrimary", StringUtils.equalsIgnoreCase (sFromNickName, bot.getNick ()));
 		CleanUpCurrentNegotiation (sChannel);

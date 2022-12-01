@@ -92,6 +92,6 @@ public abstract class Game implements Runnable, DialogUser
 
 	public String 游戏信息 (String s)
 	{
-		return getName() + " #" + ANSIEscapeTool.COLOR_DARK_CYAN + threadID + Colors.NORMAL + " " + s;
+		return "【" + getName() + "】游戏 #" + ANSIEscapeTool.COLOR_DARK_CYAN + threadID + Colors.NORMAL + " " + s;
 	}
 }
