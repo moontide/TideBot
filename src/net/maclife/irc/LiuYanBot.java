@@ -7706,6 +7706,9 @@ logger.fine ("未指定序号，随机取一行: 第 " + nRandomRow + " 行. bVa
 	}
 	void ProcessMessageForAutoReply (String channel, String nick, String login, String hostname, String sMessage)
 	{
+		boolean bAmIPrimaryBot = (StringUtils.isEmpty (channel) ? true : psn==null ? false : psn.AmIPrimary (channel));
+		if (! bAmIPrimaryBot)
+			return;
 		//
 		String sSQL_MatchPattern = "SELECT * FROM auto_reply_patterns WHERE ? RLIKE message_pattern ORDER BY RAND() LIMIT 1";
 		String sSQL_FetchReply = "SELECT * FROM auto_reply_replies WHERE message_pattern_id = ? ORDER BY RAND() LIMIT 1";
@@ -11710,6 +11713,7 @@ System.err.println (BOT_PRIMARY_COMMAND_CustomizedAction + " -- 发送动作表�
 							params = sTerminalInput.split (" +", 2);
 							if (params.length < 2)
 							{
+System.err.println ("当前昵称 getNick() 为 [" + currentBot.getNick () + "]，当前 getName() 为 [" + currentBot.getName () + "]，当前 getLogin() 为 [" + currentBot.getLogin () + "，当前 getServer() 为 [" + currentBot.getServer() + "]");
 System.err.println ( BOT_PRIMARY_COMMAND_CONSOLE_Nick + " -- 更改姓名。 命令语法： " + BOT_PRIMARY_COMMAND_CONSOLE_Nick + " <昵称)>");
 								continue;
 							}
@@ -11974,6 +11978,7 @@ System.out.println ("已取消当前频道");
 									continue;
 								for (String sChannelJoined : currentBot.getChannels ())
 								{
+System.out.println (currentBot.getNick () + " 已加入到频道 " + sChannelJoined);
 									if (! StringUtils.equalsIgnoreCase (sChannel, sChannelJoined) && ! bForced)
 									{
 System.err.println ("当前 Bot 未加入到 " + sChannel + " 频道中。如果确定要继续，请在命令选项中增加 .force 选项。");

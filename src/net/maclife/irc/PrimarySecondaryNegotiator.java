@@ -3,18 +3,23 @@ package net.maclife.irc;
 import java.io.*;
 import java.nio.charset.*;
 import java.security.*;
+import java.text.*;
 import java.util.*;
 
+import org.apache.commons.codec.*;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.*;
-import org.apache.pdfbox.util.*;
 import org.jibble.pircbot.*;
 
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
+import com.fasterxml.jackson.databind.util.*;
 
 import net.maclife.ansi.*;
-import net.maclife.irc.dialog.*;
+
+//import net.maclife.ansi.*;
+//import net.maclife.irc.dialog.*;
 
 /**
  简单的主从协商，主要用于解决在频道里发 $ht模板、.action模板 快捷命令时，多个 bot 会全部响应的问题。
@@ -96,34 +101,37 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 	LiuYanBot oThisBot = null;
 
 	/**
-	 * 主从协商器在通道中的状态。
-	 * <dl>
-	 * 	<dt>key: 频道名称</dt>
-	 * <dd>每个频道名一个 key，如： <code>#liuyanbot</code></dd>
-	 *
-	 * <dt>value:</dt>
-	 * <dd>又是一个 Map，
-	 * 		<dl>
-	 * 			<dt>key = <code>CurrentNegotiation</code></dt>
-	 * 			<dd>value: 当前正在进行的主从协商。<code>JsonNode</code> 类型。同一组 Bot、在同一频道内、同一时间内 只能有一个主从协商。当有其他主从协商时</dd>
+	主从协商器在通道中的状态。
+	<dl>
+		<dt>key: 频道名称</dt>
+	<dd>每个频道名一个 key，如： <code>#liuyanbot</code></dd>
 
-	 * 			<dt>key = <code>CurrentNegotiationInitiator</code></dt>
-	 * 			<dd>value: 当前主从协商发起方的昵称。<code>String</code> 类型。</dd>
+	<dt>value:</dt>
+	<dd>又是一个 Map，
+			<dl>
+				<dt>key = <code>CurrentNegotiation</code></dt>
+				<dd>value: 当前正在进行的主从协商。<code>JsonNode</code> 类型。同一组 Bot、在同一频道内、同一时间内 只能有一个主从协商。当有其他主从协商时</dd>
 
-	 * 			<dt>key = <code>AmIPrimary</code></dt>
-	 * 			<dd>value: 我是否是首选 Bot。<code>Boolean</code> 类型。</dd>
+				<dt>key = <code>CurrentNegotiationInitiator</code></dt>
+				<dd>value: 当前主从协商发起方的昵称。<code>String</code> 类型。</dd>
 
-	 * 			<dt>key = <code>Votes</code></dt>
-	 * 			<dd>value: 投票记录。<code>Map</code> 类型。
-	 * 				<dl>
-	 * 					<dt>key: 投票 Bot 的昵称</dt>
-	 * 					<dd>因为采用的是一票否决制，所以，不用担心【使用传统投票计数方式】时才会出现的【当 Bot 昵称改名后再次投票，被计为多张票】的问题</dd>
-	 * 					<dt>value: 投票结果，OK 或 REJECT。<code>enum NegotiationCode</code> 类型。</dt>
-	 * 				</dl>
-	 * 			</dd>
-	 * 		</dl>
-	 * </dd>
-	 * <dl>
+				<dt>key = <code>AmIPrimary</code></dt>
+				<dd>value: 我是否是首选 Bot。<code>Boolean</code> 类型。</dd>
+
+				<dt>key = <code>Votes</code></dt>
+				<dd>value: 投票记录。<code>Map</code> 类型。
+					<dl>
+						<dt>key: 投票 Bot 的昵称</dt>
+						<dd>因为采用的是一票否决制，所以，不用担心【使用传统投票计数方式】时才会出现的【当 Bot 昵称改名后再次投票，被计为多张票】的问题</dd>
+						<dt>value: 投票结果，OK 或 REJECT。<code>enum NegotiationCode</code> 类型。</dt>
+					</dl>
+				</dd>
+
+				<dt>key = <code>SchedulerTimer</code></dt>
+				<dd>value: 发起主从协商的调度定时器。仅在发起方使用，发起方发起时，就启动该定时器。如果有人在定时器到时前就返回了 REJECT ，则此定时器立刻取消调度。<code>Timer</code> 类型。</dd>
+			</dl>
+	</dd>
+	<dl>
 	 */
 	Map<String, Map<String, Object>> mapChannelsState = new HashMap<String, Map<String, Object>> ();
 
@@ -146,8 +154,8 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 	static final String[] arrayVoteMessages =
 		{
 			// 中国古装电视剧风格
-			"恩准",
 			"准奏",
+			"准了",
 
 			// OA 审批风格
 			"同意",
@@ -161,8 +169,11 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 			//
 			"反对",
 
-			// 电影《黑社会》中“阿乐”的台词
+			// 电影《黑社会 Election》中“阿乐”的台词
 			"下一届 我会全力支持你做话事人",
+
+			// 电影《Lord of the Rings:The Fellowship of the Ring 指环王/魔戒：护戒使者》中 Gandalf”的台词
+			"You Shall Not Pass!",
 		};
 	static final String[] arrayAnnouncementMessages =
 		{
@@ -172,14 +183,26 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 			// 看电影看多了
 			//"月黑风高",
 
+			// 周星驰在颁奖典礼的感谢词
+			"多谢嗮",
+
 			// 三国杀 袁术 台词
 			"玉玺在手，天下我有",
 
 			// 大内密探零零发 慧贤雅叙老板娘 台词
 			"老鸨就是我呀",
+
+			// 常见的其他人在颁奖典礼的感谢词样式
+			"感谢 ｛A..Z｝",
+
+			// 仿Jack Sparrow 台词
+			"Captain {0}. If you please.",
+
+			// 仿 美利坚合众国：Stand by Your Ad provision
+			"I''m {0}, and I approve this announcement. [doge]",
 		};
 
-	Timer schedulerTimer = new Timer ();
+	//Timer schedulerTimer = new Timer ();
 
 	public PrimarySecondaryNegotiator (LiuYanBot bot, String sKeyStoreFileName, String sKeyStorePassword, String sKeyName, String sKeyPassword) throws Exception
 	{
@@ -269,6 +292,13 @@ System.out.println ("ks.getCertificate (String).getPublicKey () done " + new jav
 		return mapVotes;
 	}
 
+	String GetRandomString (String[] arrayString)
+	{
+		String s = arrayString[oThisBot.rand.nextInt (arrayString.length)];
+		s = MessageFormat.format (s, oThisBot.getNick ());
+		return s;
+	}
+
 	public void InitiateNegotiation (String sChannel, boolean bForced) throws JsonProcessingException
 	{
 		//sChannel = StringUtils.lowerCase (sChannel);	// Local variable sChannel defined in an enclosing scope must be final or effectively final
@@ -286,14 +316,13 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 		ObjectNode jsonWrapper = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		ObjectNode jsonInitiateNegotiation = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		String sNegotiationCode = NegotiationCode.I_WANNA_BE_PRIMARY.toString ();
-		String sMessage = bForced ? arrayInitiatMessages_Forced[oThisBot.rand.nextInt (arrayInitiatMessages_Forced.length)] : arrayInitiatMessages[oThisBot.rand.nextInt (arrayInitiatMessages.length)];
+		String sMessage = bForced ? GetRandomString (arrayInitiatMessages_Forced) : GetRandomString (arrayInitiatMessages);
+		sMessage = Colors.CYAN + sMessage + Colors.NORMAL;
 		long lTime = System.currentTimeMillis ();
 		String sIID = String.valueOf (lTime);
 		//jsonInitiateNegotiation.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
+		jsonInitiateNegotiation.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
 		jsonInitiateNegotiation.put ("c", sNegotiationCode);	// code
-		jsonInitiateNegotiation.put ("iid", sIID);	// time
-		jsonInitiateNegotiation.put ("m", sMessage);	// message
-		jsonInitiateNegotiation.put ("t", lTime);	// time
 		String sSignature_Base64 = GenerateSignatureBase64String (oThisBot.getNick (), oThisBot.getLogin (), sChannel, sIID, sNegotiationCode, sMessage, lTime);
 		if (sSignature_Base64 == null)
 			return;
@@ -303,55 +332,66 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 			jsonInitiateNegotiation.put ("f", bForced);	// forced 强制成为首选 Bot，其他 bot 收到此消息后，如果是首选 Bot 的，需要退位
 			GetCurrentChannelState (sChannel).put ("AmIPrimary", true);
 		}
+		jsonInitiateNegotiation.put ("iid", sIID);	// initiation id
+		jsonInitiateNegotiation.put ("t", lTime);	// time
 
 		jsonWrapper.set ("psn", jsonInitiateNegotiation);
 
-		oThisBot.sendAction (sChannel, LiuYanBot.jacksonObjectMapper_Loose.writer().writeValueAsString (jsonWrapper));
+		oThisBot.sendAction (sChannel, LiuYanBot.jacksonObjectMapper_Loose.writeValueAsString (jsonWrapper));
 		SetCurrentNegotiationAndInitiator (sChannel, jsonInitiateNegotiation, oThisBot.getNick ());
 
-		schedulerTimer.schedule
-		(
-			new TimerTask()
-			{
-				@Override
-				public void run ()
+		try
+		{
+			GetSchedulerTimer (sChannel).schedule
+			(
+				new TimerTask()
 				{
-					Map<String, NegotiationCode> mapVotes = GetCurrentNegotiationVotes (sChannel);	// Local variable sChannel defined in an enclosing scope must be final or effectively final
-					int nOK = 0;
-					int nReject = 0;
-					for (NegotiationCode negotiation_code : mapVotes.values ())
+					@Override
+					public void run ()
 					{
-						switch (negotiation_code)
+						Map<String, NegotiationCode> mapVotes = GetCurrentNegotiationVotes (sChannel);	// Local variable sChannel defined in an enclosing scope must be final or effectively final
+						int nOK = 0;
+						int nReject = 0;
+						for (NegotiationCode negotiation_code : mapVotes.values ())
 						{
-							case OK:
-								nOK ++;
-								break;
-							case REJECT:
-								nReject ++;
-								break;
+							switch (negotiation_code)
+							{
+								case OK:
+									nOK ++;
+									break;
+								case REJECT:
+									nReject ++;
+									break;
+								default:
+									break;
+							}
 						}
-					}
 System.out.println ("由“我”在 " + sChannel + " 频道发起的主从协商 " + sIID + " 结束：" + nOK + " 票同意，" + nReject + " 票反对。");
-					if (nReject == 0)
-					{
-						// Announce 新首选 Bot 产生
-						try
+						if (nReject == 0)
 						{
-							Announce (oThisBot, sChannel, sIID, arrayAnnouncementMessages[oThisBot.rand.nextInt (arrayAnnouncementMessages.length)]);	// “话事人/首选 Bot”本质上其实是打工人：快捷命令它全干，同组的其他 Bot 实例全歇着。
+							// Announce 新首选 Bot 产生
+							try
+							{
+								Announce (oThisBot, sChannel, sIID, GetRandomString (arrayAnnouncementMessages));	// “话事人/首选 Bot”本质上其实是打工人：快捷命令它全干，同组的其他 Bot 实例全歇着。
+							}
+							catch (Exception e)
+							{
+								e.printStackTrace ();
+							}
 						}
-						catch (Exception e)
+						else
 						{
-							e.printStackTrace ();
+							CleanUpCurrentNegotiation (sChannel);	// 一票否决制
 						}
-					}
-					else
-					{
-						CleanUpCurrentNegotiation (sChannel);	// 一票否决制
 					}
 				}
-			}
-			, 60*1000
-		);
+				, 60*1000
+			);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
 	}
 
 	public void OnActionReceived (LiuYanBot bot, String sFromNickName, String sFromAccount, String sHostname, String sChannel, String sAction)
@@ -376,7 +416,7 @@ System.err.println (sChannel + " 频道，JSON 消息中没有包含 psn，这�
 			//if (jsonStage==null || jsonStage.isNull ())
 			//	return;
 			JsonNode jsonInitiationID = jsonNegotiation.get ("iid");	// 此 主从协商发起ID ，仅仅在发起方才生成此 ID，后续响应方需要原样返回，而不再生成新 iid
-			JsonNode jsonActionCode = jsonNegotiation.get ("c");	// Action Code
+			JsonNode jsonNegotiationCode = jsonNegotiation.get ("c");	// Negotiation Code
 			JsonNode jsonMessage = jsonNegotiation.get ("m");	// Message 附加的文字消息，其本身仅仅用来生成签名、搞笑的用途，并不影响消息判断
 			JsonNode jsonTime = jsonNegotiation.get ("t");	// Time of local time of the sender bot
 			JsonNode jsonSignature = jsonNegotiation.get ("s");	// Signature 签名，十六进制字符串。为了避免达到受 IRC 单条消息长度限制，字符串长度可能会从原始签名字符串中裁剪出一部分，比如说：从结尾部分截取 40 个字符长度（20 个原始签名字节长度）
@@ -387,7 +427,7 @@ System.err.println (sChannel + " 频道，JSON 消息中没有包含 psn，这�
 
 			// 再验证数据的基本有效性
 			String sIID = jsonInitiationID.asText ();
-			String sNegotiationCode = jsonActionCode.asText ();
+			String sNegotiationCode = jsonNegotiationCode.asText ();
 			NegotiationCode negotiation_code = null;
 
 			try
@@ -397,14 +437,14 @@ System.err.println (sChannel + " 频道，JSON 消息中没有包含 psn，这�
 			catch (IllegalArgumentException e)
 			{
 				e.printStackTrace ();
-System.err.println (sChannel + " 频道，ActionCode 参数无效");
+System.err.println (sChannel + " 频道，NegotiationCode 参数无效");
 				return;
 			}
 			String sMessage = jsonMessage.asText ();
 			long lTime = jsonTime.asLong ();	// 时间不可超过 1 分钟，超过 1 分钟则认为是过期消息，不再处理
 			if ((System.currentTimeMillis () - lTime) > 60*1000)
 			{
-System.err.println (sChannel + " 频道，主从协商时间时长超时，不再处理");
+System.err.println (sChannel + " 频道，主从协商时间已过有效期，不再处理");
 				return;
 			}
 
@@ -430,7 +470,7 @@ System.err.println (sChannel + " 频道，收到其他 Bot 想要成为首选 Bo
 					{
 System.err.println ("强制性的");
 						//
-						//Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, arrayVoteMessages[bot.rand.nextInt (arrayVoteMessages.length)]);
+						//Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, GetRandomeString (arrayVoteMessages));
 						OnPrimaryWasElected (bot, sChannel, sFromNickName);
 					}
 					else
@@ -447,20 +487,20 @@ System.err.println ("非强制性的");
 						// 如果自己是 Primary，则否决；否则，赞成
 						if (AmIPrimary(sChannel))
 						{
-							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.REJECT, arrayVoteAgainstMessages[bot.rand.nextInt (arrayVoteAgainstMessages.length)]);
+							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.REJECT, GetRandomString (arrayVoteAgainstMessages));
 							break;
 						}
 
 						SetCurrentNegotiationAndInitiator (sChannel, jsonNegotiation, sFromNickName);
-						Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.OK, arrayVoteMessages[bot.rand.nextInt (arrayVoteMessages.length)]);
+						Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.OK, GetRandomString (arrayVoteMessages));
 
 						//// 测试
 						//int n = bot.rand.nextInt ();
 //System.err.println ("随机数 n = " + n);
 						//if ((n & 0x01) == 0)
-						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, arrayVoteMessages[bot.rand.nextInt (arrayVoteMessages.length)]);
+						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, GetRandomeString (arrayVoteMessages));
 						//else
-						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.REJECT, arrayVoteAgainstMessages[bot.rand.nextInt (arrayVoteAgainstMessages.length)]);
+						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.REJECT, GetRandomeString (arrayVoteAgainstMessages));
 					}
 					break;
 				case OK:
@@ -481,7 +521,6 @@ System.err.println (sChannel + " 频道，回复人不是发起人，一般情�
 					if (negotiation_code == NegotiationCode.REJECT)
 					{
 System.out.println ("因有其他 Bot 投反对票（一票否决制），由“我”在 " + sChannel + " 频道发起的主从协商 " + sIID + " 立刻结束，不做其他操作。针对本次主从协商，其他 Bot 若还有回复将不会回应。");
-						schedulerTimer.cancel ();
 						this.CleanUpCurrentNegotiation (sChannel);	// 一票否决制
 						break;
 					}
@@ -511,24 +550,24 @@ bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "Reply");
 		ObjectNode jsonWrapper = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		ObjectNode jsonInitiateNegotiation = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		String sNegotiationCode = negotiation_code.toString ();
-		//if (negotiation_code == NegotiationCode.OK)
-		//	sMessage = Colors.GREEN + sMessage + Colors.NORMAL;
-		//else if (negotiation_code == NegotiationCode.REJECT)
-		//	sMessage = Colors.RED + sMessage + Colors.NORMAL;
+		if (negotiation_code == NegotiationCode.OK)
+			sMessage = Colors.GREEN + sMessage + Colors.NORMAL;
+		else if (negotiation_code == NegotiationCode.REJECT)
+			sMessage = Colors.RED + sMessage + Colors.NORMAL;
 		long lTime = System.currentTimeMillis ();
 		//jsonInitiateNegotiation.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
+		jsonInitiateNegotiation.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
 		jsonInitiateNegotiation.put ("c", sNegotiationCode);	// code
-		jsonInitiateNegotiation.put ("iid", sIID);	// time
-		jsonInitiateNegotiation.put ("m", sMessage);	// message
-		jsonInitiateNegotiation.put ("t", lTime);	// time
 		String sSignature_Base64 = GenerateSignatureBase64String (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, sNegotiationCode, sMessage, lTime);
 		if (sSignature_Base64 == null)
 			return;
 		jsonInitiateNegotiation.put ("s", sSignature_Base64);	// signature
+		jsonInitiateNegotiation.put ("iid", sIID);	// initiation id
+		jsonInitiateNegotiation.put ("t", lTime);	// time
 
 		jsonWrapper.set ("psn", jsonInitiateNegotiation);
 
-		bot.sendAction (sTargetChannel, LiuYanBot.jacksonObjectMapper_Loose.writer().writeValueAsString (jsonWrapper));
+		bot.sendAction (sTargetChannel, LiuYanBot.jacksonObjectMapper_Loose.writeValueAsString (jsonWrapper));
 bot.logger.exiting (PrimarySecondaryNegotiator.class.getName (), "Reply");
 	}
 
@@ -539,18 +578,19 @@ bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "Announce");
 		ObjectNode jsonNegotiationAnnouncement = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		long lTime = System.currentTimeMillis ();
 		//jsonNegotiationAnnouncement.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
+		sMessage = ANSIEscapeTool.COLOR_DARK_CYAN + sMessage + Colors.NORMAL;
+		jsonNegotiationAnnouncement.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
 		jsonNegotiationAnnouncement.put ("c", NegotiationCode.ANNOUNCEMENT.toString ());	// code
-		jsonNegotiationAnnouncement.put ("iid", sIID);	// time
-		jsonNegotiationAnnouncement.put ("m", sMessage);	// message
-		jsonNegotiationAnnouncement.put ("t", lTime);	// time
 		String sSignature_Base64 = GenerateSignatureBase64String (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, NegotiationCode.ANNOUNCEMENT.toString (), sMessage, lTime);
 		if (sSignature_Base64 == null)
 			return;
 		jsonNegotiationAnnouncement.put ("s", sSignature_Base64);	// signature
+		jsonNegotiationAnnouncement.put ("iid", sIID);	// time
+		jsonNegotiationAnnouncement.put ("t", lTime);	// time
 
 		jsonWrapper.set ("psn", jsonNegotiationAnnouncement);
 
-		bot.sendAction (sTargetChannel, LiuYanBot.jacksonObjectMapper_Loose.writer().writeValueAsString (jsonWrapper));
+		bot.sendAction (sTargetChannel, LiuYanBot.jacksonObjectMapper_Loose.writeValueAsString (jsonWrapper));
 
 		OnPrimaryWasElected (bot, sTargetChannel, bot.getNick ());
 bot.logger.exiting (PrimarySecondaryNegotiator.class.getName (), "Announce");
@@ -565,6 +605,30 @@ bot.logger.exiting (PrimarySecondaryNegotiator.class.getName (), "Announce");
 		CleanUpCurrentNegotiation (sChannel);
 	}
 
+	Timer GetSchedulerTimer (String sChannel)
+	{
+		return GetSchedulerTimer (sChannel, true);
+	}
+	Timer GetSchedulerTimer (String sChannel, boolean bNew)
+	{
+		sChannel = StringUtils.lowerCase (sChannel);
+		Map<String, Object> mapChannelState = GetCurrentChannelState (sChannel);
+		Timer schedulerTimer = (Timer) mapChannelState.get ("SchedulerTimer");
+		if (/*schedulerTimer==null ||*/ bNew)
+		{
+			schedulerTimer = new Timer ();
+			mapChannelState.put ("SchedulerTimer", schedulerTimer);
+		}
+		return schedulerTimer;
+	}
+	void CancelSchedulerTimer (String sChannel)
+	{
+		Timer schedulerTimer = GetSchedulerTimer (sChannel, false);
+		if (schedulerTimer == null)
+			return;
+		schedulerTimer.cancel ();
+		GetCurrentChannelState (sChannel).remove ("SchedulerTimer");
+	}
 	void CleanUpCurrentNegotiation (String sChannel)
 	{
 		sChannel = StringUtils.lowerCase (sChannel);
@@ -572,6 +636,7 @@ bot.logger.exiting (PrimarySecondaryNegotiator.class.getName (), "Announce");
 		mapChannelState.remove ("CurrentNegotiation");
 		mapChannelState.remove ("CurrentNegotiationInitiator");
 		mapChannelState.remove ("Votes");
+		CancelSchedulerTimer (sChannel);
 	}
 
 	// 不能截取签名字符串，然后对比字符串是否一致 的方式进行签名验证，因为即使输入是一样的，签名字符串也会变
@@ -691,7 +756,7 @@ System.err.println ("----------");
 		byte[] arraySignature = Base64.getDecoder ().decode (sSignature_Base64);
 		return VerifyData (keyPublicKey, sSignatureAlgorithm, arraySignature, sFromNickName, sFromAccount, sChannel, sIID, sNegotiationCode, sMessage, nTime);
 	}
-	public Boolean VerifyData (String sSignature, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime) throws IOException
+	public Boolean VerifyData (String sSignature, String sFromNickName, String sFromAccount, String sChannel, String sIID, String sNegotiationCode, String sMessage, Long nTime) throws IOException, DecoderException
 	{
 		byte[] arraySignature = Hex.decodeHex (sSignature);
 		return VerifyData (keyPublicKey, sSignatureAlgorithm, arraySignature, sFromNickName, sFromAccount, sChannel, sIID, sNegotiationCode, sMessage, nTime);
@@ -751,7 +816,7 @@ java.security.InvalidKeyException: not a DSA private key: SunRsaSign RSA private
 
  */
 System.err.println ("必填参数：\n\t参数 1 指定 KeyStore 的文件名，参数 2 指定 KeyStore 的密码，参数 3 指定 Key 的名称，参数 4 指定 Key 的密码，参数 5 指定 签名 的算法，如 SHA256withDSA SHA256withRSA。");
-System.err.println ("可选参数：\n\t参数 6 指定 Action， 参数 7 指定 Message，参数 8 指定一个长整数，参数 9 指定一个任意随机的字符串（调料）");
+System.err.println ("可选参数：\n\t参数 6 指定 NegotiationCode， 参数 7 指定 Message，参数 8 指定一个长整数，参数 9 指定一个任意随机的字符串（调料）");
 			return;
 		}
 
