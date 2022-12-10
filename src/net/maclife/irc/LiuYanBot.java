@@ -8051,13 +8051,13 @@ System.out.println ();
 	    	}
 		};
 
-	public static final String REGEXP_FindHtParameter = "\\$\\{([pu])(\\d*)(=[^{}]*)?\\}";
+	public static final String REGEXP_FindHtParameter = "\\$\\{([puj])(\\d*)(=[^{}]*)?\\}";
 	public static Pattern PATTERN_FindHtParameter = Pattern.compile (REGEXP_FindHtParameter, Pattern.CASE_INSENSITIVE);
 
 	/**
-	 * 用于 ht 命令中的网址中的参数展开。<br/>
-	 * 类似 Bash 的默认值参数展开 的实现，但与 Bash 的 {@code ${parameter:-默认值}}  不同， :- 用 = 代替，变成 {@code ${parameter=默认值}}，也就是说，C/C++ 语言的默认参数值风格。<br/>
-	 * 参数命名规则
+		用于 ht 命令中的网址中的参数展开。<br/>
+		类似 Bash 的默认值参数展开 的实现，但与 Bash 的 {@code ${parameter:-默认值}}  不同， :- 用 = 代替，变成 {@code ${parameter=默认值}}，也就是说，C/C++ 语言的默认参数值风格。<br/>
+		<h3>参数命名规则</h3>
 		<dl>
 			<dt>${p} ${p=默认值} ${p1} ${p1=默认值} ... ${p<font color='red'>N</font>} ${p<font color='red'>N</font>=默认值}</dt>
 			<dd>p 是经过 URLEncode.encode() 之后的数值，如“济南”会变成“%E6%B5%8E%E5%8D%97”
@@ -8068,8 +8068,11 @@ System.out.println ();
 				</ul>
 			</dd>
 
+			<dt>${j} ${j=默认值} ${j1} ${j1=默认值} ... ${j<font color='red'>N</font>} ${j<font color='red'>N</font>=默认值}</dt>
+			<dd>与 p 类似，但 j 执行的是 StringEscapeUtils.escapeJson ()，是适用于转义 JSON 数据的。所以，<font color='darkcyan'><b>一般来说， json 的 subselector 脚本中通常应该用 j 参数</b></font></dd>
+
 			<dt>${u} ${u=默认值} ${u1} ${u1=默认值} ... ${u<font color='red'>N</font>} ${u<font color='red'>N</font>=默认值}</dt>
-			</dd>与 p 类似，只不过，u 的数值不会被 URLEncode.encode()。所以，<font color='darkcyan'><b>一般来说， json 的 subselector 脚本中通常应该用 u 参数</b></font></dd>
+			<dd>u 的数值不会被做任何转义</dd>
 		</dl>
 	 * @param sURL 网址(正常情况下应该含有类似 ${p}、 ${p2=默认值} 的参数)。 如果是 js/json 数据类型，则 subselector 脚本中可能也包含 ${p} ${u} 参数
 	 * @param listOrderedParams 参数列表。注意，参数号是从 1 开始的，也就是说，参数列表中的 0 其实是 ht 命令的别名，被忽略
@@ -8098,6 +8101,10 @@ logger.fine ("params: " + listOrderedParams);
 			if (StringUtils.equalsIgnoreCase (sParamCommand, "u"))	// "u": unescape
 			{
 				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? listOrderedParams.get (n) : sDefault);
+			}
+			if (StringUtils.equalsIgnoreCase (sParamCommand, "j"))	// "j": escapeJson
+			{
+				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? org.apache.commons.text.StringEscapeUtils.escapeJson (listOrderedParams.get (n)) : sDefault);
 			}
 			else
 			{
@@ -8203,14 +8210,19 @@ logger.fine ("url after parameter expansion: " + sURL);
 		int opt_max_response_lines = (int)mapGlobalOptions.get ("opt_max_response_lines");
 		boolean opt_max_response_lines_specified = (boolean)mapGlobalOptions.get ("opt_max_response_lines_specified");
 
-		String sContentType = "html";	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json / pdf
+		String sExpectedResponseContentType = "html";	// 人工指定的该网址返回的是什么类型的数据，目前支持 html / json / pdf
 		int nJS_Cut_Start = 0;
 		int nJS_Cut_End = 0;
 		//String sID = null;
 		long nID = 0;
+
 		String sName = null;
+
+		String sHTTPRequestMethod = null;
 		String sURL = null;
 		String sURLParamsHelp = null;
+		String sHTTPRequestBody = null;
+
 		String sSelector = null;
 		List<String> listSubSelectors = new ArrayList<String> ();
 		List<String> listLeftPaddings = new ArrayList<String> ();
@@ -8221,7 +8233,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 		List<String> listFormatWidth = new ArrayList<String> ();
 		List<String> listRightPaddings = new ArrayList<String> ();
 
-		String sHTTPRequestMethod = null;
 		JsonNode jsonHTTPHeaders = null;
 		String sHTTPHead_UserAgent = null;
 		String sHTTPHead_Referer = null;
@@ -8255,83 +8266,87 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 					i++;
 					String value = listParams.get (i);
-					if (param.equalsIgnoreCase ("ct") || param.equalsIgnoreCase ("ContentType") || param.equalsIgnoreCase ("Content-Type"))
+					if (StringUtils.equalsAnyIgnoreCase (param, "n", "name", "名称", "模板名"))
 					{
-						sContentType = value;
-						if (StringUtils.equalsAnyIgnoreCase (sContentType, "json", "js"))
-						{
-							//
-						}
-						else if (StringUtils.equalsAnyIgnoreCase (sContentType, "pdf"))
-							sContentType = "pdf";
-						else
-							sContentType = "html";	// 其他的默认为 html
+						sName = value;
 					}
-					else if (param.equalsIgnoreCase ("jcs"))
-						nJS_Cut_Start = Integer.parseInt (value);
-					else if (param.equalsIgnoreCase ("jce"))
-						nJS_Cut_End = Integer.parseInt (value);
-					else if (param.equalsIgnoreCase ("u") || param.equalsIgnoreCase ("url") || param.equalsIgnoreCase ("网址"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "i", "id", "#", "编号"))
+					{
+						//sID = value;
+						nID = Integer.parseInt (value);
+					}
+					else if (StringUtils.equalsAnyIgnoreCase (param, "m", "method", "方法"))
+						sHTTPRequestMethod = value;
+					else if (StringUtils.equalsAnyIgnoreCase (param, "u", "url", "网址"))
 					{
 						if (StringUtils.startsWithIgnoreCase (value, "http://") || StringUtils.startsWithIgnoreCase (value, "https://"))
 							sURL = value;
 						else
 							sURL = "http://" + value;
 					}
-					else if (param.equalsIgnoreCase ("h") || param.equalsIgnoreCase ("help") || param.equalsIgnoreCase ("帮助"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "h", "help", "帮助"))
 						sURLParamsHelp = value;
+					else if (StringUtils.equalsAnyIgnoreCase (param, "b", "body", "request-body", "post-body", "消息体"))
+						sHTTPRequestBody = value;
+					else if (StringUtils.equalsAnyIgnoreCase (param, "ct", "ContentType", "Content-Type"))
+					{
+						sExpectedResponseContentType = value;
+						if (StringUtils.equalsAnyIgnoreCase (sExpectedResponseContentType, "json", "js"))
+						{
+							//
+						}
+						else if (StringUtils.equalsAnyIgnoreCase (sExpectedResponseContentType, "pdf"))
+							sExpectedResponseContentType = "pdf";
+						else
+							sExpectedResponseContentType = "html";	// 其他的默认为 html
+					}
+					else if (param.equalsIgnoreCase ("jcs"))
+						nJS_Cut_Start = Integer.parseInt (value);
+					else if (param.equalsIgnoreCase ("jce"))
+						nJS_Cut_End = Integer.parseInt (value);
 					//else if (param.equalsIgnoreCase ("s") || param.equalsIgnoreCase ("selector") || param.equalsIgnoreCase ("选择器"))
 					//	sSelector = value;
-					else if (param.equalsIgnoreCase ("ss") || param.equalsIgnoreCase ("sub-selector") || param.equalsIgnoreCase ("子选择器"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "ss", "sub-selector", "子选择器"))
 					{	// 遇到 /ss 时，把 listSubSelectors listExtracts listAttributes 都添加一项，listExtracts listAttributes 添加的是空字符串，这样是为了保证三个列表的数量相同
 						// 另外：  /ss  /e  /a 的参数顺序必须保证 /ss 是在前面的
 						listSubSelectors.add (value);
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 					}
-					else if (param.equalsIgnoreCase ("lp") || param.equalsIgnoreCase ("LeftPadding") || param.equalsIgnoreCase ("PaddingLeft") || param.equalsIgnoreCase ("左填充"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "lp", "LeftPadding", "PaddingLeft", "左填充"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listLeftPaddings.set (listLeftPaddings.size () - 1, value);
 					}
-					else if (param.equalsIgnoreCase ("e") || param.equalsIgnoreCase ("extract") || param.equalsIgnoreCase ("取") || param.equalsIgnoreCase ("取值"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "e", "extract", "取", "取值"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						//FixElementNumber (listSubSelectors, listLeftPaddings, listExtracts, listAttributes, listRightPaddings);
 						listExtracts.set (listExtracts.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
-					else if (param.equalsIgnoreCase ("filters") || param.equalsIgnoreCase ("filter") || param.equalsIgnoreCase ("过滤器"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "filters", "filter", "过滤器"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listFilters.set (listFilters.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
-					else if (param.equalsIgnoreCase ("a") || param.equalsIgnoreCase ("attr") || param.equalsIgnoreCase ("attribute") || param.equalsIgnoreCase ("属性") || param.equalsIgnoreCase ("属性名"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "a", "attr", "attribute", "属性", "属性名"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listAttributes.set (listAttributes.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
-					else if (param.equalsIgnoreCase ("ff") || param.equalsIgnoreCase ("FormatFlags") || param.equalsIgnoreCase ("FormatFlag") || param.equalsIgnoreCase ("格式化符号"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "ff", "FormatFlags", "FormatFlag", "格式化符号"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listFormatFlags.set (listFormatFlags.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
-					else if (param.equalsIgnoreCase ("fw") || param.equalsIgnoreCase ("FormatWidth") || param.equalsIgnoreCase ("格式化宽度"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "fw", "FormatWidth", "格式化宽度"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listFormatWidth.set (listFormatWidth.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
 					}
-					else if (param.equalsIgnoreCase ("rp") || param.equalsIgnoreCase ("RightPadding") || param.equalsIgnoreCase ("PaddingRight") || param.equalsIgnoreCase ("右填充"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "rp", "RightPadding", "PaddingRight", "右填充"))
 					{
 						FixHTCommandSubSelectorParameterGroupsSize (listSubSelectors, listLeftPaddings, listExtracts, listFilters, listAttributes, listFormatFlags, listFormatWidth, listRightPaddings);
 						listRightPaddings.set (listRightPaddings.size () - 1, value);	// 在上面的修复参数数量后，更改最后 1 项
-					}
-					else if (param.equalsIgnoreCase ("n") || param.equalsIgnoreCase ("name") || param.equalsIgnoreCase ("名称") || param.equalsIgnoreCase ("模板名"))
-					{
-						sName = value;
-					}
-					else if (param.equalsIgnoreCase ("i") || param.equalsIgnoreCase ("id") || param.equalsIgnoreCase ("#") || param.equalsIgnoreCase ("编号"))
-					{
-						//sID = value;
-						nID = Integer.parseInt (value);
 					}
 					//else if (param.equalsIgnoreCase ("max") || param.equalsIgnoreCase ("最多"))
 					//{
@@ -8340,8 +8355,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 					//	if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
 					//		opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 					//}
-					else if (param.equalsIgnoreCase ("m") || param.equalsIgnoreCase ("method") || param.equalsIgnoreCase ("方法"))
-						sHTTPRequestMethod = value;
 					else if (param.equalsIgnoreCase ("headers"))
 					{
 						try
@@ -8353,14 +8366,14 @@ logger.fine ("url after parameter expansion: " + sURL);
 							e.printStackTrace();
 						}
 					}
-					else if (param.equalsIgnoreCase ("ua") || param.equalsIgnoreCase ("user-agent") || param.equalsIgnoreCase ("浏览器"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "ua", "user-agent", "浏览器"))
 						sHTTPHead_UserAgent = value;
-					else if (param.equalsIgnoreCase ("r") || param.equalsIgnoreCase ("ref") || param.equalsIgnoreCase ("refer") || param.equalsIgnoreCase ("referer") || param.equalsIgnoreCase ("来源"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "r", "ref", "refer", "referer", "来源"))
 						sHTTPHead_Referer = value;
-					else if (param.equalsIgnoreCase ("l") || param.equalsIgnoreCase ("lang") || param.equalsIgnoreCase ("language") || param.equalsIgnoreCase ("accept-language") || param.equalsIgnoreCase ("语言"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "l", "lang", "language", "accept-language", "语言"))
 						sHTTPHead_AcceptLanguage = value;
 
-					else if (param.equalsIgnoreCase ("start") || param.equalsIgnoreCase ("offset") || param.equalsIgnoreCase ("起始") || param.equalsIgnoreCase ("偏移量"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "start", "offset", "起始", "偏移量"))
 					{
 						//sStart = value;
 						iStart = Integer.parseInt (value);
@@ -8368,12 +8381,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 						if (iStart <= 0)
 							iStart = 0;
 					}
-					else if (param.equalsIgnoreCase ("ict") || param.equalsIgnoreCase ("IgnoreContentType"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "ict", "IgnoreContentType"))
 					{
 						//sIgnoreContentType = value;
 						isIgnoreContentType = BooleanUtils.toBoolean (value);
 					}
-					else if (param.equalsIgnoreCase ("icv") || param.equalsIgnoreCase ("IgnoreHTTPSCertificateValidation"))
+					else if (StringUtils.equalsAnyIgnoreCase (param, "icv", "IgnoreHTTPSCertificateValidation"))
 					{
 						isIgnoreHTTPSCertificateValidation = BooleanUtils.toBoolean (value);
 					}
@@ -8388,12 +8401,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 		// 处理用 json 命令别名执行命令时的特别设置： (1).强制改变 Content-Type  (2).强制忽略 http 返回的 Content-Type，否则 jsoup 会报错
 		if (StringUtils.equalsIgnoreCase (botCmdAlias, "/json"))
 		{
-			sContentType = "json";
+			sExpectedResponseContentType = "json";
 			isIgnoreContentType = true;
 		}
 		else if (StringUtils.equalsIgnoreCase (botCmdAlias, "/pdf"))
 		{
-			sContentType = "pdf";
+			sExpectedResponseContentType = "pdf";
 			isIgnoreContentType = true;
 		}
 
@@ -8448,7 +8461,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			{
 				if (StringUtils.isEmpty (sURL) || StringUtils.isEmpty (sName))
 				{
-					if ((sContentType.equalsIgnoreCase ("json") || sContentType.equalsIgnoreCase ("js"))  && listSubSelectors.isEmpty ())
+					if ((sExpectedResponseContentType.equalsIgnoreCase ("json") || sExpectedResponseContentType.equalsIgnoreCase ("js"))  && listSubSelectors.isEmpty ())
 						SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、/ss <JSON 取值表达式>、/name <模板名称> 参数.");
 					else if (StringUtils.isEmpty (sSelector))
 						SendMessage (ch, nick, mapGlobalOptions, "必须指定 <网址>、<CSS 选择器>、/name <模板名称> 参数.");
@@ -8637,11 +8650,17 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 					if (! StringUtils.equalsIgnoreCase (sAction, "list"))
 					{	// list 命令只需要读取 id 和 name 即可，只有非 list 命令才需要读取详细信息
+						if (StringUtils.isEmpty (sHTTPRequestMethod))
+							sHTTPRequestMethod = rs.getString ("request_method");
 						if (StringUtils.isEmpty (sURL))
 							sURL = rs.getString ("url");
+						sURLParamsHelp = rs.getString ("url_param_usage");
+						if (StringUtils.isEmpty (sHTTPRequestBody))
+							sHTTPRequestBody = rs.getString ("request_body");
+
 						if (! usingGFWProxy)	// 如果默认未指定用 GFW 代理，则从数据库中读取“是否用 GFW 代理”的配置
 							usingGFWProxy = rs.getBoolean ("use_gfw_proxy");
-						sContentType = rs.getString ("content_type");
+						sExpectedResponseContentType = rs.getString ("content_type");
 						isIgnoreContentType = rs.getBoolean ("ignore_content_type");
 						//if (StringUtils.equalsAnyIgnoreCase (sContentType, "json", "js", "pdf"))
 						//	isIgnoreContentType = true;
@@ -8683,8 +8702,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 						isIgnoreHTTPSCertificateValidation = rs.getBoolean ("ignore_https_certificate_validation");
 
-						if (StringUtils.isEmpty (sHTTPRequestMethod))
-							sHTTPRequestMethod = rs.getString ("request_method");
 						if ((jsonHTTPHeaders==null || jsonHTTPHeaders.isEmpty ()) && StringUtils.isNotEmpty (rs.getString ("headers")))
 							jsonHTTPHeaders = jacksonObjectMapper_Loose.readTree (rs.getString ("headers"));
 						if (jsonHTTPHeaders==null)
@@ -8716,9 +8733,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 							((ObjectNode)jsonHTTPHeaders).put ("Referer", sHTTPHead_Referer);
 						if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
 							((ObjectNode)jsonHTTPHeaders).put ("Accept-Language", sHTTPHead_AcceptLanguage);
-
-
-						sURLParamsHelp = rs.getString ("url_param_usage");
 
 						disabled = rs.getBoolean ("disabled");
 						sDisabledReason = rs.getString ("disabled_reason");
@@ -8770,10 +8784,10 @@ logger.fine ("url after parameter expansion: " + sURL);
 							"'"
 							);
 
-						if (StringUtils.isNotEmpty (sContentType) && !StringUtils.equalsIgnoreCase (sContentType, "html"))
+						if (StringUtils.isNotEmpty (sExpectedResponseContentType) && !StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "html"))
 						{
 							sbHelp.append ("  /ct '");
-							sbHelp.append (sContentType);
+							sbHelp.append (sExpectedResponseContentType);
 							sbHelp.append ("'");
 
 							if (nJS_Cut_Start > 0)
@@ -8857,6 +8871,12 @@ logger.fine ("url after parameter expansion: " + sURL);
 							sbHelp.append (" /m ");
 							sbHelp.append (rs.getString ("request_method"));
 						}
+						if (StringUtils.isNotEmpty (rs.getString ("request_body")))
+						{
+							sbHelp.append (" /b ");
+							//sbHelp.append (rs.getString ("request_method"));
+							sbHelp.append (".略.");
+						}
 						if (StringUtils.isNotEmpty (rs.getString ("headers")))
 						{
 							sbHelp.append (" /headers ");
@@ -8929,16 +8949,18 @@ logger.fine ("url after parameter expansion: " + sURL);
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
 				conn.setAutoCommit (false);
-				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right, request_method, headers, ua, referer, lang, max, added_by, added_by_user, added_by_host, added_time)\n");
-				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,CURRENT_TIMESTAMP)");
+				sbSQL.append ("INSERT ht_templates (name, request_method, url, url_param_usage, request_body, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right, headers, ua, referer, lang, max, added_by, added_by_user, added_by_host, added_time)\n");
+				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
 				stmt.setString (iParam++, sURL);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sURLParamsHelp));
+				stmt.setString (iParam++, StringUtils.stripToNull (sHTTPRequestBody));
 				stmt.setBoolean (iParam++, usingGFWProxy);
 				stmt.setBoolean (iParam++, isIgnoreHTTPSCertificateValidation);
-				stmt.setString (iParam++, StringUtils.equalsIgnoreCase (sContentType, "html") ? "" : sContentType);
+				stmt.setString (iParam++, StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "html") ? "" : sExpectedResponseContentType);
 				stmt.setBoolean (iParam++, isIgnoreContentType);
 
 				stmt.setInt (iParam++, nJS_Cut_Start);
@@ -8953,7 +8975,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (0)));
 				stmt.setString (iParam++, listRightPaddings.get (0));
 
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
 				stmt.setObject (iParam++, jsonHTTPHeaders);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_UserAgent));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_Referer));
@@ -9010,7 +9031,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				return;
 			}
 
-			if (StringUtils.equalsIgnoreCase (sContentType, "json") || StringUtils.equalsIgnoreCase (sContentType, "js"))
+			if (StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "json") || StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "js"))
 			{
 				if (listSubSelectors.isEmpty ())
 				{
@@ -9055,9 +9076,9 @@ System.out.println (sURL);
 			}
 
 			// 处理 JSON 内容
-			if (StringUtils.equalsIgnoreCase (sContentType, "json")
+			if (StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "json")
 				//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json")
-				|| StringUtils.equalsIgnoreCase (sContentType, "js")
+				|| StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "js")
 				//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/javascript")
 			)
 			{
@@ -9161,6 +9182,7 @@ System.out.println (field.getKey () + ": " + field.getValue ().asText ());
 							is = http.getInputStream();
 						//s = new DataInputStream (is).readUTF();
 						sContent = org.apache.commons.io.IOUtils.toString (is, GetContentEncodingFromHTTPHead (http, JVM_CHARSET.toString ()));
+System.err.println ("响应内容：");
 System.err.println (sContent);
 					}
 					catch (Exception e)
@@ -9187,7 +9209,7 @@ FileWriter fw = new FileWriter (f);
 fw.write (sContent);
 fw.close ();
 //System.err.println (sContent);
-				if (StringUtils.equalsIgnoreCase (sContentType, "json") )	//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json"))
+				if (StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "json") )	//|| jsoup_conn.response ().contentType ().equalsIgnoreCase ("application/json"))
 				{
 					if (nJS_Cut_Start > 0)
 						//sbJSON =
@@ -9335,7 +9357,7 @@ System.out.println (sQueryString);
 System.out.println ("响应返回的 Content-Type: " + sResponseContentType);
 
 				// pdf
-				if (StringUtils.equalsIgnoreCase (sContentType, "pdf"))
+				if (StringUtils.equalsIgnoreCase (sExpectedResponseContentType, "pdf"))
 				{
 					try
 					{
