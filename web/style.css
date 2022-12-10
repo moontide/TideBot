@@ -303,3 +303,8 @@ div.z-listcell-cnt
 	color: green;
 	font-weight: bold;
 }
+
+.right-align
+{
+	text-align: right;
+}

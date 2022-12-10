@@ -141,6 +141,7 @@ void 查询HTML_JSON模板_GUI ()
 			Listitem li = new Listitem (object.get("id"), object);
 			lb.appendChild (li);
 			li.appendChild (new Listcell(object.get("name")));
+			li.appendChild (new Listcell(object.get("request_method")));
 			li.appendChild (new Listcell(object.get("url")));
 			li.appendChild (new Listcell(object.get("content_type")));
 			li.appendChild (new Listcell(object.get("selector")));
@@ -170,8 +171,12 @@ void LoadHtmlJsonTemplate (Map t)
 {
 	textboxHtmlJsonTemplateForm_ID.setRawValue (t.get("id"));
 	textboxHtmlJsonTemplateForm_Name.setRawValue (t.get("name"));
+
+	Select (radiogroupHtmlJsonTemplateForm_RequestMethod, t.get("request_method"), 0);
 	textboxHtmlJsonTemplateForm_URL.setRawValue (t.get("url"));
 	textboxHtmlJsonTemplateForm_URLParamUsage.setValue (t.get("url_param_usage"));
+	textboxHtmlJsonTemplateForm_RequestBody.setRawValue (t.get("request_body"));
+
 	checkboxHtmlJsonTemplateForm_IgnoreHTTPSCertificateValidation.setChecked (parseBoolean(t.get("ignore_https_certificate_validation"), true));
 	checkboxHtmlJsonTemplateForm_UseGFWProxy.setChecked (parseBoolean(t.get("use_gfw_proxy"), false));
 
@@ -192,7 +197,6 @@ void LoadHtmlJsonTemplate (Map t)
 	textboxHtmlJsonTemplateForm_FormatWidth.setText (t.get("format_width"));
 	textboxHtmlJsonTemplateForm_PaddingRight.setText (t.get("padding_right"));
 
-	Select (radiogroupHtmlJsonTemplateForm_RequestMethod, t.get("method"), 0);
 	textboxHtmlJsonTemplateForm_Headers.setText (t.get("headers"));
 	textboxHtmlJsonTemplateForm_UserAgent.setText (t.get("ua"));
 	textboxHtmlJsonTemplateForm_Referer.setText (t.get("referer"));
@@ -317,7 +321,7 @@ public class MoveRowButtonClickEventListener implements org.zkoss.zk.ui.event.Ev
 	HtmlBasedComponent parent = null;
 	List rows = null;
 	int step;
-	public void MoveRowButtonClickEventListener (Button srcButton, HtmlBasedComponent srcRow, int iStep)
+	public MoveRowButtonClickEventListener (Button srcButton, HtmlBasedComponent srcRow, int iStep)
 	{
 		button = srcButton;
 		row = srcRow;
@@ -357,7 +361,7 @@ public class MoveRowButtonClickEventListener implements org.zkoss.zk.ui.event.Ev
 public class RemoveRowButtonClickEventListener implements org.zkoss.zk.ui.event.EventListener
 {
 	Button button = null;
-	public void RemoveRowButtonClickEventListener (Button src)
+	public RemoveRowButtonClickEventListener (Button src)
 	{
 		button = src;
 	}
@@ -383,12 +387,12 @@ void SaveHtmlJsonTemplate ()
 	Object[] params;
 
 	// 保存 HTML_JSON模板 信息
-	String sSQL_Insert = "INSERT INTO ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, " +
+	String sSQL_Insert = "INSERT INTO ht_templates (name, request_method, url, url_param_usage, request_body, use_gfw_proxy, ignore_https_certificate_validation, content_type, " +
 	"ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, " +
 	"padding_left, extract, attr, format_flags, format_width, padding_right, " +
-	"request_method, headers, ua, referer, lang, " +
-	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,'','','', CURRENT_TIMESTAMP)";
-	String sSQL_Update = "UPDATE ht_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, format_flags=?, format_width=?, padding_right=?, request_method=?, headers=?, ua=?, referer=?, lang=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
+	"headers, ua, referer, lang, " +
+	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,'','', '',CURRENT_TIMESTAMP)";
+	String sSQL_Update = "UPDATE ht_templates SET name=?, request_method=?, url=?, url_param_usage=?, request_body=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, format_flags=?, format_width=?, padding_right=?, headers=?, ua=?, referer=?, lang=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
 	String sSQL_Insert_OtherSubSelectors = "INSERT INTO ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)";
 
 	String [] params_OtherSubSelectors =
@@ -397,8 +401,12 @@ void SaveHtmlJsonTemplate ()
 	};
 
 	String sName = textboxHtmlJsonTemplateForm_Name.getValue();
+
+	String sRequestMethod = radiogroupHtmlJsonTemplateForm_RequestMethod.getSelectedItem().getValue ();
 	String sURL = textboxHtmlJsonTemplateForm_URL.getValue();
 	String sURLParamUsage = textboxHtmlJsonTemplateForm_URLParamUsage.getValue();
+	String sRequestBody = textboxHtmlJsonTemplateForm_RequestBody.getValue();
+
 	boolean isUseGFWProxy = checkboxHtmlJsonTemplateForm_UseGFWProxy.isChecked();
 	boolean isIgnoreHTTPSCertificateValidation = checkboxHtmlJsonTemplateForm_IgnoreHTTPSCertificateValidation.isChecked();
 	String sContentType = radiogroupHtmlJsonTemplateForm_ContentType.getSelectedItem().getValue();
@@ -417,7 +425,6 @@ void SaveHtmlJsonTemplate ()
 	String sFormatWidth = textboxHtmlJsonTemplateForm_FormatWidth.getValue ();
 	String sPaddingRight = textboxHtmlJsonTemplateForm_PaddingRight.getValue ();
 
-	String sRequestMethod = radiogroupHtmlJsonTemplateForm_RequestMethod.getSelectedItem().getValue ();
 	String sHeaders_JSON = textboxHtmlJsonTemplateForm_Headers.getValue ();
 	String sUserAgent = textboxHtmlJsonTemplateForm_UserAgent.getValue ();
 	String sReferer = textboxHtmlJsonTemplateForm_Referer.getValue ();
@@ -428,17 +435,17 @@ void SaveHtmlJsonTemplate ()
 
 	Object[] params_Insert =
 	{
-		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
+		sName,	sRequestMethod,	sURL,	sURLParamUsage,	sRequestBody, isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
 		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,
-		sRequestMethod,	sHeaders_JSON, sUserAgent, sReferer, sAcceptLanguage,
+		sHeaders_JSON, sUserAgent, sReferer, sAcceptLanguage,
 	};
 	Object[]params_Update =
 	{
-		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
+		sName,	sRequestMethod,	sURL,	sURLParamUsage,	sRequestBody, isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
 		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,
-		sRequestMethod,	sHeaders_JSON, sUserAgent, sReferer, sAcceptLanguage,
+		sHeaders_JSON, sUserAgent, sReferer, sAcceptLanguage,
 
 		sID,
 	};

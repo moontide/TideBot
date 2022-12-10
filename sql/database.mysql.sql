@@ -317,7 +317,10 @@ CREATE TABLE ht_templates
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	name VARCHAR(50) NOT NULL DEFAULT '' UNIQUE KEY,
 
+	request_method ENUM('','GET', 'POST') NOT NULL DEFAULT '' COMMENT 'HTTP 方法，只允许 GET 和 POST',
 	url VARCHAR(300) NOT NULL DEFAULT '',
+	request_body TEXT COMMENT '请求消息体。仅当 request_method=POST 时才有效。',
+
 	use_gfw_proxy TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否使用 GFWProxy 代理服务器访问该 URL。默认不使用，除非特别的接口需要翻墙才能访问时才需要使用。',
 	ignore_https_certificate_validation TINYINT(1) NOT NULL DEFAULT 1 COMMENT '忽略 https 的证书有效性验证 -- ht 命令非关键任务，不需要验证证书有效性；此参数仅对 https 网址生效， http 不处理该参数。参见: http://www.nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/',
 	content_type ENUM('', 'html', 'json', 'js', 'pdf') NOT NULL DEFAULT '',
@@ -336,7 +339,6 @@ CREATE TABLE ht_templates
 	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
 	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
-	request_method ENUM('','GET', 'POST') NOT NULL DEFAULT '' COMMENT 'HTTP 方法，只允许 GET 和 POST',
 	headers JSON COMMENT '请求消息头。jackson ObjectNode。格式：{"":"", "":"", ...}，如 {"Authorization":"xxxxxxxx", "Accept-Language":"zh-cn", "User-Agent":"Firefox", "Referer":"https://www.domain.tld/app/"}。注意：原先的 ua referer lang 参数，将会合并到此处。以原参数里的值优先。headers 不应该再展示给用户看，因为可能会包含敏感信息（Cookie、Authorization 等消息头）',
 	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
 	referer VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT 'Referer 头',

@@ -62,6 +62,7 @@
 <listhead sizable='true'>
 	<listheader label='#' width='6ex' hflex='min'/>
 	<listheader label='名称' hflex='min'/>
+	<listheader label='method' hflex='min'/>
 	<listheader label='URL' hflex='min'/>
 	<listheader label='ContentType' width='8ex' hflex='min'/>
 	<listheader label='Selector' hflex='min'/>
@@ -81,7 +82,7 @@
 	</columns>
 	<rows>
 		<row>
-			#
+			<cell sclass='right-align'>#</cell>
 			<div>
 				<textbox id='textboxHtmlJsonTemplateForm_ID' disabled='true'/>
 				<button label='新建HTML_JSON模板/清空表单' onClick='LoadHtmlJsonTemplate (Collections.EMPTY_MAP);' style='background-color: #CFC'/>
@@ -89,11 +90,18 @@
 			</div>
 		</row>
 		<row>
-			名称
+			<cell sclass='right-align'>名称</cell>
 			<textbox id='textboxHtmlJsonTemplateForm_Name' value='' width='95%' constraint='no empty'/>
 		</row>
 		<row>
-			网址
+			<cell sclass='right-align'>请求方法</cell>
+			<radiogroup id='radiogroupHtmlJsonTemplateForm_RequestMethod'>
+				<radio value='' label='GET' checked='true'/>
+				<radio value='POST' label='POST'/>
+			</radiogroup>
+		</row>
+		<row>
+			<cell sclass='right-align'>网址</cell>
 			<div>
 				<textbox id='textboxHtmlJsonTemplateForm_URL' value='' width='95%' constraint='no empty'/><n:br/>
 				网址中可包含 \$\{p} \$\{p2} \$\{p3}... 参数(参数会经过 urlencode 处理) 或 \$\{u} \$\{u2} \$\{u3}... 参数(参数原样传递，不经过 urlencode 处理)
@@ -104,7 +112,11 @@
 			</div>
 		</row>
 		<row>
-			内容类型
+			<cell sclass='right-align'>消息体 Post Body</cell>
+			<textbox id='textboxHtmlJsonTemplateForm_RequestBody' value='' multiline='true' rows='7' width='95%'/><n:br/>
+		</row>
+		<row>
+			<cell sclass='right-align'>预期的响应内容类型</cell>
 			<div>
 				<radiogroup id='radiogroupHtmlJsonTemplateForm_ContentType' onCheck='onHtmlJsonTemplateContentTypeChanged ();'>
 					<radio value='' label='HTML/XML' checked='true'/>
@@ -121,14 +133,14 @@
 			</div>
 		</row>
 		<row id='rowHtmlJsonTemplateForm_Selector'>
-			Selector
+			<cell sclass='right-align'>Selector</cell>
 			<div>
 				<textbox id='textboxHtmlJsonTemplateForm_Selector' value='' width='95%'/><n:br/>
 				这里的 selector 仅仅适用于 html 内容类型， json/js 内容类型不读该信息。 jsoup 参考文档: http://jsoup.org/apidocs/org/jsoup/select/Selector.html
 			</div>
 		</row>
 		<row>
-			SubSelector及取值
+			<cell sclass='right-align'>SubSelector及取值</cell>
 			<hlayout>
 			<div>
 				<textbox id='textboxHtmlJsonTemplateForm_SubSelector' value='' multiline='true' rows='10' width='95%'/><n:br/>
@@ -166,43 +178,36 @@
 			</hlayout>
 		</row>
 		<row>
-			SubSelectors及取值
+			<cell sclass='right-align'>SubSelectors及取值</cell>
 			<div>
 				<div id='divHtmlJsonTemplateForm_OtherSubSelectorsContainer'></div>
 				<button label='＋ 增加 SubSelector' src='/images/icon-button-add.png' onClick='AddNewSubSelector ("", "", " ", "", "", "", "", "");'/>
 			</div>
 		</row>
 		<row>
-			请求方法
-			<radiogroup id='radiogroupHtmlJsonTemplateForm_RequestMethod'>
-				<radio value='' label='GET' checked='true'/>
-				<radio value='POST' label='POST'/>
-			</radiogroup>
-		</row>
-		<row>
-			HTTP请求头(JSON)
+			<cell sclass='right-align'>HTTP请求头(JSON)</cell>
 			<textbox id='textboxHtmlJsonTemplateForm_Headers' value='' width='95%'/>
 		</row>
 		<row>
-			仿浏览器(User-Agent)
+			<cell sclass='right-align'>仿浏览器(User-Agent)</cell>
 			<textbox id='textboxHtmlJsonTemplateForm_UserAgent' value='' width='95%'/>
 		</row>
 		<row>
-			Referer
+			<cell sclass='right-align'>Referer</cell>
 			<textbox id='textboxHtmlJsonTemplateForm_Referer' value='' width='95%'/>
 		</row>
 		<row>
-			Accept-Language
+			<cell sclass='right-align'>Accept-Language</cell>
 			<textbox id='textboxHtmlJsonTemplateForm_AcceptLanguage' value='' width='95%'/>
 		</row>
 		<row>
-			添加
+			<cell sclass='right-align'>添加</cell>
 			<div>
 			<label id='labelHtmlJsonTemplateForm_AddedBy'/>!<label id='labelHtmlJsonTemplateForm_AddedByUser'/>@<label id='labelHtmlJsonTemplateForm_AddedByHost'/>, <label id='labelHtmlJsonTemplateForm_AddedTime'/>
 			</div>
 		</row>
 		<row>
-			更新
+			<cell sclass='right-align'>更新</cell>
 			<div>
 			<label id='labelHtmlJsonTemplateForm_UpdatedBy'/>!<label id='labelHtmlJsonTemplateForm_UpdatedByUser'/>@<label id='labelHtmlJsonTemplateForm_UpdatedByHost'/>, <label id='labelHtmlJsonTemplateForm_UpdatedTime'/>, 次数=<label id='labelHtmlJsonTemplateForm_UpdatedTimes'/>
 			</div>
