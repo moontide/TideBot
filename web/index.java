@@ -13,7 +13,7 @@ import com.chinamotion.database.*;
 import com.chinamotion.util.*;
 
 
-long lTimeZoneRawOffset = TimeZone.getDefault().getRawOffset();
+long lTimeZoneRawOffset = 0;	// TimeZone.getDefault().getRawOffset();
 
 public void OnTimer()
 {
@@ -192,9 +192,11 @@ void LoadHtmlJsonTemplate (Map t)
 	textboxHtmlJsonTemplateForm_FormatWidth.setText (t.get("format_width"));
 	textboxHtmlJsonTemplateForm_PaddingRight.setText (t.get("padding_right"));
 
-	textboxHtmlJsonTemplateForm_UserAgent.setText (t.get("ua"));
 	Select (radiogroupHtmlJsonTemplateForm_RequestMethod, t.get("method"), 0);
+	textboxHtmlJsonTemplateForm_Headers.setText (t.get("headers"));
+	textboxHtmlJsonTemplateForm_UserAgent.setText (t.get("ua"));
 	textboxHtmlJsonTemplateForm_Referer.setText (t.get("referer"));
+	textboxHtmlJsonTemplateForm_AcceptLanguage.setText (t.get("lang"));
 
 
 	labelHtmlJsonTemplateForm_AddedBy.setValue (t.get("added_by"));
@@ -383,10 +385,10 @@ void SaveHtmlJsonTemplate ()
 	// 保存 HTML_JSON模板 信息
 	String sSQL_Insert = "INSERT INTO ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, " +
 	"ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, " +
-	"padding_left, extract, attr, format_flags, format_width, padding_right, ua, " +
-	"request_method, referer, " +
-	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, '','','',CURRENT_TIMESTAMP)";
-	String sSQL_Update = "UPDATE ht_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, format_flags=?, format_width=?, padding_right=?, ua=?, request_method=?, referer=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
+	"padding_left, extract, attr, format_flags, format_width, padding_right, " +
+	"request_method, headers, ua, referer, lang, " +
+	"added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,'','','', CURRENT_TIMESTAMP)";
+	String sSQL_Update = "UPDATE ht_templates SET name=?, url=?, url_param_usage=?, use_gfw_proxy=?, ignore_https_certificate_validation=?, content_type=?, ignore_content_type=?, js_cut_start=?, js_cut_end=?, selector=?, sub_selector=?, padding_left=?, extract=?, attr=?, format_flags=?, format_width=?, padding_right=?, request_method=?, headers=?, ua=?, referer=?, lang=?,   updated_by='', updated_by_user='', updated_by_host='', updated_time=CURRENT_TIMESTAMP, updated_times=updated_times+1 WHERE id=?";
 	String sSQL_Insert_OtherSubSelectors = "INSERT INTO ht_templates_other_sub_selectors (template_id, sub_selector, padding_left, extract, attr, format_flags, format_width, padding_right) VALUES (?,?,?,?,?, ?,?,?)";
 
 	String [] params_OtherSubSelectors =
@@ -415,9 +417,11 @@ void SaveHtmlJsonTemplate ()
 	String sFormatWidth = textboxHtmlJsonTemplateForm_FormatWidth.getValue ();
 	String sPaddingRight = textboxHtmlJsonTemplateForm_PaddingRight.getValue ();
 
-	String sUserAgent = textboxHtmlJsonTemplateForm_UserAgent.getValue ();
 	String sRequestMethod = radiogroupHtmlJsonTemplateForm_RequestMethod.getSelectedItem().getValue ();
+	String sHeaders_JSON = textboxHtmlJsonTemplateForm_Headers.getValue ();
+	String sUserAgent = textboxHtmlJsonTemplateForm_UserAgent.getValue ();
 	String sReferer = textboxHtmlJsonTemplateForm_Referer.getValue ();
+	String sAcceptLanguage = textboxHtmlJsonTemplateForm_AcceptLanguage.getValue ();
 
 	//String sAddedUser, sAddedUser_User, sAddedUser_Host;
 	//String sUpdatedUser, sUpdatedUser_User, sUpdatedUser_Host;
@@ -426,15 +430,15 @@ void SaveHtmlJsonTemplate ()
 	{
 		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
-		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,	sUserAgent,
-		sRequestMethod,	sReferer,
+		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,
+		sRequestMethod,	sHeaders_JSON, sUserAgent, sReferer, sAcceptLanguage,
 	};
 	Object[]params_Update =
 	{
 		sName,	sURL,	sURLParamUsage,	isUseGFWProxy, isIgnoreHTTPSCertificateValidation,	sContentType,
 		isIgnoreContentType,	nJSCutStart,	nJSCutEnd,	sSelector,	sSubSelector,
-		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,	sUserAgent,
-		sRequestMethod,	sReferer,
+		sPaddingLeft,	sExtract,	sAttribute,	sFormatFlags,	sFormatWidth,	sPaddingRight,
+		sRequestMethod,	sHeaders_JSON, sUserAgent, sReferer, sAcceptLanguage,
 
 		sID,
 	};
@@ -474,6 +478,7 @@ void SaveHtmlJsonTemplate ()
 					case Messagebox.OK:
 
 	int iTotalRowsAffected, iRowsInserted, iRowsUpdated, iRowsDeleted, iRowsAffected;
+	DatabaseAccessAgent dbaa = null;
 	try
 	{
 		dbaa = new DatabaseAccessAgent (g_sDataSourceName, null, null);

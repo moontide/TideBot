@@ -324,7 +324,7 @@ CREATE TABLE ht_templates
 	ignore_content_type TINYINT(1) NOT NULL DEFAULT 1 COMMENT '这是给 jsoup 库用到的是否忽略 http 返回的内容类型，json 目前不关心此信息（一直假定为文本数据）',
 	js_cut_start INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '这是为了给 json 使用的：有的接口返回了回调函数，回调函数里的参数是 JSON，这时候就需要把 JSON 切出来。该参数指定切的起始偏移量，>=0，=0 表示不切前面的字符',
 	js_cut_end INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '该参数指定从后面切的字符数，数值需要 >=0，=0 表示不切后面的字符',
-	url_param_usage VARCHAR(100) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
+	url_param_usage VARCHAR(255) NOT NULL DEFAULT '' COMMENT '如果 url 中带参数，在此说明参数用途。如果用户没有输入参数时，给出提示',
 
 	selector VARCHAR(100) NOT NULL DEFAULT '' COMMENT '用来选择列表的 CSS 选择器表达式，此表达式仅用于 content_type 为 html 的情况，对于 json/js，不需要。',
 	sub_selector TEXT COLLATE utf8_bin NOT NULL COMMENT '当 content_type 为 html 时，用来选择列表内单一 element 的 CSS 选择器表达式，如果为空，则 element 就是列表中的 element； 当 content_type 为 json/js 时，用来存储 javascript 脚本',
@@ -336,8 +336,9 @@ CREATE TABLE ht_templates
 	format_width VARCHAR(3) NOT NULL DEFAULT '' COMMENT '格式化字符串中的宽度。默认为空 -- 不指定宽度。',
 	padding_right VARCHAR(20) NOT NULL DEFAULT '' COMMENT '取值后，填充在 右侧/后面 的字符串。可根据需要决定该字符串，以决定输出的样式（比如：闭合颜色序列、输出空格等）',
 
-	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
 	request_method ENUM('','GET', 'POST') NOT NULL DEFAULT '' COMMENT 'HTTP 方法，只允许 GET 和 POST',
+	headers JSON COMMENT '请求消息头。jackson ObjectNode。格式：{"":"", "":"", ...}，如 {"Authorization":"xxxxxxxx", "Accept-Language":"zh-cn", "User-Agent":"Firefox", "Referer":"https://www.domain.tld/app/"}。注意：原先的 ua referer lang 参数，将会合并到此处。以原参数里的值优先。headers 不应该再展示给用户看，因为可能会包含敏感信息（Cookie、Authorization 等消息头）',
+	ua VARCHAR(100) NOT NULL DEFAULT '' COMMENT '模拟浏览器 User-Agent',
 	referer VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT 'Referer 头',
 	lang VARCHAR(100) CHARACTER SET ascii NOT NULL DEFAULT '' COMMENT 'Accept-Language 头',
 
@@ -391,9 +392,11 @@ CREATE PROCEDURE p_save_ht_template
 	_extract VARCHAR(20),
 	_attr VARCHAR(20),
 
+	_headers JSON,
 	_ua VARCHAR(100),
 	_method VARCHAR(10),
 	_referer VARCHAR(100),
+	_lang VARCHAR(100),
 
 	_max TINYINT,
 

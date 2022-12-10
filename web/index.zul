@@ -173,10 +173,6 @@
 			</div>
 		</row>
 		<row>
-			仿浏览器(User-Agent)
-			<textbox id='textboxHtmlJsonTemplateForm_UserAgent' value='' width='95%'/>
-		</row>
-		<row>
 			请求方法
 			<radiogroup id='radiogroupHtmlJsonTemplateForm_RequestMethod'>
 				<radio value='' label='GET' checked='true'/>
@@ -184,8 +180,20 @@
 			</radiogroup>
 		</row>
 		<row>
+			HTTP请求头(JSON)
+			<textbox id='textboxHtmlJsonTemplateForm_Headers' value='' width='95%'/>
+		</row>
+		<row>
+			仿浏览器(User-Agent)
+			<textbox id='textboxHtmlJsonTemplateForm_UserAgent' value='' width='95%'/>
+		</row>
+		<row>
 			Referer
 			<textbox id='textboxHtmlJsonTemplateForm_Referer' value='' width='95%'/>
+		</row>
+		<row>
+			Accept-Language
+			<textbox id='textboxHtmlJsonTemplateForm_AcceptLanguage' value='' width='95%'/>
 		</row>
 		<row>
 			添加

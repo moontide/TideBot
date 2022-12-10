@@ -8221,8 +8221,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 		List<String> listFormatWidth = new ArrayList<String> ();
 		List<String> listRightPaddings = new ArrayList<String> ();
 
-		String sHTTPHead_UserAgent = null;
 		String sHTTPRequestMethod = null;
+		JsonNode jsonHTTPHeaders = null;
+		String sHTTPHead_UserAgent = null;
 		String sHTTPHead_Referer = null;
 		String sHTTPHead_AcceptLanguage = null;
 
@@ -8339,14 +8340,26 @@ logger.fine ("url after parameter expansion: " + sURL);
 					//	if (opt_max_response_lines > MAX_RESPONSE_LINES_LIMIT)
 					//		opt_max_response_lines = MAX_RESPONSE_LINES_LIMIT;
 					//}
-					else if (param.equalsIgnoreCase ("ua") || param.equalsIgnoreCase ("user-agent") || param.equalsIgnoreCase ("浏览器"))
-						sHTTPHead_UserAgent = value;
 					else if (param.equalsIgnoreCase ("m") || param.equalsIgnoreCase ("method") || param.equalsIgnoreCase ("方法"))
 						sHTTPRequestMethod = value;
+					else if (param.equalsIgnoreCase ("headers"))
+					{
+						try
+						{
+							jsonHTTPHeaders =jacksonObjectMapper_Loose.readTree (value);
+						}
+						catch (Exception e)
+						{
+							e.printStackTrace();
+						}
+					}
+					else if (param.equalsIgnoreCase ("ua") || param.equalsIgnoreCase ("user-agent") || param.equalsIgnoreCase ("浏览器"))
+						sHTTPHead_UserAgent = value;
 					else if (param.equalsIgnoreCase ("r") || param.equalsIgnoreCase ("ref") || param.equalsIgnoreCase ("refer") || param.equalsIgnoreCase ("referer") || param.equalsIgnoreCase ("来源"))
 						sHTTPHead_Referer = value;
 					else if (param.equalsIgnoreCase ("l") || param.equalsIgnoreCase ("lang") || param.equalsIgnoreCase ("language") || param.equalsIgnoreCase ("accept-language") || param.equalsIgnoreCase ("语言"))
 						sHTTPHead_AcceptLanguage = value;
+
 					else if (param.equalsIgnoreCase ("start") || param.equalsIgnoreCase ("offset") || param.equalsIgnoreCase ("起始") || param.equalsIgnoreCase ("偏移量"))
 					{
 						//sStart = value;
@@ -8559,15 +8572,15 @@ logger.fine ("url after parameter expansion: " + sURL);
 					//	sbSQL.append ("	AND max = ?\n");
 					//	listSQLParams.add (sMax);
 					//}
-					if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
-					{
-						sbSQL.append ("	AND ua LIKE ?\n");
-						listSQLParams.add ("%" + sHTTPHead_UserAgent + "%");
-					}
 					if (StringUtils.isNotEmpty (sHTTPRequestMethod))
 					{
 						sbSQL.append ("	AND request_method = ?\n");
 						listSQLParams.add (sHTTPRequestMethod);
+					}
+					if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
+					{
+						sbSQL.append ("	AND ua LIKE ?\n");
+						listSQLParams.add ("%" + sHTTPHead_UserAgent + "%");
 					}
 					if (StringUtils.isNotEmpty (sHTTPHead_Referer))
 					{
@@ -8670,14 +8683,40 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 						isIgnoreHTTPSCertificateValidation = rs.getBoolean ("ignore_https_certificate_validation");
 
-						if (StringUtils.isEmpty (sHTTPHead_UserAgent))
-							sHTTPHead_UserAgent = rs.getString ("ua");
 						if (StringUtils.isEmpty (sHTTPRequestMethod))
 							sHTTPRequestMethod = rs.getString ("request_method");
+						if ((jsonHTTPHeaders==null || jsonHTTPHeaders.isEmpty ()) && StringUtils.isNotEmpty (rs.getString ("headers")))
+							jsonHTTPHeaders = jacksonObjectMapper_Loose.readTree (rs.getString ("headers"));
+						if (jsonHTTPHeaders==null)
+							jsonHTTPHeaders = jacksonObjectMapper_Loose.createObjectNode ();
+
+						// 下面 3 个 http 请求头的取值策略优先级：命令行传入） > 从数据库中获取到的 > headers 中指定的（不管是从数据库中获取到的，还是从命令行传入的
+						if (StringUtils.isEmpty (sHTTPHead_UserAgent))
+						{
+							sHTTPHead_UserAgent = rs.getString ("ua");
+							if (StringUtils.isEmpty (sHTTPHead_UserAgent) && jsonHTTPHeaders.get ("User-Agent")!=null)
+								sHTTPHead_UserAgent = jsonHTTPHeaders.get ("User-Agent").asText ();
+						}
 						if (StringUtils.isEmpty (sHTTPHead_Referer))
+						{
 							sHTTPHead_Referer = rs.getString ("referer");
+							if (StringUtils.isEmpty (sHTTPHead_Referer) && jsonHTTPHeaders.get ("Referer")!=null)
+								sHTTPHead_Referer = jsonHTTPHeaders.get ("Referer").asText ();
+						}
 						if (StringUtils.isEmpty (sHTTPHead_AcceptLanguage))
+						{
 							sHTTPHead_AcceptLanguage = rs.getString ("lang");
+							if (StringUtils.isEmpty (sHTTPHead_AcceptLanguage) && jsonHTTPHeaders.get ("Accept-Language")!=null)
+								sHTTPHead_AcceptLanguage = jsonHTTPHeaders.get ("Accept-Language").asText ();
+						}
+
+						if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
+							((ObjectNode)jsonHTTPHeaders).put ("User-Agent", sHTTPHead_UserAgent);
+						if (StringUtils.isNotEmpty (sHTTPHead_Referer))
+							((ObjectNode)jsonHTTPHeaders).put ("Referer", sHTTPHead_Referer);
+						if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
+							((ObjectNode)jsonHTTPHeaders).put ("Accept-Language", sHTTPHead_AcceptLanguage);
+
 
 						sURLParamsHelp = rs.getString ("url_param_usage");
 
@@ -8813,20 +8852,31 @@ logger.fine ("url after parameter expansion: " + sURL);
 								sbHelp.append ("'");
 							}
 						}
-						if (StringUtils.isNotEmpty (rs.getString ("ua")))
-						{
-							sbHelp.append (" /ua ");
-							sbHelp.append (rs.getString ("ua"));
-						}
 						if (StringUtils.isNotEmpty (rs.getString ("request_method")))
 						{
 							sbHelp.append (" /m ");
 							sbHelp.append (rs.getString ("request_method"));
 						}
+						if (StringUtils.isNotEmpty (rs.getString ("headers")))
+						{
+							sbHelp.append (" /headers ");
+							//sbHelp.append (rs.getString ("headers"));
+							sbHelp.append (".略.");
+						}
+						if (StringUtils.isNotEmpty (rs.getString ("ua")))
+						{
+							sbHelp.append (" /ua ");
+							sbHelp.append (rs.getString ("ua"));
+						}
 						if (StringUtils.isNotEmpty (rs.getString ("referer")))
 						{
 							sbHelp.append (" /r ");
 							sbHelp.append (rs.getString ("referer"));
+						}
+						if (StringUtils.isNotEmpty (rs.getString ("lang")))
+						{
+							sbHelp.append (" /lang ");
+							sbHelp.append (rs.getString ("lang"));
 						}
 
 						if (StringUtils.isNotEmpty (rs.getString ("url_param_usage")))
@@ -8879,8 +8929,8 @@ logger.fine ("url after parameter expansion: " + sURL);
 			else if (StringUtils.equalsIgnoreCase (sAction, "+"))
 			{
 				conn.setAutoCommit (false);
-				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right, ua, request_method, referer, lang, max, added_by, added_by_user, added_by_host, added_time)\n");
-				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,CURRENT_TIMESTAMP)");
+				sbSQL.append ("INSERT ht_templates (name, url, url_param_usage, use_gfw_proxy, ignore_https_certificate_validation, content_type, ignore_content_type, js_cut_start, js_cut_end, selector, sub_selector, padding_left, extract, filters, attr, format_flags, format_width, padding_right, request_method, headers, ua, referer, lang, max, added_by, added_by_user, added_by_host, added_time)\n");
+				sbSQL.append ("VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,CURRENT_TIMESTAMP)");
 				stmt = conn.prepareStatement (sbSQL.toString (), new String[]{"id"});
 				int iParam = 1;
 				stmt.setString (iParam++, sName);
@@ -8903,8 +8953,9 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (0)));
 				stmt.setString (iParam++, listRightPaddings.get (0));
 
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_UserAgent));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
+				stmt.setObject (iParam++, jsonHTTPHeaders);
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_UserAgent));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_Referer));
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_AcceptLanguage));
 
@@ -8955,7 +9006,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 			if (StringUtils.isEmpty (sURL))
 			{
-				SendMessage (ch, nick, mapGlobalOptions, "你想看 hyper text，却不提供网址. 用第一个参数指定 <网址>");
+				SendMessage (ch, nick, mapGlobalOptions, "需要在第一个参数指定一个 <网址>");
 				return;
 			}
 
@@ -8992,6 +9043,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				int i = sURL.indexOf ('?');
 				sQueryString = sURL.substring (i+1);	// 得到 QueryString，用来将其传递到 POST 消息体中
 				sURL = sURL.substring (0, i);	// 将 URL 中的 QueryString 剔除掉
+System.out.println (sQueryString);
 			}
 System.out.println (sURL);
 
@@ -9042,20 +9094,31 @@ System.out.println (sURL);
 					https.setSSLSocketFactory (sslContext_TrustAllCertificates.getSocketFactory());
 					https.setHostnameVerifier (hvAllowAllHostnames);
 				}
-				if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
+
+				//if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
+				//{
+//System.out.println (sHTTPHead_UserAgent);
+				//	http.setRequestProperty ("User-Agent", sHTTPHead_UserAgent);
+				//}
+				//if (StringUtils.isNotEmpty (sHTTPHead_Referer))
+				//{
+//System.out.println (sHTTPHead_Referer);
+				//	http.setRequestProperty ("Referer", sHTTPHead_Referer);
+				//}
+				//if (StringUtils.isNotEmpty (sHTTPHead_Referer))
+				//{
+//System.out.println (sHTTPHead_Referer);
+				//	http.setRequestProperty ("Accept-Language", sHTTPHead_AcceptLanguage);
+				//}
+				if (jsonHTTPHeaders!=null && !jsonHTTPHeaders.isEmpty ())
 				{
-System.out.println (sHTTPHead_UserAgent);
-					http.setRequestProperty ("User-Agent", sHTTPHead_UserAgent);
-				}
-				if (StringUtils.isNotEmpty (sHTTPHead_Referer))
-				{
-System.out.println (sHTTPHead_Referer);
-					http.setRequestProperty ("Referer", sHTTPHead_Referer);
-				}
-				if (StringUtils.isNotEmpty (sHTTPHead_Referer))
-				{
-System.out.println (sHTTPHead_Referer);
-					http.setRequestProperty ("Accept-Language", sHTTPHead_AcceptLanguage);
+					Iterator<Map.Entry<String, JsonNode>> itFields = jsonHTTPHeaders.fields ();
+					while (itFields.hasNext ())
+					{
+						Map.Entry<String, JsonNode> field = itFields.next ();
+						http.setRequestProperty (field.getKey (), field.getValue ().asText ());
+System.out.println (field.getKey () + ": " + field.getValue ().asText ());
+					}
 				}
 
 				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
@@ -9119,7 +9182,7 @@ System.err.println (sContent);
 				}
 				StringBuilder sbJSON = new StringBuilder ();
 				String sJSON;
-File f = new File ("ht-js-log.js");
+File f = new File ("ht-js-log-" + System.currentTimeMillis () + ".js");
 FileWriter fw = new FileWriter (f);
 fw.write (sContent);
 fw.close ();
@@ -9216,20 +9279,30 @@ fw.close ();
 						.ignoreContentType (isIgnoreContentType)
 						.timeout (opt_timeout_length_seconds * 1000)
 						;
-				if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
+				//if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
+				//{
+//System.out.println (sHTTPHead_UserAgent);
+				//	jsoup_conn.userAgent (sHTTPHead_UserAgent);
+				//}
+				//if (StringUtils.isNotEmpty (sHTTPHead_Referer))
+				//{
+//System.out.println (sHTTPHead_Referer);
+				////	jsoup_conn.referrer (sHTTPHead_Referer);
+				//}
+				//if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
+				//{
+//System.out.println (sHTTPHead_AcceptLanguage);
+				//	jsoup_conn.header ("Accept-Language", sHTTPHead_AcceptLanguage);
+				//}
+				if (jsonHTTPHeaders!=null && !jsonHTTPHeaders.isEmpty ())
 				{
-System.out.println (sHTTPHead_UserAgent);
-					jsoup_conn.userAgent (sHTTPHead_UserAgent);
-				}
-				if (StringUtils.isNotEmpty (sHTTPHead_Referer))
-				{
-System.out.println (sHTTPHead_Referer);
-					jsoup_conn.referrer (sHTTPHead_Referer);
-				}
-				if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
-				{
-System.out.println (sHTTPHead_AcceptLanguage);
-					jsoup_conn.header ("Accept-Language", sHTTPHead_AcceptLanguage);
+					Iterator<Map.Entry<String, JsonNode>> itFields = jsonHTTPHeaders.fields ();
+					while (itFields.hasNext ())
+					{
+						Map.Entry<String, JsonNode> field = itFields.next ();
+						jsoup_conn.header (field.getKey (), field.getValue ().asText ());
+System.out.println (field.getKey () + ": " + field.getValue ().asText ());
+					}
 				}
 
 				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, org.jsoup.Connection.Method.POST.toString ()))
