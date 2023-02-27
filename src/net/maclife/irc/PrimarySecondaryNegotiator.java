@@ -42,12 +42,12 @@ import net.maclife.ansi.*;
 
 <p>
  发起主从协商，请求当首选 Bot (Master Slave Negotiation / Primary Secondary Negotiation)：
- {"psn":{"c":"I_WANNA_BE_PRIMARY", iid:"主从协商发起号，目前使用毫秒时间戳当 iid，但是，是字符串类型", "m":"反对的请举手", "t":毫秒时间戳, "s":"签名（base64）0011223344556677889900...."}}
+ {"psn":{"c":"阶段1_发起协商_我要当首选Bot", iid:"主从协商发起号，目前使用毫秒时间戳当 iid，但是，是字符串类型", "m":"反对的请举手", "t":毫秒时间戳, "s":"签名（base64）0011223344556677889900...."}}
  </p>
 
 <p>
  响应，情况1，已经有 Bot 实例是 首选 Bot：
- {"psn"{"c":"OK|REJECT", iid:"主从协商发起号", "m":"这里可以选一些景点电影里的台词，如“还有谁？！”“You Shall Not Pass!”", "t":毫秒时间戳, "s":"签名（base64）0011223344556677889900...."}}
+ {"psn"{"c":"阶段2_投票_同意|阶段2_投票_反对", iid:"主从协商发起号", "m":"这里可以选一些经典电影里的台词，如“还有谁？！”“You Shall Not Pass!”", "t":毫秒时间戳, "s":"签名（base64）0011223344556677889900...."}}
 </p>
 
 <p>
@@ -67,7 +67,9 @@ import net.maclife.ansi.*;
  	<dd>避免 Bot 快捷命令被多个 Bot 实例一起执行。Bot 的正常命令，可以通过命令前缀来避免多个 Bot 实例同时执行，但快捷命令却没法避免。</dd>
 
   	<dt>Primary 和 Secondary 有没有心跳检测？</dt>
- 	<dd>没有，一个 Bot 不知道另一个 Bot 的存在。而且，因为这是在 IRC 频道中执行主从协商，首次主从协商成功后，即使知道了同组 Bot 的存在，也不便于在频道里频繁的发心跳信息。</dd>
+ 	<dd>没有心跳检测。首先，一个 Bot 不知道另一个 Bot 的存在。而且，因为这是在 IRC 频道中执行主从协商，首次主从协商成功后，即使知道了同组 Bot 的存在，也不便于在频道里频繁的发心跳信息。
+ 		其次，即使使用私信发送心跳检测，也因为 IRC 通信的不可靠，导致检测无效，如：当 Bot 断线重连后，昵称可能发生了改变，这时就收不到别的 Bot 的心跳检测。
+ 	</dd>
 
   	<dt>没有心跳检测，那 Primary 断线了怎么办，快捷命令就没有 Primary Bot 响应了</dt>
  	<dd>暂时没有完美的解决方法。目前，需要在另一个 Bot 的命令行控制台手工执行主从协商，将其设置为首选 Bot</dd>
@@ -92,10 +94,10 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 {
 	enum NegotiationCode
 	{
-		I_WANNA_BE_PRIMARY,
-		OK,
-		REJECT,
-		ANNOUNCEMENT,
+		阶段1_发起协商_我要当首选Bot,	// stage 1: 发起协商 - 我要当首选 Bot
+		阶段2_投票_同意,	// stage 2: 投票 - 同意
+		阶段2_投票_反对,	// stage 2: 投票 - 反对
+		阶段3_自我宣告已当选,	// stage 3: 自我宣告当选（若有其他 Bot 实例反对，则不执行该步骤）
 	};
 
 	LiuYanBot oThisBot = null;
@@ -123,12 +125,12 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 					<dl>
 						<dt>key: 投票 Bot 的昵称</dt>
 						<dd>因为采用的是一票否决制，所以，不用担心【使用传统投票计数方式】时才会出现的【当 Bot 昵称改名后再次投票，被计为多张票】的问题</dd>
-						<dt>value: 投票结果，OK 或 REJECT。<code>enum NegotiationCode</code> 类型。</dt>
+						<dt>value: 投票结果，阶段2_投票_同意 或 阶段2_投票_反对。<code>enum NegotiationCode</code> 类型。</dt>
 					</dl>
 				</dd>
 
 				<dt>key = <code>SchedulerTimer</code></dt>
-				<dd>value: 发起主从协商的调度定时器。仅在发起方使用，发起方发起时，就启动该定时器。如果有人在定时器到时前就返回了 REJECT ，则此定时器立刻取消调度。<code>Timer</code> 类型。</dd>
+				<dd>value: 发起主从协商的调度定时器。仅在发起方使用，发起方发起时，就启动该定时器。如果有人在定时器到时前就返回了 阶段2_投票_反对 ，则此定时器立刻取消调度。<code>Timer</code> 类型。</dd>
 			</dl>
 	</dd>
 	<dl>
@@ -139,14 +141,14 @@ public class PrimarySecondaryNegotiator //implements DialogUser
 	PrivateKey keyPrivateKey = null;
 	PublicKey keyPublicKey = null;
 
-	String sSignatureAlgorithm = System.getProperty ("primary-secondary-negotiation.signature.algorithm", "SHA256withDSA");
+	String sSignatureAlgorithm = System.getProperty ("primary-secondary-negotiation.signature.algorithm", "SHA256withRSA");
 
-	static final String[] arrayInitiatMessages =
+	static final String[] arrayInitiateMessages =
 		{
 			"谁赞成？谁反对？",
 			"同意的请举手，反对的请举手",
 		};
-	static final String[] arrayInitiatMessages_Forced =
+	static final String[] arrayInitiateMessages_Forced =
 		{
 			"还有谁？！",
 			"反对的请举手",
@@ -315,14 +317,14 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 
 		ObjectNode jsonWrapper = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		ObjectNode jsonInitiateNegotiation = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
-		String sNegotiationCode = NegotiationCode.I_WANNA_BE_PRIMARY.toString ();
-		String sMessage = bForced ? GetRandomString (arrayInitiatMessages_Forced) : GetRandomString (arrayInitiatMessages);
+		String sNegotiationCode = NegotiationCode.阶段1_发起协商_我要当首选Bot.toString ();
+		String sMessage = bForced ? GetRandomString (arrayInitiateMessages_Forced) : GetRandomString (arrayInitiateMessages);
 		sMessage = Colors.CYAN + sMessage + Colors.NORMAL;
 		long lTime = System.currentTimeMillis ();
 		String sIID = String.valueOf (lTime);
 		//jsonInitiateNegotiation.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
-		jsonInitiateNegotiation.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
 		jsonInitiateNegotiation.put ("c", sNegotiationCode);	// code
+		jsonInitiateNegotiation.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
 		String sSignature_Base64 = GenerateSignatureBase64String (oThisBot.getNick (), oThisBot.getLogin (), sChannel, sIID, sNegotiationCode, sMessage, lTime);
 		if (sSignature_Base64 == null)
 			return;
@@ -356,10 +358,10 @@ System.err.println ("我现在就是 " + sChannel + " 频道的首选 Bot，不�
 						{
 							switch (negotiation_code)
 							{
-								case OK:
+								case 阶段2_投票_同意:
 									nOK ++;
 									break;
-								case REJECT:
+								case 阶段2_投票_反对:
 									nReject ++;
 									break;
 								default:
@@ -394,6 +396,15 @@ System.out.println ("由“我”在 " + sChannel + " 频道发起的主从协�
 		}
 	}
 
+	/**
+	主从协商，使用 IRC 的 /me ACTION_MESSAGE 消息进行通信，当收到 IRC 的 /me ACTION_MESSAGE 消息时，尝试将 ACTION_MESSAGE 消息进行 JSON 解码，只有是有效的 JSON、且该 JSON 包含了 psn 信息、且消息格式正确、且签名也正确时，才进行下一步处理。
+	 * @param bot
+	 * @param sFromNickName
+	 * @param sFromAccount
+	 * @param sHostname
+	 * @param sChannel
+	 * @param sAction
+	 */
 	public void OnActionReceived (LiuYanBot bot, String sFromNickName, String sFromAccount, String sHostname, String sChannel, String sAction)
 	{
 bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "OnActionReceived");
@@ -464,13 +475,13 @@ LiuYanBot.logger.warning (sChannel + " 频道，签名不一致，不处理。�
 
 			switch (negotiation_code)
 			{
-				case I_WANNA_BE_PRIMARY:
+				case 阶段1_发起协商_我要当首选Bot:
 System.err.println (sChannel + " 频道，收到其他 Bot 想要成为首选 Bot 的请求");
 					if (bForced)
 					{
 System.err.println ("强制性的");
 						//
-						//Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, GetRandomeString (arrayVoteMessages));
+						//Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.阶段2_投票_同意, GetRandomeString (arrayVoteMessages));
 						OnPrimaryWasElected (bot, sChannel, sFromNickName);
 					}
 					else
@@ -480,31 +491,31 @@ System.err.println ("非强制性的");
 						// implement it...
 						if (GetCurrentNegotiation(sChannel) != null)
 						{
-							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.REJECT, "在本频道的本 Bot 群组中，当前有另外一个主从协商正在进行，一个一个来。不同的 Bot 群组，用不同的 KeyPair 区分。");
+							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.阶段2_投票_反对, "在本频道的本 Bot 群组中，当前有另外一个主从协商正在进行，一个一个来。不同的 Bot 群组，用不同的 KeyPair 区分。");
 							break;
 						}
 
 						// 如果自己是 Primary，则否决；否则，赞成
 						if (AmIPrimary(sChannel))
 						{
-							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.REJECT, GetRandomString (arrayVoteAgainstMessages));
+							Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.阶段2_投票_反对, GetRandomString (arrayVoteAgainstMessages));
 							break;
 						}
 
 						SetCurrentNegotiationAndInitiator (sChannel, jsonNegotiation, sFromNickName);
-						Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.OK, GetRandomString (arrayVoteMessages));
+						Reply (bot, sFromNickName, sFromAccount, sHostname, sChannel, sIID, NegotiationCode.阶段2_投票_同意, GetRandomString (arrayVoteMessages));
 
 						//// 测试
 						//int n = bot.rand.nextInt ();
 //System.err.println ("随机数 n = " + n);
 						//if ((n & 0x01) == 0)
-						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.OK, GetRandomeString (arrayVoteMessages));
+						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.阶段2_投票_同意, GetRandomeString (arrayVoteMessages));
 						//else
-						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.REJECT, GetRandomeString (arrayVoteAgainstMessages));
+						//	Reply (bot, sFromNickName, sFromAccount, sHostname, sTargetChannel, sIID, NegotiationCode.阶段2_投票_反对, GetRandomeString (arrayVoteAgainstMessages));
 					}
 					break;
-				case OK:
-				case REJECT:
+				case 阶段2_投票_同意:
+				case 阶段2_投票_反对:
 					// 通常由发起方处理回复。其他接收方，也可以存储结果，但目前的实现方式是不处理
 					if (GetCurrentNegotiation(sChannel)!=null && !StringUtils.equalsIgnoreCase (sIID, GetCurrentNegotiation(sChannel).get ("iid").asText ()) )
 					{
@@ -513,12 +524,12 @@ System.err.println (sChannel + " 频道，回复的不是当前正在进行的�
 					}
 					if (! StringUtils.equalsIgnoreCase (bot.getNick (), GetCurrentNegotiationInitiator(sChannel)))
 					{
-System.err.println (sChannel + " 频道，回复人不是发起人，一般情况下不处理。但当回复 REJECT 时，需要立刻取消本地缓存的主从协商，否则会阻塞下一次的主从协商。");
-						if (negotiation_code == NegotiationCode.REJECT)
+System.err.println (sChannel + " 频道，回复人不是发起人，一般情况下不处理。但当回复 阶段2_投票_反对 时，需要立刻取消本地缓存的主从协商，否则会阻塞下一次的主从协商。");
+						if (negotiation_code == NegotiationCode.阶段2_投票_反对)
 							this.CleanUpCurrentNegotiation (sChannel);
 						break;
 					}
-					if (negotiation_code == NegotiationCode.REJECT)
+					if (negotiation_code == NegotiationCode.阶段2_投票_反对)
 					{
 System.out.println ("因有其他 Bot 投反对票（一票否决制），由“我”在 " + sChannel + " 频道发起的主从协商 " + sIID + " 立刻结束，不做其他操作。针对本次主从协商，其他 Bot 若还有回复将不会回应。");
 						this.CleanUpCurrentNegotiation (sChannel);	// 一票否决制
@@ -526,7 +537,7 @@ System.out.println ("因有其他 Bot 投反对票（一票否决制），由“
 					}
 					GetCurrentNegotiationVotes (sChannel).put (sFromNickName, negotiation_code);
 					break;
-				case ANNOUNCEMENT:
+				case 阶段3_自我宣告已当选:
 					OnPrimaryWasElected (bot, sChannel, sFromNickName);
 					break;
 			}
@@ -550,14 +561,14 @@ bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "Reply");
 		ObjectNode jsonWrapper = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		ObjectNode jsonInitiateNegotiation = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		String sNegotiationCode = negotiation_code.toString ();
-		if (negotiation_code == NegotiationCode.OK)
+		if (negotiation_code == NegotiationCode.阶段2_投票_同意)
 			sMessage = Colors.GREEN + sMessage + Colors.NORMAL;
-		else if (negotiation_code == NegotiationCode.REJECT)
+		else if (negotiation_code == NegotiationCode.阶段2_投票_反对)
 			sMessage = Colors.RED + sMessage + Colors.NORMAL;
 		long lTime = System.currentTimeMillis ();
 		//jsonInitiateNegotiation.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
-		jsonInitiateNegotiation.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
 		jsonInitiateNegotiation.put ("c", sNegotiationCode);	// code
+		jsonInitiateNegotiation.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
 		String sSignature_Base64 = GenerateSignatureBase64String (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, sNegotiationCode, sMessage, lTime);
 		if (sSignature_Base64 == null)
 			return;
@@ -577,11 +588,11 @@ bot.logger.entering (PrimarySecondaryNegotiator.class.getName (), "Announce");
 		ObjectNode jsonWrapper = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		ObjectNode jsonNegotiationAnnouncement = LiuYanBot.jacksonObjectMapper_Loose.createObjectNode ();
 		long lTime = System.currentTimeMillis ();
-		//jsonNegotiationAnnouncement.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
 		sMessage = ANSIEscapeTool.COLOR_DARK_CYAN + sMessage + Colors.NORMAL;
+		//jsonNegotiationAnnouncement.put ("stage", NegotiationStage.INITIATE.toString ());	// stage
+		jsonNegotiationAnnouncement.put ("c", NegotiationCode.阶段3_自我宣告已当选.toString ());	// code
 		jsonNegotiationAnnouncement.putRawValue ("m", new RawValue ("\"" + sMessage + "\""));	// message
-		jsonNegotiationAnnouncement.put ("c", NegotiationCode.ANNOUNCEMENT.toString ());	// code
-		String sSignature_Base64 = GenerateSignatureBase64String (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, NegotiationCode.ANNOUNCEMENT.toString (), sMessage, lTime);
+		String sSignature_Base64 = GenerateSignatureBase64String (bot.getNick (), bot.getLogin (), sTargetChannel, sIID, NegotiationCode.阶段3_自我宣告已当选.toString (), sMessage, lTime);
 		if (sSignature_Base64 == null)
 			return;
 		jsonNegotiationAnnouncement.put ("s", sSignature_Base64);	// signature
@@ -799,7 +810,7 @@ System.out.println ("签收方 bValid " + bValid);
 
 	public static void main (String[] args) throws Exception
 	{
-		if (args.length < 4)
+		if (args.length < 5)
 		{
 /*
 keyalg 必须匹配，否则报错：
@@ -880,15 +891,18 @@ CN=TideBot, OU=技术部, O=TideStudio, L=深圳, ST=广东, C=CN是否正确?
 	 CN=TideBot, OU=技术部, O=TideStudio, L=深圳, ST=广东, C=CN
 
 
-$ keytool -genkey -keystore primary-secondary-negotiation.ks -storepass changeit -alias psn-ed25519 -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN' -keyalg EdDSA -keysize 4096 -sigalg Ed25519 -validity 3660
+################################################################################
+# Ed25519，从 JDK 17 才开始支持
+################################################################################
+$ /usr/lib/jvm/jre-17/bin/keytool -genkey -keystore primary-secondary-negotiation.ks -storepass changeit -alias psn-ed25519 -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN' -keyalg EdDSA -keysize 4096 -sigalg Ed25519 -validity 3660
 keytool 错误: java.lang.IllegalArgumentException: Unsupported size: 4096
 
-$ keytool -genkey -keystore primary-secondary-negotiation.ks -storepass changeit -alias psn-ed25519 -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN'    -validity 3660    -keyalg EdDSA  -sigalg Ed25519
+$ /usr/lib/jvm/jre-17/bin/keytool -genkey -keystore primary-secondary-negotiation.ks -storepass changeit -alias psn-ed25519 -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN'    -validity 3660    -keyalg EdDSA  -sigalg Ed25519
 正在为以下对象生成 255 位Ed25519密钥对和自签名证书 (Ed25519) (有效期为 3,660 天):
 	 CN=TideBot, OU=技术部, O=TideStudio, L=深圳, ST=广东, C=CN
 
 
-$ keytool -list -keystore ./primary-secondary-negotiation.ks
+$ /usr/lib/jvm/jre-17/bin/keytool -list -keystore ./primary-secondary-negotiation.ks
 输入密钥库口令:
 密钥库类型: PKCS12
 密钥库提供方: SUN
@@ -899,16 +913,50 @@ psn-dsa, 2022年11月17日, PrivateKeyEntry,
 证书指纹 (SHA-256): 99:9A:E1:70:D6:BB:86:1F:8A:7F:56:44:7C:53:5E:A9:E6:55:B2:89:5F:E3:F5:C5:D4:33:98:B1:2A:BB:C8:94
 psn-ed25519, 2022年11月17日, PrivateKeyEntry,
 证书指纹 (SHA-256): C9:26:47:CB:A8:6A:2A:90:03:D2:A4:72:85:46:B6:28:C4:44:48:D5:8D:F5:26:C8:40:E0:61:7C:0E:CB:6D:BE
+
+Warning:
+<psn-dsa> 使用的 SHA256withDSA 签名算法被视为存在安全风险而且被禁用。
+<psn-dsa> 使用的 3072 位 DSA 密钥 被视为存在安全风险而且被禁用。
+
+################################################################################
+# SHA256withRSA，JDK 1.8 可用的版本
+#
+# Every implementation of the Java platform is required to support the following standard Signature algorithms:
+#
+#    SHA1withDSA
+#    SHA256withDSA
+#    SHA1withRSA
+#    SHA256withRSA
+################################################################################
+$ /usr/lib/jvm/jre-1.8.0/bin/keytool -genkey -keystore "primary-secondary-negotiation[JDK1.8] keyalg=RSA sigalg=SHA256withRSA.ks" -storepass changeit -alias psn-rsa -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN'    -validity 3660    -keyalg RSA -keysize 2048    -sigalg SHA256withRSA
+
+Warning:
+JKS 密钥库使用专用格式。建议使用 "keytool -importkeystore -srckeystore primary-secondary-negotiation[JDK1.8] keyalg=RSA sigalg=SHA256withRSA.ks -destkeystore primary-secondary-negotiation[JDK1.8] keyalg=RSA sigalg=SHA256withRSA.ks -deststoretype pkcs12" 迁移到行业标准格式 PKCS12
+
+$ /usr/lib/jvm/jre-1.8.0/bin/keytool -genkey -keystore "primary-secondary-negotiation[JDK1.8] keyalg=RSA sigalg=SHA256withRSA.ks" -storetype PKCS12 -storepass changeit -alias psn-rsa -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN'    -validity 3660    -keyalg RSA -keysize 2048    -sigalg SHA256withRSA
+
+# 又或者，主从协商不需要太强的保护，collision 不至于引起什么大问题，那么可以尝试一下 RSA keysize<1024、MD5 （但需要先修改 JDK 的 security/java.properties）
+$ /usr/lib/jvm/jre-1.8.0/bin/keytool -genkey -keystore "primary-secondary-negotiation[JDK1.8] keyalg=RSA[keysize=384] sigalg=SHA1withRSA.ks" -storetype PKCS12 -storepass changeit -alias psn-rsa -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN'    -validity 3660    -keyalg RSA -keysize 384    -sigalg SHA1withRSA
+keytool 错误: java.lang.IllegalArgumentException: Invalid key sizes
+
+$ /usr/lib/jvm/jre-1.8.0/bin/keytool -genkey -keystore "primary-secondary-negotiation[JDK1.8] keyalg=RSA[keysize=384] sigalg=MD5withRSA.ks" -storetype PKCS12 -storepass changeit -alias psn-rsa -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN'    -validity 3660    -keyalg RSA -keysize 384    -sigalg MD5withRSA
+
+# 不修改 security/java.properties 的话，只能用最小允许的强度
+$ /usr/lib/jvm/jre-1.8.0/bin/keytool -genkey -keystore "primary-secondary-negotiation[JDK1.8] keyalg=RSA[keysize=1024] sigalg=SHA1withRSA.ks" -storetype PKCS12 -storepass changeit -alias psn-rsa -keypass changeit    -dname 'CN=TideBot, OU=技术部, O=TideStudio, L=深圳, S=广东, C=CN'    -validity 3660    -keyalg RSA -keysize 1024    -sigalg SHA1withRSA
+
+Warning:
+生成的证书 uses the SHA1withRSA signature algorithm which is considered a security risk and is disabled.
+生成的证书 uses a 1024 位 RSA 密钥 which is considered a security risk and is disabled.
  */
 		PrimarySecondaryNegotiator psn = new PrimarySecondaryNegotiator (null, args[0], args[1], args[2], args[3]);
 		psn.sSignatureAlgorithm = args[4];
 
 		int iArg=5;
-		String sNegotiationCode = args.length > iArg ? args[iArg] : "I_WANNA_BE_PRIMARY";	iArg ++;
+		String sNegotiationCode = args.length > iArg ? args[iArg] : "阶段1_发起协商_我要当首选Bot";	iArg ++;
 		String sMessage = args.length > iArg ? args[iArg] : "反对的请举手";	iArg ++;
 		long lTime = args.length > iArg ? Long.valueOf (args[iArg]) : System.currentTimeMillis ();	iArg ++;
 		String sSalt =  args.length > iArg ? args[iArg] : "";	iArg ++;
-		psn.GenerateSignatureString ("", "", "", String.valueOf(lTime), sNegotiationCode, sMessage, lTime, sSalt, true);
+		psn.GenerateSignatureString ("IRC昵称", "", "IRC#频道名", String.valueOf(lTime), sNegotiationCode, sMessage, lTime, sSalt, true);
 //System.out.println ();
 	}
 }
