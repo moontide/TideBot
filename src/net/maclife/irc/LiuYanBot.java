@@ -28,11 +28,12 @@ import org.apache.commons.io.*;
 import org.apache.commons.io.output.*;
 import org.apache.commons.lang3.*;
 
-import org.apache.pdfbox.*;
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.encryption.*;
 import org.apache.pdfbox.text.*;
-
+import org.freedesktop.dbus.*;
+import org.freedesktop.dbus.exceptions.*;
+import org.freedesktop.dbus.types.*;
 import org.jibble.pircbot.*;
 import org.jsoup.*;
 //import org.jsoup.*;
@@ -52,6 +53,7 @@ import com.sinovoice.hcicloudsdk.common.nlu.*;
 
 import bsh.*;
 import net.maclife.ansi.*;
+import net.maclife.dbusbluez.*;
 import net.maclife.irc.dialog.*;
 import net.maclife.irc.game.*;
 import net.maclife.irc.game.sanguosha.*;
@@ -60,15 +62,16 @@ import net.maclife.mac.*;
 import net.maclife.seapi.*;
 import net.maclife.util.qqwry.*;
 
-public class LiuYanBot extends PircBot
+public class LiuYanBot extends PircBot implements org.freedesktop.dbus.interfaces.DBusInterface//, org.freedesktop.dbus.interfaces.ObjectManager
 {
 	static Logger logger = Logger.getLogger (LiuYanBot.class.getName());
 	public static final ExecutorService executor = Executors.newFixedThreadPool (15);
+	static PlayerTrackMonitor bluezplayerTrackChangedMonitor = null;;
 
 	/**
 	 * 连接多个 IRC 服务器时，将连接多个服务器所生成的 Bot 存放到该 Map 中。Key 为 IRC 服务器的主机名（命令行 -s 参数传递的参数）
 	 */
-	static Map<String, LiuYanBot> mapBots = new LinkedHashMap<String, LiuYanBot> ();
+	static Map<String, LiuYanBot> mapBots = new LinkedHashMap<> ();
 	static LiuYanBot currentBot = null;
 	String currentChannel = "";
 
@@ -190,6 +193,7 @@ public class LiuYanBot extends PircBot
 	public static final String BOT_PRIMARY_COMMAND_MacManufactory   = "/Mac";	// 查询 MAC 地址所属的制造商
 	public static final String BOT_PRIMARY_COMMAND_Vote             = "/Vote";	// 投票
 	public static final String BOT_PRIMARY_COMMAND_AutoReply        = "AutoReply";	// 自动回复。加此功能的最初想法是对那些发“在吗”、“有人吗”之类消息的辱骂性回复
+	public static final String BOT_PRIMARY_COMMAND_DBusBluezInfo    = "DBusBluezPlayerTrackInfomationNotification";	// Bluez 播放器信息监控通知 (`bluetoothctl player.show`)
 
 	public static final String BOT_PRIMARY_COMMAND_Time             = "/Time";
 	public static final String BOT_PRIMARY_COMMAND_Action           = "Action";
@@ -279,6 +283,7 @@ public class LiuYanBot extends PircBot
 			BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag",
 		},
 		{BOT_PRIMARY_COMMAND_AutoReply, },
+		{BOT_PRIMARY_COMMAND_DBusBluezInfo, "dbptin", "bluezplayertrack", "/bpt",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -345,7 +350,7 @@ public class LiuYanBot extends PircBot
 	public static final String COLOR_COMMAND_PARAMETER_INSTANCE = Colors.BLUE;	//Colors.MAGENTA;
 
 	//Comparator<?> antiFloodComparitor = new AntiFloodComparator ();
-	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<String, Map<String, Object>> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
+	Map<String, Map<String, Object>> mapAntiFloodRecord = new HashMap<> (100);	// new ConcurrentSkipListMap<String, Map<String, Object>> (antiFloodComparitor);
 	public static final int MAX_ANTI_FLOOD_RECORD = 1000;
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL = 3;	// 默认的两条消息间的时间间隔，单位秒。大于该数值则认为不是 flood，flood 计数器减1(到0为止)；小于该数值则认为是 flood，此时 flood 计数器加1
 	public static final int DEFAULT_ANTI_FLOOD_INTERVAL_MILLISECOND = DEFAULT_ANTI_FLOOD_INTERVAL * 1000;
@@ -365,23 +370,22 @@ public class LiuYanBot extends PircBot
 	 * 所封锁的用户名列表。如果在封锁列表内，则不响应该用户名发来的消息。
 	 * 通常用于封锁其他机器人（个别用户有意造成 bot 循环）、恶意用户
 	 */
-	List<Map<String,Object>> listBannedPatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
+	List<Map<String,Object>> listBannedPatterns = new CopyOnWriteArrayList<> ();
 	/**
 	 * 白名单用户列表
 	 */
-	List<Map<String,Object>> listWhiteListPatterns = new CopyOnWriteArrayList<Map<String,Object>> ();
+	List<Map<String,Object>> listWhiteListPatterns = new CopyOnWriteArrayList<> ();
 
 	/**
 	 保留各频道用户的最后一次发言，以供 replace 使用
 	 */
-	Map<String, Map<String, String>> mapChannelUsersLastMessages = new HashMap<String, Map<String, String>> ();
+	Map<String, Map<String, String>> mapChannelUsersLastMessages = new HashMap<> ();
 
 	/**
-	 保留本 Bot 对接收方发送的最近几条消息（暂定 3 条）。目的，尽可能避免可能存在的多个 Bot 实例被不小心触发相互对话，导致死循环情况发生。
-	 但要注意：不能把需要发的，被误操
+	 保留本 Bot 对接收方发送的最近几条消息（暂定 1 条，如果数值越高，越容易引起不必要的麻烦）。目的，尽可能避免可能存在的多个 Bot 实例被不小心触发相互对话，导致死循环情况发生。
 	 */
-	Map<String, java.util.Queue<String>> mapRecentSentMessages = new HashMap<String, java.util.Queue<String>> ();
-	public static final int RECENT_SENT_MESSAGES_COUNT = 3;
+	Map<String, java.util.Queue<String>> mapRecentSentMessages = new HashMap<> ();
+	public static final int RECENT_SENT_MESSAGES_COUNT = 1;
 
 	/**
 	 * 用来取消 Vote 操作的定时器。
@@ -424,12 +428,12 @@ public class LiuYanBot extends PircBot
 	/**
 	 * IRC 对话框
 	 */
-	public List<Dialog> dialogs = new CopyOnWriteArrayList<Dialog> ();
+	public List<Dialog> dialogs = new CopyOnWriteArrayList<> ();
 
 	/**
 	 * IRC 游戏
 	 */
-	public List<Game> games = new CopyOnWriteArrayList<Game> ();
+	public List<Game> games = new CopyOnWriteArrayList<> ();
 
 	/**
 	 * 主从协商器
@@ -567,7 +571,7 @@ System.err.println ("初始化主从协商器结束 " + new java.sql.Timestamp (
 			nMaxBytesPerLine = 1;
 		if (nMaxSplitLines < 1)
 			nMaxSplitLines = 1;
-		List<String> listStrings = new ArrayList<String>();
+		List<String> listStrings = new ArrayList<>();
 		if (StringUtils.isEmpty (sInput))
 			return listStrings;
 		byte[] bytesArray = null;
@@ -951,7 +955,7 @@ System.err.println (msg);
 		}
 
 		//　新添加
-		userToAdd = new HashMap<String, Object> ();
+		userToAdd = new HashMap<> ();
 		userToAdd.put ("Wildcard", wildcardPattern);
 		userToAdd.put ("RegExp", WildcardToRegularExpression(wildcardPattern));
 		userToAdd.put ("BotCmd", botCmdAliasToBanOrWhite);
@@ -1087,7 +1091,7 @@ System.out.println (msg);
 		Map<String, Object> mapUserInfo = mapAntiFloodRecord.get (login);
 		if (mapUserInfo==null)
 		{
-			mapUserInfo = new HashMap<String, Object> ();
+			mapUserInfo = new HashMap<> ();
 			mapAntiFloodRecord.put (login, mapUserInfo);
 			mapUserInfo.put ("最后活动时间", 0L);
 			mapUserInfo.put ("灌水计数器", 0);
@@ -1710,8 +1714,8 @@ System.out.println (ANSIEscapeTool.CSI + "31;1m" + nick  + ANSIEscapeTool.CSI + 
 			String opt_charset = null;
 			boolean opt_reply_to_option_on = false;
 			String opt_reply_to = null;	// reply to
-			Map<String, Object> mapGlobalOptions = new HashMap<String, Object> ();
-			Map<String, String> mapUserEnv = new HashMap<String, String> ();	// 用户在 全局参数 里指定的环境变量
+			Map<String, Object> mapGlobalOptions = new HashMap<> ();
+			Map<String, String> mapUserEnv = new HashMap<> ();	// 用户在 全局参数 里指定的环境变量
 			mapGlobalOptions.put ("env", mapUserEnv);
 			if (args[0].contains(BOT_OPTION_SEPARATOR))
 			{
@@ -1852,7 +1856,7 @@ logger.finer ("bot “最大响应行数”设置为: " + opt_max_response_lines
 					}
 
 					if (listEnv==null)
-						listEnv = new ArrayList<String> ();
+						listEnv = new ArrayList<> ();
 					listEnv.add (env);
 					mapGlobalOptions.put (env, null);
 				}
@@ -1905,6 +1909,9 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				ProcessCommand_纯真IP (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_GeoIP))
 				ProcessCommand_GeoIP (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_DBusBluezInfo))
+				ProcessCommand_DBusBluez (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
+
 			//else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_PageRank))
 			//	ProcessCommand_GooglePageRank (channel, nick, login, hostname, botCmd, botCmdAlias, mapGlobalOptions, listEnv, params);
 			else if (botCmd.equalsIgnoreCase(BOT_PRIMARY_COMMAND_StackExchange))
@@ -2276,13 +2283,13 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 		primaryCmd = BOT_PRIMARY_COMMAND_JavaScript;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("js", true) + " <" + formatBotParameter ("javascript 脚本", true) + ">    -- 执行 JavaScript 脚本。");
 		primaryCmd = BOT_PRIMARY_COMMAND_Java;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("beanshell", true) + " <" + formatBotParameter ("java 代码", true) + ">    -- 执行 Java 代码。注意： java 代码是用 BeanShell ( http://www.beanshell.org ) 解释执行的，因为 BeanShell 多年已未更新，所以目前不支持类似 Java 泛型之类的语法…… 例如，不能写成下面的样式： " + Colors.DARK_GREEN + "Map<String, Object> map = new HashMap<String, Object>();" + Colors.NORMAL + " <-- 不支持");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("beanshell", true) + " <" + formatBotParameter ("java 代码", true) + ">    -- 执行 Java 代码。注意： java 代码是用 BeanShell ( http://www.beanshell.org ) 解释执行的，因为 BeanShell 多年已未更新，所以目前不支持类似 Java 泛型之类的语法…… 例如，不能写成下面的样式： " + Colors.DARK_GREEN + "Map<String, Object> map = new HashMap<>();" + Colors.NORMAL + " <-- 不支持");
 		primaryCmd = BOT_PRIMARY_COMMAND_Jython;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "|" + formatBotCommandInstance ("/python", true) + " <" + formatBotParameter ("jython 代码", true) + ">    -- 执行 Jython 代码。");
 		primaryCmd = BOT_PRIMARY_COMMAND_TextArt;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOption ("字符集", true) + "][." + formatBotOptionInstance ("COLUMNS", true) + "=" + formatBotOption ("正整数", true) + "] <" + formatBotParameter ("字符艺术画文件 URL 地址(http:// file://)", true) + ">    -- 显示字符艺术画(ASCII Art[无颜色]、ANSI Art、汉字艺术画)。 ." + formatBotOption ("字符集", true) + " 如果不指定，默认为 " + formatBotOptionInstance ("437", true) + " 字符集。 ." + formatBotOptionInstance ("COLUMNS", true) + "=  指定屏幕宽度(根据宽度，每行行尾字符输出完后，会换到下一行)");
 		primaryCmd = BOT_PRIMARY_COMMAND_PixelFont;        if (isThisCommandSpecified (args, primaryCmd))
-			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOptionInstance ("force", true) + "]" + "[." + formatBotOptionInstance ("vertical", true) + "]  [" + formatBotParameter ("/font 字体名", true) + "]  [" + formatBotParameter ("/size 字体大小", true) + "]  [" + formatBotParameter ("/fc 前景字符", true) + "]  [" + formatBotParameter ("/bc 背景字符", true) + "]  [" + formatBotParameter ("/size 字体大小", true) + "]  <简短文字>    -- 将简短文字转换为字符艺术字体。 ." + formatBotParameter ("字体名", true) + " 若不指定，则默认为 " + formatBotParameterInstance ("文泉驿点阵正黑", true) + "；" + formatBotParameter ("字体大小", true) + " 的单位为：pixel，若不指定，则默认为 " + formatBotParameterInstance ("12", true) + "；" + formatBotParameter ("前景字符", true) + " 默认为 " + formatBotParameterInstance ("*", true) + "；" + formatBotParameter ("背景字符", true) + " 默认为 " + formatBotParameterInstance (" ", true) + "(半角空格)。");
+			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true) + "[." + formatBotOptionInstance ("force", true) + "]" + "[." + formatBotOptionInstance ("vertical", true) + "]  [" + formatBotParameter ("/font 字体名", true) + "]  [" + formatBotParameter ("/size 字体大小", true) + "]  [" + formatBotParameter ("/fc 前景字符", true) + "]  [" + formatBotParameter ("/bc 背景字符", true) + "]  <简短文字>    -- 将简短文字转换为字符艺术字体。 ." + formatBotParameter ("字体名", true) + " 若不指定，则默认为 " + formatBotParameterInstance ("文泉驿点阵正黑", true) + "；" + formatBotParameter ("字体大小", true) + " 的单位为：pixel，若不指定，则默认为 " + formatBotParameterInstance ("12", true) + "；" + formatBotParameter ("前景字符", true) + " 默认为 " + formatBotParameterInstance ("*", true) + "；" + formatBotParameter ("背景字符", true) + " 默认为 " + formatBotParameterInstance (" ", true) + "(半角空格)。");
 		primaryCmd = BOT_PRIMARY_COMMAND_Tag;        if (isThisCommandSpecified (args, primaryCmd))
 			SendMessage (ch, u, mapGlobalOptions, formatBotCommandInstance (primaryCmd, true)
 				+ "[." + formatBotOptionInstance ("reverse", true) + "|" + formatBotOptionInstance ("反查", true)
@@ -2652,7 +2659,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 				{
 					String sSQL = "INSERT INTO actions (type, cmd, action, added_by, added_by_user, added_by_host, added_time) VALUES (?,?,?,?,?,?, CURRENT_TIMESTAMP)";
 					int type = 0, nActionNumber = 0;
-					Matcher matcher = PATTERN_FindHtParameter.matcher (sIRCAction);
+					Matcher matcher = PATTERN_FindTemplateParameter.matcher (sIRCAction);
 					boolean bMatched = false;
 					//bMatched = matcher.matches ();	// PATTERN_FindHtParameter 不能用 matches，只能用 find ()，因为不是全句匹配
 					bMatched = matcher.find ();
@@ -3177,7 +3184,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 	static VoteRunner voteMachine = null;
 	long lLastVoteTime = 0;
 	/*
-	Map<String, Boolean> mapChannelOPFlag = new HashMap<String, Boolean> ();
+	Map<String, Boolean> mapChannelOPFlag = new HashMap<> ();
 
 	@Override
 	protected void onOp (String channel, String sourceNick, String sourceLogin, String sourceHostname, String recipient)
@@ -3196,7 +3203,7 @@ logger.finer ("bot 命令“答复到”设置为: " + opt_reply_to);
 	}
 	*/
 
-	List<Map<String, Object>> listVotes = new ArrayList<Map<String, Object>> ();
+	List<Map<String, Object>> listVotes = new ArrayList<> ();
 	class UndoVoteTimerTask extends TimerTask
 	{
 		@Override
@@ -3317,7 +3324,7 @@ System.out.println ("Undoing " + sAction + " " + sTarget + " @ " + sChannel);
 		if (CheckVoteExists (nVoteID, sChannel, sAction, sTarget))
 			return;
 
-		Map<String, Object> vote = new HashMap<String, Object> ();
+		Map<String, Object> vote = new HashMap<> ();
 		vote.put ("vote_id", nVoteID);
 		vote.put ("channel", sChannel);
 		vote.put ("action", sAction);
@@ -3759,7 +3766,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 
 	Map<String, Object> TranslateAndFixTimeLength (int nTimeLength, String sTimeUnit)
 	{
-		Map<String, Object> mapMultiValue = new HashMap<String, Object> ();
+		Map<String, Object> mapMultiValue = new HashMap<> ();
 		if (nTimeLength <= 0)
 		{
 			mapMultiValue.put ("TimeLength", 0);
@@ -4115,7 +4122,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
-		List<StringBuilder> listMessages = new ArrayList<StringBuilder> ();
+		List<StringBuilder> listMessages = new ArrayList<> ();
 		listMessages.add (sb);
 		String[] timezones = TimeZone.getAvailableIDs ();
 
@@ -4173,7 +4180,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
-		List<StringBuilder> listMessages = new ArrayList<StringBuilder> ();
+		List<StringBuilder> listMessages = new ArrayList<> ();
 		listMessages.add (sb);
 		Locale[] locales = Locale.getAvailableLocales ();
 
@@ -4232,7 +4239,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
-		List<StringBuilder> listMessages = new ArrayList<StringBuilder> ();
+		List<StringBuilder> listMessages = new ArrayList<> ();
 		listMessages.add (sb);
 		Map<String, String> sys_env = System.getenv ();
 
@@ -4296,7 +4303,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
-		List<StringBuilder> listMessages = new ArrayList<StringBuilder> ();
+		List<StringBuilder> listMessages = new ArrayList<> ();
 		listMessages.add (sb);
 		Properties properties = System.getProperties ();
 
@@ -4662,6 +4669,86 @@ System.out.println ("时间单位 = " + mat.group(2));
 	//	}
 	//}
 
+	// 2023-02-26 不知道为什么要在主类中实现 DBusInterface
+	// 2023-02-27 原来，DBus-Java 要检查 DBusConnection.exportObject (String, dbusinterface实例) 中 dbusinterface 实例的每个变量、每个函数、函数中每个参数、以及，如果参数是 Map 类型的，还要持续深入检查每个 key 和 value，检查能否被 Marshaling
+
+	//@Override
+	//public Map<DBusPath, Map<String, Map<String, Variant<?>>>> GetManagedObjects()
+	//{
+	//	return null;
+	//}
+
+	@Override
+	public String getObjectPath()
+	{
+		String sObjectPath = "/" + getClass().getName().replace(".", "/");
+//System.out.println ("LiuYanBot::getObjectPath() sObjectPath=" + sObjectPath);
+		return sObjectPath;
+	}
+
+	/**
+	 * 获取 bluez 的 player 对象的播放信息
+	 */
+	void ProcessCommand_DBusBluez (String ch, String u, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
+	{
+		String[] arrayParams = null;
+		if (StringUtils.isNotEmpty (params))
+			arrayParams = params.split (" +");
+
+System.out.println (Arrays.toString (arrayParams));
+
+String sSubCommand = arrayParams[0];
+
+		try
+		{
+			Boolean bAddOrRemove = null;
+			String sTarget = null;
+			if (StringUtils.equalsAnyIgnoreCase (sSubCommand, "AddThisChannel"))
+			{
+				bAddOrRemove = true;
+				sTarget = ch;
+			}
+			else if (StringUtils.equalsIgnoreCase (sSubCommand, "AddMe"))
+			{
+				bAddOrRemove = true;
+				sTarget = u;
+			}
+			else if (StringUtils.equalsAnyIgnoreCase (sSubCommand, "RemoveThisChannel"))
+			{
+				bAddOrRemove = false;
+				sTarget = ch;
+			}
+			else if (StringUtils.equalsIgnoreCase (sSubCommand, "RemoveMe"))
+			{
+				bAddOrRemove = false;
+				sTarget = u;
+			}
+			if (bAddOrRemove != null)
+			{
+System.out.println ("bAddOrRemove=" + bAddOrRemove);
+System.out.println ("sTarget=" + sTarget);
+				if (bAddOrRemove)
+					bluezplayerTrackChangedMonitor.AddIRCNotificationTarget (this, ch, u, sTarget);
+				else
+					bluezplayerTrackChangedMonitor.RemoveIRCNotificationTarget (this, ch, u, sTarget);
+			}
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+//System.out.println (sb);
+		//if (listMessages.size () > 1)
+		{
+		//	SendMessage (ch, u, mapGlobalOptions, "符合条件的系统属性有 " + nTotal + " 个, 共 " + properties.size() + " 个系统属性. 分 " + listMessages.size () + " 条发送. 条数较多, 私信之...");
+			ch = null;	// 私信去
+		}
+		//for (StringBuilder s : listMessages)
+		{
+		//	SendMessage (ch, u, mapGlobalOptions, s.toString());
+		}
+	}
+
 	@SuppressWarnings ("deprecation")
 	void ProcessCommand_URLEncodeDecode (String ch, String nick, String login, String hostname, String botcmd, String botCmdAlias, Map<String, Object> mapGlobalOptions, List<String> listCmdEnv, String params)
 	{
@@ -4783,7 +4870,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 		int i=0;
 		int level = 0;
 		StringBuilder sbQ = new StringBuilder ();
-		Map<String, String> mapParams = new HashMap<String, String> ();
+		Map<String, String> mapParams = new HashMap<> ();
 		for (i=0; i<arrayParams.length; i++)
 		{
 			String param = arrayParams[i];
@@ -5394,7 +5481,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 
 			SendMessage (ch, nick, mapGlobalOptions,
 				link.substring (0, link.lastIndexOf ('/')) + "   " +	// link.substring (0, link.lastIndexOf ('/'))   -->  把网址后面的与标题内容重复的内容剔除
-				Colors.LIGHT_GRAY + StringEscapeUtils.unescapeHtml4 (title) + Colors.NORMAL + "   " +
+				Colors.LIGHT_GRAY + org.apache.commons.text.StringEscapeUtils.unescapeHtml4 (title) + Colors.NORMAL + "   " +
 				sTagsWithIRCColor + "   " +
 				//"浏览数=" + viewCount + " 分数=" + score + " 回复数=" + answerCount + (answerID!=0 ? " 答案ID=" + answerID : "") + "   " +
 				//"提问者 " + Colors.BOLD + userName + Colors.NORMAL + (userID==0 ? "("+Colors.DARK_GRAY+userType+Colors.NORMAL+")" : " " + userID + " 威望=" + userReputation) + 	"   " + //  + ", " + userLink
@@ -5520,11 +5607,11 @@ System.out.println ("时间单位 = " + mat.group(2));
 
 			SendMessage (ch, nick, mapGlobalOptions,
 				link.substring (0, link.lastIndexOf ('/')) + "   " +	// link.substring (0, link.lastIndexOf ('/'))   -->  把网址后面的与标题内容重复的内容剔除
-				Colors.LIGHT_GRAY + StringEscapeUtils.unescapeHtml4 (name) + Colors.NORMAL + "   " +
+				Colors.LIGHT_GRAY + org.apache.commons.text.StringEscapeUtils.unescapeHtml4 (name) + Colors.NORMAL + "   " +
 				"勋章:" + Colors.YELLOW + goldCount + "金" + Colors.NORMAL + "," + Colors.LIGHT_GRAY+ silverCount + "银" + Colors.NORMAL + "," + Colors.OLIVE + bronzeCount + "铜" + Colors.NORMAL + " " +
 				"分数/声望:" + reputation + ", 答案接受比:" + acceptRate + "%    " +
 				(StringUtils.isEmpty (age) ? "" : age + "岁   ") +
-				(StringUtils.isEmpty (location) ? "" : StringEscapeUtils.unescapeHtml4 (location) + "   ") +
+				(StringUtils.isEmpty (location) ? "" : org.apache.commons.text.StringEscapeUtils.unescapeHtml4 (location) + "   ") +
 				(StringUtils.isEmpty (websiteURL) ? "" : "个人网站: " + websiteURL + "   ") +
 				"创建时间:" + new java.sql.Timestamp(creationTime_Seconds*1000) + ", 最后访问时间:" + new java.sql.Timestamp(lastAccessTime_Seconds*1000) +
 				(i==0 ? "    剩 " + nQuotaRemaining + " 次，总 " + nQuotaMax + " 次" : "") +
@@ -6060,7 +6147,7 @@ System.out.println (sTitle_colorizedForShell);
 System.out.println (sContent_colorizedForShell);
 //System.out.println (GsearchResultClass);
 
-				String sMessage = URLDecoder.decode (sURL, "UTF-8") + "  " + Colors.DARK_GREEN + "[" + Colors.NORMAL + StringEscapeUtils.unescapeHtml4 (sTitle) + Colors.DARK_GREEN + "]" + Colors.NORMAL + "  " + StringEscapeUtils.unescapeHtml4 (sContent);
+				String sMessage = URLDecoder.decode (sURL, "UTF-8") + "  " + Colors.DARK_GREEN + "[" + Colors.NORMAL + org.apache.commons.text.StringEscapeUtils.unescapeHtml4 (sTitle) + Colors.DARK_GREEN + "]" + Colors.NORMAL + "  " + org.apache.commons.text.StringEscapeUtils.unescapeHtml4 (sContent);
 				byte[] messageBytes = sMessage.getBytes (getEncoding());
 				if (! b其他信息已显示 && messageBytes.length<300)	// 仅当 (1)未显示过其他信息，且当前行的内容比较少的时候，才显示其他信息
 				{
@@ -6119,7 +6206,7 @@ System.out.println (sContent_colorizedForShell);
 	 */
 	public static Map<String, Object> IRCColorizedReplace (String sSrc, String sRegExp, String sReplacement, boolean opt_match_times_specified, int opt_max_match_times)
 	{
-		Map<String, Object> result = new HashMap<String, Object> ();
+		Map<String, Object> result = new HashMap<> ();
 		result.put ("Matched", false);
 		result.put ("MatchedTimes", 0);
 		result.put ("Result", "");
@@ -6192,7 +6279,7 @@ System.out.println (nMatch + ": " + sMatchedString);
 		Map<String, String> mapUsersLastMessages = mapChannelUsersLastMessages.get (channel);
 		if (mapUsersLastMessages==null)
 		{
-			mapUsersLastMessages = new HashMap<String, String> ();
+			mapUsersLastMessages = new HashMap<> ();
 			mapChannelUsersLastMessages.put (channel, mapUsersLastMessages);
 		}
 		return mapUsersLastMessages;
@@ -8051,18 +8138,18 @@ System.out.println ();
 	    	}
 		};
 
-	public static final String REGEXP_FindHtParameter = "\\$\\{([puj])(\\d*)(=[^{}]*)?\\}";
-	public static Pattern PATTERN_FindHtParameter = Pattern.compile (REGEXP_FindHtParameter, Pattern.CASE_INSENSITIVE);
+	public static final String REGEXP_FindTemplateParameter = "\\$\\{([puj])(\\d*)(=[^{}]*)?\\}";
+	public static Pattern PATTERN_FindTemplateParameter = Pattern.compile (REGEXP_FindTemplateParameter, Pattern.CASE_INSENSITIVE);
 
 	/**
-		用于 ht 命令中的网址中的参数展开。<br/>
+		用于 ht 命令中的模板参数展开。<br/>
 		类似 Bash 的默认值参数展开 的实现，但与 Bash 的 {@code ${parameter:-默认值}}  不同， :- 用 = 代替，变成 {@code ${parameter=默认值}}，也就是说，C/C++ 语言的默认参数值风格。<br/>
 		<h3>参数命名规则</h3>
 		<dl>
 			<dt>${p} ${p=默认值} ${p1} ${p1=默认值} ... ${p<font color='red'>N</font>} ${p<font color='red'>N</font>=默认值}</dt>
 			<dd>p 是经过 URLEncode.encode() 之后的数值，如“济南”会变成“%E6%B5%8E%E5%8D%97”
 				<ul>
-					<li>如果没有默认值，则参数 p/p1/pN 必须指定值，否则给出错误提示 sURLParamsHelp。</li>
+					<li>如果没有默认值，则参数 p/p1/pN 必须指定值，否则给出错误提示 sTemplateParametersHelp。</li>
 					<li>如果有默认值，并且该参数未传递值，则该参数会采用默认值</li>
 					<li>如果有默认值，并且该参数传递了数值，则该参数会采用传递的数值</li>
 				</ul>
@@ -8076,39 +8163,60 @@ System.out.println ();
 		</dl>
 	 * @param sURL 网址(正常情况下应该含有类似 ${p}、 ${p2=默认值} 的参数)。 如果是 js/json 数据类型，则 subselector 脚本中可能也包含 ${p} ${u} 参数
 	 * @param listOrderedParams 参数列表。注意，参数号是从 1 开始的，也就是说，参数列表中的 0 其实是 ht 命令的别名，被忽略
-	 * @param sURLParamsHelp 参数帮助信息。如果 URL 中含有参数，但未指定值、也没有默认值，则给出该提示信息。
+	 * @param sTemplateParametersHelp 参数帮助信息。如果 URL 中含有参数，但未指定值、也没有默认值，则给出该提示信息。
 	 * @return 参数展开后的 url
 	 * @throws UnsupportedEncodingException
 	 */
-	public static String HtParameterExpansion_DefaultValue_CStyle (String sURL, List<String> listOrderedParams, String sURLParamsHelp) throws UnsupportedEncodingException
+	public static String TemplateParameterExpansion_DefaultValue_CStyle (String sURL, List<String> listOrderedParams, String sTemplateParametersHelp) throws UnsupportedEncodingException
 	{
 logger.fine ("url: " + sURL);
 logger.fine ("params: " + listOrderedParams);
-		Matcher matcher = PATTERN_FindHtParameter.matcher (sURL);
+		Matcher matcher = PATTERN_FindTemplateParameter.matcher (sURL);
 		StringBuffer sbReplace = new StringBuffer ();
 		boolean bMatched = false;
 		while (matcher.find ())
 		{
 			bMatched = true;
-			String sParamCommand = matcher.group(1);
-			String sN = matcher.group (2);
-			String sDefault = matcher.group (3);
-			if (StringUtils.startsWith (sDefault, "="))
-				sDefault = sDefault.substring (1);
-			int n = sN.isEmpty () ? 1 : Integer.parseInt (sN);
-			if (sDefault==null && listOrderedParams.size () <= n)
-				throw new IllegalArgumentException ("第 " + n + " 个参数未指定参数值，也未设置默认值。 " + (StringUtils.isEmpty (sURLParamsHelp) ? "" : sURLParamsHelp));
-			if (StringUtils.equalsIgnoreCase (sParamCommand, "u"))	// "u": unescape
-			{
-				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? listOrderedParams.get (n) : sDefault);
-			}
-			if (StringUtils.equalsIgnoreCase (sParamCommand, "j"))	// "j": escapeJson
-			{
-				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? org.apache.commons.text.StringEscapeUtils.escapeJson (listOrderedParams.get (n)) : sDefault);
-			}
+			String sParameterGroup = matcher.group(0);
+			String sParameterClass = matcher.group(1);
+			String sParameterNumber = matcher.group (2);
+			String sParameterDefaultValue = matcher.group (3);
+logger.finest ("sParameterGroup: " + sParameterGroup);
+logger.finest ("sParameterClass: " + sParameterClass);
+logger.finest ("sParameterNumber: " + sParameterNumber);
+logger.finest ("sParameterDefaultValue: " + sParameterDefaultValue);
+
+			if (StringUtils.startsWith (sParameterDefaultValue, "="))
+				sParameterDefaultValue = sParameterDefaultValue.substring (1);
+logger.finest ("sParameterDefaultValue: " + sParameterDefaultValue);
+
+			int nParameterNumber = sParameterNumber.isEmpty () ? 1 : Integer.parseInt (sParameterNumber);
+logger.finest ("nParameterNumber: " + nParameterNumber);
+
+			if (sParameterDefaultValue==null && listOrderedParams.size () <= nParameterNumber)
+				throw new IllegalArgumentException ("第 " + nParameterNumber + " 个参数未指定参数值，也未设置默认值。 " + (StringUtils.isEmpty (sTemplateParametersHelp) ? "" : sTemplateParametersHelp));
+
+			if (listOrderedParams.size () > nParameterNumber)
+logger.finest ("listOrderedParams.get (nParameterNumber): " + listOrderedParams.get (nParameterNumber));
 			else
+logger.finest ("listOrderedParams.get (nParameterNumber) 将会使用默认值: " + sParameterDefaultValue);
+
+			if (StringUtils.equalsIgnoreCase (sParameterClass, "u"))	// "u": unescape
 			{
-				matcher.appendReplacement (sbReplace, listOrderedParams.size () > n ? URLEncoder.encode (listOrderedParams.get (n), UTF8_CHARSET.name ()).replace ("+", "%20") : sDefault);
+logger.finest ("u 类 - 不对参数值做任何转义，原样输出");
+				matcher.appendReplacement (sbReplace, Matcher.quoteReplacement (listOrderedParams.size () > nParameterNumber ? listOrderedParams.get (nParameterNumber) : sParameterDefaultValue));
+			}
+			else if (StringUtils.equalsIgnoreCase (sParameterClass, "j"))	// "j": escapeJson
+			{
+logger.finest ("j 类 - 使用 org.apache.commons.text.StringEscapeUtils.escapeJson 对参数值进行转义（注意该函数也会对汉字进行转义）");
+				String sEscapedString = org.apache.commons.text.StringEscapeUtils.escapeJson (listOrderedParams.get (nParameterNumber));
+logger.finest ("sEscapedString: " + sEscapedString);
+				matcher.appendReplacement (sbReplace, Matcher.quoteReplacement (listOrderedParams.size () > nParameterNumber ? sEscapedString : sParameterDefaultValue));
+			}
+			else //if (StringUtils.equalsIgnoreCase (sParameterClass, "p"))	// "p": 一般的 parameter
+			{
+logger.finest ("p 类/其他类/默认类 - 使用 URLEncoder.encode 对参数值进行转义，另外，将转义后的 '+' 号替换成了 '%20'");
+				matcher.appendReplacement (sbReplace, Matcher.quoteReplacement (listOrderedParams.size () > nParameterNumber ? URLEncoder.encode (listOrderedParams.get (nParameterNumber), UTF8_CHARSET.name ()).replace ("+", "%20") : sParameterDefaultValue));
 			}
 		}
 		matcher.appendTail (sbReplace);
@@ -8220,23 +8328,23 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 		String sHTTPRequestMethod = null;
 		String sURL = null;
-		String sURLParamsHelp = null;
+		String sTemplateParametersHelp = null;
 		String sHTTPRequestBody = null;
 
 		String sSelector = null;
-		List<String> listSubSelectors = new ArrayList<String> ();
-		List<String> listLeftPaddings = new ArrayList<String> ();
-		List<String> listExtracts = new ArrayList<String> ();
-		List<String> listFilters = new ArrayList<String> ();
-		List<String> listAttributes = new ArrayList<String> ();
-		List<String> listFormatFlags = new ArrayList<String> ();
-		List<String> listFormatWidth = new ArrayList<String> ();
-		List<String> listRightPaddings = new ArrayList<String> ();
+		List<String> listSubSelectors = new ArrayList<> ();
+		List<String> listLeftPaddings = new ArrayList<> ();
+		List<String> listExtracts = new ArrayList<> ();
+		List<String> listFilters = new ArrayList<> ();
+		List<String> listAttributes = new ArrayList<> ();
+		List<String> listFormatFlags = new ArrayList<> ();
+		List<String> listFormatWidth = new ArrayList<> ();
+		List<String> listRightPaddings = new ArrayList<> ();
 
-		JsonNode jsonHTTPHeaders = null;
-		String sHTTPHead_UserAgent = null;
-		String sHTTPHead_Referer = null;
-		String sHTTPHead_AcceptLanguage = null;
+		JsonNode jsonHTTPRequestHeaders = null;
+		String sHTTPRequestHeader_UserAgent = null;
+		String sHTTPRequestHeader_Referer = null;
+		String sHTTPRequestHeader_AcceptLanguage = null;
 
 		//String sIgnoreContentType = null;
 		boolean isIgnoreContentType = false;
@@ -8248,7 +8356,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 		long iStart = 0;
 
 		List<String> listParams = splitCommandLine (params);
-		List<String> listOrderedParams = new ArrayList<String> ();
+		List<String> listOrderedParams = new ArrayList<> ();
 		if (listParams != null)
 		{
 			for (int i=0; i<listParams.size (); i++)
@@ -8285,7 +8393,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 							sURL = "http://" + value;
 					}
 					else if (StringUtils.equalsAnyIgnoreCase (param, "h", "help", "帮助"))
-						sURLParamsHelp = value;
+						sTemplateParametersHelp = value;
 					else if (StringUtils.equalsAnyIgnoreCase (param, "b", "body", "request-body", "post-body", "消息体"))
 						sHTTPRequestBody = value;
 					else if (StringUtils.equalsAnyIgnoreCase (param, "ct", "ContentType", "Content-Type"))
@@ -8359,7 +8467,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 					{
 						try
 						{
-							jsonHTTPHeaders =jacksonObjectMapper_Loose.readTree (value);
+							jsonHTTPRequestHeaders =jacksonObjectMapper_Loose.readTree (value);
 						}
 						catch (Exception e)
 						{
@@ -8367,11 +8475,11 @@ logger.fine ("url after parameter expansion: " + sURL);
 						}
 					}
 					else if (StringUtils.equalsAnyIgnoreCase (param, "ua", "user-agent", "浏览器"))
-						sHTTPHead_UserAgent = value;
+						sHTTPRequestHeader_UserAgent = value;
 					else if (StringUtils.equalsAnyIgnoreCase (param, "r", "ref", "refer", "referer", "来源"))
-						sHTTPHead_Referer = value;
+						sHTTPRequestHeader_Referer = value;
 					else if (StringUtils.equalsAnyIgnoreCase (param, "l", "lang", "language", "accept-language", "语言"))
-						sHTTPHead_AcceptLanguage = value;
+						sHTTPRequestHeader_AcceptLanguage = value;
 
 					else if (StringUtils.equalsAnyIgnoreCase (param, "start", "offset", "起始", "偏移量"))
 					{
@@ -8544,7 +8652,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			{
 				// 生成 SQL 查询语句
 				sbSQL.append ("SELECT * FROM ht_templates WHERE ");
-				List<String> listSQLParams = new ArrayList<String> ();
+				List<String> listSQLParams = new ArrayList<> ();
 				if (StringUtils.equalsIgnoreCase (sAction, "list"))
 				{
 					sbSQL.append ("1=1\n");
@@ -8590,20 +8698,20 @@ logger.fine ("url after parameter expansion: " + sURL);
 						sbSQL.append ("	AND request_method = ?\n");
 						listSQLParams.add (sHTTPRequestMethod);
 					}
-					if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
+					if (StringUtils.isNotEmpty (sHTTPRequestHeader_UserAgent))
 					{
 						sbSQL.append ("	AND ua LIKE ?\n");
-						listSQLParams.add ("%" + sHTTPHead_UserAgent + "%");
+						listSQLParams.add ("%" + sHTTPRequestHeader_UserAgent + "%");
 					}
-					if (StringUtils.isNotEmpty (sHTTPHead_Referer))
+					if (StringUtils.isNotEmpty (sHTTPRequestHeader_Referer))
 					{
 						sbSQL.append ("	AND referer LIKE ?\n");
-						listSQLParams.add ("%" + sHTTPHead_Referer + "%");
+						listSQLParams.add ("%" + sHTTPRequestHeader_Referer + "%");
 					}
-					if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
+					if (StringUtils.isNotEmpty (sHTTPRequestHeader_AcceptLanguage))
 					{
 						sbSQL.append ("	AND lang LIKE ?\n");
-						listSQLParams.add ("%" + sHTTPHead_AcceptLanguage + "%");
+						listSQLParams.add ("%" + sHTTPRequestHeader_AcceptLanguage + "%");
 					}
 
 					sbSQL.append (" ORDER BY id DESC\n");
@@ -8654,7 +8762,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 							sHTTPRequestMethod = rs.getString ("request_method");
 						if (StringUtils.isEmpty (sURL))
 							sURL = rs.getString ("url");
-						sURLParamsHelp = rs.getString ("url_param_usage");
+						sTemplateParametersHelp = rs.getString ("url_param_usage");
 						if (StringUtils.isEmpty (sHTTPRequestBody))
 							sHTTPRequestBody = rs.getString ("request_body");
 
@@ -8702,37 +8810,37 @@ logger.fine ("url after parameter expansion: " + sURL);
 
 						isIgnoreHTTPSCertificateValidation = rs.getBoolean ("ignore_https_certificate_validation");
 
-						if ((jsonHTTPHeaders==null || jsonHTTPHeaders.isEmpty ()) && StringUtils.isNotEmpty (rs.getString ("headers")))
-							jsonHTTPHeaders = jacksonObjectMapper_Loose.readTree (rs.getString ("headers"));
-						if (jsonHTTPHeaders==null)
-							jsonHTTPHeaders = jacksonObjectMapper_Loose.createObjectNode ();
+						if ((jsonHTTPRequestHeaders==null || jsonHTTPRequestHeaders.isEmpty ()) && StringUtils.isNotEmpty (rs.getString ("headers")))
+							jsonHTTPRequestHeaders = jacksonObjectMapper_Loose.readTree (rs.getString ("headers"));
+						if (jsonHTTPRequestHeaders==null)
+							jsonHTTPRequestHeaders = jacksonObjectMapper_Loose.createObjectNode ();
 
 						// 下面 3 个 http 请求头的取值策略优先级：命令行传入） > 从数据库中获取到的 > headers 中指定的（不管是从数据库中获取到的，还是从命令行传入的
-						if (StringUtils.isEmpty (sHTTPHead_UserAgent))
+						if (StringUtils.isEmpty (sHTTPRequestHeader_UserAgent))
 						{
-							sHTTPHead_UserAgent = rs.getString ("ua");
-							if (StringUtils.isEmpty (sHTTPHead_UserAgent) && jsonHTTPHeaders.get ("User-Agent")!=null)
-								sHTTPHead_UserAgent = jsonHTTPHeaders.get ("User-Agent").asText ();
+							sHTTPRequestHeader_UserAgent = rs.getString ("ua");
+							if (StringUtils.isEmpty (sHTTPRequestHeader_UserAgent) && jsonHTTPRequestHeaders.get ("User-Agent")!=null)
+								sHTTPRequestHeader_UserAgent = jsonHTTPRequestHeaders.get ("User-Agent").asText ();
 						}
-						if (StringUtils.isEmpty (sHTTPHead_Referer))
+						if (StringUtils.isEmpty (sHTTPRequestHeader_Referer))
 						{
-							sHTTPHead_Referer = rs.getString ("referer");
-							if (StringUtils.isEmpty (sHTTPHead_Referer) && jsonHTTPHeaders.get ("Referer")!=null)
-								sHTTPHead_Referer = jsonHTTPHeaders.get ("Referer").asText ();
+							sHTTPRequestHeader_Referer = rs.getString ("referer");
+							if (StringUtils.isEmpty (sHTTPRequestHeader_Referer) && jsonHTTPRequestHeaders.get ("Referer")!=null)
+								sHTTPRequestHeader_Referer = jsonHTTPRequestHeaders.get ("Referer").asText ();
 						}
-						if (StringUtils.isEmpty (sHTTPHead_AcceptLanguage))
+						if (StringUtils.isEmpty (sHTTPRequestHeader_AcceptLanguage))
 						{
-							sHTTPHead_AcceptLanguage = rs.getString ("lang");
-							if (StringUtils.isEmpty (sHTTPHead_AcceptLanguage) && jsonHTTPHeaders.get ("Accept-Language")!=null)
-								sHTTPHead_AcceptLanguage = jsonHTTPHeaders.get ("Accept-Language").asText ();
+							sHTTPRequestHeader_AcceptLanguage = rs.getString ("lang");
+							if (StringUtils.isEmpty (sHTTPRequestHeader_AcceptLanguage) && jsonHTTPRequestHeaders.get ("Accept-Language")!=null)
+								sHTTPRequestHeader_AcceptLanguage = jsonHTTPRequestHeaders.get ("Accept-Language").asText ();
 						}
 
-						if (StringUtils.isNotEmpty (sHTTPHead_UserAgent))
-							((ObjectNode)jsonHTTPHeaders).put ("User-Agent", sHTTPHead_UserAgent);
-						if (StringUtils.isNotEmpty (sHTTPHead_Referer))
-							((ObjectNode)jsonHTTPHeaders).put ("Referer", sHTTPHead_Referer);
-						if (StringUtils.isNotEmpty (sHTTPHead_AcceptLanguage))
-							((ObjectNode)jsonHTTPHeaders).put ("Accept-Language", sHTTPHead_AcceptLanguage);
+						if (StringUtils.isNotEmpty (sHTTPRequestHeader_UserAgent))
+							((ObjectNode)jsonHTTPRequestHeaders).put ("User-Agent", sHTTPRequestHeader_UserAgent);
+						if (StringUtils.isNotEmpty (sHTTPRequestHeader_Referer))
+							((ObjectNode)jsonHTTPRequestHeaders).put ("Referer", sHTTPRequestHeader_Referer);
+						if (StringUtils.isNotEmpty (sHTTPRequestHeader_AcceptLanguage))
+							((ObjectNode)jsonHTTPRequestHeaders).put ("Accept-Language", sHTTPRequestHeader_AcceptLanguage);
 
 						disabled = rs.getBoolean ("disabled");
 						sDisabledReason = rs.getString ("disabled_reason");
@@ -8956,7 +9064,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setString (iParam++, sName);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestMethod));
 				stmt.setString (iParam++, sURL);
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sURLParamsHelp));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sTemplateParametersHelp));
 				stmt.setString (iParam++, StringUtils.stripToNull (sHTTPRequestBody));
 				stmt.setBoolean (iParam++, usingGFWProxy);
 				stmt.setBoolean (iParam++, isIgnoreHTTPSCertificateValidation);
@@ -8975,10 +9083,10 @@ logger.fine ("url after parameter expansion: " + sURL);
 				stmt.setString (iParam++, StringUtils.stripToEmpty (listFormatWidth.get (0)));
 				stmt.setString (iParam++, listRightPaddings.get (0));
 
-				stmt.setObject (iParam++, jsonHTTPHeaders);
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_UserAgent));
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_Referer));
-				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPHead_AcceptLanguage));
+				stmt.setObject (iParam++, jsonHTTPRequestHeaders);
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestHeader_UserAgent));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestHeader_Referer));
+				stmt.setString (iParam++, StringUtils.stripToEmpty (sHTTPRequestHeader_AcceptLanguage));
 
 				stmt.setInt (iParam++, opt_max_response_lines);
 
@@ -9015,7 +9123,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 				conn.commit ();
 				conn.close ();
 
-				Matcher matcher = PATTERN_FindHtParameter.matcher (sURL);
+				Matcher matcher = PATTERN_FindTemplateParameter.matcher (sURL);
 				if (nRowsAffected > 0)
 					SendMessage (ch, nick, mapGlobalOptions, Colors.DARK_GREEN + "✓ 保存成功。#" + nID + Colors.NORMAL + (matcher.matches () ? "    由于你添加的 URL 是带参数的，所以在执行此模板时要加参数，比如: ht.run  '" + sName + "'  <c++>" : ""));
 				else
@@ -9048,7 +9156,7 @@ logger.fine ("url after parameter expansion: " + sURL);
 			// 最后，如果带有 URLParam，将其替换掉 sURL 中的 ${p} 字符串 (${p} ${p=} ${p=默认值} ${p2=...} ... )
 			if (StringUtils.equalsIgnoreCase (sAction, "run"))
 			{
-				sURL = HtParameterExpansion_DefaultValue_CStyle (sURL, listOrderedParams, sURLParamsHelp);
+				sURL = TemplateParameterExpansion_DefaultValue_CStyle (sURL, listOrderedParams, sTemplateParametersHelp);
 			}
 
 			if (disabled)
@@ -9064,7 +9172,6 @@ logger.fine ("url after parameter expansion: " + sURL);
 				int i = sURL.indexOf ('?');
 				sQueryString = sURL.substring (i+1);	// 得到 QueryString，用来将其传递到 POST 消息体中
 				sURL = sURL.substring (0, i);	// 将 URL 中的 QueryString 剔除掉
-System.out.println (sQueryString);
 			}
 System.out.println (sURL);
 
@@ -9131,9 +9238,9 @@ System.out.println (sURL);
 //System.out.println (sHTTPHead_Referer);
 				//	http.setRequestProperty ("Accept-Language", sHTTPHead_AcceptLanguage);
 				//}
-				if (jsonHTTPHeaders!=null && !jsonHTTPHeaders.isEmpty ())
+				if (jsonHTTPRequestHeaders!=null && !jsonHTTPRequestHeaders.isEmpty ())
 				{
-					Iterator<Map.Entry<String, JsonNode>> itFields = jsonHTTPHeaders.fields ();
+					Iterator<Map.Entry<String, JsonNode>> itFields = jsonHTTPRequestHeaders.fields ();
 					while (itFields.hasNext ())
 					{
 						Map.Entry<String, JsonNode> field = itFields.next ();
@@ -9146,7 +9253,11 @@ System.out.println (field.getKey () + ": " + field.getValue ().asText ());
 				{
 					http.setDoOutput (true);
 					//http.setRequestProperty ("Content-Type", "application/x-www-form-urlencoded");
-					http.setRequestProperty ("Content-Length", sQueryString);
+					http.setRequestProperty ("Content-Length", String.valueOf (sQueryString.getBytes (JVM_CHARSET).length));
+System.out.println ("http.getRequestProperty (\"Content-Length\"): " + http.getRequestProperty ("Content-Length"));
+System.out.println ("Content-Length(String.getBytes().length()): " + String.valueOf (sQueryString.getBytes (JVM_CHARSET).length));
+System.out.println ();
+System.out.println (sQueryString);
 				}
 				http.connect ();
 				if (StringUtils.equalsIgnoreCase (sHTTPRequestMethod, "POST"))
@@ -9241,7 +9352,7 @@ fw.close ();
 					try
 					{
 						// 由于 JavaScript 代码中可能需要读取参数 1 2 3.. N ...，所以，要识别 javascript 代码中的 ${p} ${p2} ${p3}...${pN} 参数声明，并将其替换为参数值
-						sSubSelector = HtParameterExpansion_DefaultValue_CStyle (sSubSelector, listOrderedParams, sURLParamsHelp);
+						sSubSelector = TemplateParameterExpansion_DefaultValue_CStyle (sSubSelector, listOrderedParams, sTemplateParametersHelp);
 
 						evaluateResult = jse.eval (sSubSelector, jsContext);
 						if (evaluateResult == null)
@@ -9316,9 +9427,9 @@ fw.close ();
 //System.out.println (sHTTPHead_AcceptLanguage);
 				//	jsoup_conn.header ("Accept-Language", sHTTPHead_AcceptLanguage);
 				//}
-				if (jsonHTTPHeaders!=null && !jsonHTTPHeaders.isEmpty ())
+				if (jsonHTTPRequestHeaders!=null && !jsonHTTPRequestHeaders.isEmpty ())
 				{
-					Iterator<Map.Entry<String, JsonNode>> itFields = jsonHTTPHeaders.fields ();
+					Iterator<Map.Entry<String, JsonNode>> itFields = jsonHTTPRequestHeaders.fields ();
 					while (itFields.hasNext ())
 					{
 						Map.Entry<String, JsonNode> field = itFields.next ();
@@ -9333,7 +9444,7 @@ System.out.println (sHTTPRequestMethod);
 					if (StringUtils.isNotEmpty (sQueryString))
 					{
 System.out.println (sQueryString);
-						Map<String, String> mapParams = new HashMap<String, String> ();	// 蛋疼的 jsoup 不支持直接把 sQueryString 统一传递过去，只能重新分解成单独的参数
+						Map<String, String> mapParams = new HashMap<> ();	// 蛋疼的 jsoup 不支持直接把 sQueryString 统一传递过去，只能重新分解成单独的参数
 						String[] arrayQueryParams = sQueryString.split ("&");
 						for (String param : arrayQueryParams)
 						{
@@ -9428,7 +9539,7 @@ System.out.println ("响应返回的 Content-Type: " + sResponseContentType);
 					return;
 				}
 
-			ht_main_loop:
+			//ht_main_loop:
 				for (int iElementIndex=(int)iStart; iElementIndex<es.size (); iElementIndex++)
 				{
 					Element e = es.get (iElementIndex);
@@ -9885,7 +9996,7 @@ System.out.println (Arrays.toString (arrayUsers));
 			// 如果没有添加自己，则加进去： 一定包含发起人
 			setParticipants.add (nick);
 
-		List<String[]> listCandidateAnswers = new ArrayList<String[]> ();
+		List<String[]> listCandidateAnswers = new ArrayList<> ();
 		byte option_stage = 0;
 		for (int i=0; i<listParams.size (); i++)
 		{
@@ -10368,7 +10479,7 @@ System.out.println (Arrays.toString (arrayUsers));
 			filters = params.split (" +");
 
 		StringBuilder sb = new StringBuilder ();
-		List<StringBuilder> listMessages = new ArrayList<StringBuilder> ();
+		List<StringBuilder> listMessages = new ArrayList<> ();
 		listMessages.add (sb);
 		Properties properties = System.getProperties ();
 
@@ -10840,9 +10951,9 @@ System.out.println (Arrays.toString (arrayUsers));
 		if (listCommandLineArgs==null || listCommandLineArgs.size() == 0)
 			return;
 
-		List<Map<String, Object>> listCommands = new ArrayList<Map<String, Object>> ();
-		Map<String, Object> mapCommand = new HashMap<String, Object> ();
-		List<String> listCommandArgs = new ArrayList<String> ();
+		List<Map<String, Object>> listCommands = new ArrayList<> ();
+		Map<String, Object> mapCommand = new HashMap<> ();
+		List<String> listCommandArgs = new ArrayList<> ();
 		mapCommand.put ("commandargs", listCommandArgs);
 		listCommands.add (mapCommand);
 		for (int i=0; i<listCommandLineArgs.size(); i++)
@@ -10868,9 +10979,9 @@ System.out.println (Arrays.toString (arrayUsers));
 				mapCommand.put ("isPipeOutput", true);
 				mapCommand.put ("barrier", new CyclicBarrier(2));
 
-				mapCommand = new HashMap<String, Object> ();
+				mapCommand = new HashMap<> ();
 				mapCommand.put ("isPipeInput", true);
-				listCommandArgs = new ArrayList<String> ();
+				listCommandArgs = new ArrayList<> ();
 				//listCommandArgs.add (arg);
 				mapCommand.put ("commandargs", listCommandArgs);
 				listCommands.add (mapCommand);
@@ -11340,7 +11451,7 @@ System.out.println (Arrays.toString (arrayUsers));
 		int iQuoteStart = 0, iQuoteEnd = 0;
 		StringBuilder token = new StringBuilder ();
 		String subToken = null;
-		List<String> listTokens = new ArrayList<String> ();
+		List<String> listTokens = new ArrayList<> ();
 		for (int i=0; i<arrayCmdLine.length; i++)
 		{
 			char thisChar = arrayCmdLine[i];
@@ -11459,7 +11570,7 @@ System.out.println (Arrays.toString (arrayUsers));
 		//
 	}
 
-	public static void main (String[] args) throws IOException, IrcException
+	public static void main (String[] args) throws IOException, IrcException, DBusException
 	{
 		//String sServer = "irc.freenode.net";
 		//String sPort = "6667";
@@ -11470,7 +11581,7 @@ System.out.println (Arrays.toString (arrayUsers));
 		//String sChannels = "#LiuYanBot,#linuxba";
 		//String[] arrayChannels;
 		//String encoding = "UTF-8";
-		List<Map<String, String>> listServersParams = new ArrayList<Map<String, String>> ();
+		List<Map<String, String>> listServersParams = new ArrayList<> ();
 		Map<String, String> mapCurrentServerParams = null;
 
 		String geoIPDB = null;
@@ -11497,7 +11608,7 @@ System.out.println (Arrays.toString (arrayUsers));
 						return;
 					}
 					//sServer = args[i+1];
-					mapCurrentServerParams = new HashMap<String, String> ();
+					mapCurrentServerParams = new HashMap<> ();
 					mapCurrentServerParams.put ("server", args[i+1]);
 					mapCurrentServerParams.put ("port", "6667");
 					mapCurrentServerParams.put ("encoding", "UTF-8");
@@ -12113,5 +12224,14 @@ System.out.println (currentBot.psn.mapChannelsState);
 			}
 			}
 		);
+
+		try
+		{
+			bluezplayerTrackChangedMonitor = PlayerTrackMonitor.GetInstance ();
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
 	}
 }
