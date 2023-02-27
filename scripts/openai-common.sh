@@ -7,6 +7,8 @@ openai_api_key=$(cat "$openai_api_key_file")
 app="$1"
 post_data="$2"
 
+# --trace-ascii /dev/stderr --http1.1
+
 curl https://api.openai.com/v1/"$app" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $openai_api_key" \

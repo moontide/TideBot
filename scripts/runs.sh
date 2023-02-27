@@ -1,6 +1,5 @@
 echo -e '\e[31;1m禁用掉一些命令，以较安全的方式执行\e[m'
-#export botdir=${botdir:-/home/liuyan/ircbot/src}
-export botdir=$(dirname $0)
+export script_dir=$(dirname $0)
 
 #export server=${server:-card.freenode.net}
 export server=${server:-weber.freenode.net}
@@ -27,4 +26,4 @@ export GFWProxyType=SOCKS
 export GFWProxyHost=192.168.181.69
 export GFWProxyPort=9909
 
-$botdir/run.sh
+$script_dir/run.sh

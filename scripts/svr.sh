@@ -9,7 +9,7 @@ export server=${server:-weber.freenode.net}
 # roddenberry.freenode.net 大洋洲 澳大利亚 (纯真IP数据库: 澳大利亚 悉尼)
 #export server=${server:-orwell.freenode.net}
 export port=
-export botdir=${botdir:-$(dirname $0)}
+export script_dir=${script_dir:-$(dirname $0)}
 #export nick=GameBot
 export nick=TideBot
 export account=
@@ -34,4 +34,4 @@ export GFWProxyType=SOCKS
 export GFWProxyHost=192.168.181.69
 export GFWProxyPort=9909
 
-$botdir/run.sh
+$script_dir/run.sh
