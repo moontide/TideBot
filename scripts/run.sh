@@ -58,7 +58,10 @@ for lf in commons-lang3-3.12.0 commons-text-1.10.0 commons-io-2.11.0 commons-exe
     jsoup-1.15.4 \
     bsh-2.0b6 \
     rhino-engine-1.7.14 rhino-runtime-1.7.14 \
-    asm-9.4 asm-commons-9.4 asm-util-9.4 bluez-dbus-osgi-0.1.4 jffi-1.3.10 jnr-a64asm-1.0.0 jnr-enxio-0.32.14 jnr-posix-3.1.16 jnr-x86asm-1.0.2 slf4j-jdk14-2.0.6 asm-analysis-9.4 asm-tree-9.4 bluez-dbus-0.1.4 dbus-java-3.3.2 jffi-1.3.10-native jnr-constants-0.10.4 jnr-ffi-2.2.13 jnr-unixsocket-0.38.19 slf4j-api-2.0.6 \
+    dbus-java-3.3.2 bluez-dbus-0.1.4 bluez-dbus-osgi-0.1.4 \
+        jffi-1.3.11 jffi-1.3.11-native jnr-unixsocket-0.38.19 jnr-enxio-0.32.14 jnr-posix-3.1.16 jnr-a64asm-1.0.0 jnr-x86asm-1.0.2 jnr-constants-0.10.4 jnr-ffi-2.2.13 \
+        asm-9.4 asm-commons-9.4 asm-util-9.4 asm-analysis-9.4 asm-tree-9.4 \
+        slf4j-api-2.0.6 slf4j-jdk14-2.0.6 \
     jython-standalone-2.7.3 \
     hcicloud-5.0.0 \
     QQWry StackExchangeAPI pircbot-mod

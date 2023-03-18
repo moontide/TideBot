@@ -1,7 +1,6 @@
 package net.maclife.dbusbluez;
 
 import java.util.*;
-import java.util.concurrent.*;
 
 import org.freedesktop.dbus.*;
 import org.freedesktop.dbus.connections.impl.*;
@@ -23,7 +22,8 @@ import net.maclife.irc.*;
 
 public class PlayerTrackMonitor implements Runnable, DBusInterface, ObjectManager
 {
-	DBusConnection connection = null;
+	DBusConnection dbusSystemBusConnection = null;
+	DBusConnection dbusSessionBusConnection = null;
 	GattProfile1Impl profile;
 	Map<String, Device1> mapDevices = new HashMap<> ();
 
@@ -39,18 +39,36 @@ public class PlayerTrackMonitor implements Runnable, DBusInterface, ObjectManage
 	 */
 	static Map<LiuYanBot, List<Map<String, Object>>> mapChannelsOrNicknamesOfIRCToNotify = new HashMap<> ();
 
+	static Map<String, String> mapBluezPlayerInfo_Cached = new HashMap<> ();
+	static Map<String, String> mapMPRISPlayerInfo_Cached = new HashMap<> ();
+
 	private static PlayerTrackMonitor _INSTANCE = null;
 
 	public PlayerTrackMonitor () throws DBusException
 	{
 		DeviceManager devman = DeviceManager.createInstance (false);
+System.out.println ("DeviceManager:");
 System.out.println (devman.getAdapters());
 System.out.println (devman.getDevices());
-		connection = devman.getDbusConnection ();
-//System.out.println (connection);
-//System.out.println (Arrays.toString (connection.getNames ()));
-		//DBusConnection connection = DBusConnectionBuilder.forSystemBus().build ();
-//System.out.println (connection);
+
+		dbusSystemBusConnection = devman.getDbusConnection ();
+System.out.println ("dbusSystemBusConnection:");
+System.out.println (
+	dbusSystemBusConnection.getAddress ()
+	+ ", getMachineId()=" + dbusSystemBusConnection.getMachineId ()
+	+ ", getUniqueName()=" + dbusSystemBusConnection.getUniqueName ()
+	+ ", getNames()=" + Arrays.toString (dbusSystemBusConnection.getNames ())
+	);
+
+		dbusSessionBusConnection = DBusConnection.getConnection (DBusConnection.DBusBusType.SESSION);
+System.out.println ("dbusSessionBusConnection:");
+System.out.println (
+	dbusSessionBusConnection.getAddress ()
+	+ ", getMachineId()=" + dbusSessionBusConnection.getMachineId ()
+	+ ", getUniqueName()=" + dbusSessionBusConnection.getUniqueName ()
+	+ ", getNames()=" + Arrays.toString (dbusSessionBusConnection.getNames ())
+	);
+
 		profile = new GattProfile1Impl ("/net/maclife/tidebot/irc/dbusbluez/Profile");
 	}
 
@@ -81,17 +99,25 @@ System.out.println ("注册后，等待事件中…");
 
 	public void register () throws DBusException
 	{
-		connection.exportObject (getObjectPath(), this);
+		dbusSystemBusConnection.exportObject (getObjectPath(), this);
+		dbusSessionBusConnection.exportObject (getObjectPath(), this);
 		addPropertiesChangedListener ();
 		addInterfacesAddedListener ();
 		addInterfacesRemovedListener ();
 
 		// get the GattManager to register new profile
-		GattManager1 gattmanager = connection.getRemoteObject("org.bluez", "/org/bluez/hci0", GattManager1.class);
+		GattManager1 gattmanager = dbusSystemBusConnection.getRemoteObject ("org.bluez", "/org/bluez/hci0", GattManager1.class);
 
 System.out.println ("正在注册应用程序 Profile 到 DBus: " + this.getObjectPath());
 		// register profile
-		gattmanager.RegisterApplication (new DBusPath (this.getObjectPath()), new HashMap<>());
+		try
+		{
+			gattmanager.RegisterApplication (new DBusPath (this.getObjectPath()), new HashMap<>());
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
 	}
 
 	@Override
@@ -110,9 +136,7 @@ System.out.println ("正在注册应用程序 Profile 到 DBus: " + this.getObje
 
 	private void addPropertiesChangedListener () throws DBusException
 	{
-		connection.addSigHandler
-		(
-			Properties.PropertiesChanged.class,
+		DBusSigHandler<Properties.PropertiesChanged> sighandler =
 			new org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler ()
 			{
 				@Override
@@ -121,121 +145,317 @@ System.out.println ("正在注册应用程序 Profile 到 DBus: " + this.getObje
 					if (pcPropertiesChanged == null)
 						return;
 
+					String sSource = pcPropertiesChanged.getSource ();
+					String sDestination = pcPropertiesChanged.getDestination ();
+					String sName = pcPropertiesChanged.getName ();
 					String sObjectPath = pcPropertiesChanged.getPath ();
+					String sInterface = pcPropertiesChanged.getInterface ();
+					String sInterfaceName = pcPropertiesChanged.getInterfaceName ();
+					String sSig = pcPropertiesChanged.getSig ();
+					Object[] arrayParameters = null;
+					try
+					{
+						arrayParameters = pcPropertiesChanged.getParameters ();
+					}
+					catch (DBusException e)
+					{
+						e.printStackTrace();
+					}
+//System.err.println (""
+//	+ "sInterfaceName=" + sInterfaceName
+//	+ ", sPath=[" + sObjectPath + "]"
+//	+ ", params=" + Arrays.toString (arrayParameters)
+//	+ ", sSource=" + sSource
+//	+ ", sDestination=" + sDestination
+//	//+ ", sName=" + sName	// PropertiesChanged,
+//	//+ ", sInterface=" + sInterface	// org.freedesktop.DBus.Properties
+//	+ ", sSig=" + sSig
+//	);
+
 					Map<String, Variant<?>> mapPropertiesChanged = pcPropertiesChanged.getPropertiesChanged ();
-					if (   !sObjectPath.contains("/org/bluez")
-						&& !sObjectPath.contains(getClass().getPackage().getName()))
-					{ // filter all events not belonging to bluez
-						if (sObjectPath.startsWith ("/org/mpris/MediaPlayer2"))
-						{
-//System.err.println("org.mpris.MediaPlayer2.Player PropertiesChanged:----> " + mapPropertiesChanged);
-						}
-						return;
+					List<String> listPropertiesRemoved = pcPropertiesChanged.getPropertiesRemoved ();
+//System.err.println (sInterfaceName + " [" + sObjectPath + "] 的 PropertiesChanged: " + mapPropertiesChanged);
+					if (! listPropertiesRemoved.isEmpty ())
+					{
+System.err.println("PropertiesRemoved:----> " + listPropertiesRemoved);
 					}
 
-					if (mapPropertiesChanged.containsKey ("Track"))
+					//if (   !sObjectPath.contains("/org/bluez")
+					//	&& !sObjectPath.contains(getClass().getPackage().getName()))
+					//{ // filter all events not belonging to bluez
+					//	return;
+					//}
+
+					//if (sObjectPath.startsWith ("/org/mpris/MediaPlayer2"))
+					if (StringUtils.startsWithIgnoreCase (sInterfaceName, "org.mpris.MediaPlayer2.Player"))
 					{
+System.err.println ("\u001b[36;1morg.mpris.MediaPlayer2.Player\u001b[m PropertiesChanged: " + mapPropertiesChanged);
+						for (Map.Entry<String, Variant<?>> entry : mapPropertiesChanged.entrySet ())
+						{
+System.out.println ("	" + entry.getKey () + ", type=" + entry.getValue ().getType ());
+						}
+
+						Variant<?> varMPRISPlayer_Metadata = mapPropertiesChanged.get ("Metadata");
+						Variant<?> varPlayerStatus = mapPropertiesChanged.get ("PlaybackStatus");
+
+						if (varMPRISPlayer_Metadata != null)
+						{
+							DBusMap<String, Variant<?>> dbusmapValues = (DBusMap<String, Variant<?>>)varMPRISPlayer_Metadata.getValue();
+							Variant<?> varTrackID = dbusmapValues.get ("mpris:trackid");
+							if (varTrackID != null)
+							{
+								DBusPath dbuspath = (DBusPath)varTrackID.getValue ();
+								String sTrackID = dbuspath.getPath ();
+								mapMPRISPlayerInfo_Cached.put ("PlayerName", sTrackID);	// TODO 暂时用 TrackID 代替 PlayerName
+							}
+						}
+						if (varPlayerStatus != null)
+						{
+							String sPlayerStatus = (String)varPlayerStatus.getValue ();
+							mapMPRISPlayerInfo_Cached.put ("PlayerStatus", sPlayerStatus);
+						}
+						ProcessTrackChanged (ANSIEscapeTool.COLOR_DARK_CYAN, "MPRIS", mapMPRISPlayerInfo_Cached, varMPRISPlayer_Metadata, "xesam:artist", "xesam:album", "xesam:title", "mpris:length", 1000000);
+					}
+					//else if (sObjectPath.contains("/org/bluez"))
+					else if (StringUtils.startsWithIgnoreCase (sInterfaceName, "org.bluez.MediaPlayer"))
+					{
+System.err.println ("\u001b[34;1morg.bluez\u001b[m PropertiesChanged: " + mapPropertiesChanged);
+						for (Map.Entry<String, Variant<?>> entry : mapPropertiesChanged.entrySet ())
+						{
+System.out.println ("	" + entry.getKey () + ", type=" + entry.getValue ().getType ());
+						}
+
+						Variant<?> varPlayer = mapPropertiesChanged.get ("Player");
 						Variant<?> varTrack = mapPropertiesChanged.get ("Track");
-System.out.println ("播放器音轨改变：" + varTrack);
+
+						//Variant<?> varConnected = mapPropertiesChanged.get ("Connected");
+							//Variant<?> varRepeat = mapPropertiesChanged.get ("Repeat");
+						//Variant<?> varShuffle = mapPropertiesChanged.get ("Shuffle");
+
+						Variant<?> varPlayerType = mapPropertiesChanged.get ("Type");
+						//Variant<?> varPlayerSubtype = mapPropertiesChanged.get ("Subtype");
+						Variant<?> varPlayerStatus = mapPropertiesChanged.get ("Status");
+						Variant<?> varPlayerName = mapPropertiesChanged.get ("Name");
+
+						if (varPlayer != null)
+						{
+							DBusPath dbuspath = (DBusPath)varPlayer.getValue ();
+
+							String sPlayerID = dbuspath.getPath ();
+							mapBluezPlayerInfo_Cached.put ("PlayerID", sPlayerID);
+						}
+						if (varPlayerName != null)
+						{
+							String sPlayerName = (String)varPlayerName.getValue ();
+							mapBluezPlayerInfo_Cached.put ("PlayerName", sPlayerName);
+						}
+						if (varPlayerType != null)
+						{
+							String sPlayerType = (String)varPlayerType.getValue ();
+							mapBluezPlayerInfo_Cached.put ("PlayerType", sPlayerType);
+						}
+						if (varPlayerStatus != null)
+						{
+							String sPlayerStatus = (String)varPlayerStatus.getValue ();
+							mapBluezPlayerInfo_Cached.put ("PlayerStatus", sPlayerStatus);
+						}
+						ProcessTrackChanged (Colors.DARK_BLUE, "蓝牙", mapBluezPlayerInfo_Cached, varTrack, "Artist", "Album", "Title", "Duration", 1000);
+					}
+				}
+			};
+
+		dbusSystemBusConnection.addSigHandler
+		(
+			Properties.PropertiesChanged.class,
+			sighandler
+		);
+		dbusSessionBusConnection.addSigHandler
+		(
+			Properties.PropertiesChanged.class,
+			sighandler
+		);
+
+
+		// ----------
+		//MPRIS D-Bus Interface
+		// org.mpris.MediaPlayer2.Player
+		// ----------
+		/*
+		DBusInterface dbusinterface__org_mpris_MediaPlayer2_Player = null;
+
+		try
+		{
+			dbusinterface__org_mpris_MediaPlayer2_Player = dbusSessionBusConnection.getRemoteObject ("org.mpris.MediaPlayer2.audacious", "/org/mpris/MediaPlayer2");
+System.out.println ("dbusSessionBusConnection.getRemoteObject (\"org.mpris.MediaPlayer2.audacious\", \"/org/mpris/MediaPlayer2\"):  " + dbusinterface__org_mpris_MediaPlayer2_Player);
+
+			if (dbusinterface__org_mpris_MediaPlayer2_Player != null)
+				dbusSessionBusConnection.addSigHandler
+				(
+					Properties.PropertiesChanged.class,
+					dbusinterface__org_mpris_MediaPlayer2_Player,
+					sighandler
+				);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace ();
+		}
+		//*/
+	}
+
+	static void ProcessTrackChanged (String IRCColorForPlayerClass, String sPlayerClass, Map<String, String> mapPlayerInfo_Cached, Variant<?> varTrackOrMetadata, String sKeyName_Artist, String sKeyName_Album, String sKeyName_Title, String sKeyName_Duration, long nDurationToSecond_Unit)
+	{
+		if (varTrackOrMetadata == null)
+			return;
+
+//System.out.println (sPlayerClass + " 播放器音轨改变：" + varTrackOrMetadata);
 //System.out.println ("varTrack.type：" + varTrack.getType ());
 //System.out.println ("varTrack.value：" + varTrack.getValue ());	// { Title => [骑行穿越大兴安岭，入住荒野带炕铁皮房，方圆十里无人烟有点害怕],TrackNumber => [0],NumberOfTracks => [0],Duration => [1431463],Artist => [徐云流浪中国] }
 //System.out.println ("varTrack.value.class.canonicalName：" + varTrack.getValue ().getClass().getCanonicalName());	// org.freedesktop.dbus.types.DBusMapType@xxxxxxxx
-						//if (varTrack.getType() instanceof DBusMapType)
-						//{
-						DBusMap<String, Variant<?>> dbusmapValues = (DBusMap<String, Variant<?>>)varTrack.getValue();
-						for (Variant<?> v : dbusmapValues.values())
-						{
-//System.out.println ("v=" + v + ", v.getClass().getCanonicalName()=" + v.getClass().getCanonicalName());
-						}
-						Variant<?> varArtist = dbusmapValues.get ("Artist");
-						Variant<?> varAlbum = dbusmapValues.get ("Album");
-						Variant<?> varTitle = dbusmapValues.get ("Title");
-						Variant<?> varDuration = dbusmapValues.get ("Duration");
-						String sArtist=null, sAlbum=null, sTitle=null, sDuration_HumanReadable=null;
-						long nDuration_Millisecond = 0;
-						if (varArtist != null)
-						{
-							sArtist = (String) varArtist.getValue ();
+		//if (varTrack.getType() instanceof DBusMapType)
+		//{
+		DBusMap<String, Variant<?>> dbusmapValues = (DBusMap<String, Variant<?>>)varTrackOrMetadata.getValue();
+		for (Map.Entry<String, Variant<?>> entry : dbusmapValues.entrySet ())
+		{
+			String sKey = entry.getKey ();
+			Variant<?> v = entry.getValue ();
+System.out.println ("		" + sKey + "=" + v + ", v.getType()=" + v.getType() + ", v.getValue().getClass ().isArray ()=" + v.getValue().getClass ().isArray () );// ", v.getClass().getCanonicalName()=" + v.getClass().getCanonicalName()); : org.freedesktop.dbus.types.Variant
+		}
+
+		Variant<?> varArtist = dbusmapValues.get (sKeyName_Artist);
+		Variant<?> varAlbum = dbusmapValues.get (sKeyName_Album);
+		Variant<?> varTitle = dbusmapValues.get (sKeyName_Title);
+		Variant<?> varDuration = dbusmapValues.get (sKeyName_Duration);
+		String sArtist=null, sAlbum=null, sTitle=null, sDuration_HumanReadable=null;
+		long nDuration = 0;
+		if (varArtist != null)
+		{	// 注意：MPRIS Player 的 Artist 是数组形式
+			if (varArtist.getValue ().getClass ().isArray ())
+				sArtist = Arrays.toString ((String[])varArtist.getValue ());
+			else if (varArtist.getValue() instanceof List)
+			{
+				List<String> listValues = (List<String>)varArtist.getValue ();
+				StringBuilder sbArtist = new StringBuilder ();
+				for (int i=0; i<listValues.size (); i++)
+				{
+					if (i > 0)
+						sbArtist.append (" / ");
+					sbArtist.append (listValues.get (i));
+				}
+				sArtist = sbArtist.toString ();
+			}
+			else if (varArtist.getValue () instanceof CharSequence)
+				sArtist = (String) varArtist.getValue ();
+			else
+			{
+System.out.println ("varArtist 当前的数据类型暂时无法处理");
+			}
+
 System.out.println ("艺术家：" + varArtist);
-						}
+		}
 //System.out.println ("varArtist.type：" + varArtist.getType ());	// interface java.lang.CharSequence
 //System.out.println ("varArtist.value：" + varArtist.getValue ());
 //System.out.println ("varArtist.value.class.canonicalName：" + varArtist.getValue ().getClass().getCanonicalName());	// java.lang.String
 
-						if (varAlbum != null)
-						{
-							sAlbum = (String) varAlbum.getValue ();
+		if (varAlbum != null)
+		{
+			sAlbum = (String) varAlbum.getValue ();
 System.out.println ("专辑：" + varAlbum);
-						}
+		}
 
-						if (varTitle != null)
-						{
-							sTitle = (String) varTitle.getValue ();
+		if (varTitle != null)
+		{
+			sTitle = (String) varTitle.getValue ();
 System.out.println ("标题：" + varTitle);
-						}
+		}
 
-						if (varDuration != null)
-						{
-							UInt32 uint32Duration = (UInt32)varDuration.getValue();
-							nDuration_Millisecond = uint32Duration.longValue();
-							long nDuration_Second = nDuration_Millisecond / 1000;
-							long nMinute = nDuration_Second / 60;
-							long nSecond = nDuration_Second % 60;
-							if (nDuration_Second > 0)
-								sDuration_HumanReadable = String.format ("%02d:%02d", nMinute, nSecond);
+		if (varDuration != null)
+		{
+			if (varDuration.getType ().equals (UInt32.class))	// bluez player
+			{
+				UInt32 uint32Duration = (UInt32)varDuration.getValue();
+				nDuration = uint32Duration.longValue();
+			}
+			else if (varDuration.getType ().equals (Long.class))	// MPRIS audacious / youtube.com / music.163.com / deadbeef
+				nDuration = (Long)varDuration.getValue ();
+			else if (varDuration.getType ().equals (Double.class))	// MPRIS smplayer(使用mpv)
+				nDuration = (long)((double)varDuration.getValue ());
+			else
+			{
+System.out.println ("varDuration 当前的数据类型暂时无法处理");
+			}
+			long nDuration_Second = nDuration / nDurationToSecond_Unit;
+			long nMinute = nDuration_Second / 60;
+			long nSecond = nDuration_Second % 60;
+			if (nDuration_Second > 0)
+				sDuration_HumanReadable = String.format ("%02d:%02d", nMinute, nSecond);
 System.out.println ("时长：" + varDuration + " -> " + sDuration_HumanReadable);
-						}
+		}
 //System.out.println ("varDuration.type：" + varDuration.getType ());	// class org.freedesktop.dbus.types.UInt32
 //System.out.println ("varDuration.value：" + varDuration.getValue ());
 //System.out.println ("varDuration.value.class.canonicalName：" + varDuration.getValue ().getClass().getCanonicalName());	// org.freedesktop.dbus.types.UInt32
-						//}
-						if (StringUtils.isNotEmpty (sTitle))
-						{
-							StringBuilder sbTrackChangedInfoForIRC = new StringBuilder ();
-							//if (StringUtils.isNotEmpty (sTitle))
-							{
-								sbTrackChangedInfoForIRC.append ("标题:");
-								sbTrackChangedInfoForIRC.append (Colors.GREEN);
-								sbTrackChangedInfoForIRC.append (FormatTrackInformationWithPadding (sTitle));
-								sbTrackChangedInfoForIRC.append (Colors.NORMAL);
-								sbTrackChangedInfoForIRC.append (" ");
-							}
-							if (StringUtils.isNotEmpty (sAlbum))
-							{
-								sbTrackChangedInfoForIRC.append ("专辑:");
-								sbTrackChangedInfoForIRC.append (Colors.DARK_GREEN);
-								sbTrackChangedInfoForIRC.append (FormatTrackInformationWithPadding (sAlbum));
-								sbTrackChangedInfoForIRC.append (Colors.NORMAL);
-								sbTrackChangedInfoForIRC.append (" ");
-							}
-							if (StringUtils.isNotEmpty (sArtist))
-							{
-								sbTrackChangedInfoForIRC.append ("艺人:");
-								sbTrackChangedInfoForIRC.append (ANSIEscapeTool.COLOR_DARK_CYAN);
-								sbTrackChangedInfoForIRC.append (FormatTrackInformationWithPadding (sArtist));
-								sbTrackChangedInfoForIRC.append (Colors.NORMAL);
-								sbTrackChangedInfoForIRC.append (" ");
-							}
-							if (StringUtils.isNotEmpty (sDuration_HumanReadable))
-							{
-								sbTrackChangedInfoForIRC.append ("时长:");
-								sbTrackChangedInfoForIRC.append (Colors.CYAN);
-								sbTrackChangedInfoForIRC.append (sDuration_HumanReadable);
-								sbTrackChangedInfoForIRC.append (Colors.NORMAL);
-								sbTrackChangedInfoForIRC.append (" ");
-							}
-
-							// 发送通知到 IRC 目标（频道 或 昵称）
-							SendNotificationMessageToIRCTargets (sbTrackChangedInfoForIRC.toString ());
-						}
-					}
-
-System.err.println("PropertiesChanged:----> " + mapPropertiesChanged);
-					if (! pcPropertiesChanged.getPropertiesRemoved().isEmpty ())
-System.err.println("PropertiesRemoved:----> " + pcPropertiesChanged.getPropertiesRemoved ());
-				}
+		//}
+		if (StringUtils.isNotEmpty (sTitle))
+		{
+			StringBuilder sbTrackChangedInfoForIRC = new StringBuilder ();
+			if (StringUtils.isNotEmpty (mapPlayerInfo_Cached.get ("PlayerStatus")))
+			{
+				//sbTrackChangedInfoForIRC.append ("播放状态:");
+				//sbTrackChangedInfoForIRC.append (Colors.MAGENTA);
+				//sbTrackChangedInfoForIRC.append (mapPlayerInfo_Cached.get ("PlayerStatus"));
+				if (StringUtils.equalsAnyIgnoreCase (mapPlayerInfo_Cached.get ("PlayerStatus"), "Playing"))
+					sbTrackChangedInfoForIRC.append ("▶️");
+				else if (StringUtils.equalsAnyIgnoreCase (mapPlayerInfo_Cached.get ("PlayerStatus"), "Paused"))
+					sbTrackChangedInfoForIRC.append ("⏸️");
+				else
+					sbTrackChangedInfoForIRC.append (mapPlayerInfo_Cached.get ("PlayerStatus"));
+				//sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+				sbTrackChangedInfoForIRC.append ("  ");
 			}
-		);
+			//if (StringUtils.isNotEmpty (sTitle))
+			{
+				//sbTrackChangedInfoForIRC.append ("标题:");
+				sbTrackChangedInfoForIRC.append (Colors.RED);
+				sbTrackChangedInfoForIRC.append (FormatTrackInformationWithPadding (sTitle));
+				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+				sbTrackChangedInfoForIRC.append (" ");
+			}
+			if (StringUtils.isNotEmpty (sAlbum))
+			{
+				sbTrackChangedInfoForIRC.append ("🖭");	// 🖭 U+1F5AD Tape Cartridge , 📼 U+1F4FC Videocassette , 💿 U+1F4BF Optical Disk , 💽 U+1F4BD Computer Disk
+				sbTrackChangedInfoForIRC.append (Colors.DARK_GREEN);
+				sbTrackChangedInfoForIRC.append (FormatTrackInformationWithPadding (sAlbum));
+				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+				sbTrackChangedInfoForIRC.append ("  ");
+			}
+			if (StringUtils.isNotEmpty (sArtist))
+			{
+				sbTrackChangedInfoForIRC.append ("🧑‍🎤");
+				sbTrackChangedInfoForIRC.append (Colors.BLUE);
+				sbTrackChangedInfoForIRC.append (FormatTrackInformationWithPadding (sArtist));
+				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+				sbTrackChangedInfoForIRC.append ("  ");
+			}
+			if (StringUtils.isNotEmpty (sDuration_HumanReadable))
+			{
+				sbTrackChangedInfoForIRC.append ("⏱️");	// ⏱️ ⏱ U+23F1 U+FE0F Stopwatch
+				sbTrackChangedInfoForIRC.append (Colors.CYAN);
+				sbTrackChangedInfoForIRC.append (sDuration_HumanReadable);
+				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+				sbTrackChangedInfoForIRC.append ("  ");
+			}
+			if (StringUtils.isNotEmpty (mapPlayerInfo_Cached.get ("PlayerName")))
+			{
+				sbTrackChangedInfoForIRC.append ("📽️");	// 📽️📽 U+1F4FD ️ U+FE0F  Film Projector
+				sbTrackChangedInfoForIRC.append (Colors.YELLOW);
+				sbTrackChangedInfoForIRC.append (mapPlayerInfo_Cached.get ("PlayerName"));
+				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+				sbTrackChangedInfoForIRC.append ("  ");
+			}
+
+			// 发送通知到 IRC 目标（频道 或 昵称）
+			SendNotificationMessageToIRCTargets (IRCColorForPlayerClass, sPlayerClass, sbTrackChangedInfoForIRC.toString ());
+		}
 	}
 
 	static String FormatTrackInformationWithPadding (String s)
@@ -248,7 +468,7 @@ System.err.println("PropertiesRemoved:----> " + pcPropertiesChanged.getPropertie
 		int nLengthWithPadding = (nLength%nSingleBlockLength==0 ? nLength : (nLength/nSingleBlockLength+1)*nSingleBlockLength);
 		return String.format ("%-" + nLengthWithPadding + "s", s);
 	}
-	static void SendNotificationMessageToIRCTargets (String sMessage)
+	static void SendNotificationMessageToIRCTargets (String sIRCColorForPlayerClass, String sPlayerClassName, String sMessage)
 	{
 		for (LiuYanBot bot : mapChannelsOrNicknamesOfIRCToNotify.keySet ())
 		{
@@ -259,7 +479,7 @@ System.err.println("PropertiesRemoved:----> " + pcPropertiesChanged.getPropertie
 			for (Map<String, Object> mapTargetConfig : listNotificationTargets)
 			{
 				String sCachedTarget = (String)mapTargetConfig.get ("target");
-				bot.sendAction (sCachedTarget, sMessage + " [" + Colors.BLUE + "蓝牙" + Colors.NORMAL + "播放器轨道变更时通知，受 " + (String)mapTargetConfig.get ("initiator") + " 发起的接收通知请求]");
+				bot.sendAction (sCachedTarget, sMessage + " [" + sIRCColorForPlayerClass + sPlayerClassName + Colors.NORMAL + "播放器轨道变更时通知，受 " + (String)mapTargetConfig.get ("initiator") + " 发起的接收通知请求]");
 			}
 
 		}
@@ -267,7 +487,7 @@ System.err.println("PropertiesRemoved:----> " + pcPropertiesChanged.getPropertie
 
 	private void addInterfacesAddedListener() throws DBusException
 	{
-		connection.addSigHandler
+		dbusSystemBusConnection.addSigHandler
 		(
 			InterfacesAdded.class,
 			new AbstractInterfacesAddedHandler()
@@ -288,16 +508,15 @@ System.err.println("PropertiesRemoved:----> " + pcPropertiesChanged.getPropertie
 								Variant<?> address = e.getValue().get("Address");
 								if (address != null && address.getValue() != null)
 								{
-									System.out.println("Bluetooth device added: " + address.getValue());
+System.out.println("Bluetooth device added: " + address.getValue());
 									String p = _s.getSignalSource().getPath();
 									try
 									{
-										Device1 device1 = connection.getRemoteObject("org.bluez", p, Device1.class);
+										Device1 device1 = dbusSystemBusConnection.getRemoteObject("org.bluez", p, Device1.class);
 										mapDevices.put(p, device1);
 									}
 									catch (DBusException _ex)
 									{
-										// TODO Auto-generated catch block
 										_ex.printStackTrace();
 									}
 								}
@@ -310,7 +529,7 @@ System.err.println("PropertiesRemoved:----> " + pcPropertiesChanged.getPropertie
 						(
 							e ->
 							{
-								System.out.println("New characteristics: " + e.getValue());
+System.out.println("New characteristics: " + e.getValue());
 							}
 						);
 					// System.out.println("InterfaceAdded ----> " + _s.getInterfaces());
@@ -321,7 +540,7 @@ System.err.println("PropertiesRemoved:----> " + pcPropertiesChanged.getPropertie
 
 	void addInterfacesRemovedListener () throws DBusException
 	{
-		connection.addSigHandler
+		dbusSystemBusConnection.addSigHandler
 		(
 			InterfacesRemoved.class,
 			new AbstractInterfacesRemovedHandler ()
@@ -404,14 +623,14 @@ System.out.println ("InterfaceRemoved ----> " + _s.getInterfaces ());
 
 		public boolean isReleased()
 		{
-			System.out.println("released called");
+System.out.println("isReleased called");
 			return released;
 		}
 
 		@Override
 		public <A> A Get(String _interface_name, String _property_name)
 		{
-			System.out.println("Get called");
+System.out.println("Get called");
 			// Variant<?> variant = properties.get(_interface_name).get(_property_name);
 			return null; //
 		}
@@ -419,7 +638,7 @@ System.out.println ("InterfaceRemoved ----> " + _s.getInterfaces ());
 		@Override
 		public <A> void Set(String _interface_name, String _property_name, A _value)
 		{
-			System.out.println("Set called");
+System.out.println("Set called");
 		}
 
 		@Override
@@ -448,7 +667,7 @@ System.out.println("queried for: " + _interface_name);
 		@Override
 		public Map<DBusPath, Map<String, Map<String, Variant<?>>>> GetManagedObjects()
 		{
-System.err.println(this.getClass() + " Getmanagedobjects called");
+System.err.println(this.getClass() + " GetManagedObjects called");
 			return null;
 		}
 	}

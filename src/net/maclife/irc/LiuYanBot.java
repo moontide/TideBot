@@ -283,7 +283,7 @@ public class LiuYanBot extends PircBot implements org.freedesktop.dbus.interface
 			BOT_PRIMARY_COMMAND_CONSOLE_UnQuiet, "/unMute", "/unGag",
 		},
 		{BOT_PRIMARY_COMMAND_AutoReply, },
-		{BOT_PRIMARY_COMMAND_DBusBluezInfo, "dbptin", "bluezplayertrack", "/bpt",},
+		{BOT_PRIMARY_COMMAND_DBusBluezInfo, "dbptin", "BluezPlayerTrack", "/bpt", "mprisPlayerTrack",},
 
 		{BOT_PRIMARY_COMMAND_Time, },
 		{BOT_PRIMARY_COMMAND_Action, },
@@ -1200,6 +1200,7 @@ System.out.println (msg);
 	@Override
 	public void onJoin (String sChannel, String u, String login, String hostname)
 	{
+		/*
 		if (u.equalsIgnoreCase(getNick ()))
 		{
 System.out.println (u + " 是机器人自己，将发起主动协商");
@@ -1209,7 +1210,7 @@ System.out.println (u + " 是机器人自己，将发起主动协商");
 				try
 				{
 					psn.InitiateNegotiation (sChannel, false);
-					return;
+					//return;
 				}
 				catch (JsonProcessingException e)
 				{
@@ -1217,6 +1218,7 @@ System.out.println (u + " 是机器人自己，将发起主动协商");
 				}
 			}
 		}
+		//*/
 		if (geoIP2DatabaseReader==null)
 		{
 System.out.println ("geoIP2DatabaseReader 为空，将不做处理");
@@ -4670,7 +4672,7 @@ System.out.println ("时间单位 = " + mat.group(2));
 	//}
 
 	// 2023-02-26 不知道为什么要在主类中实现 DBusInterface
-	// 2023-02-27 原来，DBus-Java 要检查 DBusConnection.exportObject (String, dbusinterface实例) 中 dbusinterface 实例的每个变量、每个函数、函数中每个参数、以及，如果参数是 Map 类型的，还要持续深入检查每个 key 和 value，检查能否被 Marshaling
+	// 2023-02-27 原来，DBus-Java 要检查 DBusConnection.exportObject (String, dbusinterface实例) 中 dbusinterface 实例的每个变量、每个函数、函数中每个参数、以及，如果参数是 Map 类型的，还要持续深入检查每个 key 和 value，检查能否被 Marshalling
 
 	//@Override
 	//public Map<DBusPath, Map<String, Map<String, Variant<?>>>> GetManagedObjects()
