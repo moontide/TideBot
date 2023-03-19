@@ -39,8 +39,8 @@ public class PlayerTrackMonitor implements Runnable, DBusInterface, ObjectManage
 	 */
 	static Map<LiuYanBot, List<Map<String, Object>>> mapChannelsOrNicknamesOfIRCToNotify = new HashMap<> ();
 
-	static Map<String, String> mapBluezPlayerInfo_Cached = new HashMap<> ();
-	static Map<String, String> mapMPRISPlayerInfo_Cached = new HashMap<> ();
+	static Map<String, Object> mapBluezPlayerInfo_Cached = new HashMap<> ();
+	static Map<String, Object> mapMPRISPlayerInfo_Cached = new HashMap<> ();
 
 	private static PlayerTrackMonitor _INSTANCE = null;
 
@@ -100,7 +100,7 @@ System.out.println ("注册后，等待事件中…");
 	public void register () throws DBusException
 	{
 		dbusSystemBusConnection.exportObject (getObjectPath(), this);
-		dbusSessionBusConnection.exportObject (getObjectPath(), this);
+		//dbusSessionBusConnection.exportObject (getObjectPath(), this);
 		addPropertiesChangedListener ();
 		addInterfacesAddedListener ();
 		addInterfacesRemovedListener ();
@@ -134,6 +134,23 @@ System.out.println ("正在注册应用程序 Profile 到 DBus: " + this.getObje
 		return sObjectPath;
 	}
 
+	/* 完全不懂在做什么…
+	static interface MediaPlayer2 extends DBusInterface
+	{
+		boolean CanQuit = false;
+		boolean Fullscreen = false;
+		boolean CanSetFullscreen = false;
+		boolean CanRaise = false;
+		boolean HasTrackList = false;
+		String Identity = null;
+		String DesktopEntry = null;
+		String[] SupportedUriSchemes = null;
+		String[] SupportedMimeTypes = null;
+
+		void Raise ();
+		void Quit ();
+	}
+	//*/
 	private void addPropertiesChangedListener () throws DBusException
 	{
 		DBusSigHandler<Properties.PropertiesChanged> sighandler =
@@ -174,10 +191,10 @@ System.out.println ("正在注册应用程序 Profile 到 DBus: " + this.getObje
 
 					Map<String, Variant<?>> mapPropertiesChanged = pcPropertiesChanged.getPropertiesChanged ();
 					List<String> listPropertiesRemoved = pcPropertiesChanged.getPropertiesRemoved ();
-//System.err.println (sInterfaceName + " [" + sObjectPath + "] 的 PropertiesChanged: " + mapPropertiesChanged);
+System.err.println ("\u001b[38;5;240m" + sInterfaceName + "\u001b[m \u001b[38;5;240m" + sObjectPath + "\u001b[m PropertiesChanged: \u001b[38;5;240m" + mapPropertiesChanged + "\u001b[m");
 					if (! listPropertiesRemoved.isEmpty ())
 					{
-System.err.println("PropertiesRemoved:----> " + listPropertiesRemoved);
+System.err.println ("\u001b[38;5;240m" + sInterfaceName + "\u001b[m \u001b[38;5;240m" + sObjectPath + "\u001b[m \u001b[31mPropertiesRemoved\u001b[m: \u001b[38;5;240m" + listPropertiesRemoved + "\u001b[m");
 					}
 
 					//if (   !sObjectPath.contains("/org/bluez")
@@ -186,17 +203,41 @@ System.err.println("PropertiesRemoved:----> " + listPropertiesRemoved);
 					//	return;
 					//}
 
-					//if (sObjectPath.startsWith ("/org/mpris/MediaPlayer2"))
-					if (StringUtils.startsWithIgnoreCase (sInterfaceName, "org.mpris.MediaPlayer2.Player"))
+					if (StringUtils.equalsIgnoreCase (sInterfaceName, "org.mpris.MediaPlayer2"))
 					{
-System.err.println ("\u001b[36;1morg.mpris.MediaPlayer2.Player\u001b[m PropertiesChanged: " + mapPropertiesChanged);
+System.err.println (new java.sql.Timestamp(System.currentTimeMillis ()) + " \u001b[36;1morg.mpris.MediaPlayer2\u001b[m PropertiesChanged: " + mapPropertiesChanged);
+						Variant<?> varMPRISPlayer_PlayerIdentity = mapPropertiesChanged.get ("Identity");
+						if (varMPRISPlayer_PlayerIdentity != null)
+						{
+							String sPlayerName = (String)varMPRISPlayer_PlayerIdentity.getValue ();
+							mapMPRISPlayerInfo_Cached.put ("PlayerName", sPlayerName);
+						}
+					}
+					//if (sObjectPath.startsWith ("/org/mpris/MediaPlayer2"))
+					else if (StringUtils.equalsIgnoreCase (sInterfaceName, "org.mpris.MediaPlayer2.Player"))
+					{
+System.err.println (new java.sql.Timestamp(System.currentTimeMillis ()) + " \u001b[36;1morg.mpris.MediaPlayer2.Player\u001b[m PropertiesChanged: " + mapPropertiesChanged);
 						for (Map.Entry<String, Variant<?>> entry : mapPropertiesChanged.entrySet ())
 						{
 System.out.println ("	" + entry.getKey () + ", type=" + entry.getValue ().getType ());
 						}
 
+						try
+						{
+							Properties properties__org_mpris_MediaPlayer2 = dbusSessionBusConnection.getPeerRemoteObject (sSource, "/org/mpris/MediaPlayer2", Properties.class);
+							String sMediaPlayer2Identity = properties__org_mpris_MediaPlayer2.Get ("org.mpris.MediaPlayer2", "Identity");
+System.out.println ("MPRIS 播放器 Identity=" + sMediaPlayer2Identity);
+							mapMPRISPlayerInfo_Cached.put ("PlayerName", sMediaPlayer2Identity);
+						}
+						catch (DBusException e)
+						{
+							e.printStackTrace();
+						}
+
 						Variant<?> varMPRISPlayer_Metadata = mapPropertiesChanged.get ("Metadata");
-						Variant<?> varPlayerStatus = mapPropertiesChanged.get ("PlaybackStatus");
+						Variant<?> varPlaybackStatus = mapPropertiesChanged.get ("PlaybackStatus");
+						if (varMPRISPlayer_Metadata==null && varPlaybackStatus==null)	// 只关注这两个 PropertiesChanged 就可以，其他的要过滤掉
+							return;
 
 						if (varMPRISPlayer_Metadata != null)
 						{
@@ -206,20 +247,45 @@ System.out.println ("	" + entry.getKey () + ", type=" + entry.getValue ().getTyp
 							{
 								DBusPath dbuspath = (DBusPath)varTrackID.getValue ();
 								String sTrackID = dbuspath.getPath ();
-								mapMPRISPlayerInfo_Cached.put ("PlayerName", sTrackID);	// TODO 暂时用 TrackID 代替 PlayerName
+								//mapMPRISPlayerInfo_Cached.put ("PlayerName", sTrackID);	// TODO 暂时用 TrackID 代替 PlayerName
+							}
+							mapMPRISPlayerInfo_Cached.put ("Metadata", varMPRISPlayer_Metadata);
+							mapMPRISPlayerInfo_Cached.put ("LastReceivedTimeStamp_Metadata", System.currentTimeMillis ());
+						}
+						if (varPlaybackStatus != null)
+						{
+							String sPlaybackStatus = (String)varPlaybackStatus.getValue ();
+							mapMPRISPlayerInfo_Cached.put ("PlayerStatus", sPlaybackStatus);
+							mapMPRISPlayerInfo_Cached.put ("LastReceivedTimeStamp_PlaybackStatus", System.currentTimeMillis ());
+						}
+
+						// 因为有的播放器(bilibili.com)先发送 PlaybackStatus、再发送 Metadata，
+						// 而有的播放器(music.163.com)则反过来，甚至有的播放器会多次更改几次这两个属性，
+						// 因此，需要判断短时间内（但 music.163.com 有的歌曲前面有静音时，其播放状态不会变成 Playing，例如：https://music.163.com/song?id=1859382892 《Claire》，会延迟 3 秒多）缓存的这两个信息，如果时间间隔很短、且状态=Playing，才发送通知
+						Long nLastReceivedTimeStamp_Metadata = (Long)mapMPRISPlayerInfo_Cached.get ("LastReceivedTimeStamp_Metadata");
+						Long nLastReceivedTimeStamp_PlaybackStatus = (Long)mapMPRISPlayerInfo_Cached.get ("LastReceivedTimeStamp_PlaybackStatus");
+						if (nLastReceivedTimeStamp_Metadata!=null && nLastReceivedTimeStamp_PlaybackStatus!=null)
+						{
+System.out.println ("nLastReceivedTimeStamp_Metadata = " + nLastReceivedTimeStamp_Metadata);
+System.out.println ("nLastReceivedTimeStamp_PlaybackStatus = " + nLastReceivedTimeStamp_PlaybackStatus);
+							long nDelta = nLastReceivedTimeStamp_Metadata - nLastReceivedTimeStamp_PlaybackStatus;
+							long nAbsoluteDelta = Math.abs (nDelta);
+System.out.println ("nDelta(metadata - playbackstatus) = " + nDelta);
+System.out.println ("nAbsoluteDelta = " + nAbsoluteDelta);
+							if (
+								nAbsoluteDelta <= 1500
+								//&& ((DBusMap<String, Variant<?>>)((Variant<?>)mapMPRISPlayerInfo_Cached.get ("Metadata")).getValue()).get ("mpris:artUrl")==null
+							)
+							{
+								if (StringUtils.equalsIgnoreCase ((String)mapMPRISPlayerInfo_Cached.get ("PlayerStatus"), "Playing"))
+									ProcessTrackChanged (ANSIEscapeTool.COLOR_DARK_CYAN, "MPRIS", mapMPRISPlayerInfo_Cached, (Variant<?>)mapMPRISPlayerInfo_Cached.get ("Metadata"), "xesam:artist", "xesam:album", "xesam:title", "mpris:length", 1000000);
 							}
 						}
-						if (varPlayerStatus != null)
-						{
-							String sPlayerStatus = (String)varPlayerStatus.getValue ();
-							mapMPRISPlayerInfo_Cached.put ("PlayerStatus", sPlayerStatus);
-						}
-						ProcessTrackChanged (ANSIEscapeTool.COLOR_DARK_CYAN, "MPRIS", mapMPRISPlayerInfo_Cached, varMPRISPlayer_Metadata, "xesam:artist", "xesam:album", "xesam:title", "mpris:length", 1000000);
 					}
 					//else if (sObjectPath.contains("/org/bluez"))
 					else if (StringUtils.startsWithIgnoreCase (sInterfaceName, "org.bluez.MediaPlayer"))
 					{
-System.err.println ("\u001b[34;1morg.bluez\u001b[m PropertiesChanged: " + mapPropertiesChanged);
+System.err.println (new java.sql.Timestamp(System.currentTimeMillis ()) + " \u001b[34;1morg.bluez\u001b[m PropertiesChanged: " + mapPropertiesChanged);
 						for (Map.Entry<String, Variant<?>> entry : mapPropertiesChanged.entrySet ())
 						{
 System.out.println ("	" + entry.getKey () + ", type=" + entry.getValue ().getType ());
@@ -232,10 +298,14 @@ System.out.println ("	" + entry.getKey () + ", type=" + entry.getValue ().getTyp
 							//Variant<?> varRepeat = mapPropertiesChanged.get ("Repeat");
 						//Variant<?> varShuffle = mapPropertiesChanged.get ("Shuffle");
 
-						Variant<?> varPlayerType = mapPropertiesChanged.get ("Type");
+						//Variant<?> varPlayerType = mapPropertiesChanged.get ("Type");
 						//Variant<?> varPlayerSubtype = mapPropertiesChanged.get ("Subtype");
 						Variant<?> varPlayerStatus = mapPropertiesChanged.get ("Status");
 						Variant<?> varPlayerName = mapPropertiesChanged.get ("Name");
+
+						// 只关注这几个 PropertiesChanged 就可以，其他的要过滤掉
+						if (varPlayer==null && varTrack==null && varPlayerStatus==null && varPlayerName==null)
+							return;
 
 						if (varPlayer != null)
 						{
@@ -249,11 +319,11 @@ System.out.println ("	" + entry.getKey () + ", type=" + entry.getValue ().getTyp
 							String sPlayerName = (String)varPlayerName.getValue ();
 							mapBluezPlayerInfo_Cached.put ("PlayerName", sPlayerName);
 						}
-						if (varPlayerType != null)
-						{
-							String sPlayerType = (String)varPlayerType.getValue ();
-							mapBluezPlayerInfo_Cached.put ("PlayerType", sPlayerType);
-						}
+						//if (varPlayerType != null)
+						//{
+						//	String sPlayerType = (String)varPlayerType.getValue ();
+						//	mapBluezPlayerInfo_Cached.put ("PlayerType", sPlayerType);
+						//}
 						if (varPlayerStatus != null)
 						{
 							String sPlayerStatus = (String)varPlayerStatus.getValue ();
@@ -303,7 +373,7 @@ System.out.println ("dbusSessionBusConnection.getRemoteObject (\"org.mpris.Media
 		//*/
 	}
 
-	static void ProcessTrackChanged (String IRCColorForPlayerClass, String sPlayerClass, Map<String, String> mapPlayerInfo_Cached, Variant<?> varTrackOrMetadata, String sKeyName_Artist, String sKeyName_Album, String sKeyName_Title, String sKeyName_Duration, long nDurationToSecond_Unit)
+	static void ProcessTrackChanged (String sIRCColorForPlayerClass, String sPlayerClass, Map<String, Object> mapPlayerInfo_Cached, Variant<?> varTrackOrMetadata, String sKeyName_Artist, String sKeyName_Album, String sKeyName_Title, String sKeyName_Duration, long nDurationToSecond_Unit)
 	{
 		if (varTrackOrMetadata == null)
 			return;
@@ -398,19 +468,34 @@ System.out.println ("时长：" + varDuration + " -> " + sDuration_HumanReadable
 		if (StringUtils.isNotEmpty (sTitle))
 		{
 			StringBuilder sbTrackChangedInfoForIRC = new StringBuilder ();
-			if (StringUtils.isNotEmpty (mapPlayerInfo_Cached.get ("PlayerStatus")))
+			sbTrackChangedInfoForIRC.append ("[");
+			sbTrackChangedInfoForIRC.append (sIRCColorForPlayerClass);
+			sbTrackChangedInfoForIRC.append (sPlayerClass);
+			sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+			sbTrackChangedInfoForIRC.append ("]");
+			if (StringUtils.isNotEmpty ((String)mapPlayerInfo_Cached.get ("PlayerStatus")))
 			{
 				//sbTrackChangedInfoForIRC.append ("播放状态:");
 				//sbTrackChangedInfoForIRC.append (Colors.MAGENTA);
 				//sbTrackChangedInfoForIRC.append (mapPlayerInfo_Cached.get ("PlayerStatus"));
-				if (StringUtils.equalsAnyIgnoreCase (mapPlayerInfo_Cached.get ("PlayerStatus"), "Playing"))
-					sbTrackChangedInfoForIRC.append ("▶️");
-				else if (StringUtils.equalsAnyIgnoreCase (mapPlayerInfo_Cached.get ("PlayerStatus"), "Paused"))
-					sbTrackChangedInfoForIRC.append ("⏸️");
+				if (StringUtils.equalsAnyIgnoreCase ((String)mapPlayerInfo_Cached.get ("PlayerStatus"), "Playing"))
+					sbTrackChangedInfoForIRC.append ("▶️");	// ▶️ ▶ U+25B6 U+FE0F Play Button
+				else if (StringUtils.equalsAnyIgnoreCase ((String)mapPlayerInfo_Cached.get ("PlayerStatus"), "Paused"))
+					sbTrackChangedInfoForIRC.append ("⏸️");	// ⏸️ ⏸ U+23F8 U+FE0F Pause Button
+				else if (StringUtils.equalsAnyIgnoreCase ((String)mapPlayerInfo_Cached.get ("PlayerStatus"), "Stopped"))
+					sbTrackChangedInfoForIRC.append ("⏹️");	// ⏹️ ⏹ U+23F9 U+FE0F Stop Button
 				else
 					sbTrackChangedInfoForIRC.append (mapPlayerInfo_Cached.get ("PlayerStatus"));
 				//sbTrackChangedInfoForIRC.append (Colors.NORMAL);
 				sbTrackChangedInfoForIRC.append ("  ");
+			}
+			if (StringUtils.isNotEmpty (sDuration_HumanReadable))
+			{
+				//sbTrackChangedInfoForIRC.append ("⏱️");	// ⏱️ ⏱ U+23F1 U+FE0F Stopwatch
+				sbTrackChangedInfoForIRC.append (Colors.CYAN);
+				sbTrackChangedInfoForIRC.append (sDuration_HumanReadable);
+				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
+				sbTrackChangedInfoForIRC.append (" ");
 			}
 			//if (StringUtils.isNotEmpty (sTitle))
 			{
@@ -436,15 +521,7 @@ System.out.println ("时长：" + varDuration + " -> " + sDuration_HumanReadable
 				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
 				sbTrackChangedInfoForIRC.append ("  ");
 			}
-			if (StringUtils.isNotEmpty (sDuration_HumanReadable))
-			{
-				sbTrackChangedInfoForIRC.append ("⏱️");	// ⏱️ ⏱ U+23F1 U+FE0F Stopwatch
-				sbTrackChangedInfoForIRC.append (Colors.CYAN);
-				sbTrackChangedInfoForIRC.append (sDuration_HumanReadable);
-				sbTrackChangedInfoForIRC.append (Colors.NORMAL);
-				sbTrackChangedInfoForIRC.append ("  ");
-			}
-			if (StringUtils.isNotEmpty (mapPlayerInfo_Cached.get ("PlayerName")))
+			if (StringUtils.isNotEmpty ((String)mapPlayerInfo_Cached.get ("PlayerName")))
 			{
 				sbTrackChangedInfoForIRC.append ("📽️");	// 📽️📽 U+1F4FD ️ U+FE0F  Film Projector
 				sbTrackChangedInfoForIRC.append (Colors.YELLOW);
@@ -454,7 +531,7 @@ System.out.println ("时长：" + varDuration + " -> " + sDuration_HumanReadable
 			}
 
 			// 发送通知到 IRC 目标（频道 或 昵称）
-			SendNotificationMessageToIRCTargets (IRCColorForPlayerClass, sPlayerClass, sbTrackChangedInfoForIRC.toString ());
+			SendNotificationMessageToIRCTargets (sbTrackChangedInfoForIRC.toString ());
 		}
 	}
 
@@ -468,7 +545,7 @@ System.out.println ("时长：" + varDuration + " -> " + sDuration_HumanReadable
 		int nLengthWithPadding = (nLength%nSingleBlockLength==0 ? nLength : (nLength/nSingleBlockLength+1)*nSingleBlockLength);
 		return String.format ("%-" + nLengthWithPadding + "s", s);
 	}
-	static void SendNotificationMessageToIRCTargets (String sIRCColorForPlayerClass, String sPlayerClassName, String sMessage)
+	static void SendNotificationMessageToIRCTargets (String sMessage)
 	{
 		for (LiuYanBot bot : mapChannelsOrNicknamesOfIRCToNotify.keySet ())
 		{
@@ -479,7 +556,7 @@ System.out.println ("时长：" + varDuration + " -> " + sDuration_HumanReadable
 			for (Map<String, Object> mapTargetConfig : listNotificationTargets)
 			{
 				String sCachedTarget = (String)mapTargetConfig.get ("target");
-				bot.sendAction (sCachedTarget, sMessage + " [" + sIRCColorForPlayerClass + sPlayerClassName + Colors.NORMAL + "播放器轨道变更时通知，受 " + (String)mapTargetConfig.get ("initiator") + " 发起的接收通知请求]");
+				bot.sendAction (sCachedTarget, sMessage + " [" + (String)mapTargetConfig.get ("initiator") + " 请求接收“播放器轨道变更”通知]");
 			}
 
 		}
